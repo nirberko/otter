@@ -1,0 +1,12 @@
+# 1.0.0 (2026-07-16)
+
+
+### Features
+
+* add --version/-v flag printing scanner version and checks fingerprint ([f932f9d](https://github.com/nirberko/mcpscan/commit/f932f9dc51622f55a2b258ace5a324573eecacad))
+* batch scanner, static catalog site, and scan-publish workflow ([bc2cdf9](https://github.com/nirberko/mcpscan/commit/bc2cdf9b52da259b4cef74bbd5cd63c8302c2ab1))
+* CI workflow + registry discovery ([412cc9c](https://github.com/nirberko/mcpscan/commit/412cc9ccbffb66dae98a007d62af0d32e88c0bc0))
+* incremental + sharded full-rescan pipeline for full-registry coverage ([07c9851](https://github.com/nirberko/mcpscan/commit/07c98513b9ca2c2d87e7191151a416c4d2fd7246))
+* mcpscan — MCP server security scanner (POC) ([9e90e5d](https://github.com/nirberko/mcpscan/commit/9e90e5dea6a522d9b4998fdbe229e69f494f1c26))
+* release-driven versioning via semantic-release + auto checks-hash ([c5fe4e7](https://github.com/nirberko/mcpscan/commit/c5fe4e77af862180185d091b72d52382151955b7))
+* scanner versioning + staleness labeling on the catalog ([0f81c9c](https://github.com/nirberko/mcpscan/commit/0f81c9c9e7a5c6f4ede7882771de9a10254b66aa))
