@@ -1,6 +1,7 @@
 import type { ServerEntry } from "./discover.js";
 import { type FrameworkCounts, frameworkCounts } from "./frameworks.js";
 import type { ScanReport, Severity } from "./model.js";
+import { classifyOfficiality, type Officiality } from "./officiality.js";
 import { scoreBand } from "./scoring.js";
 import { slug } from "./util/slug.js";
 
@@ -14,6 +15,9 @@ export interface CatalogRow {
 	sources: ServerEntry["sources"];
 	score: number | null;
 	band: string;
+	// Whether the vendor of the service published it. Derived from `id`'s verified
+	// namespace at summarize time, so curation changes need no re-scan.
+	officiality: Officiality;
 	counts: Partial<Record<Severity, number>>;
 	// Per-framework compliance, keyed by framework id. Derived from findings at
 	// summarize time, so framework/mapping changes need no re-scan.
@@ -43,6 +47,7 @@ export function rowFromReport(
 		sources: entry.sources,
 		score: scanned ? report.score : null,
 		band: scanned ? scoreBand(report.score) : "unknown",
+		officiality: classifyOfficiality(entry.id),
 		counts,
 		frameworks: scanned ? frameworkCounts(report.findings) : {},
 		layers: report.layers,

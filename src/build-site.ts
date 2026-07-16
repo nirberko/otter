@@ -71,12 +71,20 @@ tbody tr:hover{background:#161b22}
   background:#161b22;border:1px solid #30363d;color:#8b949e;white-space:nowrap}
 .fw.bad{border-color:#5c2326;color:#f85149}
 .fw.good{border-color:#238636;color:#3fb950}
+.off.official{border-color:#238636;color:#3fb950}
+.off.unofficial{border-color:#30363d;color:#8b949e}
+.off.unknown{border-color:#30363d;color:#6e7681}
 .chip{display:inline-block;border-radius:10px;padding:0 6px;font-size:11px;margin-left:4px;
   background:#0d1117;border:1px solid #30363d;color:#8b949e}
 .ctrl{display:flex;gap:8px;padding:6px 0;border-bottom:1px solid #21262d;font-size:14px}
 .ctrl .st{min-width:80px;font-weight:600}
 .ctrl .st.pass{color:#3fb950}.ctrl .st.fail{color:#f85149}.ctrl .st.na{color:#8b949e}
 footer{color:#8b949e;margin-top:40px;font-size:13px}
+.pager{display:flex;gap:12px;align-items:center;margin-top:16px}
+.pager button{background:#161b22;border:1px solid #30363d;color:#e6edf3;border-radius:6px;
+  padding:6px 12px;font-size:14px;cursor:pointer}
+.pager button:disabled{opacity:.4;cursor:default}
+.pager #pageinfo{color:#8b949e;font-size:13px}
 `;
 
 function layout(title: string, body: string): string {
@@ -105,6 +113,42 @@ function frameworkPills(row: CatalogRow): string {
 	}).join("");
 }
 
+// Publisher label: green "official" (vendor-published), gray "unofficial"
+// (community), faint "unknown". Reuses the .fw pill box via a shared class.
+function officialityPill(row: CatalogRow): string {
+	return `<span class="fw off ${row.officiality}">${row.officiality}</span>`;
+}
+
+const PAGE_SIZE = 100;
+
+// Compact per-row payload for the client. Text fields are pre-escaped; `fp` is
+// already HTML. `q` is a lowercased plaintext key for filtering. Short keys keep
+// catalog.json small across ~13k rows.
+function rowData(r: CatalogRow) {
+	const findings = Object.entries(r.counts)
+		.map(([s, n]) => `${n} ${s}`)
+		.join(", ");
+	return {
+		sc: r.score,
+		co: BAND_COLOR[r.band],
+		id: esc(r.id),
+		sl: r.slug,
+		of: r.officiality,
+		d: esc(r.description),
+		fi: esc(findings || "—"),
+		ff: Object.values(r.frameworks ?? {}).reduce((n, c) => n + c.failed, 0),
+		fp: frameworkPills(r) || "—",
+		so: esc(Object.keys(r.sources).join(", ")),
+		sv: esc(r.scannerVersion),
+		od: isOutdated(r, CURRENT_CHECKS),
+		q: `${r.id} ${r.description ?? ""}`.toLowerCase(),
+	};
+}
+
+function catalogJson(rows: CatalogRow[]): string {
+	return JSON.stringify(rows.map(rowData));
+}
+
 function indexPage(rows: CatalogRow[]): string {
 	const scored = rows.filter((r) => r.score !== null).length;
 	const stats = {
@@ -113,26 +157,6 @@ function indexPage(rows: CatalogRow[]): string {
 		warn: rows.filter((r) => r.band === "warn").length,
 		outdated: rows.filter((r) => isOutdated(r, CURRENT_CHECKS)).length,
 	};
-	const trs = rows
-		.map((r) => {
-			const findings = Object.entries(r.counts)
-				.map(([s, n]) => `${n} ${s}`)
-				.join(", ");
-			const stale = isOutdated(r, CURRENT_CHECKS);
-			const staleCell = stale
-				? `<span class="outdated">v${esc(r.scannerVersion)} · outdated</span>`
-				: `<span class="sub">v${esc(r.scannerVersion)}</span>`;
-			return `<tr>
-<td data-sort="${r.score ?? 101}">${scoreSpan(r)}</td>
-<td><a href="server/${r.slug}.html">${esc(r.id)}</a></td>
-<td class="desc" title="${esc(r.description)}">${esc(r.description)}</td>
-<td>${esc(findings || "—")}</td>
-<td data-sort="${Object.values(r.frameworks ?? {}).reduce((n, c) => n + c.failed, 0)}">${frameworkPills(r) || "—"}</td>
-<td>${esc(Object.keys(r.sources).join(", "))}</td>
-<td data-sort="${stale ? 0 : 1}">${staleCell}</td>
-</tr>`;
-		})
-		.join("\n");
 
 	const banner = stats.outdated
 		? `<div class="banner">⚠ ${stats.outdated} of ${scored} scored results predate the current detection (mcpscan v${SCANNER_VERSION}) and are queued for re-scan.</div>`
@@ -144,22 +168,48 @@ Continuously scanned from the <a href="https://registry.modelcontextprotocol.io"
 ${banner}
 <input id="q" placeholder="Filter by name or description…">
 <table id="t"><thead><tr>
-<th data-col="0" data-num="1">Score</th><th data-col="1">Server</th>
-<th data-col="2">Description</th><th data-col="3">Findings</th>
-<th data-col="4" data-num="1">Frameworks</th><th data-col="5">Source</th>
-<th data-col="6" data-num="1">Scanned</th>
-</tr></thead><tbody>${trs}</tbody></table>
+<th data-col="sc" data-num="1">Score</th><th data-col="id">Server</th>
+<th data-col="of">Publisher</th><th data-col="d">Description</th><th data-col="fi">Findings</th>
+<th data-col="ff" data-num="1">Frameworks</th><th data-col="so">Source</th>
+<th data-col="od" data-num="1">Scanned</th>
+</tr></thead><tbody></tbody></table>
+<div class="pager"><button id="prev">← prev</button><span id="pageinfo"></span><button id="next">next →</button></div>
+<p class="sub" id="empty" style="display:none">No matching servers.</p>
 <script>
-const t=document.getElementById('t'),q=document.getElementById('q');
-q.oninput=()=>{const v=q.value.toLowerCase();
-for(const tr of t.tBodies[0].rows){tr.style.display=tr.cells[1].textContent.toLowerCase().includes(v)||tr.cells[2].textContent.toLowerCase().includes(v)?'':'none'}};
-let dir=1;
-t.tHead.addEventListener('click',e=>{const th=e.target.closest('th');if(!th)return;
-const c=+th.dataset.col,num=th.dataset.num;dir=-dir;
-const rows=[...t.tBodies[0].rows];
-rows.sort((a,b)=>{const x=num?+a.cells[c].dataset.sort:a.cells[c].textContent,
-y=num?+b.cells[c].dataset.sort:b.cells[c].textContent;return (x>y?1:x<y?-1:0)*dir});
-for(const r of rows)t.tBodies[0].appendChild(r)});
+const SIZE=${PAGE_SIZE};
+let DATA=[],view=[],page=0,sortCol='sc',dir=1;
+const tb=document.querySelector('#t tbody'),q=document.getElementById('q'),
+  info=document.getElementById('pageinfo'),empty=document.getElementById('empty');
+function row(r){const s=r.sc==null?'n/a':r.sc;
+  const scan=r.od?'<span class="outdated">v'+r.sv+' · outdated</span>':'<span class="sub">v'+r.sv+'</span>';
+  return '<tr><td><span class="score" style="background:'+r.co+'">'+s+'</span></td>'
+    +'<td><a href="server/'+r.sl+'.html">'+r.id+'</a></td>'
+    +'<td><span class="fw off '+r.of+'">'+r.of+'</span></td>'
+    +'<td class="desc" title="'+r.d+'">'+r.d+'</td>'
+    +'<td>'+r.fi+'</td><td>'+r.fp+'</td><td>'+r.so+'</td><td>'+scan+'</td></tr>';}
+function apply(){const v=q.value.toLowerCase();
+  view=v?DATA.filter(r=>r.q.includes(v)):DATA.slice();
+  const num=sortCol==='sc'||sortCol==='ff'||sortCol==='od';
+  view.sort((a,b)=>{let x=a[sortCol],y=b[sortCol];
+    if(sortCol==='sc'){x=x==null?101:x;y=y==null?101:y}
+    if(sortCol==='od'){x=x?0:1;y=y?0:1}
+    if(!num){x=String(x);y=String(y)}
+    return (x>y?1:x<y?-1:0)*dir;});
+  page=0;render();}
+function render(){const pages=Math.max(1,Math.ceil(view.length/SIZE));
+  page=Math.min(page,pages-1);
+  const slice=view.slice(page*SIZE,page*SIZE+SIZE);
+  tb.innerHTML=slice.map(row).join('');
+  empty.style.display=view.length?'none':'';
+  info.textContent=view.length?('page '+(page+1)+' / '+pages+' · '+view.length+' servers'):'';
+  document.getElementById('prev').disabled=page<=0;
+  document.getElementById('next').disabled=page>=pages-1;}
+q.oninput=apply;
+document.getElementById('prev').onclick=()=>{page--;render()};
+document.getElementById('next').onclick=()=>{page++;render()};
+document.querySelector('#t thead').addEventListener('click',e=>{const th=e.target.closest('th');if(!th)return;
+  const c=th.dataset.col;dir=c===sortCol?-dir:1;sortCol=c;apply();});
+fetch('catalog.json').then(r=>r.json()).then(d=>{DATA=d;apply();});
 </script>`;
 	return layout("MCP Security Catalog", body);
 }
@@ -229,7 +279,7 @@ function detailPage(row: CatalogRow, report: ScanReport): string {
 		? `<div class="callout">⚠ Scored with mcpscan v${esc(row.scannerVersion)}; detection has changed since (checks ${esc(row.checksVersion)} → ${CURRENT_CHECKS}). This result may miss newer detections and is queued for re-scan.</div>`
 		: "";
 	const body = `<p><a class="back" href="../index.html">← catalog</a></p>
-<h1>${scoreSpan(row)} &nbsp;${esc(row.id)}</h1>
+<h1>${scoreSpan(row)} &nbsp;${esc(row.id)} &nbsp;${officialityPill(row)}</h1>
 <p class="sub">${esc(row.description)}</p>
 <p class="sub">target <code>${esc(row.scanTarget)}</code> · scanned ${layers || "nothing"} · ${esc(row.scannedAt)}<br>
 mcpscan v${esc(row.scannerVersion)} · checks ${esc(row.checksVersion)}</p>
@@ -256,6 +306,7 @@ function registryJson(rows: CatalogRow[]): string {
 		sources: r.sources,
 		score: r.score,
 		band: r.band,
+		officiality: r.officiality,
 		findingCounts: r.counts,
 		frameworks: r.frameworks ?? {},
 		scannedAt: r.scannedAt,
@@ -302,6 +353,7 @@ async function main(): Promise<void> {
 	await mkdir(join(OUT, "badge"), { recursive: true });
 
 	await writeFile(join(OUT, "index.html"), indexPage(rows));
+	await writeFile(join(OUT, "catalog.json"), catalogJson(rows));
 	await writeFile(join(OUT, "registry.json"), registryJson(rows));
 
 	for (const row of rows) {
