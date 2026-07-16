@@ -3,67 +3,41 @@ import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { parseArgs } from 'node:util'
 import { scan } from './scan.js'
-import { scoreBand } from './scoring.js'
 import { slug } from './util/slug.js'
+import { sha256 } from './util/hash.js'
+import { isScannable } from './catalog.js'
 import type { ServerEntry } from './discover.js'
-import type { ScanReport, Severity } from './model.js'
+import type { ScanReport } from './model.js'
 
 const SERVERS = 'data/servers.json'
+const CHANGED = 'data/changed.json'
 const RESULTS_DIR = 'data/results'
-const SUMMARY = 'data/summary.json'
 
-export interface CatalogRow {
-  id: string
-  slug: string
-  title?: string
-  description?: string
-  version?: string
-  scanTarget?: string
-  sources: ServerEntry['sources']
-  score: number | null
-  band: string
-  counts: Partial<Record<Severity, number>>
-  layers: ScanReport['layers']
-  scannedAt: string
-  errors: number
-}
-
-// Only these target kinds are safe/supported without a sandbox: npm/pypi read
-// source; url connects as a client (no local code execution).
-function isScannable(target?: string): boolean {
-  return !!target && /^(npm|url):/.test(target)
-}
-
-async function pool<T>(items: T[], size: number, fn: (item: T, i: number) => Promise<void>) {
+async function pool<T>(items: T[], size: number, fn: (item: T) => Promise<void>) {
   let cursor = 0
   const workers = Array.from({ length: Math.min(size, items.length) }, async () => {
-    while (cursor < items.length) {
-      const i = cursor++
-      await fn(items[i], i)
-    }
+    while (cursor < items.length) await fn(items[cursor++])
   })
   await Promise.all(workers)
 }
 
-function summarize(report: ScanReport, entry: ServerEntry): CatalogRow {
-  const counts: Partial<Record<Severity, number>> = {}
-  for (const f of report.findings) counts[f.severity] = (counts[f.severity] ?? 0) + 1
-  const scanned = report.layers.metadata || report.layers.static
-  return {
-    id: entry.id,
-    slug: slug(entry.id),
-    title: entry.title,
-    description: entry.description,
-    version: entry.version,
-    scanTarget: entry.scanTarget,
-    sources: entry.sources,
-    score: scanned ? report.score : null,
-    band: scanned ? scoreBand(report.score) : 'unknown',
-    counts,
-    layers: report.layers,
-    scannedAt: report.scannedAt,
-    errors: report.errors.length,
+async function loadJson<T>(path: string, fallback: T): Promise<T> {
+  const text = await readFile(path, 'utf8').catch(() => '')
+  return text ? (JSON.parse(text) as T) : fallback
+}
+
+// Deterministic partition so N shard jobs cover the set disjointly.
+function inShard(id: string, shard: number, total: number): boolean {
+  return Number.parseInt(sha256(id).slice(0, 8), 16) % total === shard
+}
+
+function parseShard(spec?: string): { i: number; n: number } | null {
+  if (!spec) return null
+  const [i, n] = spec.split('/').map(Number)
+  if (!Number.isInteger(i) || !Number.isInteger(n) || n < 1 || i < 0 || i >= n) {
+    throw new Error(`invalid --shard "${spec}"; expected i/N with 0 <= i < N`)
   }
+  return { i, n }
 }
 
 async function main(): Promise<void> {
@@ -72,20 +46,39 @@ async function main(): Promise<void> {
       max: { type: 'string' },
       concurrency: { type: 'string' },
       timeout: { type: 'string' },
+      'changed-only': { type: 'boolean', default: false },
+      only: { type: 'string' }, // 'npm' | 'url' | ...
+      shard: { type: 'string' }, // 'i/N'
     },
   })
   const max = values.max ? Number(values.max) : Number.POSITIVE_INFINITY
   const concurrency = values.concurrency ? Number(values.concurrency) : 6
   const timeoutMs = values.timeout ? Number(values.timeout) : 45000
+  const shard = parseShard(values.shard)
 
-  const servers = JSON.parse(await readFile(SERVERS, 'utf8')) as ServerEntry[]
-  const targets = servers.filter((e) => isScannable(e.scanTarget)).slice(0, max)
+  const servers = await loadJson<ServerEntry[]>(SERVERS, [])
+  let targets = servers.filter((e) => isScannable(e.scanTarget))
+
+  if (values['changed-only']) {
+    const changed = new Set(await loadJson<string[]>(CHANGED, []))
+    // Changed servers plus every url server (live descriptions can drift with no version bump).
+    targets = targets.filter((e) => changed.has(e.id) || e.scanTarget?.startsWith('url:'))
+  }
+  if (values.only) targets = targets.filter((e) => e.scanTarget?.startsWith(`${values.only}:`))
+  if (shard) targets = targets.filter((e) => inShard(e.id, shard.i, shard.n))
+  targets = targets.slice(0, max)
+
   await mkdir(RESULTS_DIR, { recursive: true })
+  const label = [
+    values['changed-only'] && 'changed-only',
+    values.only && `only=${values.only}`,
+    shard && `shard=${shard.i}/${shard.n}`,
+  ]
+    .filter(Boolean)
+    .join(' ')
+  process.stderr.write(`Scanning ${targets.length} servers ${label} (concurrency ${concurrency})...\n`)
 
-  process.stderr.write(`Scanning ${targets.length} servers (concurrency ${concurrency})...\n`)
-  const rows: CatalogRow[] = []
   let done = 0
-
   await pool(targets, concurrency, async (entry) => {
     let report: ScanReport
     try {
@@ -94,16 +87,11 @@ async function main(): Promise<void> {
       report = errorReport(entry, (e as Error).message)
     }
     await writeFile(join(RESULTS_DIR, `${slug(entry.id)}.json`), JSON.stringify(report, null, 2))
-    rows.push(summarize(report, entry))
     done++
     process.stderr.write(`  ${done}/${targets.length}\r`)
   })
 
-  // Worst (lowest) scores first; unscanned entries sink to the bottom.
-  const rank = (s: number | null) => (s === null ? 101 : s)
-  rows.sort((a, b) => rank(a.score) - rank(b.score) || a.id.localeCompare(b.id))
-  await writeFile(SUMMARY, `${JSON.stringify(rows, null, 2)}\n`)
-  process.stderr.write(`\nWrote ${rows.length} results → ${RESULTS_DIR}/ and ${SUMMARY}\n`)
+  process.stderr.write(`\nWrote ${targets.length} results → ${RESULTS_DIR}/\n`)
 }
 
 function errorReport(entry: ServerEntry, message: string): ScanReport {

@@ -1,0 +1,108 @@
+name: scan-full
+
+# Weekly (and one-time baseline): full registry walk, then re-scan the ENTIRE
+# stored catalog across parallel shards so improved detection rules reach every
+# server. No registry re-walk during scanning — shards read the stored list.
+
+on:
+  schedule:
+    - cron: '23 5 * * 0' # Sundays
+  workflow_dispatch:
+
+concurrency:
+  group: catalog-publish
+  cancel-in-progress: false
+
+env:
+  SHARDS: '8'
+
+jobs:
+  discover:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - run: node dist/discover.js --full
+      - uses: actions/upload-artifact@v4
+        with:
+          name: servers
+          path: data/servers.json
+
+  scan:
+    needs: discover
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      max-parallel: 6 # polite to npm/registry
+      matrix:
+        shard: [0, 1, 2, 3, 4, 5, 6, 7]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - uses: actions/download-artifact@v4
+        with:
+          name: servers
+          path: data
+      - run: node dist/scan-batch.js --shard ${{ matrix.shard }}/${{ env.SHARDS }} --concurrency 6
+      - uses: actions/upload-artifact@v4
+        with:
+          name: results-${{ matrix.shard }}
+          path: data/results
+
+  merge:
+    needs: scan
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - uses: actions/download-artifact@v4
+        with:
+          name: servers
+          path: data
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: results-*
+          merge-multiple: true
+          path: data/results
+      - run: node dist/summarize.js
+      - run: node dist/build-site.js
+      - name: Commit full catalog
+        run: |
+          git config user.name "mcpscan-bot"
+          git config user.email "bot@users.noreply.github.com"
+          git add data/
+          git diff --quiet --cached || git commit -m "chore: full catalog rescan [skip ci]"
+          git push
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+  deploy:
+    needs: merge
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - id: deploy
+        uses: actions/deploy-pages@v4

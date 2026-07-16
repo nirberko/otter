@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
-import type { CatalogRow } from './scan-batch.js'
+import type { CatalogRow } from './catalog.js'
 import type { Finding, ScanReport } from './model.js'
 
 const SUMMARY = 'data/summary.json'

@@ -5,6 +5,8 @@ import { parseArgs } from 'node:util'
 
 const REGISTRY = 'https://registry.modelcontextprotocol.io/v0/servers'
 const OUT = 'data/servers.json'
+const STATE = 'data/state.json'
+const CHANGED = 'data/changed.json'
 
 export interface ServerEntry {
   id: string
@@ -17,6 +19,11 @@ export interface ServerEntry {
   registryStatus?: string
   addedAt: string
   updatedAt?: string
+}
+
+interface State {
+  lastDiscoveredAt?: string
+  lastFullAt?: string
 }
 
 interface RegistryServer {
@@ -66,12 +73,16 @@ function toEntry(raw: RegistryServer, now: string): ServerEntry {
   }
 }
 
-async function fetchAll(max: number): Promise<RegistryServer[]> {
+// Sequential cursor crawl. `since` (ISO) narrows to changed servers; `version=latest`
+// collapses per-version duplicate rows server-side.
+async function fetchServers(max: number, since?: string): Promise<RegistryServer[]> {
   const out: RegistryServer[] = []
   let cursor: string | undefined
   do {
     const url = new URL(REGISTRY)
     url.searchParams.set('limit', '100')
+    url.searchParams.set('version', 'latest')
+    if (since) url.searchParams.set('updated_since', since)
     if (cursor) url.searchParams.set('cursor', cursor)
     const res = await fetch(url, { headers: { Accept: 'application/json' } })
     if (!res.ok) throw new Error(`registry ${res.status} ${res.statusText}`)
@@ -87,54 +98,77 @@ async function fetchAll(max: number): Promise<RegistryServer[]> {
   return out.slice(0, max)
 }
 
-async function loadExisting(): Promise<Map<string, ServerEntry>> {
-  const text = await readFile(OUT, 'utf8').catch(() => '')
-  if (!text) return new Map()
-  const arr = JSON.parse(text) as ServerEntry[]
-  return new Map(arr.map((e) => [e.id, e]))
+async function loadJson<T>(path: string, fallback: T): Promise<T> {
+  const text = await readFile(path, 'utf8').catch(() => '')
+  return text ? (JSON.parse(text) as T) : fallback
 }
 
 async function main(): Promise<void> {
   const { values } = parseArgs({
-    options: { max: { type: 'string' }, out: { type: 'string' } },
+    options: {
+      max: { type: 'string' },
+      out: { type: 'string' },
+      since: { type: 'string' },
+      full: { type: 'boolean', default: false },
+    },
   })
-  const max = values.max ? Number(values.max) : 5000
   const outPath = values.out ?? OUT
   const now = new Date().toISOString()
 
-  process.stderr.write(`Discovering MCP servers (max ${max})...\n`)
-  const raw = await fetchAll(max)
+  const state = await loadJson<State>(STATE, {})
+  const existingArr = await loadJson<ServerEntry[]>(outPath, [])
+  const merged = new Map(existingArr.map((e) => [e.id, e]))
 
-  // Latest wins per id (registry returns multiple versions per server).
+  // Incremental needs a timestamp; without one (or with --full) do a full walk.
+  const since = values.since ?? state.lastDiscoveredAt
+  const full = values.full || !since
+  const max = values.max ? Number(values.max) : full ? 100000 : 5000
+
+  process.stderr.write(
+    `Discovering (${full ? 'FULL' : `incremental since ${since ?? 'beginning'}`}, max ${max})...\n`,
+  )
+  const raw = await fetchServers(max, full ? undefined : since)
+
+  // Latest wins per id (belt-and-suspenders; version=latest already dedupes).
   const latest = new Map<string, RegistryServer>()
   for (const r of raw) {
     const isLatest = r._meta?.['io.modelcontextprotocol.registry/official']?.isLatest
     if (!latest.has(r.server.name) || isLatest) latest.set(r.server.name, r)
   }
 
-  const existing = await loadExisting()
-  const entries: ServerEntry[] = []
   let added = 0
   let changed = 0
+  const changedIds: string[] = []
   for (const rawServer of latest.values()) {
     const entry = toEntry(rawServer, now)
-    const prev = existing.get(entry.id)
-    if (!prev) added++
-    else {
+    const prev = merged.get(entry.id)
+    if (!prev) {
+      added++
+      changedIds.push(entry.id)
+    } else {
       entry.addedAt = prev.addedAt
-      if (prev.version !== entry.version) changed++
+      if (prev.version !== entry.version) {
+        changed++
+        changedIds.push(entry.id)
+      }
     }
-    entries.push(entry)
+    merged.set(entry.id, entry)
   }
-  entries.sort((a, b) => a.id.localeCompare(b.id))
 
+  const entries = [...merged.values()].sort((a, b) => a.id.localeCompare(b.id))
   await mkdir(dirname(outPath), { recursive: true })
   await writeFile(outPath, `${JSON.stringify(entries, null, 2)}\n`)
+  await writeFile(CHANGED, `${JSON.stringify(changedIds.sort(), null, 2)}\n`)
+
+  await writeFile(
+    STATE,
+    `${JSON.stringify({ lastDiscoveredAt: now, lastFullAt: full ? now : state.lastFullAt }, null, 2)}\n`,
+  )
 
   const scannable = entries.filter((e) => e.scanTarget).length
   process.stderr.write(
-    `\n${entries.length} servers → ${outPath}\n` +
-      `  new: ${added}  version-changed: ${changed}  scannable: ${scannable}\n`,
+    `\ntotal ${entries.length} servers → ${outPath}\n` +
+      `  fetched this run: ${latest.size}  new: ${added}  version-changed: ${changed}  scannable: ${scannable}\n`,
   )
 }
 
