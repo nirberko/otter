@@ -96,4 +96,93 @@
     "tool-poisoning": 20
   },
   "errors": []
+}authenticated user. Optionally filter by status. Requires authentication."
+    },
+    {
+      "name": "geocode_address",
+      "descriptionHash": "704b2e700f1a19a604f47922b9ff8a18f10f7770603dfcf020e6751aae197270",
+      "description": "Geocode a free-form US address into coordinates and structured components (street_address, city, county, state, postal_code) plus a formatted address and place_id — exactly the identity fields create_listing requires. Use this first, then pass the result straight into create_listing instead of suppl"
+    },
+    {
+      "name": "create_listing",
+      "descriptionHash": "e9c573a8aec4f8714003952af5b442dade669e5e2140955a9679914a7c8c2a44",
+      "description": "Create a new draft listing. Returns the full created listing exactly as stored, including its hashid and status. Pass an idempotency_key (any client-generated string, e.g. a UUID) to make the call safe to retry — re-sending the same key returns the original listing instead of creating a duplicate."
+    },
+    {
+      "name": "update_listing",
+      "descriptionHash": "58a1267594a70d011191453942bd8cfaf473dc8470788ff1c20796008b76da77",
+      "description": "Update a listing's parcel, pricing, or marketing data. Pass at least one group (parcel, pricing, marketing); send each group whole, not just the changed field. Returns the full updated listing exactly as stored.",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "set_listing_attributes",
+      "descriptionHash": "6248b9d7130663876f80f81a0788930fc9c1156577d2e411c6975963ff06fab5",
+      "description": "Set broker-authored attributes on a listing you own. Pass `attributes` as a map of registry field name to value (the field names get_registry returns, e.g. {\"attr_parking_spaces\": 40, \"attr_office_class\": \"Class A\"}). Only fields get_registry marks \"writable\":true can be set; publish-time computed f",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "attach_listing_photo",
+      "descriptionHash": "8ab0c31ef10307769e9fd5fab3b859c94877d4636fc61053ea5b6be5632c3b6f",
+      "description": "Attach a photo to a listing you own directly from its public URL — one call, no separate sign/upload/confirm. The server fetches the image and ingests it with auto-generated thumbnail/hero/full variants. Only https image URLs whose host is publicly routable are accepted. The photo is content-moderat",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "sign_attachment_upload",
+      "descriptionHash": "c3b4510806a6075e71ffffaef857e9f4f995f11672aed8da4aa2946b42215808",
+      "description": "Begin an out-of-band file upload. Returns a presigned R2 PUT URL and the headers to use; the file bytes are uploaded directly to storage, never through this channel. After PUTting the file, call confirm_attachment_upload with the returned attachment_id. Supports listings (photos, documents), users (",
+      "labels": [
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "confirm_attachment_upload",
+      "descriptionHash": "07bce8bf5e8c900bacc1ff0ba40ef57e22246a31bda35e640f65692c7a036160",
+      "description": "Finalize an out-of-band upload after the file bytes have been PUT to the presigned URL. Verifies the stored object matches what was signed (size and content-type) and marks the attachment ready. Returns the attachment snapshot with its public variant URLs. Idempotent: confirming an already-confirmed",
+      "labels": [
+        "private-data",
+        "public-sink"
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOOL-POISON-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description issues instructions to the model",
+      "detail": "Description of \"get_registry\" contains imperative instructions directed at the AI assistant rather than describing the tool. This is the core tool-poisoning technique.",
+      "evidence": {
+        "source": "tool:get_registry",
+        "snippet": "Returns the full attribute registry — every searchable and filterable field, its type, allowed values, and display label. Read this first to understand the sche…"
+      },
+      "confidence": 0.7,
+      "remediation": "Treat the server as untrusted; the model may obey embedded instructions."
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: save_search · Private data: get_listing, sign_attachment_upload, confirm_attachment_upload · Public sink: interpret_search, save_search, update_listing, set_listing_attributes, attach_listing_photo, sign_attachment_upload, confirm_attachment_upload · Destructive: delete_saved_search.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: save_search · Private data: get_listing, sign_attachment_upload, confirm_attachment_upload · Public sink: interpret_search, save_search, update_listing, set_listing_attributes, attach_listing_photo, sign_attachment_upload, confirm_attachment_upload · Destructive: delete_saved_search"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 60,
+  "scoreBreakdown": {
+    "tool-poisoning": 20,
+    "toxic-flow": 20
+  },
+  "errors": []
 }

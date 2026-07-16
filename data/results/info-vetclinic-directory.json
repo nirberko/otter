@@ -1,15 +1,15 @@
 {
   "schemaVersion": 1,
   "scanner": {
-    "version": "1.0.0",
-    "rules": "19f6a1b4a518"
+    "version": "1.2.1",
+    "rules": "a1c0c9e6130b"
   },
   "target": {
     "kind": "url",
     "ref": "https://vetclinic.info/mcp"
   },
-  "scannedAt": "2026-07-16T16:31:25.079Z",
-  "durationMs": 544,
+  "scannedAt": "2026-07-16T17:56:57.155Z",
+  "durationMs": 300,
   "layers": {
     "metadata": true,
     "static": false
@@ -17,35 +17,54 @@
   "tools": [
     {
       "name": "search_clinics",
-      "descriptionHash": "a66e3d4c927aa9b752389709402eba084ec1dc2687f9f521b84df1bef6fd7817"
+      "descriptionHash": "a66e3d4c927aa9b752389709402eba084ec1dc2687f9f521b84df1bef6fd7817",
+      "description": "Find veterinary specialty clinics by city + specialty. Returns a ranked shortlist with credentials, address, rating, review count, and a contact action. Promoted listings rank first.",
+      "labels": [
+        "untrusted-content",
+        "private-data"
+      ]
     },
     {
       "name": "get_clinic",
-      "descriptionHash": "29d64f14fb15128c7b7bb6fd6b1db0135719066ae28954c538ff71723e2edf34"
+      "descriptionHash": "29d64f14fb15128c7b7bb6fd6b1db0135719066ae28954c538ff71723e2edf34",
+      "description": "Fetch a single clinic's full record by slug: credentials, inline reviews, procedures performed, contact action, canonical URL.",
+      "labels": [
+        "untrusted-content",
+        "private-data"
+      ]
     },
     {
       "name": "get_procedure",
-      "descriptionHash": "c2f4cdcf844e3caac2969712d3ff120cc8c79fc58105626407e1b7341fb8c13e"
+      "descriptionHash": "c2f4cdcf844e3caac2969712d3ff120cc8c79fc58105626407e1b7341fb8c13e",
+      "description": "Fetch a procedure article with cost band, contraindications, emergency signals, FAQ, citations. When state is supplied, also returns a ranked clinic finder pre-filtered to that state."
     },
     {
       "name": "list_specialties",
-      "descriptionHash": "2016289c75374b1b48523c07470871c21503873f18d6892fdb7ad82a2e4a576c"
+      "descriptionHash": "2016289c75374b1b48523c07470871c21503873f18d6892fdb7ad82a2e4a576c",
+      "description": "Closed-set enum of recognized veterinary specialty slugs. Returns slug, display_name, and credentialing_board.sameAs (when applicable). Always call this before search_clinics if uncertain about specialty mapping."
     },
     {
       "name": "list_procedures",
-      "descriptionHash": "012682197404071505f41f2b9a74bbb135c76057d570707d39efad9d65fb9f61"
+      "descriptionHash": "012682197404071505f41f2b9a74bbb135c76057d570707d39efad9d65fb9f61",
+      "description": "Published procedure catalog. Returns slug, display_name, also_known_as, specialty_slug for every procedure with a live article."
     },
     {
       "name": "find_specialists_by_procedure",
-      "descriptionHash": "90a911d264ab6fe2568c98e4986857ea43ab5a6732d68bc9ab1fbccb576f3660"
+      "descriptionHash": "90a911d264ab6fe2568c98e4986857ea43ab5a6732d68bc9ab1fbccb576f3660",
+      "description": "Convenience: combines get_procedure + state filter. Returns the ranked specialist finder list for a procedure in a given state."
     },
     {
       "name": "estimate_procedure_cost",
-      "descriptionHash": "011fe4fd79d431a19c63be12273939092bcfc2ed4221bc2c8baf01416d8f5c31"
+      "descriptionHash": "011fe4fd79d431a19c63be12273939092bcfc2ed4221bc2c8baf01416d8f5c31",
+      "description": "Anonymous cost estimate. Returns $low–$high range computed from regional + case factors. Deterministic on identical inputs. PII fields are rejected — use quote_for_case for the PII path."
     },
     {
       "name": "quote_for_case",
-      "descriptionHash": "1a21438d9cc031d466d35f13792ffe9f260dd95205f1ef4fd68937773d421dd0"
+      "descriptionHash": "1a21438d9cc031d466d35f13792ffe9f260dd95205f1ef4fd68937773d421dd0",
+      "description": "Composite tool. Always computes an estimate. When owner_email is also present, additionally submits a confirmation-gated lead and dispatches a confirmation email to the owner (requires X-Agent-Attribution header). When PII is absent, behaves identically to estimate_procedure_cost and returns status=",
+      "labels": [
+        "public-sink"
+      ]
     }
   ],
   "findings": [
@@ -72,11 +91,25 @@
         "snippet": "Fetch a single clinic's full record by slug: credentials, inline reviews, procedures performed, contact action, canonical URL."
       },
       "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: search_clinics, get_clinic · Private data: search_clinics, get_clinic · Public sink: quote_for_case.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: search_clinics, get_clinic · Private data: search_clinics, get_clinic · Public sink: quote_for_case"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
     }
   ],
-  "score": 70,
+  "score": 50,
   "scoreBreakdown": {
-    "tool-poisoning": 30
+    "tool-poisoning": 30,
+    "toxic-flow": 20
   },
   "errors": []
 }
