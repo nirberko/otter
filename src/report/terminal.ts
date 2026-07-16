@@ -1,4 +1,5 @@
 import pc from "picocolors";
+import { evaluateFrameworks } from "../frameworks.js";
 import type { Finding, ScanReport, Severity } from "../model.js";
 import { scoreBand } from "../scoring.js";
 
@@ -76,6 +77,18 @@ export function renderTerminal(report: ScanReport): string {
 			lines.push("");
 		}
 	}
+
+	for (const r of evaluateFrameworks(report.findings)) {
+		const failed = r.controls.filter((c) => c.status === "fail");
+		const summary = failed.length
+			? pc.red(`${failed.length} failed: ${failed.map((c) => c.code).join(", ")}`)
+			: pc.green("all assessed controls pass");
+		lines.push(
+			`  ${pc.bold(`${r.framework.name} ${r.framework.version}`)}  ` +
+				`${r.passed}/${r.passed + r.failed} pass ${pc.gray(`(${r.notAssessed} not assessed)`)} · ${summary}`,
+		);
+	}
+	lines.push("");
 
 	if (report.errors.length > 0) {
 		lines.push(pc.gray(`  ${report.errors.length} scanner error(s):`));

@@ -1,4 +1,5 @@
 import type { ServerEntry } from "./discover.js";
+import { type FrameworkCounts, frameworkCounts } from "./frameworks.js";
 import type { ScanReport, Severity } from "./model.js";
 import { scoreBand } from "./scoring.js";
 import { slug } from "./util/slug.js";
@@ -14,6 +15,9 @@ export interface CatalogRow {
 	score: number | null;
 	band: string;
 	counts: Partial<Record<Severity, number>>;
+	// Per-framework compliance, keyed by framework id. Derived from findings at
+	// summarize time, so framework/mapping changes need no re-scan.
+	frameworks: Record<string, FrameworkCounts>;
 	layers: ScanReport["layers"];
 	scannedAt: string;
 	scannerVersion: string;
@@ -40,6 +44,7 @@ export function rowFromReport(
 		score: scanned ? report.score : null,
 		band: scanned ? scoreBand(report.score) : "unknown",
 		counts,
+		frameworks: scanned ? frameworkCounts(report.findings) : {},
 		layers: report.layers,
 		scannedAt: report.scannedAt,
 		scannerVersion: report.scanner.version,

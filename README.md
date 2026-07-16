@@ -1,3 +1,10 @@
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="logo-dark.svg">
+    <img alt="mcpscan" src="logo-light.svg" width="240">
+  </picture>
+</p>
+
 # mcpscan
 
 Security scanner for MCP (Model Context Protocol) servers. Catches the attack

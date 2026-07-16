@@ -2,6 +2,11 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { type CatalogRow, isOutdated } from "./catalog.js";
+import {
+	controlsForFinding,
+	evaluateFrameworks,
+	FRAMEWORKS,
+} from "./frameworks.js";
 import type { Finding, ScanReport } from "./model.js";
 import { CHECKS_VERSION, SCANNER_VERSION } from "./version.js";
 
@@ -62,6 +67,15 @@ tbody tr:hover{background:#161b22}
   padding:10px 14px;margin:0 0 20px;font-size:14px}
 .callout{background:#3d2c00;color:#d29922;border:1px solid #5c4200;border-radius:8px;
   padding:12px 14px;margin:12px 0}
+.fw{display:inline-block;border-radius:10px;padding:1px 8px;font-size:12px;margin-right:4px;
+  background:#161b22;border:1px solid #30363d;color:#8b949e;white-space:nowrap}
+.fw.bad{border-color:#5c2326;color:#f85149}
+.fw.good{border-color:#238636;color:#3fb950}
+.chip{display:inline-block;border-radius:10px;padding:0 6px;font-size:11px;margin-left:4px;
+  background:#0d1117;border:1px solid #30363d;color:#8b949e}
+.ctrl{display:flex;gap:8px;padding:6px 0;border-bottom:1px solid #21262d;font-size:14px}
+.ctrl .st{min-width:80px;font-weight:600}
+.ctrl .st.pass{color:#3fb950}.ctrl .st.fail{color:#f85149}.ctrl .st.na{color:#8b949e}
 footer{color:#8b949e;margin-top:40px;font-size:13px}
 `;
 
@@ -76,6 +90,19 @@ function layout(title: string, body: string): string {
 
 function scoreSpan(row: CatalogRow): string {
 	return `<span class="score" style="background:${BAND_COLOR[row.band]}">${scoreText(row)}</span>`;
+}
+
+// Short per-framework pill: "MCP 5/6" = passed/assessed controls. Red when any
+// control fails, green when all assessed pass, gray when nothing assessed.
+function frameworkPills(row: CatalogRow): string {
+	return FRAMEWORKS.map((fw) => {
+		const c = row.frameworks?.[fw.id];
+		if (!c) return "";
+		const assessed = c.passed + c.failed;
+		const short = fw.name.replace(/^OWASP /, "").replace(/ Top 10$/, "");
+		const cls = c.failed ? "bad" : assessed ? "good" : "";
+		return `<span class="fw ${cls}" title="${esc(fw.name)} ${fw.version}: ${c.passed}/${assessed} assessed controls pass, ${c.notAssessed} not assessed">${esc(short)} ${c.passed}/${assessed}</span>`;
+	}).join("");
 }
 
 function indexPage(rows: CatalogRow[]): string {
@@ -100,6 +127,7 @@ function indexPage(rows: CatalogRow[]): string {
 <td><a href="server/${r.slug}.html">${esc(r.id)}</a></td>
 <td class="desc" title="${esc(r.description)}">${esc(r.description)}</td>
 <td>${esc(findings || "—")}</td>
+<td data-sort="${Object.values(r.frameworks ?? {}).reduce((n, c) => n + c.failed, 0)}">${frameworkPills(r) || "—"}</td>
 <td>${esc(Object.keys(r.sources).join(", "))}</td>
 <td data-sort="${stale ? 0 : 1}">${staleCell}</td>
 </tr>`;
@@ -117,8 +145,9 @@ ${banner}
 <input id="q" placeholder="Filter by name or description…">
 <table id="t"><thead><tr>
 <th data-col="0" data-num="1">Score</th><th data-col="1">Server</th>
-<th data-col="2">Description</th><th data-col="3">Findings</th><th data-col="4">Source</th>
-<th data-col="5" data-num="1">Scanned</th>
+<th data-col="2">Description</th><th data-col="3">Findings</th>
+<th data-col="4" data-num="1">Frameworks</th><th data-col="5">Source</th>
+<th data-col="6" data-num="1">Scanned</th>
 </tr></thead><tbody>${trs}</tbody></table>
 <script>
 const t=document.getElementById('t'),q=document.getElementById('q');
@@ -145,10 +174,39 @@ function findingHtml(f: Finding): string {
 	}[f.severity];
 	return `<div class="finding">
 <span class="sev" style="color:${color}">${f.severity}</span>
-<strong>${esc(f.title)}</strong> <code>${esc(f.id)}</code>
+<strong>${esc(f.title)}</strong> <code>${esc(f.id)}</code>${controlsForFinding(f)
+		.map((c) => `<span class="chip">${esc(c.code)}</span>`)
+		.join("")}
 <div>${esc(f.detail)}</div>
 <div class="snippet">↳ ${esc(f.evidence.source)}${f.evidence.line ? `:${f.evidence.line}` : ""} — ${esc(f.evidence.snippet)}</div>
 </div>`;
+}
+
+// Per-framework compliance checklist. Failed controls name their findings;
+// controls the scanner has no checks for read "not assessed", never "pass".
+function frameworksHtml(report: ScanReport): string {
+	return evaluateFrameworks(report.findings)
+		.map((r) => {
+			const rows = r.controls
+				.map((c) => {
+					const st =
+						c.status === "fail"
+							? '<span class="st fail">✗ fail</span>'
+							: c.status === "pass"
+								? '<span class="st pass">✓ pass</span>'
+								: '<span class="st na">– n/a</span>';
+					const why = c.failing.length
+						? `<span class="sub"> — ${esc(c.failing.map((f) => f.title).join("; "))}</span>`
+						: "";
+					return `<div class="ctrl">${st}<span><code>${esc(c.code)}</code> ${esc(c.name)}${why}</span></div>`;
+				})
+				.join("\n");
+			const title = r.framework.url
+				? `<a href="${esc(r.framework.url)}">${esc(r.framework.name)} (${esc(r.framework.version)})</a>`
+				: `${esc(r.framework.name)} (${esc(r.framework.version)})`;
+			return `<h2>${title} <span class="sub">${r.passed}/${r.passed + r.failed} assessed controls pass · ${r.notAssessed} not assessed</span></h2>\n${rows}`;
+		})
+		.join("\n");
 }
 
 function detailPage(row: CatalogRow, report: ScanReport): string {
@@ -177,12 +235,47 @@ function detailPage(row: CatalogRow, report: ScanReport): string {
 mcpscan v${esc(row.scannerVersion)} · checks ${esc(row.checksVersion)}</p>
 ${callout}
 ${errors}
-${findings}`;
+${findings}
+${frameworksHtml(report)}`;
 	return layout(`${row.id} — mcpscan`, body);
 }
 
 function severityRank(s: string): number {
 	return ["info", "low", "medium", "high", "critical"].indexOf(s);
+}
+
+// Machine-readable registry for programmatic consumers. Stable shape, no HTML.
+function registryJson(rows: CatalogRow[]): string {
+	const servers = rows.map((r) => ({
+		id: r.id,
+		slug: r.slug,
+		title: r.title,
+		description: r.description,
+		version: r.version,
+		scanTarget: r.scanTarget,
+		sources: r.sources,
+		score: r.score,
+		band: r.band,
+		findingCounts: r.counts,
+		frameworks: r.frameworks ?? {},
+		scannedAt: r.scannedAt,
+		scannerVersion: r.scannerVersion,
+		checksVersion: r.checksVersion,
+		outdated: isOutdated(r, CURRENT_CHECKS),
+		report: `server/${r.slug}.html`,
+		badge: `badge/${r.slug}.svg`,
+	}));
+	return JSON.stringify(
+		{
+			generatedAt: new Date().toISOString(),
+			scannerVersion: SCANNER_VERSION,
+			checksVersion: CURRENT_CHECKS,
+			count: servers.length,
+			servers,
+		},
+		null,
+		2,
+	);
 }
 
 function badgeSvg(row: CatalogRow): string {
@@ -209,6 +302,7 @@ async function main(): Promise<void> {
 	await mkdir(join(OUT, "badge"), { recursive: true });
 
 	await writeFile(join(OUT, "index.html"), indexPage(rows));
+	await writeFile(join(OUT, "registry.json"), registryJson(rows));
 
 	for (const row of rows) {
 		const report = JSON.parse(
