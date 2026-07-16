@@ -1,8 +1,11 @@
 #!/usr/bin/env node
 import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
-import type { CatalogRow } from './catalog.js'
+import { isOutdated, type CatalogRow } from './catalog.js'
+import { CHECKS_VERSION } from './version.js'
 import type { Finding, ScanReport } from './model.js'
+
+const CURRENT_CHECKS = String(CHECKS_VERSION)
 
 const SUMMARY = 'data/summary.json'
 const RESULTS_DIR = 'data/results'
@@ -53,6 +56,12 @@ tbody tr:hover{background:#161b22}
 .finding code{background:#0d1117;padding:2px 6px;border-radius:4px;font-size:12px;color:#e6edf3}
 .snippet{color:#8b949e;font-family:ui-monospace,monospace;font-size:12px;margin-top:6px;word-break:break-all}
 .back{color:#8b949e}
+.outdated{display:inline-block;border-radius:10px;padding:1px 8px;font-size:12px;
+  background:#3d2c00;color:#d29922;white-space:nowrap}
+.banner{background:#3d2c00;color:#d29922;border:1px solid #5c4200;border-radius:8px;
+  padding:10px 14px;margin:0 0 20px;font-size:14px}
+.callout{background:#3d2c00;color:#d29922;border:1px solid #5c4200;border-radius:8px;
+  padding:12px 14px;margin:12px 0}
 footer{color:#8b949e;margin-top:40px;font-size:13px}
 `
 
@@ -70,33 +79,46 @@ function scoreSpan(row: CatalogRow): string {
 }
 
 function indexPage(rows: CatalogRow[]): string {
+  const scored = rows.filter((r) => r.score !== null).length
   const stats = {
     total: rows.length,
     danger: rows.filter((r) => r.band === 'danger').length,
     warn: rows.filter((r) => r.band === 'warn').length,
+    outdated: rows.filter((r) => isOutdated(r, CURRENT_CHECKS)).length,
   }
   const trs = rows
     .map((r) => {
       const findings = Object.entries(r.counts)
         .map(([s, n]) => `${n} ${s}`)
         .join(', ')
+      const stale = isOutdated(r, CURRENT_CHECKS)
+      const staleCell = stale
+        ? `<span class="outdated">v${esc(r.checksVersion)} · outdated</span>`
+        : `<span class="sub">v${esc(r.checksVersion)}</span>`
       return `<tr>
 <td data-sort="${r.score ?? 101}">${scoreSpan(r)}</td>
 <td><a href="server/${r.slug}.html">${esc(r.id)}</a></td>
 <td class="desc" title="${esc(r.description)}">${esc(r.description)}</td>
 <td>${esc(findings || '—')}</td>
 <td>${esc(Object.keys(r.sources).join(', '))}</td>
+<td data-sort="${stale ? 0 : 1}">${staleCell}</td>
 </tr>`
     })
     .join('\n')
 
+  const banner = stats.outdated
+    ? `<div class="banner">⚠ ${stats.outdated} of ${scored} scored results predate the current checks (v${CURRENT_CHECKS}) and are queued for re-scan.</div>`
+    : ''
+
   const body = `<h1>MCP Security Catalog</h1>
-<p class="sub">${stats.total} servers scanned · ${stats.danger} danger · ${stats.warn} warn.
+<p class="sub">${stats.total} servers · ${stats.danger} danger · ${stats.warn} warn · checks v${CURRENT_CHECKS}.
 Continuously scanned from the <a href="https://registry.modelcontextprotocol.io">official MCP registry</a>.</p>
+${banner}
 <input id="q" placeholder="Filter by name or description…">
 <table id="t"><thead><tr>
 <th data-col="0" data-num="1">Score</th><th data-col="1">Server</th>
 <th data-col="2">Description</th><th data-col="3">Findings</th><th data-col="4">Source</th>
+<th data-col="5" data-num="1">Checks</th>
 </tr></thead><tbody>${trs}</tbody></table>
 <script>
 const t=document.getElementById('t'),q=document.getElementById('q');
@@ -138,10 +160,15 @@ function detailPage(row: CatalogRow, report: ScanReport): string {
   const errors = report.errors.length
     ? `<p class="sub">Scan notes: ${esc(report.errors.map((e) => e.message).join('; '))}</p>`
     : ''
+  const callout = isOutdated(row, CURRENT_CHECKS)
+    ? `<div class="callout">⚠ Scored with checks v${esc(row.checksVersion)}; current is v${CURRENT_CHECKS}. This result may miss newer detections and is queued for re-scan.</div>`
+    : ''
   const body = `<p><a class="back" href="../index.html">← catalog</a></p>
 <h1>${scoreSpan(row)} &nbsp;${esc(row.id)}</h1>
 <p class="sub">${esc(row.description)}</p>
-<p class="sub">target <code>${esc(row.scanTarget)}</code> · scanned ${layers || 'nothing'} · ${esc(row.scannedAt)}</p>
+<p class="sub">target <code>${esc(row.scanTarget)}</code> · scanned ${layers || 'nothing'} · ${esc(row.scannedAt)}<br>
+mcpscan v${esc(row.scannerVersion)} · checks v${esc(row.checksVersion)}</p>
+${callout}
 ${errors}
 ${findings}`
   return layout(`${row.id} — mcpscan`, body)

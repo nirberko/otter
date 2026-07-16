@@ -6,6 +6,7 @@ import { scan } from './scan.js'
 import { slug } from './util/slug.js'
 import { sha256 } from './util/hash.js'
 import { isScannable } from './catalog.js'
+import { SCANNER_VERSION, CHECKS_VERSION } from './version.js'
 import type { ServerEntry } from './discover.js'
 import type { ScanReport } from './model.js'
 
@@ -97,7 +98,7 @@ async function main(): Promise<void> {
 function errorReport(entry: ServerEntry, message: string): ScanReport {
   return {
     schemaVersion: 1,
-    scanner: { version: '0.1.0', rules: 'builtin' },
+    scanner: { version: SCANNER_VERSION, rules: String(CHECKS_VERSION) },
     target: { kind: 'npm', ref: entry.scanTarget ?? entry.id },
     scannedAt: new Date().toISOString(),
     durationMs: 0,

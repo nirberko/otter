@@ -7,8 +7,7 @@ import { resolve, type Resolved } from './resolve/index.js'
 import { scanStatic } from './scanners/static.js'
 import { analyzeInventory, type Inventory } from './scanners/metadata.js'
 import { connectStdio, connectUrl } from './scanners/connect.js'
-
-const VERSION = '0.1.0'
+import { SCANNER_VERSION, CHECKS_VERSION } from './version.js'
 
 export interface ScanOptions {
   // 'off' never launches server code; 'trusted' launches on the host (corpus/dev);
@@ -96,7 +95,7 @@ export async function scan(raw: string, opts: ScanOptions = {}): Promise<ScanRep
 
   return {
     schemaVersion: 1,
-    scanner: { version: VERSION, rules: 'builtin' },
+    scanner: { version: SCANNER_VERSION, rules: String(CHECKS_VERSION) },
     target: res.target,
     scannedAt: new Date(started).toISOString(),
     durationMs: Date.now() - started,

@@ -16,6 +16,8 @@ export interface CatalogRow {
   counts: Partial<Record<Severity, number>>
   layers: ScanReport['layers']
   scannedAt: string
+  scannerVersion: string
+  checksVersion: string
   errors: number
 }
 
@@ -36,8 +38,16 @@ export function rowFromReport(report: ScanReport, entry: ServerEntry): CatalogRo
     counts,
     layers: report.layers,
     scannedAt: report.scannedAt,
+    scannerVersion: report.scanner.version,
+    checksVersion: report.scanner.rules,
     errors: report.errors.length,
   }
+}
+
+// A scored result is outdated when its checks version differs from the current
+// one — its score predates checks we have since added, so it needs a re-scan.
+export function isOutdated(row: CatalogRow, currentChecks: string): boolean {
+  return row.score !== null && row.checksVersion !== currentChecks
 }
 
 // Worst (lowest) scores first; unscanned/unknown entries sink to the bottom.
