@@ -1,0 +1,59 @@
+name: scan-publish
+
+on:
+  schedule:
+    - cron: '17 4 * * *' # daily
+  workflow_dispatch:
+    inputs:
+      max:
+        description: 'Max servers to scan'
+        default: '150'
+
+concurrency:
+  group: scan-publish
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # commit refreshed data/ back to the repo
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+
+      # Discovery + scan run WITHOUT executing untrusted server code:
+      # npm targets are read from source, url targets are connected to as a client.
+      - run: node dist/discover.js
+      - run: node dist/scan-batch.js --max "${{ inputs.max || '150' }}" --concurrency 6
+      - run: node dist/build-site.js
+
+      - name: Commit refreshed catalog data
+        run: |
+          git config user.name "mcpscan-bot"
+          git config user.email "bot@users.noreply.github.com"
+          git add data/
+          git diff --quiet --cached || git commit -m "chore: refresh catalog data [skip ci]"
+          git push
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - id: deploy
+        uses: actions/deploy-pages@v4
