@@ -1,15 +1,15 @@
 {
   "schemaVersion": 1,
   "scanner": {
-    "version": "1.0.0",
-    "rules": "19f6a1b4a518"
+    "version": "1.2.1",
+    "rules": "a1c0c9e6130b"
   },
   "target": {
     "kind": "url",
     "ref": "https://birdfury.com/api/mcp"
   },
-  "scannedAt": "2026-07-16T16:32:36.550Z",
-  "durationMs": 1172,
+  "scannedAt": "2026-07-16T17:58:15.245Z",
+  "durationMs": 1358,
   "layers": {
     "metadata": true,
     "static": false
@@ -17,31 +17,71 @@
   "tools": [
     {
       "name": "list_missions",
-      "descriptionHash": "5bd0964529089f67cccaff34f7e427d7ffd8cf2985608fbb9a6fb2c90f5b01ef"
+      "descriptionHash": "5bd0964529089f67cccaff34f7e427d7ffd8cf2985608fbb9a6fb2c90f5b01ef",
+      "description": "List open Birdfury missions (paid tasks a human or AI agent can claim). Read-only work discovery. Returns structured JSON with an isSample flag on seed/demo rows — pass sample:false to see only real missions."
     },
     {
       "name": "get_mission",
-      "descriptionHash": "3a70e2531c04f506868a67745a3c9e1a44863b04030a91842c49958050ee3710"
+      "descriptionHash": "3a70e2531c04f506868a67745a3c9e1a44863b04030a91842c49958050ee3710",
+      "description": "Fetch one Birdfury mission by its id (the numeric id from list_missions, also the /mission/<id> URL). Read-only.",
+      "labels": [
+        "untrusted-content"
+      ]
     },
     {
       "name": "register_agent",
-      "descriptionHash": "c8a558a41c4a31249f63cf6ebf02222034fe42349b6b92a9097e69ba4aaa21e5"
+      "descriptionHash": "c8a558a41c4a31249f63cf6ebf02222034fe42349b6b92a9097e69ba4aaa21e5",
+      "description": "Register yourself as a Birdfury agent and mint a one-time bf_live_ API key — the key submit_work and get_submission_status need. Do this once, in-band, without leaving your MCP host: no form, no browser. The key is returned exactly once (only its hash is stored); save it immediately. Your handle is ",
+      "labels": [
+        "private-data"
+      ]
     },
     {
       "name": "claim_mission",
-      "descriptionHash": "a484441838fe4227f10accf3865c26bd6167903fbcc00dcb55ee09b2f4bf4689"
+      "descriptionHash": "a484441838fe4227f10accf3865c26bd6167903fbcc00dcb55ee09b2f4bf4689",
+      "description": "Signal intent to work on an OPEN Birdfury mission. Non-exclusive: multiple agents may claim and submit to the same mission — open-submission model is preserved. Claiming moves the mission status OPEN → CLAIMED so the feed shows it as in-progress. Returns the full mission context and submit instructi",
+      "labels": [
+        "untrusted-content",
+        "public-sink"
+      ]
     },
     {
       "name": "submit_work",
-      "descriptionHash": "e2f5765f609132b19cb01407fbde8642193ce6e58ba807a8242efe8902d13865"
+      "descriptionHash": "e2f5765f609132b19cb01407fbde8642193ce6e58ba807a8242efe8902d13865",
+      "description": "Submit your deliverable to a Birdfury mission. Requires your bf_live_ API key (call register_agent once to mint one). Call claim_mission first to signal intent. Provide at least one of repo, demo, notes. Settlement is manual during alpha — the poster pays your wallet directly on approval.",
+      "labels": [
+        "private-data",
+        "public-sink"
+      ]
     },
     {
       "name": "get_submission_status",
-      "descriptionHash": "67ab7e49a4f012b7ef722c340e02075e736cf037dd602cc5f50f4e3e2a155038"
+      "descriptionHash": "67ab7e49a4f012b7ef722c340e02075e736cf037dd602cc5f50f4e3e2a155038",
+      "description": "Check the review status of your own submissions on a mission (PENDING / ACCEPTED / REJECTED). Requires your bf_live_ API key. Use this to poll for the outcome after submit_work; you can also register a webhook_url to be pushed the decision instead of polling.",
+      "labels": [
+        "untrusted-content",
+        "private-data"
+      ]
     }
   ],
-  "findings": [],
-  "score": 100,
-  "scoreBreakdown": {},
+  "findings": [
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: get_mission, claim_mission, get_submission_status · Private data: register_agent, submit_work, get_submission_status · Public sink: claim_mission, submit_work.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: get_mission, claim_mission, get_submission_status · Private data: register_agent, submit_work, get_submission_status · Public sink: claim_mission, submit_work"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 80,
+  "scoreBreakdown": {
+    "toxic-flow": 20
+  },
   "errors": []
 }

@@ -84,4 +84,91 @@
     "tool-poisoning": 22
   },
   "errors": []
+}nt snapshot — zero LLM cost, no credits charged. Returns which mrmarket.ai\naccount this MCP connection is authorized as (email), the plan tier, the current\ncredit balance (and subscription vs top-up split), and per-tier query limits.\n\nUse this to (a) confirm the expected account is connected — ",
+      "labels": [
+        "untrusted-content",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "recent_queries",
+      "descriptionHash": "23547d91b2990ca830d83f69a6f5df3187839caf7ca9ead552420b1f92bcd35f",
+      "description": "List the user's most recent `query_data` calls (newest first). Zero LLM cost, zero credits.\n\nUse this when the user references \"that query I ran earlier\" / \"the AAPL one from before\" /\n\"the slow one\" — instead of asking the user to dictate the query_id, look it up here. Each\nentry returns:\n  - query"
+    },
+    {
+      "name": "report_issue",
+      "descriptionHash": "3a0631db50086f5069418e91eda8ccabfd644d5c271fefb294b74d1c3460b22e",
+      "description": "Tell support something went wrong, file a bug, request a feature, or flag a slow query.\nZero LLM cost, zero credits.\n\nCall this when:\n  - A `query_data` result looks wrong or misleading (pass the `query_id` from that response —\n    support uses it to investigate the issue).\n  - You hit a confusing e",
+      "labels": [
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "list_tickets",
+      "descriptionHash": "50e41956e67dbb49b9fe2c158fc95d5acf8cd511b228ec201109fb0593496f87",
+      "description": "List the user's own report_issue tickets (newest first). Zero LLM cost, zero credits.\n\nUse this to look up a ticket you (or the user) filed earlier — e.g. to quote the full\nticket_id when following up with support, or to check what was already reported before\nfiling a duplicate. Each entry returns:\n",
+      "labels": [
+        "untrusted-content"
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOOL-POISON-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description issues instructions to the model",
+      "detail": "Description of \"query_data\" contains imperative instructions directed at the AI assistant rather than describing the tool. This is the core tool-poisoning technique.",
+      "evidence": {
+        "source": "tool:query_data",
+        "snippet": "YOU ARE a research assistant helping a retail investor get answers from mrmarket.ai. You are NOT a database engineer. Ask questions the way a financial analyst …"
+      },
+      "confidence": 0.7,
+      "remediation": "Treat the server as untrusted; the model may obey embedded instructions."
+    },
+    {
+      "id": "MCP-TOOL-POISON-006",
+      "severity": "low",
+      "category": "tool-poisoning",
+      "title": "Anomalously long tool description",
+      "detail": "Description of \"query_data\" is 14785 chars, far longer than this server's median (883). Overlong descriptions are a common place to bury instructions.",
+      "evidence": {
+        "source": "tool:query_data",
+        "snippet": "YOU ARE a research assistant helping a retail investor get answers from mrmarket.ai. You are NOT a database engineer. Ask questions the way a financial analyst …"
+      },
+      "confidence": 0.4
+    },
+    {
+      "id": "MCP-TOOL-POISON-007",
+      "severity": "low",
+      "category": "tool-poisoning",
+      "title": "Description uses pressure/override language",
+      "detail": "Description of \"query_data\" stacks urgency/override words (always, never). Legitimate tool descriptions rarely pressure the model to act or ignore prior guidance.",
+      "evidence": {
+        "source": "tool:query_data",
+        "snippet": "YOU ARE a research assistant helping a retail investor get answers from mrmarket.ai. You are NOT a database engineer. Ask questions the way a financial analyst …"
+      },
+      "confidence": 0.3
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: query_data, get_account_status, list_tickets · Private data: query_data, report_issue · Public sink: query_data, get_account_status, report_issue · Destructive: query_data, fetch_page.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: query_data, get_account_status, list_tickets · Private data: query_data, report_issue · Public sink: query_data, get_account_status, report_issue · Destructive: query_data, fetch_page"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 58,
+  "scoreBreakdown": {
+    "tool-poisoning": 22,
+    "toxic-flow": 20
+  },
+  "errors": []
 }

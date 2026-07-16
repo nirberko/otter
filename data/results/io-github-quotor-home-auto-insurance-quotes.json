@@ -65,3 +65,123 @@
   "scoreBreakdown": {},
   "errors": []
 }
+      "name": "get_quote_options",
+      "descriptionHash": "ba603fa49e8cf5dbcc9a2736411aefb804d7ae6feffadc6013d071cda30de324",
+      "description": "Fire all eligible A-rated carriers in parallel AND kick off live rate-finishing. RETURNS IMMEDIATELY — does NOT wait.\n\nTWO STAGES follow:\n  1. First numbers land in 30–90 seconds. Options surface as honest price RANGES — the low end is the carrier's indicative, so the final verified rate usually lan"
+    },
+    {
+      "name": "check_quote_status",
+      "descriptionHash": "c7f00ddf849351c07f2c9dfd93723199e86a55039ac994c7387f4f059cfdb325",
+      "description": "Check rating + live-finishing progress. Call between wait-phase questions (every customer turn or two after get_quote_options). Returns one of:\n  - 'running' — indicatives still landing; continue the wait-phase conversation, call again next turn.\n  - 'quoted' — options[] is populated. CHECK THE 'fin",
+      "labels": [
+        "untrusted-content",
+        "destructive"
+      ]
+    },
+    {
+      "name": "get_option_details",
+      "descriptionHash": "d230db1e0408eaf5d37a8550dd9be5096264adac621d112540b1bdaa6fe0612d",
+      "description": "Pull the full coverage breakdown, deductibles, applied discounts, and payment plan options for a single masked option (Home Carrier A, Auto Carrier B, etc.). Use when the customer wants to dig into a specific quote before deciding. Carrier name remains masked."
+    },
+    {
+      "name": "get_bind_link",
+      "descriptionHash": "6dd1f396a4d9da02324df132397a513bcd55a7594a43609ad457821810866b89",
+      "description": "Generate a single-use secure link, valid for 7 days, that the customer can follow to a Libertas bind-request page. The chat widget will usually render an inline 'Request Bind' card directly — prefer request_bind_inline for the in-chat flow. Use get_bind_link when the customer wants to leave the chat",
+      "labels": [
+        "untrusted-content",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "request_bind_inline",
+      "descriptionHash": "35cae758570e9a93e58158adc8c879145945eded7b44db6a5f3c9bf3541dcf74",
+      "description": "Submit the customer's bind request from the chat. Triggers an internal task for our licensed team to follow up. THIS IS NOT INSTANT BIND — no payment is collected and no coverage starts from this call; a licensed agent completes underwriting verification, payment, and carrier confirmation afterward,",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "check_late_arrivals",
+      "descriptionHash": "a4e60173eaeff2182d1d878ed33220cfab0be2ba2a0ff8713139ad2eebd9333c",
+      "description": "Save-the-sale tool — call when the customer signals dissatisfaction with the current options (\"too expensive\", \"let me think\", \"what else do you have\", \"is this the best you can do\", \"I'll check elsewhere\", \"can you do better\"). Some carriers (Foremost STAR, etc.) run slower than the initial set and",
+      "labels": [
+        "destructive"
+      ]
+    },
+    {
+      "name": "submit_lead",
+      "descriptionHash": "dc3733ddd145a9cec72b1551594ef2afdc18b2a4d637d974e7f6611563b4fd09",
+      "description": "Capture a lead for an insurance product Libertas doesn't quote inline (renters, life, commercial, motorcycle, boat, RV, umbrella, condo, landlord, etc.) — OR any home/auto customer who asks to be contacted later instead of finishing the quote in chat. Creates a row in the CRM Leads bucket so a licen",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "resume_quote",
+      "descriptionHash": "c58da72b574ae9196370fd552252c051612e88cff736b875aa8b5f1044d56bd0",
+      "description": "Pick up an existing quote that was started in a previous session or on a different platform. The customer supplies a quote ID. Verification: if the same authenticated user (OAuth user_id matches across sessions), no extra verification is needed; otherwise the customer needs to provide an email code ",
+      "labels": [
+        "public-sink"
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOOL-POISON-007",
+      "severity": "low",
+      "category": "tool-poisoning",
+      "title": "Description uses pressure/override language",
+      "detail": "Description of \"start_quote\" stacks urgency/override words (immediately, never). Legitimate tool descriptions rarely pressure the model to act or ignore prior guidance.",
+      "evidence": {
+        "source": "tool:start_quote",
+        "snippet": "Begin a new home, auto, or bundled insurance quote. Returns a quote ID to use on every following call. Call this when the customer wants to get an insurance pri…"
+      },
+      "confidence": 0.3
+    },
+    {
+      "id": "MCP-TOOL-POISON-007",
+      "severity": "low",
+      "category": "tool-poisoning",
+      "title": "Description uses pressure/override language",
+      "detail": "Description of \"get_quote_options\" stacks urgency/override words (immediately, never). Legitimate tool descriptions rarely pressure the model to act or ignore prior guidance.",
+      "evidence": {
+        "source": "tool:get_quote_options",
+        "snippet": "Fire all eligible A-rated carriers in parallel AND kick off live rate-finishing. RETURNS IMMEDIATELY — does NOT wait. TWO STAGES follow: 1. First numbers land i…"
+      },
+      "confidence": 0.3
+    },
+    {
+      "id": "MCP-TOOL-POISON-007",
+      "severity": "low",
+      "category": "tool-poisoning",
+      "title": "Description uses pressure/override language",
+      "detail": "Description of \"request_bind_inline\" stacks urgency/override words (always, never). Legitimate tool descriptions rarely pressure the model to act or ignore prior guidance.",
+      "evidence": {
+        "source": "tool:request_bind_inline",
+        "snippet": "Submit the customer's bind request from the chat. Triggers an internal task for our licensed team to follow up. THIS IS NOT INSTANT BIND — no payment is collect…"
+      },
+      "confidence": 0.3
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp.quotor.ai\" exposes tools that together enable an exfiltration flow. Untrusted content: start_quote, check_quote_status, get_bind_link, submit_lead · Private data: start_quote, update_quote, submit_lead · Public sink: start_quote, get_bind_link, request_bind_inline, submit_lead, resume_quote · Destructive: start_quote, update_quote, check_quote_status, check_late_arrivals.",
+      "evidence": {
+        "source": "server:mcp.quotor.ai",
+        "snippet": "Untrusted content: start_quote, check_quote_status, get_bind_link, submit_lead · Private data: start_quote, update_quote, submit_lead · Public sink: start_quote, get_bind_link, request_bind_inline, submit_lead, resume_quote · Destructive: start_quote, update_quote, check_quote_status, check_late_arrivals"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 75,
+  "scoreBreakdown": {
+    "tool-poisoning": 5,
+    "toxic-flow": 20
+  },
+  "errors": []
+}

@@ -1,15 +1,15 @@
 {
   "schemaVersion": 1,
   "scanner": {
-    "version": "1.0.0",
-    "rules": "19f6a1b4a518"
+    "version": "1.2.1",
+    "rules": "a1c0c9e6130b"
   },
   "target": {
     "kind": "url",
     "ref": "https://mcp.machfive.io/mcp"
   },
-  "scannedAt": "2026-07-16T16:31:43.944Z",
-  "durationMs": 354,
+  "scannedAt": "2026-07-16T17:57:17.641Z",
+  "durationMs": 686,
   "layers": {
     "metadata": true,
     "static": false
@@ -17,31 +17,69 @@
   "tools": [
     {
       "name": "list_campaigns",
-      "descriptionHash": "8f7b822e31e883be670f1f2916d8ac67383bc6d3e605ab9eaaf34049a6bf7b71"
+      "descriptionHash": "8f7b822e31e883be670f1f2916d8ac67383bc6d3e605ab9eaaf34049a6bf7b71",
+      "description": "List campaigns in the user's MachFive workspace.\n\nCALL THIS FIRST before generate_sequence or generate_batch — you need a\ncampaign ID to generate emails. If the user hasn't specified a campaign,\ncall this and ask them to pick one.\n\nReturns JSON array of campaigns with id, name, and created_at.\nUse t",
+      "labels": [
+        "untrusted-content"
+      ]
     },
     {
       "name": "generate_sequence",
-      "descriptionHash": "475f175fb481b1276c0afad478d521a905acb51ebd5bf7aaf62a28405283070a"
+      "descriptionHash": "475f175fb481b1276c0afad478d521a905acb51ebd5bf7aaf62a28405283070a",
+      "description": "Generate a personalized cold email sequence for ONE lead.\n\nThis is SYNCHRONOUS — the request takes 3-10 minutes because MachFive\nresearches the prospect and crafts unique emails. Do NOT retry if it\nseems slow; wait for the response.\n\nYou must have a campaign_id first. Call list_campaigns if you don'",
+      "labels": [
+        "public-sink"
+      ]
     },
     {
       "name": "generate_batch",
-      "descriptionHash": "ca9da1cc31222edbfa0c06f0e5b5cab4eacd6ed6898548122b7d661355f89985"
+      "descriptionHash": "ca9da1cc31222edbfa0c06f0e5b5cab4eacd6ed6898548122b7d661355f89985",
+      "description": "Submit multiple leads for batch email sequence generation (ASYNC).\n\nReturns IMMEDIATELY with a list_id. Processing runs in the background.\nAfter calling this, poll get_list_status every 15-30 seconds until\nprocessing_status is 'completed' or 'failed', then call export_list.\n\nYou must have a campaign",
+      "labels": [
+        "public-sink"
+      ]
     },
     {
       "name": "list_lists",
-      "descriptionHash": "7523defa3fa84bdb1eef097f53eace6401c1379b68756cf4a896b4281355fea4"
+      "descriptionHash": "7523defa3fa84bdb1eef097f53eace6401c1379b68756cf4a896b4281355fea4",
+      "description": "List lead lists (batch jobs) in the user's MachFive workspace.\n\nUseful for browsing past batches, checking what's in progress, or finding\na list_id to export. Results are ordered newest first."
     },
     {
       "name": "get_list_status",
-      "descriptionHash": "90cb57a44c2a102b4390eefa60ff8a9d16554bb635908217b76c50e98e3e80c5"
+      "descriptionHash": "90cb57a44c2a102b4390eefa60ff8a9d16554bb635908217b76c50e98e3e80c5",
+      "description": "Check the processing status of a lead list.\n\nUse this to POLL after calling generate_batch. Call every 15-30 seconds\nuntil processing_status is 'completed' or 'failed'.\nWhen completed, call export_list. When failed, submit a new batch.",
+      "labels": [
+        "public-sink"
+      ]
     },
     {
       "name": "export_list",
-      "descriptionHash": "c9af01c52c7cf56e561d241115da15d9d08d3f4ee37814c7428a6423be406e68"
+      "descriptionHash": "c9af01c52c7cf56e561d241115da15d9d08d3f4ee37814c7428a6423be406e68",
+      "description": "Download the generated email sequences for a COMPLETED list.\n\nOnly call this AFTER get_list_status shows processing_status = 'completed'.\nIf the list is not yet completed, you'll get a 409 error — poll first.",
+      "labels": [
+        "untrusted-content",
+        "public-sink"
+      ]
     }
   ],
-  "findings": [],
-  "score": 100,
-  "scoreBreakdown": {},
+  "findings": [
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "medium",
+      "category": "toxic-flow",
+      "title": "Toxic flow: untrusted input can reach an external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: list_campaigns, export_list · Public sink: generate_sequence, generate_batch, get_list_status, export_list.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: list_campaigns, export_list · Public sink: generate_sequence, generate_batch, get_list_status, export_list"
+      },
+      "confidence": 0.45,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 92,
+  "scoreBreakdown": {
+    "toxic-flow": 8
+  },
   "errors": []
 }

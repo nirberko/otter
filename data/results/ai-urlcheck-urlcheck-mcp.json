@@ -1,15 +1,15 @@
 {
   "schemaVersion": 1,
   "scanner": {
-    "version": "1.0.0",
-    "rules": "19f6a1b4a518"
+    "version": "1.2.1",
+    "rules": "a1c0c9e6130b"
   },
   "target": {
     "kind": "url",
     "ref": "https://urlcheck.ai/mcp"
   },
-  "scannedAt": "2026-07-16T16:30:28.097Z",
-  "durationMs": 472,
+  "scannedAt": "2026-07-16T17:56:08.387Z",
+  "durationMs": 931,
   "layers": {
     "metadata": true,
     "static": false
@@ -17,31 +17,80 @@
   "tools": [
     {
       "name": "url_scanner_async_scan",
-      "descriptionHash": "bb6109ca6ecf38a19b2eadc792fdcdbe20bd2f5e902c14a951a77af0cbbb8384"
+      "descriptionHash": "bb6109ca6ecf38a19b2eadc792fdcdbe20bd2f5e902c14a951a77af0cbbb8384",
+      "description": "Submit a URL for asynchronous security analysis. Returns immediately with a task_id. Poll with url_scanner_async_task_status to check progress, then url_scanner_async_task_result to get the scan result. Async counterpart of url_scanner_scan for clients without native MCP Tasks support.",
+      "labels": [
+        "untrusted-content",
+        "public-sink"
+      ]
     },
     {
       "name": "url_scanner_async_scan_with_intent",
-      "descriptionHash": "8b8f8c9a63d5a1bea1c96bc0db8c13ee1f6fad723ed9afacb4386587e99655b6"
+      "descriptionHash": "8b8f8c9a63d5a1bea1c96bc0db8c13ee1f6fad723ed9afacb4386587e99655b6",
+      "description": "Submit a URL with optional user intent for asynchronous security analysis. Returns immediately with a task_id. Poll with url_scanner_async_task_status to check progress, then url_scanner_async_task_result to get the scan result. Async counterpart of url_scanner_scan_with_intent for clients without n",
+      "labels": [
+        "untrusted-content",
+        "public-sink"
+      ]
     },
     {
       "name": "url_scanner_async_task_result",
-      "descriptionHash": "ad33a03766c680f1f54f22b0452c7e4f92a261ee73df2b73691b7dcd9f1679c9"
+      "descriptionHash": "ad33a03766c680f1f54f22b0452c7e4f92a261ee73df2b73691b7dcd9f1679c9",
+      "description": "Retrieve the result of an asynchronous scan task. If completed, returns the full scan result (risk_score, confidence, agent_access_directive, etc.). If still running, returns status with retry_after_ms — call again after that interval. Non-blocking.",
+      "labels": [
+        "untrusted-content"
+      ]
     },
     {
       "name": "url_scanner_async_task_status",
-      "descriptionHash": "4c98fcd32c650dfde6c970cc77534a3bd4cb252b001699586c525078d8c2fddb"
+      "descriptionHash": "4c98fcd32c650dfde6c970cc77534a3bd4cb252b001699586c525078d8c2fddb",
+      "description": "Check the status of an asynchronous scan task. Returns the current task status using native MCP task semantics (working, completed, failed, cancelled) without blocking. Use url_scanner_async_task_result to retrieve the result once completed.",
+      "labels": [
+        "untrusted-content"
+      ]
     },
     {
       "name": "url_scanner_scan",
-      "descriptionHash": "3ea5ce16010b633275c1c3db483b9a201af36423dc711d80353437914989395b"
+      "descriptionHash": "3ea5ce16010b633275c1c3db483b9a201af36423dc711d80353437914989395b",
+      "description": "Analyze a URL for security threats (synchronous, blocks until complete or timeout). Returns risk score, confidence, agent access guidance, and intent_alignment (always not_provided for this tool; use url_scanner_scan_with_intent for intent context). For long-running scans, prefer url_scanner_async_s"
     },
     {
       "name": "url_scanner_scan_with_intent",
-      "descriptionHash": "625b482cebb64306be3c0b8229d608ae30ba8443cd7f545937b5a901b4cb3748"
+      "descriptionHash": "625b482cebb64306be3c0b8229d608ae30ba8443cd7f545937b5a901b4cb3748",
+      "description": "Analyze a URL for security threats with optional user intent context (synchronous, blocks until complete or timeout). Returns risk score, confidence, agent access guidance, and intent_alignment. For long-running scans, prefer url_scanner_async_scan_with_intent which returns immediately with a task_i"
     }
   ],
-  "findings": [],
-  "score": 100,
-  "scoreBreakdown": {},
+  "findings": [
+    {
+      "id": "MCP-TOOL-POISON-007",
+      "severity": "low",
+      "category": "tool-poisoning",
+      "title": "Description uses pressure/override language",
+      "detail": "Description of \"url_scanner_scan\" stacks urgency/override words (immediately, always). Legitimate tool descriptions rarely pressure the model to act or ignore prior guidance.",
+      "evidence": {
+        "source": "tool:url_scanner_scan",
+        "snippet": "Analyze a URL for security threats (synchronous, blocks until complete or timeout). Returns risk score, confidence, agent access guidance, and intent_alignment …"
+      },
+      "confidence": 0.3
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "medium",
+      "category": "toxic-flow",
+      "title": "Toxic flow: untrusted input can reach an external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: url_scanner_async_scan, url_scanner_async_scan_with_intent, url_scanner_async_task_result, url_scanner_async_task_status · Public sink: url_scanner_async_scan, url_scanner_async_scan_with_intent.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: url_scanner_async_scan, url_scanner_async_scan_with_intent, url_scanner_async_task_result, url_scanner_async_task_status · Public sink: url_scanner_async_scan, url_scanner_async_scan_with_intent"
+      },
+      "confidence": 0.45,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 89,
+  "scoreBreakdown": {
+    "tool-poisoning": 3,
+    "toxic-flow": 8
+  },
   "errors": []
 }

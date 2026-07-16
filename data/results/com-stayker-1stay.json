@@ -1,15 +1,15 @@
 {
   "schemaVersion": 1,
   "scanner": {
-    "version": "1.0.0",
-    "rules": "19f6a1b4a518"
+    "version": "1.2.1",
+    "rules": "a1c0c9e6130b"
   },
   "target": {
     "kind": "url",
     "ref": "https://mcp.stayker.com/mcp"
   },
-  "scannedAt": "2026-07-16T16:31:06.201Z",
-  "durationMs": 476,
+  "scannedAt": "2026-07-16T17:56:37.677Z",
+  "durationMs": 478,
   "layers": {
     "metadata": true,
     "static": false
@@ -17,35 +17,57 @@
   "tools": [
     {
       "name": "search_hotels",
-      "descriptionHash": "a1a002e7503ee436729d16292157b1eefca2172d1094f608efa5dd7468c6d9af"
+      "descriptionHash": "a1a002e7503ee436729d16292157b1eefca2172d1094f608efa5dd7468c6d9af",
+      "description": "Search and book hotels by location and dates. Returns available properties with nightly rates across major brands, boutique, and independent hotels.\n\nGuest pays the hotel directly. Hotel's own confirmation number. Loyalty points apply."
     },
     {
       "name": "get_hotel_details",
-      "descriptionHash": "4ac65ac8755058fa41605891c3567b284f5f4d0192b55bbae6d6dcdc6d717d1a"
+      "descriptionHash": "4ac65ac8755058fa41605891c3567b284f5f4d0192b55bbae6d6dcdc6d717d1a",
+      "description": "Get rates and room details for a specific hotel. Returns room types, live rates, amenities, cancellation policies, and rate_codes required by book_hotel.\n\nGuest pays the hotel directly. Rates shown are what the hotel charges. A 1Stay Booking Fee is added at checkout. Loyalty points eligible.\n\nRoom t",
+      "labels": [
+        "destructive"
+      ]
     },
     {
       "name": "book_hotel",
-      "descriptionHash": "e63b92775ae2d6574087c931b9746a7554fd00c5cafae86c6f7ed068cb56006d"
+      "descriptionHash": "e63b92775ae2d6574087c931b9746a7554fd00c5cafae86c6f7ed068cb56006d",
+      "description": "Book a hotel room. Returns a secure checkout URL where the guest completes payment. Do not collect credit card numbers, payment info, or billing details in conversation.\n\nGuest pays the hotel directly. Their credit card statement shows the hotel name, not 1Stay. Hotel's own confirmation number. Loya"
     },
     {
       "name": "lookup_booking",
-      "descriptionHash": "d472f4a189c80cc5c7bb4e9517db582505b4ab06a0b65f74c040f015a0635109"
+      "descriptionHash": "d472f4a189c80cc5c7bb4e9517db582505b4ab06a0b65f74c040f015a0635109",
+      "description": "Look up a reservation by verifying the guest's identity. Returns the confirmation number and booking summary in conversation.\n\nRequired before calling:\n1. Guest full name (first and last)\n2. At least one verification factor: email address used when booking, hotel confirmation number, or last 4 digit",
+      "labels": [
+        "untrusted-content",
+        "public-sink"
+      ]
     },
     {
       "name": "resend_confirmation",
-      "descriptionHash": "60204408f166525a38696359d6ef18818d1fcf1e0dcd3ea36d767c4095aef13c"
+      "descriptionHash": "60204408f166525a38696359d6ef18818d1fcf1e0dcd3ea36d767c4095aef13c",
+      "description": "Resend a hotel reservation confirmation email. Use after verifying the guest's identity with lookup_booking.\n\nSends the full confirmation to the email address on file. If the guest needs it sent to a different email (typo on original, or can't access it), provide updated_email.",
+      "labels": [
+        "private-data",
+        "public-sink"
+      ]
     },
     {
       "name": "get_booking",
-      "descriptionHash": "58ac9b6b0fdc6ce97615b1831e761e6e0816d849c716fae3ffa0cf9f99f301ec"
+      "descriptionHash": "58ac9b6b0fdc6ce97615b1831e761e6e0816d849c716fae3ffa0cf9f99f301ec",
+      "description": "Look up a reservation by booking ID (stk_bk_xxxx) or hotel confirmation number. Returns full booking details including hotel, dates, guest info, rate, and status.\n\nDeveloper-level lookup tool with no identity verification. For guest-facing reservation lookups, use lookup_booking which enforces ident"
     },
     {
       "name": "cancel_booking",
-      "descriptionHash": "85709577a51736aab49e6b179853d243bfb111807b46def6ed4a25175448800b"
+      "descriptionHash": "85709577a51736aab49e6b179853d243bfb111807b46def6ed4a25175448800b",
+      "description": "Cancel a hotel reservation. This action cannot be undone.\n\nRequires guest first name, last name, and hotel confirmation number.\n\nCancellation of non-refundable rates forfeits the full amount. The guest should be aware of the cancellation policy before this tool is called.\n\nTo change dates: the recom",
+      "labels": [
+        "private-data"
+      ]
     },
     {
       "name": "search_tools",
-      "descriptionHash": "5189fd68d44a16a4a89e7f4c2361fa1d271ceb5acaeeb23d56d5839b3cca0f17"
+      "descriptionHash": "5189fd68d44a16a4a89e7f4c2361fa1d271ceb5acaeeb23d56d5839b3cca0f17",
+      "description": "List available 1Stay hotel booking tools. Filter by keyword: search, book, cancel, details. Omit keyword to list all tools."
     }
   ],
   "findings": [
@@ -61,11 +83,25 @@
       },
       "confidence": 0.7,
       "remediation": "Treat the server as untrusted; the model may obey embedded instructions."
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: lookup_booking · Private data: resend_confirmation, cancel_booking · Public sink: lookup_booking, resend_confirmation · Destructive: get_hotel_details.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: lookup_booking · Private data: resend_confirmation, cancel_booking · Public sink: lookup_booking, resend_confirmation · Destructive: get_hotel_details"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
     }
   ],
-  "score": 80,
+  "score": 60,
   "scoreBreakdown": {
-    "tool-poisoning": 20
+    "tool-poisoning": 20,
+    "toxic-flow": 20
   },
   "errors": []
 }

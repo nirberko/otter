@@ -71,4 +71,75 @@
     "tool-poisoning": 20
   },
   "errors": []
+} \"OpenAI\"\n- market "
+    },
+    {
+      "name": "run_sql",
+      "descriptionHash": "21aa5b7d4f8cb028d1a5da82d02c1dff96ed31e5c00f3aff894b23fed5649378",
+      "description": "PostgreSQL SELECT over financial / market / alt-data tables — returns structured rows.\n\nHard rules (query fails otherwise):\n- SELECT only, no CTE (`WITH ... AS`) — use subqueries.\n- Period columns are TEXT, not dates — `period_end` is 'YYYY-MM'. Compare as strings (`period_end >= '2024-01'`); a `::d",
+      "labels": [
+        "public-sink",
+        "destructive"
+      ]
+    },
+    {
+      "name": "get_table_schema",
+      "descriptionHash": "19d8f2bf0b1f84fd2722e775c609d0eccc6c6e2b887add6241e9c1b577674f12",
+      "description": "Use BEFORE run_sql when you're unsure which columns a table has.\n\nLook up column definitions (name, type, description) for a data table."
+    },
+    {
+      "name": "fiscal_utility",
+      "descriptionHash": "3abbf0b3e50a2eee930c7a9394b5af6249e52c407922460b2a93ea33ca8e1cfb",
+      "description": "Use to convert between fiscal year/quarter and calendar months for a given ticker.\nCompanies have different fiscal year starts (Apple Sep, Nvidia Jan) — call this\nbefore filtering on period_end columns.\n\nFiscal year ↔ calendar month bidirectional conversion. Forward: ticker + fiscal_year + fiscal_qu",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "list_tables",
+      "descriptionHash": "a53578151cb3d722dd125a3fe39abc9232413eb33b03e53c74845a9974173473",
+      "description": "List alternative-data tables under the given categories. Returns each table's name,\none-line purpose, and column names (call get_table_schema if you need column\ntypes/comments). Batch up to 5 categories in one call.\n\nUse this BEFORE run_sql when you want to explore alt-data — run_sql alone won't\ntel",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "news_search",
+      "descriptionHash": "894df6e10a08a3225dc71e4032e2508ea447c1bda6e05364e94cfa92b456fadc",
+      "description": "Use for any news, event, development, or statement question about a company,\ntheme, or the market. For SEC filing narrative use sec_report_search instead.\n\nCoverage is UNEVEN by market — the main thing to get right. About half of\nUS-listed companies have a news trail here; Japanese ones ~5%, because"
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"sec_report_search\" references sensitive artifacts (authorization). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:sec_report_search",
+        "snippet": "Use when you need narrative content from SEC filings — risk factors, MD&A, guidance language, deal terms, accounting policies, share structure. For consolidated…"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"data\" exposes tools that together enable an exfiltration flow. Untrusted content: list_tables · Private data: sec_report_search · Public sink: sec_report_search, run_sql, fiscal_utility · Destructive: sec_report_search, run_sql.",
+      "evidence": {
+        "source": "server:data",
+        "snippet": "Untrusted content: list_tables · Private data: sec_report_search · Public sink: sec_report_search, run_sql, fiscal_utility · Destructive: sec_report_search, run_sql"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 60,
+  "scoreBreakdown": {
+    "tool-poisoning": 20,
+    "toxic-flow": 20
+  },
+  "errors": []
 }

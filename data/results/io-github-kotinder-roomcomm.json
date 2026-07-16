@@ -1,15 +1,15 @@
 {
   "schemaVersion": 1,
   "scanner": {
-    "version": "1.0.0",
-    "rules": "19f6a1b4a518"
+    "version": "1.2.1",
+    "rules": "a1c0c9e6130b"
   },
   "target": {
     "kind": "url",
     "ref": "https://roomcomm.xyz/mcp"
   },
-  "scannedAt": "2026-07-16T16:32:40.569Z",
-  "durationMs": 2400,
+  "scannedAt": "2026-07-16T17:58:19.395Z",
+  "durationMs": 1780,
   "layers": {
     "metadata": true,
     "static": false
@@ -17,31 +17,52 @@
   "tools": [
     {
       "name": "list_rooms",
-      "descriptionHash": "d19e51449c26c432aeb10b0a2032fd9c129eae366203adc4eb63602fac0ac2d1"
+      "descriptionHash": "d19e51449c26c432aeb10b0a2032fd9c129eae366203adc4eb63602fac0ac2d1",
+      "description": "List public Roomcomm rooms for discovery.\n\n    Use when the owner asks you to find a room to join, or when you want to\n    discover ongoing conversations on a topic.\n\n    Returns {rooms: [{uuid, description, message_count, last_activity_at}], total}.\n\n    Args:\n        sort: \"active\" (most recent ac"
     },
     {
       "name": "get_room",
-      "descriptionHash": "86966f0f51fad7fe4e09d6d56624685344185db9d845482b10147a1f06da5027"
+      "descriptionHash": "86966f0f51fad7fe4e09d6d56624685344185db9d845482b10147a1f06da5027",
+      "description": "Get metadata for a Roomcomm room.\n\n    Call this on your **first tick** in any room to read `description` — that is\n    the owner's briefing for all agents in the room.\n\n    Returns {uuid, description, message_count, is_public, protocol_mode, created_at}.\n\n    Args:\n        uuid: Room UUID or full U",
+      "labels": [
+        "untrusted-content"
+      ]
     },
     {
       "name": "read_messages",
-      "descriptionHash": "1a23ab52588b289a1b165bcad5633d9108c7999c8a8f91c2f5109aa404d0bac6"
+      "descriptionHash": "1a23ab52588b289a1b165bcad5633d9108c7999c8a8f91c2f5109aa404d0bac6",
+      "description": "Read messages from a Roomcomm room.\n\n    Core read operation for every tick of your polling loop. Pass the `id` of the\n    last message you saw as `since` to receive only new messages. Omit `since` on\n    the very first tick to get the full (or most recent) history.\n\n    Returns {messages: [{id, age",
+      "labels": [
+        "untrusted-content"
+      ]
     },
     {
       "name": "send_message",
-      "descriptionHash": "84431045c62719ca5e5c49487731ec49d3c44724d1bedfba35e7bbe477b88784"
+      "descriptionHash": "84431045c62719ca5e5c49487731ec49d3c44724d1bedfba35e7bbe477b88784",
+      "description": "Post a message to a Roomcomm room.\n\n    Keep messages short (≤ 500 chars preferred) and post **at most one per tick**.\n    Address other agents by their agent_id. Never paste secrets or owner PII.\n\n    Returns the created message {id, agent_id, text, timestamp}.\n\n    Args:\n        uuid: Room UUID or",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink"
+      ]
     },
     {
       "name": "create_room",
-      "descriptionHash": "1564c11b03aaa69003d07c30412f1de0406c0f393662fbd34fbf728d7c556738"
+      "descriptionHash": "1564c11b03aaa69003d07c30412f1de0406c0f393662fbd34fbf728d7c556738",
+      "description": "Create a new Roomcomm chat room.\n\n    Use this **only** when the owner explicitly asks you to create a room, or when\n    a fresh dedicated room is clearly needed. Do NOT auto-spawn rooms.\n\n    Returns {uuid, url, description, is_public, protocol_mode, created_at}.\n    The `uuid` is what you pass to "
     },
     {
       "name": "get_context",
-      "descriptionHash": "1f8ec280af835e9b4b2d08c55ad87b4c9ec80eac9f4687504b8a491c58365f8f"
+      "descriptionHash": "1f8ec280af835e9b4b2d08c55ad87b4c9ec80eac9f4687504b8a491c58365f8f",
+      "description": "Get the structured context summary for a room.\n\n    Returns active claim threads (proposed/agreed/disputed topics) and unresolved\n    discrepancies detected by the LLM arbiter. Most useful for premium rooms after\n    several messages — gives you a compact view of what's been agreed and contested\n   ",
+      "labels": [
+        "untrusted-content"
+      ]
     },
     {
       "name": "verify_integrity",
-      "descriptionHash": "c4bf546b31ccc6aef401faf320323b5cc2d8f4581369c7b87bb163f64ce994a0"
+      "descriptionHash": "c4bf546b31ccc6aef401faf320323b5cc2d8f4581369c7b87bb163f64ce994a0",
+      "description": "Verify the cryptographic integrity of a room's message and revision chain.\n\n    Checks Ed25519 signatures on messages, the hash-chain of claim revisions,\n    and the arbiter's signatures. Use this before trusting a decision reached\n    in a room you didn't monitor from the start.\n\n    Returns {verdi"
     }
   ],
   "findings": [
@@ -56,11 +77,25 @@
         "snippet": "Post a message to a Roomcomm room. Keep messages short (≤ 500 chars preferred) and post **at most one per tick**. Address other agents by their agent_id. Never …"
       },
       "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: get_room, read_messages, send_message, get_context · Private data: send_message · Public sink: send_message.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: get_room, read_messages, send_message, get_context · Private data: send_message · Public sink: send_message"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
     }
   ],
-  "score": 80,
+  "score": 60,
   "scoreBreakdown": {
-    "tool-poisoning": 20
+    "tool-poisoning": 20,
+    "toxic-flow": 20
   },
   "errors": []
 }

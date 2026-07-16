@@ -1,3 +1,17 @@
+## [1.2.1](https://github.com/nirberko/otter/compare/v1.2.0...v1.2.1) (2026-07-16)
+
+
+### Bug Fixes
+
+* dedupe slug-colliding server ids to stop torn result files ([0b19204](https://github.com/nirberko/otter/commit/0b1920423e3bad61db86d731d6420e37ba7e45d6))
+
+# [1.2.0](https://github.com/nirberko/otter/compare/v1.1.0...v1.2.0) (2026-07-16)
+
+
+### Features
+
+* implement framework evaluation and add corresponding tests ([52c2238](https://github.com/nirberko/otter/commit/52c2238e16e668f3213d7820ea563ae528229a0f))
+
 # [1.1.0](https://github.com/nirberko/mcpscan/compare/v1.0.0...v1.1.0) (2026-07-16)
 
 
