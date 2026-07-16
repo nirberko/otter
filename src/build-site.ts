@@ -2,7 +2,7 @@
 import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { isOutdated, type CatalogRow } from './catalog.js'
-import { CHECKS_VERSION } from './version.js'
+import { CHECKS_VERSION, SCANNER_VERSION } from './version.js'
 import type { Finding, ScanReport } from './model.js'
 
 const CURRENT_CHECKS = String(CHECKS_VERSION)
@@ -93,8 +93,8 @@ function indexPage(rows: CatalogRow[]): string {
         .join(', ')
       const stale = isOutdated(r, CURRENT_CHECKS)
       const staleCell = stale
-        ? `<span class="outdated">v${esc(r.checksVersion)} · outdated</span>`
-        : `<span class="sub">v${esc(r.checksVersion)}</span>`
+        ? `<span class="outdated">v${esc(r.scannerVersion)} · outdated</span>`
+        : `<span class="sub">v${esc(r.scannerVersion)}</span>`
       return `<tr>
 <td data-sort="${r.score ?? 101}">${scoreSpan(r)}</td>
 <td><a href="server/${r.slug}.html">${esc(r.id)}</a></td>
@@ -107,18 +107,18 @@ function indexPage(rows: CatalogRow[]): string {
     .join('\n')
 
   const banner = stats.outdated
-    ? `<div class="banner">⚠ ${stats.outdated} of ${scored} scored results predate the current checks (v${CURRENT_CHECKS}) and are queued for re-scan.</div>`
+    ? `<div class="banner">⚠ ${stats.outdated} of ${scored} scored results predate the current detection (mcpscan v${SCANNER_VERSION}) and are queued for re-scan.</div>`
     : ''
 
   const body = `<h1>MCP Security Catalog</h1>
-<p class="sub">${stats.total} servers · ${stats.danger} danger · ${stats.warn} warn · checks v${CURRENT_CHECKS}.
+<p class="sub">${stats.total} servers · ${stats.danger} danger · ${stats.warn} warn · scanner v${SCANNER_VERSION}.
 Continuously scanned from the <a href="https://registry.modelcontextprotocol.io">official MCP registry</a>.</p>
 ${banner}
 <input id="q" placeholder="Filter by name or description…">
 <table id="t"><thead><tr>
 <th data-col="0" data-num="1">Score</th><th data-col="1">Server</th>
 <th data-col="2">Description</th><th data-col="3">Findings</th><th data-col="4">Source</th>
-<th data-col="5" data-num="1">Checks</th>
+<th data-col="5" data-num="1">Scanned</th>
 </tr></thead><tbody>${trs}</tbody></table>
 <script>
 const t=document.getElementById('t'),q=document.getElementById('q');
@@ -161,13 +161,13 @@ function detailPage(row: CatalogRow, report: ScanReport): string {
     ? `<p class="sub">Scan notes: ${esc(report.errors.map((e) => e.message).join('; '))}</p>`
     : ''
   const callout = isOutdated(row, CURRENT_CHECKS)
-    ? `<div class="callout">⚠ Scored with checks v${esc(row.checksVersion)}; current is v${CURRENT_CHECKS}. This result may miss newer detections and is queued for re-scan.</div>`
+    ? `<div class="callout">⚠ Scored with mcpscan v${esc(row.scannerVersion)}; detection has changed since (checks ${esc(row.checksVersion)} → ${CURRENT_CHECKS}). This result may miss newer detections and is queued for re-scan.</div>`
     : ''
   const body = `<p><a class="back" href="../index.html">← catalog</a></p>
 <h1>${scoreSpan(row)} &nbsp;${esc(row.id)}</h1>
 <p class="sub">${esc(row.description)}</p>
 <p class="sub">target <code>${esc(row.scanTarget)}</code> · scanned ${layers || 'nothing'} · ${esc(row.scannedAt)}<br>
-mcpscan v${esc(row.scannerVersion)} · checks v${esc(row.checksVersion)}</p>
+mcpscan v${esc(row.scannerVersion)} · checks ${esc(row.checksVersion)}</p>
 ${callout}
 ${errors}
 ${findings}`
