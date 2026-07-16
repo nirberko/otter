@@ -32,7 +32,13 @@ async function pool<T>(
 
 async function loadJson<T>(path: string, fallback: T): Promise<T> {
 	const text = await readFile(path, "utf8").catch(() => "");
-	return text ? (JSON.parse(text) as T) : fallback;
+	if (!text) return fallback;
+	// A corrupt/torn baseline must never crash the batch — just lose the baseline.
+	try {
+		return JSON.parse(text) as T;
+	} catch {
+		return fallback;
+	}
 }
 
 // Deterministic partition so N shard jobs cover the set disjointly.

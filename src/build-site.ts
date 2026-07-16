@@ -357,9 +357,17 @@ async function main(): Promise<void> {
 	await writeFile(join(OUT, "registry.json"), registryJson(rows));
 
 	for (const row of rows) {
-		const report = JSON.parse(
-			await readFile(join(RESULTS_DIR, `${row.slug}.json`), "utf8"),
-		) as ScanReport;
+		let report: ScanReport;
+		try {
+			report = JSON.parse(
+				await readFile(join(RESULTS_DIR, `${row.slug}.json`), "utf8"),
+			) as ScanReport;
+		} catch (e) {
+			process.stderr.write(
+				`build-site: skipping ${row.slug}: ${(e as Error).message}\n`,
+			);
+			continue;
+		}
 		await writeFile(
 			join(OUT, "server", `${row.slug}.html`),
 			detailPage(row, report),
