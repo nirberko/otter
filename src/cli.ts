@@ -5,6 +5,7 @@ import { scan, type ScanOptions } from './scan.js'
 import { renderTerminal } from './report/terminal.js'
 import { renderJson } from './report/json.js'
 import { SEVERITIES, type Severity, severityRank } from './model.js'
+import { SCANNER_VERSION, CHECKS_VERSION } from './version.js'
 
 const USAGE = `mcpscan <target> [options]
 
@@ -19,6 +20,7 @@ options:
   --no-exec            never launch server code (static only)
   --fail-on <sev>      exit 2 if any finding >= severity (info|low|medium|high|critical)
   --timeout <ms>       per-scanner timeout (default 30000)
+  -v, --version        print scanner version + checks fingerprint
   -h, --help`
 
 async function main(): Promise<number> {
@@ -32,8 +34,14 @@ async function main(): Promise<number> {
       'fail-on': { type: 'string' },
       timeout: { type: 'string' },
       help: { type: 'boolean', short: 'h', default: false },
+      version: { type: 'boolean', short: 'v', default: false },
     },
   })
+
+  if (values.version) {
+    process.stdout.write(`mcpscan v${SCANNER_VERSION} (checks ${CHECKS_VERSION})\n`)
+    return 0
+  }
 
   if (values.help || positionals.length === 0) {
     process.stdout.write(`${USAGE}\n`)
