@@ -1,3 +1,10 @@
+# [1.2.0](https://github.com/nirberko/otter/compare/v1.1.0...v1.2.0) (2026-07-16)
+
+
+### Features
+
+* implement framework evaluation and add corresponding tests ([52c2238](https://github.com/nirberko/otter/commit/52c2238e16e668f3213d7820ea563ae528229a0f))
+
 # [1.1.0](https://github.com/nirberko/mcpscan/compare/v1.0.0...v1.1.0) (2026-07-16)
 
 
