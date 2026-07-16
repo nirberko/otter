@@ -1,3 +1,10 @@
+# [1.1.0](https://github.com/nirberko/mcpscan/compare/v1.0.0...v1.1.0) (2026-07-16)
+
+
+### Features
+
+* add detection rules, tests, and samples for malicious tool poisoning, rug pull, and toxic flow scenarios ([183efd9](https://github.com/nirberko/mcpscan/commit/183efd9b3d25ac8bb51f492be78f55e4dd414498))
+
 # 1.0.0 (2026-07-16)
 
 
