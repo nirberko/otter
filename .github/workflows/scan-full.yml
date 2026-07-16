@@ -1,40 +1,27 @@
 name: scan-full
 
-# Weekly (and one-time baseline): full registry walk, then re-scan the ENTIRE
-# stored catalog across parallel shards so improved detection rules reach every
-# server. No registry re-walk during scanning — shards read the stored list.
+# Re-scan the ENTIRE stored catalog across parallel shards. No discovery —
+# shards read the committed data/servers.json (refreshed daily by the discover
+# workflow). Runs daily after discover, and on every release so new detection
+# rules reach the catalog immediately.
 
 on:
-  schedule:
-    - cron: '23 5 * * 0' # Sundays
+  workflow_run:
+    workflows: [release, discover]
+    types: [completed]
   workflow_dispatch:
 
 concurrency:
-  group: catalog-publish
+  group: catalog-publish # shared with scan-incremental so they never deploy over each other
   cancel-in-progress: false
 
 env:
   SHARDS: '8'
 
 jobs:
-  discover:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          cache: npm
-      - run: npm ci
-      - run: npm run build
-      - run: node dist/discover.js --full
-      - uses: actions/upload-artifact@v4
-        with:
-          name: servers
-          path: data/servers.json
-
   scan:
-    needs: discover
+    # On workflow_run, only proceed if the release actually succeeded.
+    if: ${{ github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -42,17 +29,13 @@ jobs:
       matrix:
         shard: [0, 1, 2, 3, 4, 5, 6, 7]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4 # servers.json already committed by discover
       - uses: actions/setup-node@v4
         with:
           node-version: 20
           cache: npm
       - run: npm ci
       - run: npm run build
-      - uses: actions/download-artifact@v4
-        with:
-          name: servers
-          path: data
       - run: node dist/scan-batch.js --shard ${{ matrix.shard }}/${{ env.SHARDS }} --concurrency 6
       - uses: actions/upload-artifact@v4
         with:
@@ -72,10 +55,6 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run build
-      - uses: actions/download-artifact@v4
-        with:
-          name: servers
-          path: data
       - uses: actions/download-artifact@v4
         with:
           pattern: results-*
