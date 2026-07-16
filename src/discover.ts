@@ -2,6 +2,7 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname } from "node:path";
 import { parseArgs } from "node:util";
+import { slug } from "./util/slug.js";
 
 const REGISTRY = "https://registry.modelcontextprotocol.io/v0/servers";
 const OUT = "data/servers.json";
@@ -165,7 +166,18 @@ async function main(): Promise<void> {
 		merged.set(entry.id, entry);
 	}
 
-	const entries = [...merged.values()].sort((a, b) => a.id.localeCompare(b.id));
+	// Collapse ids that slug() to the same filename (e.g. case-only variants of the
+	// same GitHub repo). Two entries sharing a slug would land in different shards and
+	// race on the same data/results/*.json during artifact merge — keep one, newest wins.
+	const bySlug = new Map<string, ServerEntry>();
+	for (const e of merged.values()) {
+		const key = slug(e.id);
+		const kept = bySlug.get(key);
+		if (!kept || (e.updatedAt ?? "") > (kept.updatedAt ?? ""))
+			bySlug.set(key, e);
+	}
+
+	const entries = [...bySlug.values()].sort((a, b) => a.id.localeCompare(b.id));
 	await mkdir(dirname(outPath), { recursive: true });
 	await writeFile(outPath, `${JSON.stringify(entries, null, 2)}\n`);
 	await writeFile(CHANGED, `${JSON.stringify(changedIds.sort(), null, 2)}\n`);

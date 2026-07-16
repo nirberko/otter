@@ -21,6 +21,7 @@ async function main(): Promise<void> {
 	const servers = JSON.parse(await readFile(SERVERS, "utf8")) as ServerEntry[];
 	const rows: CatalogRow[] = [];
 	let missing = 0;
+	let corrupt = 0;
 
 	for (const entry of servers) {
 		if (!isScannable(entry.scanTarget)) continue;
@@ -30,13 +31,25 @@ async function main(): Promise<void> {
 			missing++;
 			continue;
 		}
-		rows.push(rowFromReport(JSON.parse(text) as ScanReport, entry));
+		let report: ScanReport;
+		try {
+			report = JSON.parse(text) as ScanReport;
+		} catch (e) {
+			// A torn result file (e.g. concurrent artifact-merge write) shouldn't sink the
+			// whole catalog — skip it and let the next scan re-produce it.
+			corrupt++;
+			process.stderr.write(
+				`  corrupt result, skipping ${path}: ${(e as Error).message}\n`,
+			);
+			continue;
+		}
+		rows.push(rowFromReport(report, entry));
 	}
 
 	const ranked = rankRows(rows);
 	await writeFile(SUMMARY, `${JSON.stringify(ranked, null, 2)}\n`);
 	process.stderr.write(
-		`Summarized ${ranked.length} servers → ${SUMMARY} (${missing} not yet scanned)\n`,
+		`Summarized ${ranked.length} servers → ${SUMMARY} (${missing} not yet scanned, ${corrupt} corrupt)\n`,
 	);
 }
 
