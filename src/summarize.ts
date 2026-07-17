@@ -34,6 +34,10 @@ async function main(): Promise<void> {
 		let report: ScanReport;
 		try {
 			report = JSON.parse(text) as ScanReport;
+			// Valid JSON but wrong shape (e.g. a truncated write that happens to parse)
+			// would blow up rowFromReport later — treat it as corrupt here.
+			if (!report?.layers || !Array.isArray(report.findings))
+				throw new Error("not a scan report");
 		} catch (e) {
 			// A torn result file (e.g. concurrent artifact-merge write) shouldn't sink the
 			// whole catalog — skip it and let the next scan re-produce it.
