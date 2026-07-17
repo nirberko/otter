@@ -1,3 +1,10 @@
+# [1.6.0](https://github.com/nirberko/otter/compare/v1.5.0...v1.6.0) (2026-07-17)
+
+
+### Features
+
+* add publisher officiality filter to catalog site ([#6](https://github.com/nirberko/otter/issues/6)) ([116b0c0](https://github.com/nirberko/otter/commit/116b0c00bb4c7268fa6fd2b14e3f9b72969bc082))
+
 # [1.5.0](https://github.com/nirberko/otter/compare/v1.4.0...v1.5.0) (2026-07-17)
 
 
