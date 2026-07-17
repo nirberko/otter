@@ -1,3 +1,10 @@
+## [1.3.2](https://github.com/nirberko/otter/compare/v1.3.1...v1.3.2) (2026-07-17)
+
+
+### Bug Fixes
+
+* skip result files that parse but lack scan-report shape ([1b82b79](https://github.com/nirberko/otter/commit/1b82b79d0867f847c4c181e6f41699c755bf36f6))
+
 ## [1.3.1](https://github.com/nirberko/otter/compare/v1.3.0...v1.3.1) (2026-07-17)
 
 
