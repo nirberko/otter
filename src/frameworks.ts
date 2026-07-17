@@ -1,8 +1,4 @@
-import {
-	type Category,
-	type Finding,
-	severityRank,
-} from "./model.js";
+import { type Category, type Finding, severityRank } from "./model.js";
 
 // A control from a named security framework (e.g. OWASP MCP Top 10's
 // "MCP03:2025 — Tool Poisoning"). Findings map to a control when their
@@ -82,7 +78,10 @@ export const FRAMEWORKS: Framework[] = [
 				name: "Intent Flow Subversion",
 				categories: ["toxic-flow"],
 			},
-			{ code: "MCP07:2025", name: "Insufficient Authentication & Authorization" },
+			{
+				code: "MCP07:2025",
+				name: "Insufficient Authentication & Authorization",
+			},
 			{ code: "MCP08:2025", name: "Lack of Audit and Telemetry" },
 			{ code: "MCP09:2025", name: "Shadow MCP Servers" },
 			{
@@ -153,7 +152,9 @@ export function evaluateFramework(
 				notes: [],
 			};
 		const matched = findings.filter((f) => matches(control, f));
-		const failing = matched.filter((f) => severityRank(f.severity) >= FAIL_RANK);
+		const failing = matched.filter(
+			(f) => severityRank(f.severity) >= FAIL_RANK,
+		);
 		const notes = matched.filter((f) => severityRank(f.severity) < FAIL_RANK);
 		return {
 			code: control.code,

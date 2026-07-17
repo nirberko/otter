@@ -9,6 +9,7 @@ import {
 } from "./catalog.js";
 import type { ServerEntry } from "./discover.js";
 import type { ScanReport } from "./model.js";
+import { loadVerdicts } from "./officiality.js";
 import { slug } from "./util/slug.js";
 
 const SERVERS = "data/servers.json";
@@ -19,6 +20,7 @@ const SUMMARY = "data/summary.json";
 // from scanning so sharded/parallel scan jobs can be merged into one catalog.
 async function main(): Promise<void> {
 	const servers = JSON.parse(await readFile(SERVERS, "utf8")) as ServerEntry[];
+	const verdicts = await loadVerdicts();
 	const rows: CatalogRow[] = [];
 	let missing = 0;
 	let corrupt = 0;
@@ -47,7 +49,7 @@ async function main(): Promise<void> {
 			);
 			continue;
 		}
-		rows.push(rowFromReport(report, entry));
+		rows.push(rowFromReport(report, entry, verdicts));
 	}
 
 	const ranked = rankRows(rows);

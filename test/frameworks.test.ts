@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
+	FRAMEWORKS,
 	controlsForFinding,
 	evaluateFrameworks,
-	FRAMEWORKS,
 	frameworkCounts,
 } from "../src/frameworks.js";
 import type { Finding, Severity } from "../src/model.js";

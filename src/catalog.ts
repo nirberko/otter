@@ -1,7 +1,11 @@
 import type { ServerEntry } from "./discover.js";
 import { type FrameworkCounts, frameworkCounts } from "./frameworks.js";
 import type { ScanReport, Severity } from "./model.js";
-import { classifyOfficiality, type Officiality } from "./officiality.js";
+import {
+	type Officiality,
+	type VerdictMap,
+	classifyOfficiality,
+} from "./officiality.js";
 import { scoreBand } from "./scoring.js";
 import { slug } from "./util/slug.js";
 
@@ -32,6 +36,7 @@ export interface CatalogRow {
 export function rowFromReport(
 	report: ScanReport,
 	entry: ServerEntry,
+	verdicts?: VerdictMap,
 ): CatalogRow {
 	const counts: Partial<Record<Severity, number>> = {};
 	for (const f of report.findings)
@@ -47,7 +52,7 @@ export function rowFromReport(
 		sources: entry.sources,
 		score: scanned ? report.score : null,
 		band: scanned ? scoreBand(report.score) : "unknown",
-		officiality: classifyOfficiality(entry.id),
+		officiality: classifyOfficiality(entry.id, verdicts),
 		counts,
 		frameworks: scanned ? frameworkCounts(report.findings) : {},
 		layers: report.layers,
