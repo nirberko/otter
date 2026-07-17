@@ -1,3 +1,10 @@
+# [1.4.0](https://github.com/nirberko/otter/compare/v1.3.2...v1.4.0) (2026-07-17)
+
+
+### Features
+
+* classify catalog entries as official/unofficial/unknown ([#4](https://github.com/nirberko/otter/issues/4)) ([f8df462](https://github.com/nirberko/otter/commit/f8df4624b4e9206ca0ac8e7bb3952b7696dd7795))
+
 ## [1.3.2](https://github.com/nirberko/otter/compare/v1.3.1...v1.3.2) (2026-07-17)
 
 
