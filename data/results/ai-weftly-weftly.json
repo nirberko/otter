@@ -91,4 +91,102 @@
     "tool-poisoning": 30
   },
   "errors": []
+} that the file has been uploaded (via HTTP PUT to the upload_url from transcribe or summarize) and start processing. Verifies that the file is present in storage and that the job has been paid. Returns status \"processing\". Poll get_job_status to track progress and retrieve download URLs when ",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "get_job_status",
+      "descriptionHash": "1e40a6fd9f682fad80b47424349047f34ec1cd7992134747c1a89cd22afea415",
+      "description": "Check the status of a transcribe or summarize job. Returns the current state and, when completed, an `outputs` array. Each output has either `content` (returned inline) or a presigned, time-limited (1 hour) `download_url`. Small text outputs (e.g. `transcript` SRT, `clip-candidates`, `summary`) come",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink",
+        "destructive"
+      ]
+    },
+    {
+      "name": "mpp_smoke_test",
+      "descriptionHash": "3bc0deb99319892e60aa7729e1d2929b57c464950741f16a0c1230f2ffac60f7",
+      "description": "Smoke-test the MPP payment plumbing end-to-end via this MCP server, for $0.01 USDC. Two-call flow: (1) call with no arguments to receive an MPP `payment_challenge`; (2) pay via MPP and call again with `payment_credential` set to the resulting Authorization header value (e.g. \"Payment eyJ...\") to rec",
+      "labels": [
+        "private-data",
+        "destructive"
+      ]
+    },
+    {
+      "name": "publish_to_youtube",
+      "descriptionHash": "2f74fe130695b73f6d6458ddcac6d4e50cec7e8e79c8f385041f07bcb13a868a",
+      "description": "Publish an existing video from a transcribe or summarize job to YouTube. Creates a paid publish job (flat $1.75 price) and stores the OAuth token. Captions are auto-generated from the session transcript if available. Workflow: create_job → pay → trigger_youtube_publish → poll get_youtube_publish_sta",
+      "labels": [
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "trigger_youtube_publish",
+      "descriptionHash": "d3947230d08c65a7b1c93ad4fc86fbed1834a3fc6ea8f25916650c965b769c4d",
+      "description": "Start the YouTube upload after payment is confirmed. Call this after publish_to_youtube once payment_status is \"paid\". Returns immediately — the upload runs as a durable Workflow in the background. Poll get_youtube_publish_status to track progress.",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "get_youtube_publish_status",
+      "descriptionHash": "e6ac22d0c996935f63a1beea0e9db1ceccfe833ab899711799e63159bf251f6b",
+      "description": "Check the status of a YouTube publish job. Poll periodically after trigger_youtube_publish — the upload takes 1-10 minutes depending on video size. Returns status (pending, publishing, completed, failed) and the youtube_video_url once complete.",
+      "labels": [
+        "public-sink"
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"mpp_smoke_test\" references sensitive artifacts (authorization). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:mpp_smoke_test",
+        "snippet": "Smoke-test the MPP payment plumbing end-to-end via this MCP server, for $0.01 USDC. Two-call flow: (1) call with no arguments to receive an MPP `payment_challen…"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"publish_to_youtube\" references sensitive artifacts (auth token). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:publish_to_youtube",
+        "snippet": "Publish an existing video from a transcribe or summarize job to YouTube. Creates a paid publish job (flat $1.75 price) and stores the OAuth token. Captions are …"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: transcribe, summarize, find_clips, extract_clip, complete_upload, get_job_status · Private data: summarize, complete_upload, get_job_status, mpp_smoke_test, publish_to_youtube · Public sink: find_clips, extract_clip, extract_vertical_clip, complete_upload, get_job_status, publish_to_youtube, trigger_youtube_publish, get_youtube_publish_status · Destructive: transcribe, summarize, get_job_status, mpp_smoke_test.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: transcribe, summarize, find_clips, extract_clip, complete_upload, get_job_status · Private data: summarize, complete_upload, get_job_status, mpp_smoke_test, publish_to_youtube · Public sink: find_clips, extract_clip, extract_vertical_clip, complete_upload, get_job_status, publish_to_youtube, trigger_youtube_publish, get_youtube_publish_status · Destructive: transcribe, summarize, get_job_status, mpp_smoke_test"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 50,
+  "scoreBreakdown": {
+    "tool-poisoning": 30,
+    "toxic-flow": 20
+  },
+  "errors": []
 }
