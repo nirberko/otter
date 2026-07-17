@@ -39,7 +39,7 @@ describe("renderSarif", () => {
 		const sarif = JSON.parse(renderSarif(report));
 		expect(sarif.version).toBe("2.1.0");
 		expect(sarif.runs).toHaveLength(1);
-		expect(sarif.runs[0].tool.driver.name).toBe("mcpscan");
+		expect(sarif.runs[0].tool.driver.name).toBe("otter");
 		expect(sarif.runs[0].results).toHaveLength(2);
 	});
 

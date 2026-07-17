@@ -1,6 +1,6 @@
 # Roadmap
 
-mcpscan's edge is the **continuously-scanned catalog of the entire MCP
+otter's edge is the **continuously-scanned catalog of the entire MCP
 registry** — nobody else has continuous scans of every published server. The
 roadmap turns that dataset into things developers and companies depend on.
 
@@ -16,7 +16,7 @@ SARIF to GitHub code scanning, gate on `--fail-on`, and diff against a cached
 previous scan for automatic **rug-pull detection in CI**. Turns the CLI from
 "something you remember to run" into a checkbox in every MCP server repo.
 
-### `mcpscan audit` — scan your own MCP client config
+### `otter audit` — scan your own MCP client config
 A subcommand that discovers Claude Desktop / Claude Code / Cursor / Windsurf /
 VS Code MCP configs, resolves each configured server, and reports: instant
 verdict from the catalog if known, live scan otherwise, plus a rug-pull diff
@@ -30,7 +30,7 @@ report — new malicious findings, silently-changed tools, score movements —
 published to the site and GitHub Discussions.
 
 ### False-positive story
-Inline suppressions (`.mcpscanignore` with required justifications), confidence
+Inline suppressions (`.otterignore` with required justifications), confidence
 levels on findings, and a published precision/recall page measured against the
 `corpus/` malicious + clean sets in CI. Scanners get uninstalled over false
 positives, not missing features.
@@ -40,7 +40,7 @@ positives, not missing features.
 ### Container sandbox for `--exec`
 Run `stdio:`/code targets inside a network-isolated, read-only container so
 untrusted server code never touches the host. Removes the biggest caveat in any
-security review of mcpscan itself. (`src/sandbox/` is the seam.)
+security review of otter itself. (`src/sandbox/` is the seam.)
 
 ### Registry partnership
 Offer scan results and a malicious-listing disclosure channel to the

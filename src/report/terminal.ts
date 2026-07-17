@@ -45,7 +45,7 @@ export function renderTerminal(report: ScanReport): string {
 		.join(" + ");
 
 	lines.push("");
-	lines.push(pc.bold(`  mcpscan  ${report.target.kind}:${report.target.ref}`));
+	lines.push(pc.bold(`  otter  ${report.target.kind}:${report.target.ref}`));
 	const version = report.target.resolvedVersion
 		? `@${report.target.resolvedVersion}`
 		: "";

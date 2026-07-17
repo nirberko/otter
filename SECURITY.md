@@ -1,6 +1,6 @@
 # Security Policy
 
-mcpscan is a security tool. We hold the project itself to the standard it
+otter is a security tool. We hold the project itself to the standard it
 checks others against.
 
 ## Reporting a vulnerability
@@ -25,17 +25,17 @@ reporters in the release notes unless you ask us not to.
 
 In scope:
 
-- the `mcpscan` CLI and its scanners (`src/`),
+- the `otter` CLI and its scanners (`src/`),
 - the catalog pipeline and the published site/API,
 - our GitHub Actions workflows and release process.
 
-Out of scope: findings that mcpscan reports about *third-party MCP servers* —
+Out of scope: findings that otter reports about *third-party MCP servers* —
 those are the tool working as intended. To dispute a scan result (e.g. a false
 positive), use the false-positive issue template instead.
 
 ## A note on `--exec`
 
-`mcpscan --exec` launches target server code to read its live tool list. Until
+`otter --exec` launches target server code to read its live tool list. Until
 the container sandbox lands (see `ROADMAP.md`), only run `--exec` on code you
 trust. This is a known limitation, not a vulnerability report.
 

@@ -14,7 +14,7 @@ export interface ServerEntry {
 	title?: string;
 	description?: string;
 	version?: string;
-	// Best target string for `mcpscan`, chosen by preference: npm > pypi > remote.
+	// Best target string for `otter`, chosen by preference: npm > pypi > remote.
 	scanTarget?: string;
 	sources: { npm?: string; pypi?: string; oci?: string; remote?: string };
 	registryStatus?: string;

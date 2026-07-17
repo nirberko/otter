@@ -74,9 +74,9 @@ export function renderSarif(report: ScanReport): string {
 			{
 				tool: {
 					driver: {
-						name: "mcpscan",
+						name: "otter",
 						version: report.scanner.version,
-						informationUri: "https://github.com/nirberko/mcpscan",
+						informationUri: "https://github.com/nirberko/otter",
 						rules,
 					},
 				},

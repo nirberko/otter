@@ -1,4 +1,4 @@
-# Contributing to mcpscan
+# Contributing to otter
 
 Thanks for helping make MCP servers safer to install.
 
