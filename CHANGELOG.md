@@ -1,3 +1,10 @@
+# [1.5.0](https://github.com/nirberko/otter/compare/v1.4.0...v1.5.0) (2026-07-17)
+
+
+### Features
+
+* persist per-server officiality verdicts via LLM classifier ([#5](https://github.com/nirberko/otter/issues/5)) ([9059233](https://github.com/nirberko/otter/commit/90592330c263c531a702795b50eb485c825c4ba5))
+
 # [1.4.0](https://github.com/nirberko/otter/compare/v1.3.2...v1.4.0) (2026-07-17)
 
 
