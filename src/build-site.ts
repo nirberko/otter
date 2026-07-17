@@ -16,6 +16,10 @@ const SUMMARY = "data/summary.json";
 const RESULTS_DIR = "data/results";
 const OUT = "site";
 
+// Public base URL of the deployed catalog (GitHub Pages). Used for the
+// copy-paste badge embed snippets. Update this if the repo/Pages URL changes.
+const SITE_BASE = "https://nirberko.github.io/otter";
+
 const BAND_COLOR: Record<string, string> = {
 	verified: "#2da44e",
 	ok: "#3fb950",
@@ -87,6 +91,12 @@ footer{color:#8b949e;margin-top:40px;font-size:13px}
   padding:6px 12px;font-size:14px;cursor:pointer}
 .pager button:disabled{opacity:.4;cursor:default}
 .pager #pageinfo{color:#8b949e;font-size:13px}
+.embed{background:#161b22;border:1px solid #30363d;border-radius:8px;padding:12px 14px;
+  overflow-x:auto;font-size:13px}
+.embed code{font-family:ui-monospace,monospace;color:#e6edf3;white-space:pre}
+.api{background:#161b22;border:1px solid #30363d;border-radius:8px;padding:12px 14px;
+  overflow-x:auto;font-size:13px}
+.api code{font-family:ui-monospace,monospace}
 `;
 
 function layout(title: string, body: string): string {
@@ -178,6 +188,11 @@ ${banner}
 </tr></thead><tbody></tbody></table>
 <div class="pager"><button id="prev">← prev</button><span id="pageinfo"></span><button id="next">next →</button></div>
 <p class="sub" id="empty" style="display:none">No matching servers.</p>
+<h2>API</h2>
+<p class="sub">Free, static, CDN-served JSON. No key, no rate limit.</p>
+<div class="api"><code>GET ${SITE_BASE}/registry.json</code> — full catalog, one stable record per server<br>
+<code>GET ${SITE_BASE}/api/server/&lt;slug&gt;.json</code> — a single server's scan record<br>
+<code>GET ${SITE_BASE}/api/badge/&lt;slug&gt;.json</code> — <a href="https://shields.io/badges/endpoint-badge">shields.io endpoint</a> for the score badge</div>
 <script>
 const SIZE=${PAGE_SIZE};
 let DATA=[],view=[],page=0,sortCol='sc',dir=1;
@@ -265,6 +280,19 @@ function frameworksHtml(report: ScanReport): string {
 		.join("\n");
 }
 
+// Copy-paste badge snippet for server authors. Embedding it links back here,
+// which is the whole growth loop — every README that adds the badge is a
+// backlink and an implicit "this server was scanned" signal.
+function embedHtml(row: CatalogRow): string {
+	const page = `${SITE_BASE}/server/${row.slug}.html`;
+	const svg = `${SITE_BASE}/badge/${row.slug}.svg`;
+	const md = `[![mcpscan](${svg})](${page})`;
+	return `<h2>Embed this badge</h2>
+<p class="sub">Show your mcpscan score in your README:</p>
+<p><img src="../badge/${esc(row.slug)}.svg" alt="mcpscan score"></p>
+<pre class="embed"><code>${esc(md)}</code></pre>`;
+}
+
 function detailPage(row: CatalogRow, report: ScanReport): string {
 	const layers = [
 		report.layers.metadata && "metadata",
@@ -292,7 +320,8 @@ mcpscan v${esc(row.scannerVersion)} · checks ${esc(row.checksVersion)}</p>
 ${callout}
 ${errors}
 ${findings}
-${frameworksHtml(report)}`;
+${frameworksHtml(report)}
+${embedHtml(row)}`;
 	return layout(`${row.id} — mcpscan`, body);
 }
 
@@ -300,9 +329,10 @@ function severityRank(s: string): number {
 	return ["info", "low", "medium", "high", "critical"].indexOf(s);
 }
 
-// Machine-readable registry for programmatic consumers. Stable shape, no HTML.
-function registryJson(rows: CatalogRow[]): string {
-	const servers = rows.map((r) => ({
+// One server's stable, HTML-free record. Shared by registry.json (the full
+// list) and the per-server API endpoint so both stay in sync.
+function serverEntry(r: CatalogRow) {
+	return {
 		id: r.id,
 		slug: r.slug,
 		title: r.title,
@@ -321,18 +351,33 @@ function registryJson(rows: CatalogRow[]): string {
 		outdated: isOutdated(r, CURRENT_CHECKS),
 		report: `server/${r.slug}.html`,
 		badge: `badge/${r.slug}.svg`,
-	}));
+	};
+}
+
+// Machine-readable registry for programmatic consumers. Stable shape, no HTML.
+function registryJson(rows: CatalogRow[]): string {
 	return JSON.stringify(
 		{
 			generatedAt: new Date().toISOString(),
 			scannerVersion: SCANNER_VERSION,
 			checksVersion: CURRENT_CHECKS,
-			count: servers.length,
-			servers,
+			count: rows.length,
+			servers: rows.map(serverEntry),
 		},
 		null,
 		2,
 	);
+}
+
+// shields.io endpoint payload: authors can render the score via
+// https://img.shields.io/endpoint?url=<SITE_BASE>/api/badge/<slug>.json
+function shieldsBadgeJson(row: CatalogRow): string {
+	return JSON.stringify({
+		schemaVersion: 1,
+		label: "mcpscan",
+		message: row.score === null ? "n/a" : `${row.score} ${row.band}`,
+		color: BAND_COLOR[row.band].replace("#", ""),
+	});
 }
 
 function badgeSvg(row: CatalogRow): string {
@@ -357,6 +402,8 @@ async function main(): Promise<void> {
 	const rows = JSON.parse(await readFile(SUMMARY, "utf8")) as CatalogRow[];
 	await mkdir(join(OUT, "server"), { recursive: true });
 	await mkdir(join(OUT, "badge"), { recursive: true });
+	await mkdir(join(OUT, "api", "server"), { recursive: true });
+	await mkdir(join(OUT, "api", "badge"), { recursive: true });
 
 	await writeFile(join(OUT, "index.html"), indexPage(rows));
 	await writeFile(join(OUT, "catalog.json"), catalogJson(rows));
@@ -379,6 +426,14 @@ async function main(): Promise<void> {
 			detailPage(row, report),
 		);
 		await writeFile(join(OUT, "badge", `${row.slug}.svg`), badgeSvg(row));
+		await writeFile(
+			join(OUT, "api", "server", `${row.slug}.json`),
+			JSON.stringify(serverEntry(row)),
+		);
+		await writeFile(
+			join(OUT, "api", "badge", `${row.slug}.json`),
+			shieldsBadgeJson(row),
+		);
 	}
 
 	process.stderr.write(`Built site for ${rows.length} servers → ${OUT}/\n`);
