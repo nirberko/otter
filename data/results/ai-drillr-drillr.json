@@ -71,4 +71,146 @@
     "tool-poisoning": 20
   },
   "errors": []
+}\", \"苹果\", \"AAPL\", \"OpenAI\"\n- market ",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "run_sql",
+      "descriptionHash": "21aa5b7d4f8cb028d1a5da82d02c1dff96ed31e5c00f3aff894b23fed5649378",
+      "description": "PostgreSQL SELECT over financial / market / alt-data tables — returns structured rows.\n\nHard rules (query fails otherwise):\n- SELECT only, no CTE (`WITH ... AS`) — use subqueries.\n- Period columns are TEXT, not dates — `period_end` is 'YYYY-MM'. Compare as strings (`period_end >= '2024-01'`); a `::d",
+      "labels": [
+        "public-sink",
+        "destructive"
+      ]
+    },
+    {
+      "name": "get_table_schema",
+      "descriptionHash": "19d8f2bf0b1f84fd2722e775c609d0eccc6c6e2b887add6241e9c1b577674f12",
+      "description": "Use BEFORE run_sql when you're unsure which columns a table has.\n\nLook up column definitions (name, type, description) for a data table."
+    },
+    {
+      "name": "fiscal_utility",
+      "descriptionHash": "3abbf0b3e50a2eee930c7a9394b5af6249e52c407922460b2a93ea33ca8e1cfb",
+      "description": "Use to convert between fiscal year/quarter and calendar months for a given ticker.\nCompanies have different fiscal year starts (Apple Sep, Nvidia Jan) — call this\nbefore filtering on period_end columns.\n\nFiscal year ↔ calendar month bidirectional conversion. Forward: ticker + fiscal_year + fiscal_qu",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "list_tables",
+      "descriptionHash": "a53578151cb3d722dd125a3fe39abc9232413eb33b03e53c74845a9974173473",
+      "description": "List alternative-data tables under the given categories. Returns each table's name,\none-line purpose, and column names (call get_table_schema if you need column\ntypes/comments). Batch up to 5 categories in one call.\n\nUse this BEFORE run_sql when you want to explore alt-data — run_sql alone won't\ntel",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "news_search",
+      "descriptionHash": "9be2b4718b3c6a00023d8a28b18542466f1ca0ea9569230b8b157cff034f3adb",
+      "description": "Use for any news, event, development, or statement question about a company,\ntheme, or the market.\n\nCovers US, Japan, Hong Kong and A-share markets; The `ticker` filter takes\nexchange-suffixed symbols: US bare (AAPL), Japan `.T` (7203.T), Hong Kong\n`.HK` (00700.HK), A-share `.SH`/`.SZ` (600519.SH). ",
+      "labels": [
+        "public-sink"
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"sec_report_search\" references sensitive artifacts (authorization). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:sec_report_search",
+        "snippet": "Use when you need narrative content from company filings — risk factors, MD&A, guidance language, deal terms, accounting policies, share structure. For consolid…"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "medium",
+      "category": "toxic-flow",
+      "title": "Toxic flow: untrusted input can reach an external sink",
+      "detail": "Server \"data\" exposes tools that together enable an exfiltration flow. Untrusted content: list_tables · Public sink: sec_report_list, sec_report_search, ticker_lookup, run_sql, fiscal_utility, news_search · Destructive: sec_report_search, run_sql.",
+      "evidence": {
+        "source": "server:data",
+        "snippet": "Untrusted content: list_tables · Public sink: sec_report_list, sec_report_search, ticker_lookup, run_sql, fiscal_utility, news_search · Destructive: sec_report_search, run_sql"
+      },
+      "confidence": 0.45,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"sec_report_list\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:sec_report_list",
+        "snippet": "before: \"(hash b9b938a6)\" → after: \"Use to discover which SEC filings exist for a ticker before searching content.\nFor the actual content use sec_report_search instead.\n\nList indexed SEC filings for a given ticker with a summary header.\n\nReturns: summary (period coverage, per-type counts) + table of up to 50 filings\n(fiscal_year, fisc\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"sec_report_search\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:sec_report_search",
+        "snippet": "before: \"(hash 309f47bc)\" → after: \"Use when you need narrative content from company filings — risk factors, MD&A, guidance language, deal terms, accounting policies, share structure. For consolidated financial numbers use run_sql on financial_statements instead.\n\nSemantic search over the full text of company-filed reports; returns ma\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"company_search\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:company_search",
+        "snippet": "before: \"(hash 6ef8adb2)\" → after: \"Use for qualitative company discovery (industry, business model, supply chain,\ncompetitors, management background). For numerical screening (revenue, margins,\nratios, growth rates) use run_sql on company_snapshot instead.\n\nDrillr's company knowledge base — searchable across industry classification,\n\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"ticker_lookup\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:ticker_lookup",
+        "snippet": "before: \"(hash 78da5490)\" → after: \"Resolve a company name, brand, or ticker substring to canonical ticker(s). Use this FIRST when the user mentions a company by name/brand/nickname before running any ticker-keyed tool.\n\nInput:\n- query (required): company name, brand, or ticker substring, e.g. \"Apple\", \"苹果\", \"AAPL\", \"OpenAI\"\n- market \""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"news_search\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:news_search",
+        "snippet": "before: \"(hash 894df6e1)\" → after: \"Use for any news, event, development, or statement question about a company,\ntheme, or the market.\n\nCovers US, Japan, Hong Kong and A-share markets; The `ticker` filter takes\nexchange-suffixed symbols: US bare (AAPL), Japan `.T` (7203.T), Hong Kong\n`.HK` (00700.HK), A-share `.SH`/`.SZ` (600519.SH). \""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    }
+  ],
+  "score": 52,
+  "scoreBreakdown": {
+    "tool-poisoning": 40,
+    "toxic-flow": 8
+  },
+  "errors": []
 }

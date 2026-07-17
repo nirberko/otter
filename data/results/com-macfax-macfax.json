@@ -1,15 +1,15 @@
 {
   "schemaVersion": 1,
   "scanner": {
-    "version": "1.0.0",
-    "rules": "19f6a1b4a518"
+    "version": "1.4.0",
+    "rules": "a1c0c9e6130b"
   },
   "target": {
     "kind": "url",
     "ref": "https://macfax.com/mcp"
   },
-  "scannedAt": "2026-07-16T16:30:42.884Z",
-  "durationMs": 592,
+  "scannedAt": "2026-07-17T09:35:06.832Z",
+  "durationMs": 1083,
   "layers": {
     "metadata": true,
     "static": false
@@ -17,31 +17,89 @@
   "tools": [
     {
       "name": "lookup_mac_serial",
-      "descriptionHash": "d6c4301be599da377b0f4f1dad0151f7cd488c8e964f1800ef71c42d0d54a25c"
+      "descriptionHash": "d6c4301be599da377b0f4f1dad0151f7cd488c8e964f1800ef71c42d0d54a25c",
+      "description": "Check a Mac serial number: whether a verified Macfax report exists for it, plus the model and year decoded from Apple's data for pre-2021 serials. 2021+ Macs have 10-character randomized serials that encode nothing, so for those the honest answer is the format check and the report cross-reference. L",
+      "labels": [
+        "destructive"
+      ]
     },
     {
       "name": "get_mac_price_stats",
-      "descriptionHash": "9d29ee5b1c88dd73cccb8be64399063957a52c96d83ea23bb9d944b55e69cffc"
+      "descriptionHash": "10f0129f0d7a153c6f48ba9f3a32dfc9a172cf66aad59d0dd39cfbf889baffdd",
+      "description": "What a used Mac configuration is listed for right now AND what it actually sells for. Returns the asking band (median/p25/p75 with sample size), per-channel medians with net-to-seller after fees, launch MSRP retention, Apple trade-in floor, and a sold slice: verified-sale percentiles when the config"
     },
     {
       "name": "search_mac_listings",
-      "descriptionHash": "b24d61c04fed6e1c89c58e9ba124aad310bfe1fa56d4ec9431d41d16137b77a5"
+      "descriptionHash": "b24d61c04fed6e1c89c58e9ba124aad310bfe1fa56d4ec9431d41d16137b77a5",
+      "description": "Live used-Mac listings aggregated across eBay, Craigslist, OfferUp, Swappa, Facebook and Reddit, with scam clusters, junk titles, classified-ad bait, auctions and stale/sold rows already filtered out. Every result deep-links to the source listing where the purchase happens. Filter by configuration, "
     },
     {
       "name": "check_mac_listing",
-      "descriptionHash": "7a677cbea03ece4724604df2f61b48aa827938ee087bffc71eb2b33d0b283c8f"
+      "descriptionHash": "2abf68a4b458c55fd5dc9b6101744ca763eb2327e8efed15bc9b18e34f50a5f3",
+      "description": "The trust picture for one specific listing, by URL (eBay/Craigslist/OfferUp/Swappa/Facebook/Reddit) or Macfax listing id: whether Macfax knows it, whether it still passes every quality gate, scam/junk/classified/auction flags, when a scan last verified it live, its ask against the configuration's ty",
+      "labels": [
+        "untrusted-content"
+      ]
     },
     {
       "name": "get_mac_report",
-      "descriptionHash": "c4de59595af1aeea6322d378e661d07afe9f02ca090676633f868eb22cd5a86b"
+      "descriptionHash": "c4de59595af1aeea6322d378e661d07afe9f02ca090676633f868eb22cd5a86b",
+      "description": "A verified Macfax condition report as structured data: hardware-verified identity, Activation Lock / MDM / serial-match checks, coverage status, and the signing chain. Use when a listing or seller shares a macfax.com/r/ link and the buyer wants the facts behind it. status \"superseded\" means the same"
     },
     {
       "name": "create_mac_alert",
-      "descriptionHash": "8fdadabf7d3e4fd337dd1c30d966a33b939251ce4d565b090dab4708219c93cd"
+      "descriptionHash": "8fdadabf7d3e4fd337dd1c30d966a33b939251ce4d565b090dab4708219c93cd",
+      "description": "Watch the market for a configuration: Macfax emails the given address when new matching listings appear. CONSENT CONTRACT: create an alert only for a user who explicitly asked for this alert on this email address. The first alert for a new email stays inactive until the email's owner clicks the conf",
+      "labels": [
+        "public-sink"
+      ]
     }
   ],
-  "findings": [],
-  "score": 100,
-  "scoreBreakdown": {},
+  "findings": [
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "medium",
+      "category": "toxic-flow",
+      "title": "Toxic flow: untrusted input can reach an external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: check_mac_listing · Public sink: create_mac_alert · Destructive: lookup_mac_serial.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: check_mac_listing · Public sink: create_mac_alert · Destructive: lookup_mac_serial"
+      },
+      "confidence": 0.45,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"get_mac_price_stats\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:get_mac_price_stats",
+        "snippet": "before: \"(hash 9d29ee5b)\" → after: \"What a used Mac configuration is listed for right now AND what it actually sells for. Returns the asking band (median/p25/p75 with sample size), per-channel medians with net-to-seller after fees, launch MSRP retention, Apple trade-in floor, and a sold slice: verified-sale percentiles when the config\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"check_mac_listing\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:check_mac_listing",
+        "snippet": "before: \"(hash 7a677cbe)\" → after: \"The trust picture for one specific listing, by URL (eBay/Craigslist/OfferUp/Swappa/Facebook/Reddit) or Macfax listing id: whether Macfax knows it, whether it still passes every quality gate, scam/junk/classified/auction flags, when a scan last verified it live, its ask against the configuration's ty\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    }
+  ],
+  "score": 62,
+  "scoreBreakdown": {
+    "toxic-flow": 8,
+    "tool-poisoning": 30
+  },
   "errors": []
 }
