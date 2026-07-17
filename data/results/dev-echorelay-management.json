@@ -375,4 +375,347 @@
     "tool-poisoning": 43
   },
   "errors": []
+}charting. By default the series cover inbound requests; pass `targetId` to slice over one outbound target's per-attempt rows instead (answers \"which target is degraded?\"); pass `e"
+    },
+    {
+      "name": "list_dlq",
+      "descriptionHash": "b738c6637788ca20a6689b5b6e101cd7b09be51e09e908a0da5265625ec2dd59",
+      "description": "List entries currently in this project's dead-letter queue, newest first. One inbound request fans out per-target, so a single failed request may produce several DLQ entries with different `targetId`s. Returns `{total, limit, offset, rows[], evictedCount}` where each row has `id` (Redis stream id), ",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "get_dlq_entry",
+      "descriptionHash": "1b513f52382b587b17144fbc3a9fe7d8e8319ffb38bb0a69d3a5ef606112b844",
+      "description": "Get a single DLQ entry by its Redis stream id (`{ms}-{seq}`, as returned by list_dlq). DLQ entries are retained for up to 30 days from the failure time or until cleared; this returns null if the entry has been purged or discarded."
+    },
+    {
+      "name": "retry_dlq_entry",
+      "descriptionHash": "0865415570e420908eeb866aa6cc238ddefaa5f8934272acfa5d34a28198cb61",
+      "description": "Re-enqueue a DLQ entry to the main relay stream and delete it from the DLQ. A replay is billed like any relay — it charges the entry's original credit cost to the project before re-sending; if the balance is too low the entry stays in the DLQ and this returns an insufficient-credits error (top up an",
+      "labels": [
+        "destructive"
+      ]
+    },
+    {
+      "name": "discard_dlq_entry",
+      "descriptionHash": "81e1d435c815e8722819ee35167fac311032fe5feff8039238c082b5a54a3d3b",
+      "description": "Permanently delete a DLQ entry without retrying. Requires edit access.",
+      "labels": [
+        "destructive"
+      ]
+    },
+    {
+      "name": "list_subscription_plans",
+      "descriptionHash": "939439f3ecf00fe3928816b1c587023d0af1a7c606e4f832256652d0f7474503",
+      "description": "List the available subscription plans (Free, Pro, Scale) with monthly EUR price, credit allowance, per-project RPM cap, and how many active projects the plan includes. Read-only."
+    },
+    {
+      "name": "list_credit_packs",
+      "descriptionHash": "be44b428411681b1c46ca98f83fba16a3fbccf783e6ad0dce97636ab42601753",
+      "description": "List the prepaid credit packs the project owner can purchase. Read-only. Identify a pack to start_topup by its `eurCents`."
+    },
+    {
+      "name": "list_addons",
+      "descriptionHash": "c3f2ad8f9e4654685b84fdc6de6719156a888cb834af7c914c7779d5aa064256",
+      "description": "List the optional add-on subscriptions (RPM upgrades, extra team seats, extended log retention, extra file-delivery storage in +5 GB blocks, …). Each entry is monthly, renews every 30 days until cancelled, and carries `scope` (per_account or per_project). Read-only.",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "get_subscription",
+      "descriptionHash": "fb084dac79e251942d92a51457f4750995cd8bf5b7994e992f724f245146b2cd",
+      "description": "Get the project owner's current subscription: plan, active flag, period start/end, cancel-at-period-end flag, external Paddle subscription id, and whether a payment method is on file at the provider. Owner-only; requires a token minted with the billing scope.",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "preview_plan_change",
+      "descriptionHash": "e61df99b1e0721ee126d7e96d85241a996630585890a7b0a014a1a0cf36fecb2",
+      "description": "Preview what would happen if change_plan were called with this plan: the immediate-charge amount (cents), the next-invoice amount, the effective date, and the kind (`applied` for in-cycle upgrade, `scheduled` for at-period-end downgrade / cancel). Owner-only; requires a token minted with the billing",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "start_subscription",
+      "descriptionHash": "a578c1069118ebb306ed5326541fd479db36a57a6a58911add47275623c370ad",
+      "description": "Begin a new Pro or Scale subscription for the project owner. Returns `{checkoutUrl, plan}` — surface the URL to the human for approval. Errors if the owner is already on an active paid plan (use change_plan instead). Owner-only; requires a token minted with the billing scope.",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "change_plan",
+      "descriptionHash": "487c4bdac2c8c2be362ec57d64d7bbedee1cec7360ba0be71a5be55ee34f7fdd",
+      "description": "Switch the project owner between Pro and Scale, or cancel the subscription (effectively dropping to Free at period end). Returns `{kind, newPlan, effectiveAt, applied}` — `applied=true` means Paddle was charged immediately, otherwise the change is queued for the current period end. Use preview_plan_",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "cancel_subscription",
+      "descriptionHash": "056610401e1e2a6c15cfc56dab07c2d560abc947fddcfb2d2e26fe6d9a693c65",
+      "description": "Schedule the project owner's subscription for cancellation at the end of the current billing period. Returns `{kind: 'scheduled', newPlan: 'free', effectiveAt}`. Add-ons keep renewing while the plan is active; after it ends they stop renewing and each already-paid add-on cycle stays active until its",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "start_topup",
+      "descriptionHash": "91bb9e706704c3dddbffa0092e24513a6e00b73d8c4fe417733004eefe322095",
+      "description": "Begin a credit-pack top-up for the project owner. Pass the pack`s `eurCents` (from list_credit_packs). Returns `{checkoutUrl, credits, eurCents, directCharge}` or `{transactionId, credits, eurCents, directCharge:true}` on subsequent MCP purchases. Owner-only; requires a token minted with the billing",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "subscribe_addon",
+      "descriptionHash": "73994cdb9ee04ae8c954136c22412ce3990faac4a27b6a52272598f2a139d0b3",
+      "description": "Subscribe the project owner to a monthly add-on (RPM upgrade, team seat, extended log retention, extra file storage in +5 GB blocks, …). Charges the saved payment method immediately, then auto-renews every 30 days until `unsubscribe_addon` — or until the subscription ends, after which the already-pa",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "unsubscribe_addon",
+      "descriptionHash": "601cee47b81c6f7616609bd2367632448dda7c00c8412b080516c4f4ff6a1f7a",
+      "description": "Cancel an active add-on subscription. Stops future charges; the current cycle stays active until expiry. RPM upgrades are cancelled for THIS project. Returns `{addonKey, project, cancelledAt}`. Owner-only; requires a token minted with the billing scope.",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "resume_addon",
+      "descriptionHash": "1c89656f2efa571c2d00dd852d9c3829c48d9cd04118faf02947be710fee6536",
+      "description": "Resume (un-cancel) a pending-cancel add-on whose paid-through cycle has not yet ended. Clears the cancellation so the add-on renews normally at the next cycle boundary. No new charge — the cycle was already paid. Stackable add-ons cannot be resumed; buy a new unit instead. Returns {addonKey, project",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "downgrade_addon",
+      "descriptionHash": "a509b7760772173ac51c5e8007849c22076f8f9b764ba2bdaa4bee3d3bfc21b0",
+      "description": "Schedule a tier downgrade for a non-stackable add-on (RPM tier). The current tier stays active until `nextRenewalAt`; at that point the lower tier is charged and activated. No mid-cycle charge. Use list_addons to find available keys. Returns {addonKey, targetAddonKey, project, effectiveAt}. Owner-on",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "list_active_addons",
+      "descriptionHash": "8fc6a54d0e3d542d835e2e4629340d4c395ab3c096ce31aa370a61572138189b",
+      "description": "List the project owner`s currently-active add-ons. Returns `[{addonKey, project, monthlyEurCents, activatedAt, nextRenewalAt, consecutiveFailures}, ...]`. RPM upgrades are per-project; `project` is the slug they apply to (null for account-wide add-ons). Owner-only; requires a token minted with the b",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "list_audit_events",
+      "descriptionHash": "6f8934435ec9526610851b2a6b2f618efef86412a7663b96bc759fa5e50d14da",
+      "description": "List project audit-log entries, newest first. Captures who changed what — lines, endpoints, targets, API keys. Outbound-target `auth.token` / `auth.password` are redacted in the diff per the same policy used for endpoint reads. Retention is the `auditRetentionDays` advertised on get_project (default",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "list_projects",
+      "descriptionHash": "cdb37eb0fb3002e54de72f986196790606d215b30c803fdf1e32d237c793a258",
+      "description": "List the projects on your account (archived included), each with `id`, `slug`, `name`, `apiBaseUrl` and `archived`. Requires an ACCOUNT-scoped token (one minted with no project) and the `read` scope. A project-scoped token cannot call this — use it on its own project's tools instead.",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "create_project",
+      "descriptionHash": "2905c4a4f7393f36d4b64a407ef83e7b7262940f7cd2b70490d0485e9c0b4160",
+      "description": "Create a new project on your account so an agent can bootstrap from a fresh account. The slug is derived from the name and validated server-side (format, reserved words, uniqueness). Each plan includes a fixed number of active projects (free tiers one; paid plans more — see list_subscription_plans);",
+      "labels": [
+        "private-data",
+        "destructive"
+      ]
+    },
+    {
+      "name": "rename_project",
+      "descriptionHash": "1b3a3e51df921a16321c544bfd4f74794a073ba5d40ab6edb696e585904da834",
+      "description": "Rename a project you own (the display name only — the slug, which is the identity in URLs / Redis, never changes). Requires an ACCOUNT-scoped token and the `config` scope. 404-equivalent error when you do not own the slug.",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "archive_project",
+      "descriptionHash": "1ddbc1b8f1bcc4f26efb95c12a5484c2f5f4d402d388fe0019eee2c9b79961f1",
+      "description": "Archive a project you own. Reversible: the project + slug persist and credits are kept, but the data plane drops the tenant (callers get 404). Idempotent. Requires an ACCOUNT-scoped token and the `config` scope.",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "unarchive_project",
+      "descriptionHash": "5fc47be3c3e6845666f2b4ef5bb6d977f83be6169a6606a0feb662a71179bd7c",
+      "description": "Restore an archived project you own to the data plane. Restoring consumes one of your plan's active-project slots, so at the limit this returns an error telling you to archive another project or upgrade. Idempotent for an already-active project. Requires an ACCOUNT-scoped token and the `config` scop",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "create_project_token",
+      "descriptionHash": "040bde051634b0aa734bde39cc8cfedba8a27817d91446d38e533891950343fe",
+      "description": "Mint a PROJECT-scoped API token for a project you own, so an agent can bootstrap a fresh project without the panel (create_project → create_project_token → configure). Attenuated by design: the scopes must be a subset of THIS token's own grant (`read` is always included), expiry is mandatory (1–90 d",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "list_project_tokens",
+      "descriptionHash": "a473eef3b25b2f37ad4d0dd06d7ef28ce9f08295084af3d8c18293dea152a742",
+      "description": "List the API tokens scoped to a project you own (any holder): id, label, scopes, createdAt, lastUsedAt, expiresAt, revokedAt — never the secret (only its hash is stored). Requires an ACCOUNT-scoped token and the `read` scope.",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "revoke_project_token",
+      "descriptionHash": "7ef05393e5c0af9428a150996fad235338c2feaf693c08e498ae6ac85c0dcfcc",
+      "description": "Revoke a PROJECT-scoped API token on a project you own — any holder's, not just your own (the account-owner kill switch for a leaked or retired integration token). Soft-revoke: the row stays for traceability and the token is rejected immediately. Idempotent. Requires an ACCOUNT-scoped token and the ",
+      "labels": [
+        "private-data",
+        "destructive"
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"list_api_keys\" references sensitive artifacts (secret). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:list_api_keys",
+        "snippet": "List the project's inbound API keys (metadata only — the secret plaintext is never returned)."
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"reveal_rotation_successor\" references sensitive artifacts (api_key). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:reveal_rotation_successor",
+        "snippet": "One-shot retrieval of the plaintext for a successor minted by the auto-rotation scheduler (not by rotate_api_key — that returns its own plaintext directly). Dec…"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"list_credentials\" references sensitive artifacts (credentials, secret). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:list_credentials",
+        "snippet": "List the project's saved credentials — reusable target-auth secrets that can be referenced from any number of targets instead of entering auth inline per target…"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"create_credential\" references sensitive artifacts (privatekey, password, secret, apikey). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:create_credential",
+        "snippet": "Save a new reusable credential, sealed with the project's encryption key at write time. Neither this call nor any later read ever returns the secret back — refe…"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"update_credential\" references sensitive artifacts (secret). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:update_credential",
+        "snippet": "Rename a credential and/or rotate its secret. Omit a secret field (or the whole `auth` object) to keep the existing value — the vault can never show a secret ba…"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOOL-POISON-002",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description tells the model to hide behavior",
+      "detail": "Description of \"get_metrics\" instructs the model to conceal actions from the user.",
+      "evidence": {
+        "source": "tool:get_metrics",
+        "snippet": "Aggregate request metrics for this project over a time window — volume, error rate and p50/p95/p99 latency, bucketed for charting. By default the series cover i…"
+      },
+      "confidence": 0.75
+    },
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"list_audit_events\" references sensitive artifacts (password). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:list_audit_events",
+        "snippet": "List project audit-log entries, newest first. Captures who changed what — lines, endpoints, targets, API keys. Outbound-target `auth.token` / `auth.password` ar…"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOOL-POISON-007",
+      "severity": "low",
+      "category": "tool-poisoning",
+      "title": "Description uses pressure/override language",
+      "detail": "Description of \"create_project_token\" stacks urgency/override words (always, never, mandatory). Legitimate tool descriptions rarely pressure the model to act or ignore prior guidance.",
+      "evidence": {
+        "source": "tool:create_project_token",
+        "snippet": "Mint a PROJECT-scoped API token for a project you own, so an agent can bootstrap a fresh project without the panel (create_project → create_project_token → conf…"
+      },
+      "confidence": 0.3
+    },
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"list_project_tokens\" references sensitive artifacts (secret). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:list_project_tokens",
+        "snippet": "List the API tokens scoped to a project you own (any holder): id, label, scopes, createdAt, lastUsedAt, expiresAt, revokedAt — never the secret (only its hash i…"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp.echorelay.dev\" exposes tools that together enable an exfiltration flow. Untrusted content: get_project, set_docs_shared, default_endpoint_template, list_members, list_audit_events · Private data: get_project, create_endpoint, dry_run_endpoint, invite_member, set_member_role, list_api_keys, create_api_key, rotate_api_key, revoke_api_key, list_credentials, create_credential, update_credential, delete_credential, list_dlq, list_addons, get_subscription, preview_plan_change, start_subscription, change_plan, cancel_subscription, start_topup, subscribe_addon, unsubscribe_addon, resume_addon, downgrade_addon, list_active_addons, list_audit_events, list_projects, create_project, rename_project, archive_project, unarchive_project, create_project_token, list_project_tokens, revoke_project_token · Public sink: default_endpoint_template, list_members, invite_member, remove_member, set_member_role, resend_invite, list_audit_events · Destructive: delete_line, delete_endpoint, dry_run_endpoint, remove_member, delete_credential, retry_dlq_entry, discard_dlq_entry, create_project, revoke_project_token.",
+      "evidence": {
+        "source": "server:mcp.echorelay.dev",
+        "snippet": "Untrusted content: get_project, set_docs_shared, default_endpoint_template, list_members, list_audit_events · Private data: get_project, create_endpoint, dry_run_endpoint, invite_member, set_member_role, list_api_keys, create_api_key, rotate_api_key, revoke_api_key, list_credentials, create_credential, update_credential, delete_credential, list_dlq, list_addons, get_subscription, preview_plan_change, start_subscription, change_plan, cancel_subscription, start_topup, subscribe_addon, unsubscribe_addon, resume_addon, downgrade_addon, list_active_addons, list_audit_events, list_projects, create_project, rename_project, archive_project, unarchive_project, create_project_token, list_project_tokens, revoke_project_token · Public sink: default_endpoint_template, list_members, invite_member, remove_member, set_member_role, resend_invite, list_audit_events · Destructive: delete_line, delete_endpoint, dry_run_endpoint, remove_member, delete_credential, retry_dlq_entry, discard_dlq_entry, create_project, revoke_project_token"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 37,
+  "scoreBreakdown": {
+    "tool-poisoning": 43,
+    "toxic-flow": 20
+  },
+  "errors": []
 }

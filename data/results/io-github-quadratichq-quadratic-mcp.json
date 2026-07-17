@@ -1,15 +1,15 @@
 {
   "schemaVersion": 1,
   "scanner": {
-    "version": "1.0.0",
-    "rules": "19f6a1b4a518"
+    "version": "1.5.0",
+    "rules": "402995650b68"
   },
   "target": {
     "kind": "url",
     "ref": "https://mcp.quadratichq.com/mcp"
   },
-  "scannedAt": "2026-07-16T16:33:13.308Z",
-  "durationMs": 1045,
+  "scannedAt": "2026-07-17T10:08:59.783Z",
+  "durationMs": 939,
   "layers": {
     "metadata": true,
     "static": false
@@ -17,23 +17,50 @@
   "tools": [
     {
       "name": "auth",
-      "descriptionHash": "20e2d89039605902a09fa4f324acb61ab476c4e95bb762de7e539ec0bf4b7b4d"
+      "descriptionHash": "20e2d89039605902a09fa4f324acb61ab476c4e95bb762de7e539ec0bf4b7b4d",
+      "description": "Authenticate the MCP session with Quadratic.\n\nActions:\n• login() — Start an OAuth device authorization flow. Returns a URL the user must open in a browser to authorize. The flow is completed by confirm_login.\n• confirm_login(device_code) — Complete an in-progress login by polling for user authorizat",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink"
+      ]
     },
     {
       "name": "files_read",
-      "descriptionHash": "79359d464aae1049a43fdcace51cf1ba9a781facc4d199d2945dd3a5d9eb6f03"
+      "descriptionHash": "79359d464aae1049a43fdcace51cf1ba9a781facc4d199d2945dd3a5d9eb6f03",
+      "description": "Read-only file metadata operations on Quadratic files the user has access to. No data is modified. Requires authentication.\n\nActions:\n• list_files() — List all accessible files.\n• get_file_info(file_id) — Get metadata for a single file.",
+      "labels": [
+        "private-data"
+      ]
     },
     {
       "name": "files_write",
-      "descriptionHash": "9b6b0bb6dbaf214be1f2e324259d0c37f6a474990e695caf42ede92494e4b020"
+      "descriptionHash": "9b6b0bb6dbaf214be1f2e324259d0c37f6a474990e695caf42ede92494e4b020",
+      "description": "File management operations that create or modify state: create a new file, open an existing file to start an editing session, or close a session. Requires authentication.\n\nActions:\n• open_file(file_id?, file_name?) — Open a file by UUID or name and start an editing session. Returns the file's web UR",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "destructive"
+      ]
     },
     {
       "name": "read_data",
-      "descriptionHash": "bc27f485cefcc991db61a12c5f9bb4f8bc441a29f93760420a418312504c383e"
+      "descriptionHash": "bc27f485cefcc991db61a12c5f9bb4f8bc441a29f93760420a418312504c383e",
+      "description": "Read-only queries on the open spreadsheet. No data is modified. Safe to auto-approve. Call as {\"action\": \"<name>\", \"params\": {...}} — per-action params are listed in the Action Reference below.\n\nSpecial actions (not shown in the action enum):\n• batch — {\"action\": \"batch\", \"params\": {\"actions\": [{\"ac",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink"
+      ]
     },
     {
       "name": "write_data",
-      "descriptionHash": "f0865ad7367f2ca6837c8cffa7ff965d9bba6535d09f8002be0dab741e511dbf"
+      "descriptionHash": "f0865ad7367f2ca6837c8cffa7ff965d9bba6535d09f8002be0dab741e511dbf",
+      "description": "Write operations on the open spreadsheet. Call as {\"action\": \"<name>\", \"params\": {...}} — per-action params are listed in the Action Reference below. Numbers, booleans, and nulls in cell values are coerced to strings.\n\nSpecial actions (not shown in the action enum):\n• batch — {\"action\": \"batch\", \"pa",
+      "labels": [
+        "private-data",
+        "destructive"
+      ]
     }
   ],
   "findings": [
@@ -84,11 +111,37 @@
         "snippet": "Write operations on the open spreadsheet. Call as {\"action\": \"<name>\", \"params\": {...}} — per-action params are listed in the Action Reference below. Numbers, b…"
       },
       "confidence": 0.4
+    },
+    {
+      "id": "MCP-TOOL-POISON-007",
+      "severity": "low",
+      "category": "tool-poisoning",
+      "title": "Description uses pressure/override language",
+      "detail": "Description of \"write_data\" stacks urgency/override words (important, always, never). Legitimate tool descriptions rarely pressure the model to act or ignore prior guidance.",
+      "evidence": {
+        "source": "tool:write_data",
+        "snippet": "Write operations on the open spreadsheet. Call as {\"action\": \"<name>\", \"params\": {...}} — per-action params are listed in the Action Reference below. Numbers, b…"
+      },
+      "confidence": 0.3
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: auth, files_write, read_data · Private data: auth, files_read, files_write, read_data, write_data · Public sink: auth, read_data · Destructive: files_write, write_data.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: auth, files_write, read_data · Private data: auth, files_read, files_write, read_data, write_data · Public sink: auth, read_data · Destructive: files_write, write_data"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
     }
   ],
-  "score": 69,
+  "score": 49,
   "scoreBreakdown": {
-    "tool-poisoning": 31
+    "tool-poisoning": 31,
+    "toxic-flow": 20
   },
   "errors": []
 }

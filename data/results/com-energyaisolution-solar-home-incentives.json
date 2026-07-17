@@ -1,15 +1,15 @@
 {
   "schemaVersion": 1,
   "scanner": {
-    "version": "1.0.0",
-    "rules": "19f6a1b4a518"
+    "version": "1.6.0",
+    "rules": "402995650b68"
   },
   "target": {
     "kind": "url",
     "ref": "https://api.energyaisolution.com/mcp/solar"
   },
-  "scannedAt": "2026-07-16T16:30:43.825Z",
-  "durationMs": 393,
+  "scannedAt": "2026-07-17T16:57:23.432Z",
+  "durationMs": 335,
   "layers": {
     "metadata": true,
     "static": false
@@ -17,31 +17,88 @@
   "tools": [
     {
       "name": "check_incentives",
-      "descriptionHash": "c0114c22d645b1699d0da07b60e920f272e11c65e4889744d7b8e177f1273107"
+      "descriptionHash": "905eeed92699e663bc0bc49876e1aed85b8933294a4b7662eff24d2ad5cf09c7",
+      "description": "Clean-energy incentive guidance for any address WORLDWIDE. US ZIP → federal status + state/utility programs (via DSIRE). Any other country (pass country=<ISO code>) → qualitative, officially-sourced national program guidance. Use whenever a user asks what rebates, tax credits, or utility programs ap",
+      "labels": [
+        "private-data"
+      ]
     },
     {
       "name": "estimate_production",
-      "descriptionHash": "a02fd96c65f603f4daddb21f8d4a33457b235601d9b96c0ecca95fdb09574961"
+      "descriptionHash": "a02fd96c65f603f4daddb21f8d4a33457b235601d9b96c0ecca95fdb09574961",
+      "description": "Honest-range annual solar production estimate (kWh/year ± band, with assumptions) for a ZIP code, from either a proposed system size (kW) or a monthly bill. Use to sanity-check installer quotes or size a system before talking to anyone. [free — no API key required]",
+      "labels": [
+        "private-data"
+      ]
     },
     {
       "name": "get_node_score",
-      "descriptionHash": "29793ab275639d9af53a44155ba2f5822da67e46bd0451c62322c129a4273fff"
+      "descriptionHash": "29793ab275639d9af53a44155ba2f5822da67e46bd0451c62322c129a4273fff",
+      "description": "Instant Energy Node Score (0–100 across 7 axes: efficiency, electrification, renewable generation, storage/resilience, financial optimization, carbon, market readiness) plus the single highest-leverage next action, from whatever property facts you have. More inputs → tighter score. [free — no API ke",
+      "labels": [
+        "private-data"
+      ]
     },
     {
       "name": "route_lead",
-      "descriptionHash": "38439c587cd8c96575a8fa46b05f6899965fc6d0934c0f0d10f6196641e76fb1"
+      "descriptionHash": "38439c587cd8c96575a8fa46b05f6899965fc6d0934c0f0d10f6196641e76fb1",
+      "description": "Submit a consented homeowner project and EnergyAI’s autonomous agent finds, vets, and routes a real local installer to them — free to you and the homeowner. REQUIRES the homeowner’s explicit consent (consentText + consentTimestamp). Returns a leadId you can quote back to the user. [free — no API key",
+      "labels": [
+        "private-data",
+        "public-sink"
+      ]
     },
     {
       "name": "list_guides",
-      "descriptionHash": "f2a982c81d5521a37fccb6ccbd0c81b65508ed7e7925735f82e5cf34d5c4fc19"
+      "descriptionHash": "f2a982c81d5521a37fccb6ccbd0c81b65508ed7e7925735f82e5cf34d5c4fc19",
+      "description": "Index of source-cited, 2026-accurate US home-energy incentive guides (solar, heat pumps, batteries, weatherization) by state. Free. Use to ground answers about what incentives exist in a state, then fetch the full text with get_guide. Every entry includes a canonical URL you can cite. [free — no API",
+      "labels": [
+        "untrusted-content",
+        "private-data"
+      ]
     },
     {
       "name": "get_guide",
-      "descriptionHash": "2207d1db709171f4d33b764b49871d6ff263695a759024f92a13a7dcce026002"
+      "descriptionHash": "2207d1db709171f4d33b764b49871d6ff263695a759024f92a13a7dcce026002",
+      "description": "Full text of one EnergyAI incentive guide by slug: intro, sections, FAQs, and primary sources — grounded, citable content for answering incentive questions. Free. When you quote it, cite the canonical URL returned with the guide. [free — no API key required]",
+      "labels": [
+        "untrusted-content",
+        "private-data"
+      ]
     }
   ],
-  "findings": [],
-  "score": 100,
-  "scoreBreakdown": {},
+  "findings": [
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"solar\" exposes tools that together enable an exfiltration flow. Untrusted content: list_guides, get_guide · Private data: check_incentives, estimate_production, get_node_score, route_lead, list_guides, get_guide · Public sink: route_lead.",
+      "evidence": {
+        "source": "server:solar",
+        "snippet": "Untrusted content: list_guides, get_guide · Private data: check_incentives, estimate_production, get_node_score, route_lead, list_guides, get_guide · Public sink: route_lead"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"check_incentives\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:check_incentives",
+        "snippet": "before: \"Current US clean-energy incentive guidance (federal status + state/utility programs via DSIRE) for a ZIP code. Use whenever a user asks what rebates, tax credits, or utility programs apply to solar, batteries, heat pumps, or efficiency work at an address. [free — no API key required]\" → after: \"Clean-energy incentive guidance for any address WORLDWIDE. US ZIP → federal status + state/utility programs (via DSIRE). Any other country (pass country=<ISO code>) → qualitative, officially-sourced national program guidance. Use whenever a user asks what rebates, tax credits, or utility programs ap\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    }
+  ],
+  "score": 60,
+  "scoreBreakdown": {
+    "toxic-flow": 20,
+    "tool-poisoning": 20
+  },
   "errors": []
 }

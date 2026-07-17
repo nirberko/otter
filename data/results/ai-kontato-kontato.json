@@ -1,15 +1,15 @@
 {
   "schemaVersion": 1,
   "scanner": {
-    "version": "1.0.0",
-    "rules": "19f6a1b4a518"
+    "version": "1.6.0",
+    "rules": "402995650b68"
   },
   "target": {
     "kind": "url",
     "ref": "https://api.kontato.ai/mcp"
   },
-  "scannedAt": "2026-07-16T16:30:24.492Z",
-  "durationMs": 207,
+  "scannedAt": "2026-07-17T16:57:05.327Z",
+  "durationMs": 1168,
   "layers": {
     "metadata": true,
     "static": false
@@ -17,39 +17,64 @@
   "tools": [
     {
       "name": "provision",
-      "descriptionHash": "b7f4913cad8d6c28e7429ab6b718a0605cd3ccb5b5830817b92bb08774625363"
+      "descriptionHash": "b7f4913cad8d6c28e7429ab6b718a0605cd3ccb5b5830817b92bb08774625363",
+      "description": "Cria (ou reutiliza) uma conta Kontato e ativa a API key (self-serve, sem humano no loop). IDEMPOTENTE POR TELEFONE: se ja existe conta para o owner_phone, devolve a MESMA conta — entao e seguro chamar de novo em qualquer sessao ou depois de um restart (o usuario nunca precisa lidar com api_key). Se ",
+      "labels": [
+        "private-data",
+        "public-sink"
+      ]
     },
     {
       "name": "verify_number",
-      "descriptionHash": "00c03f0c7c5bd32be187d8022b4edeb53bef645462ff5130864140352282fc2d"
+      "descriptionHash": "00c03f0c7c5bd32be187d8022b4edeb53bef645462ff5130864140352282fc2d",
+      "description": "Confirma o numero do dono com o codigo OTP de 6 digitos que chegou no WhatsApp dele apos o `provision`. OBRIGATORIO antes de enviar/agendar: ate verificar, `send`/`reply`/`schedule` retornam 403 owner_not_verified. Se o codigo expirou ou errou demais, chame de novo apos pedir um novo (resend) ao ope",
+      "labels": [
+        "public-sink"
+      ]
     },
     {
       "name": "schedule",
-      "descriptionHash": "61cb83904e8f27f6ffa07bc87279c71fa41763f347ed8f1e243ea01236e73c06"
+      "descriptionHash": "61cb83904e8f27f6ffa07bc87279c71fa41763f347ed8f1e243ea01236e73c06",
+      "description": "Registra uma entrega recorrente ou unica no scheduler do Kontato. No horario, o Kontato roda o `prompt` como um agente completo (com web/Exa) e entrega no WhatsApp do dono. USE ISTO para \"todo dia me manda X\": voce nao precisa ficar online nem prometer trabalho futuro — o scheduler dispara sozinho. "
     },
     {
       "name": "list_schedules",
-      "descriptionHash": "590d8c1ef4ce7f237aa0ac9b64fd7d54ff97ea0f41879808ed1baaece0ccc903"
+      "descriptionHash": "590d8c1ef4ce7f237aa0ac9b64fd7d54ff97ea0f41879808ed1baaece0ccc903",
+      "description": "Lista as entregas agendadas (recorrentes/unicas) desta conta, com proximo disparo."
     },
     {
       "name": "cancel_schedule",
-      "descriptionHash": "ed3a3331a27f10f53a1c94cef6ca4574347983bbbcd521644dd7b00fc75500bf"
+      "descriptionHash": "ed3a3331a27f10f53a1c94cef6ca4574347983bbbcd521644dd7b00fc75500bf",
+      "description": "Cancela uma entrega agendada pelo seu schedule_id (obtido em `list_schedules` ou `schedule`)."
     },
     {
       "name": "send",
-      "descriptionHash": "fee0fbe077d812f784823f92c5b97e0d0364179d02c548adfcc65b990716f6a4"
+      "descriptionHash": "fee0fbe077d812f784823f92c5b97e0d0364179d02c548adfcc65b990716f6a4",
+      "description": "Envia uma mensagem de WhatsApp pelo numero-ponte do Kontato. CASO SEGURO: se OMITIR \"to\", entrega no WhatsApp do PROPRIO DONO (self-notification). REGRA TURN-BASED: voce nao executa trabalho no futuro; se pedirem algo recorrente (\"todo dia me manda X\"), faca a entrega de HOJE agora e oriente a regis",
+      "labels": [
+        "public-sink"
+      ]
     },
     {
       "name": "reply",
-      "descriptionHash": "a235fdf2e60559e826d86af5071065eab8e41d18fab01d6b484948826df2c621"
+      "descriptionHash": "a235fdf2e60559e826d86af5071065eab8e41d18fab01d6b484948826df2c621",
+      "description": "Responde a um numero especifico que mandou mensagem para o numero-ponte. Igual a `send`, mas \"to\" e OBRIGATORIO. Responder a quem te escreveu (reply-ratio alto) e mais seguro que cold outbound.",
+      "labels": [
+        "public-sink"
+      ]
     },
     {
       "name": "list_messages",
-      "descriptionHash": "64d1e31c65c8d9133f183c4e2eb6501ffbda7a0878e23fee39179b764b107470"
+      "descriptionHash": "64d1e31c65c8d9133f183c4e2eb6501ffbda7a0878e23fee39179b764b107470",
+      "description": "Lista o historico de mensagens do numero-ponte (recebidas e enviadas), mais recentes primeiro. Use para decidir a quem responder com `reply`.",
+      "labels": [
+        "untrusted-content"
+      ]
     },
     {
       "name": "status",
-      "descriptionHash": "336b11d7259a39c3d9468cb91de5bba5cb6fe03721473abda24d5cb1bd292c96"
+      "descriptionHash": "336b11d7259a39c3d9468cb91de5bba5cb6fe03721473abda24d5cb1bd292c96",
+      "description": "Mostra o estado da conta Kontato: ativa ou nao, numero-ponte, e os schedules (rotinas) ja registrados. Use para honrar a regra turn-based: antes de dizer que algo sera entregue \"todo dia\", confirme aqui se existe um schedule ativo."
     }
   ],
   "findings": [
@@ -64,11 +89,25 @@
         "snippet": "Cria (ou reutiliza) uma conta Kontato e ativa a API key (self-serve, sem humano no loop). IDEMPOTENTE POR TELEFONE: se ja existe conta para o owner_phone, devol…"
       },
       "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: list_messages · Private data: provision · Public sink: provision, verify_number, send, reply.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: list_messages · Private data: provision · Public sink: provision, verify_number, send, reply"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
     }
   ],
-  "score": 80,
+  "score": 60,
   "scoreBreakdown": {
-    "tool-poisoning": 20
+    "tool-poisoning": 20,
+    "toxic-flow": 20
   },
   "errors": []
 }

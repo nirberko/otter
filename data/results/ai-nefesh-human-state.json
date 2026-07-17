@@ -1,15 +1,15 @@
 {
   "schemaVersion": 1,
   "scanner": {
-    "version": "1.0.0",
-    "rules": "19f6a1b4a518"
+    "version": "1.5.0",
+    "rules": "402995650b68"
   },
   "target": {
     "kind": "url",
     "ref": "https://mcp.nefesh.ai/mcp"
   },
-  "scannedAt": "2026-07-16T16:30:24.624Z",
-  "durationMs": 1158,
+  "scannedAt": "2026-07-17T10:06:17.200Z",
+  "durationMs": 1131,
   "layers": {
     "metadata": true,
     "static": false
@@ -17,27 +17,46 @@
   "tools": [
     {
       "name": "get_human_state",
-      "descriptionHash": "73add5c61156d70cfcf680c238c4dedebcef9e9a13b98cab4e1c0aa7892d3fc9"
+      "descriptionHash": "73add5c61156d70cfcf680c238c4dedebcef9e9a13b98cab4e1c0aa7892d3fc9",
+      "description": "Get current unified human state for a session. Call this before generating important responses.\n\n    Returns:\n    - state: calm | relaxed | focused | stressed | acute_stress\n    - stress_score: 0-100 (lower = calmer)\n    - confidence: 0.0-1.0 (based on signal quality and device type)\n    - suggested"
     },
     {
       "name": "ingest",
-      "descriptionHash": "3aa974e3504ba101c867ed7a529b5b03c4db713ae7648363181b0ca160ff975f"
+      "descriptionHash": "3aa974e3504ba101c867ed7a529b5b03c4db713ae7648363181b0ca160ff975f",
+      "description": "Send biometric signals from any sensor, get unified state back.\n\n    Required: session_id + timestamp (ISO 8601) + at least one signal.\n    Send whatever you have — the API fuses all signals into one state.\n\n    Common signals (highest impact):\n    - heart_rate (bpm, 30-220) + rmssd (ms) — cardiovas",
+      "labels": [
+        "public-sink"
+      ]
     },
     {
       "name": "get_trigger_memory",
-      "descriptionHash": "7b48e464950c57bfa1c073bf512c1308d48d6eedcc7bf9cd59d58ce1022df425"
+      "descriptionHash": "7b48e464950c57bfa1c073bf512c1308d48d6eedcc7bf9cd59d58ce1022df425",
+      "description": "Retrieve psychological trigger profile for a subject.\n\n    Returns which conversation topics consistently cause stress (active triggers) and which have been resolved over time.\n\n    - active triggers: topics where stress was elevated across multiple sessions. Tread carefully.\n    - resolved triggers"
     },
     {
       "name": "get_session_history",
-      "descriptionHash": "03c77c7d8763556419c700811b1dc0d2001c7a6a4686e913e5903e11df228996"
+      "descriptionHash": "03c77c7d8763556419c700811b1dc0d2001c7a6a4686e913e5903e11df228996",
+      "description": "Get state history for a session over time.\n\n    Returns timestamped datapoints with stress_score, state, and heart_rate for each observation.\n    Includes an overall trend: rising | falling | stable.\n\n    Use minutes parameter to control the lookback window (default: 5, max: 60).\n    Useful for dete"
     },
     {
       "name": "request_api_key",
-      "descriptionHash": "dfae9eb4ed1f5f65544d243dbe53ba2e7f652603ba2ad475360ffdee133220b9"
+      "descriptionHash": "dfae9eb4ed1f5f65544d243dbe53ba2e7f652603ba2ad475360ffdee133220b9",
+      "description": "Request a free Nefesh API key. No existing API key needed for this call.\n\n    IMPORTANT: You MUST ask the user for their real email address before\n    calling this tool. Do NOT invent, guess, or generate an email address.\n    The user will receive a verification link they must click to activate\n    ",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink"
+      ]
     },
     {
       "name": "check_api_key_status",
-      "descriptionHash": "8226ec47c987f68ccb6ffcb5c7927a8172feff16d713d745849e585d118406f1"
+      "descriptionHash": "8226ec47c987f68ccb6ffcb5c7927a8172feff16d713d745849e585d118406f1",
+      "description": "Check the status of a pending API key request.\n\n    Use the exact same email the user provided to request_api_key.\n    Poll this every 10 seconds. Once the user clicks the verification\n    link in their inbox, status changes from 'pending' to 'ready'\n    and the response includes the API key. Store ",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink"
+      ]
     }
   ],
   "findings": [
@@ -64,11 +83,25 @@
         "snippet": "Check the status of a pending API key request. Use the exact same email the user provided to request_api_key. Poll this every 10 seconds. Once the user clicks t…"
       },
       "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: request_api_key, check_api_key_status · Private data: request_api_key, check_api_key_status · Public sink: ingest, request_api_key, check_api_key_status.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: request_api_key, check_api_key_status · Private data: request_api_key, check_api_key_status · Public sink: ingest, request_api_key, check_api_key_status"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
     }
   ],
-  "score": 70,
+  "score": 50,
   "scoreBreakdown": {
-    "tool-poisoning": 30
+    "tool-poisoning": 30,
+    "toxic-flow": 20
   },
   "errors": []
 }

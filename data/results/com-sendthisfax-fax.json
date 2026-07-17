@@ -1,15 +1,15 @@
 {
   "schemaVersion": 1,
   "scanner": {
-    "version": "1.0.0",
-    "rules": "19f6a1b4a518"
+    "version": "1.5.0",
+    "rules": "402995650b68"
   },
   "target": {
     "kind": "url",
     "ref": "https://www.sendthisfax.com/mcp"
   },
-  "scannedAt": "2026-07-16T16:30:56.940Z",
-  "durationMs": 1529,
+  "scannedAt": "2026-07-17T10:06:49.724Z",
+  "durationMs": 1663,
   "layers": {
     "metadata": true,
     "static": false
@@ -17,19 +17,31 @@
   "tools": [
     {
       "name": "get_price",
-      "descriptionHash": "2b6643ef6704ffc1f5ea740ed40403f9e2c5f861e29457f45ea25da548b0ddf1"
+      "descriptionHash": "2b6643ef6704ffc1f5ea740ed40403f9e2c5f861e29457f45ea25da548b0ddf1",
+      "description": "Get the price quote in euro cents for sending a fax. Pricing: 5.00 EUR for up to 5 pages, plus 0.50 EUR per extra page, plus VAT based on the payer's billing country (0% VAT outside the EU)."
     },
     {
       "name": "send_fax",
-      "descriptionHash": "9c9618fce005f470ce69a442d12187ced5c9f839d603d4e2791183d1cff07633"
+      "descriptionHash": "9c9618fce005f470ce69a442d12187ced5c9f839d603d4e2791183d1cff07633",
+      "description": "Submit an uploaded PDF for faxing.\n\nStep 1 (before this tool): upload the PDF over plain HTTP multipart, using any HTTP client you have — shell, JavaScript fetch with FormData, Python, etc.:\n  curl -F \"file=@document.pdf\" https://www.sendthisfax.com/api/upload\n  fetch(\"https://www.sendthisfax.com/ap",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink"
+      ]
     },
     {
       "name": "get_fax_status",
-      "descriptionHash": "a524b095a45d102828d03b179cd072fd172c8416f812dcfa1c25a4637737f9c2"
+      "descriptionHash": "a524b095a45d102828d03b179cd072fd172c8416f812dcfa1c25a4637737f9c2",
+      "description": "Get the current status of a fax. Poll this after send_fax until a terminal state.\n\nFax lifecycle: draft (uploaded, not submitted) -> pending (submitted, awaiting payment) -> sending -> delivered | failed.\nPayment lifecycle: unpaid -> verifying/open (checkout in progress) -> paid | failed | canceled "
     },
     {
       "name": "check_balance",
-      "descriptionHash": "2b6f4ed2875d93012470cfe95f3598a799f5215b321b06564264f0723d0e7839"
+      "descriptionHash": "2b6f4ed2875d93012470cfe95f3598a799f5215b321b06564264f0723d0e7839",
+      "description": "Get the prepaid credit balance of the API key used to authenticate this MCP connection. Requires a bearer API key (stf_live_...). Buy or top up credits at https://www.sendthisfax.com/en/credits — credits never expire and failed faxes are re-credited automatically.",
+      "labels": [
+        "private-data"
+      ]
     }
   ],
   "findings": [
@@ -56,11 +68,25 @@
         "snippet": "Get the prepaid credit balance of the API key used to authenticate this MCP connection. Requires a bearer API key (stf_live_...). Buy or top up credits at https…"
       },
       "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: send_fax · Private data: send_fax, check_balance · Public sink: send_fax.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: send_fax · Private data: send_fax, check_balance · Public sink: send_fax"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
     }
   ],
-  "score": 70,
+  "score": 50,
   "scoreBreakdown": {
-    "tool-poisoning": 30
+    "tool-poisoning": 30,
+    "toxic-flow": 20
   },
   "errors": []
 }

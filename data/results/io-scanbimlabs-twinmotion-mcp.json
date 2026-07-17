@@ -1,15 +1,15 @@
 {
   "schemaVersion": 1,
   "scanner": {
-    "version": "1.0.0",
-    "rules": "19f6a1b4a518"
+    "version": "1.6.0",
+    "rules": "402995650b68"
   },
   "target": {
     "kind": "url",
     "ref": "https://twinmotion-mcp.itmartin24.workers.dev/mcp"
   },
-  "scannedAt": "2026-07-16T16:39:05.083Z",
-  "durationMs": 200,
+  "scannedAt": "2026-07-17T17:06:16.492Z",
+  "durationMs": 446,
   "layers": {
     "metadata": true,
     "static": false
@@ -17,23 +17,50 @@
   "tools": [
     {
       "name": "tm_import_rvt",
-      "descriptionHash": "a5c9b9b9623acff37bb72e5f2bc854b9579cfc04ccb3c6714d221e405fa11581"
+      "descriptionHash": "a5c9b9b9623acff37bb72e5f2bc854b9579cfc04ccb3c6714d221e405fa11581",
+      "description": "Import a Revit/BIM model into the Twinmotion visualization pipeline: downloads the source file from a public URL, uploads it to an APS OSS transient bucket, and kicks off an SVF2 + thumbnail translation job. Returns the base64 URN (project_id) used by every other tm_* tool.\n\nWhen to use: when a user",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink",
+        "destructive"
+      ]
     },
     {
       "name": "tm_set_environment",
-      "descriptionHash": "fcf96aed167d58a66d72e78dcc17270c2dcdb0e01451013f9b828231382aa6b7"
+      "descriptionHash": "fcf96aed167d58a66d72e78dcc17270c2dcdb0e01451013f9b828231382aa6b7",
+      "description": "Configure the visualization environment (weather, time-of-day, surround context) for a previously imported model. Validates the model exists via APS Model Derivative manifest, then stores the environment config in KV (24h TTL) so tm_render_image and tm_export_video can apply it.\n\nWhen to use: after ",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink"
+      ]
     },
     {
       "name": "tm_render_image",
-      "descriptionHash": "700c226be1904b94b11ba760cf0868ca46c5a01fefdd48cc5e2c641da82f2317"
+      "descriptionHash": "700c226be1904b94b11ba760cf0868ca46c5a01fefdd48cc5e2c641da82f2317",
+      "description": "Render a still preview image of the model at a specified resolution by pulling the APS Model Derivative thumbnail (capped at 800x800 by the APS endpoint). Also resolves the camera_preset against model metadata to identify which 3D view it maps to, and applies any stored environment config from tm_se",
+      "labels": [
+        "untrusted-content",
+        "private-data"
+      ]
     },
     {
       "name": "tm_export_video",
-      "descriptionHash": "3c8c0be9a990e7070c2feae029b23fad2e516a56f377e6c41fcdb364f7215586"
+      "descriptionHash": "3c8c0be9a990e7070c2feae029b23fad2e516a56f377e6c41fcdb364f7215586",
+      "description": "Prepare a model for an animated walkthrough / video export by verifying the manifest is complete, then starting a secondary Model Derivative job that produces OBJ geometry (suitable for ingestion into offline rendering pipelines, Blender, or Unreal Engine). Also returns the list of available named v",
+      "labels": [
+        "private-data",
+        "destructive"
+      ]
     },
     {
       "name": "tm_list_scenes",
-      "descriptionHash": "12727c60c3c74f9e54994f3d3fbe4dd9449410cc1bb2361228dc046e1707e1b6"
+      "descriptionHash": "12727c60c3c74f9e54994f3d3fbe4dd9449410cc1bb2361228dc046e1707e1b6",
+      "description": "Enumerate every 2D/3D view ('scene') baked into the translated model, plus a shallow dump of the model object tree (first 50 top-level nodes across all 3D views), plus the list of completed derivatives (svf2, thumbnail, obj, etc.) available via APS. The canonical discovery tool for anything downstre",
+      "labels": [
+        "private-data"
+      ]
     }
   ],
   "findings": [
@@ -60,12 +87,26 @@
         "snippet": "project_id, environment, weather, time_of_day"
       },
       "confidence": 0.55
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: tm_import_rvt, tm_set_environment, tm_render_image · Private data: tm_import_rvt, tm_set_environment, tm_render_image, tm_export_video, tm_list_scenes · Public sink: tm_import_rvt, tm_set_environment · Destructive: tm_import_rvt, tm_export_video.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: tm_import_rvt, tm_set_environment, tm_render_image · Private data: tm_import_rvt, tm_set_environment, tm_render_image, tm_export_video, tm_list_scenes · Public sink: tm_import_rvt, tm_set_environment · Destructive: tm_import_rvt, tm_export_video"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
     }
   ],
-  "score": 72,
+  "score": 52,
   "scoreBreakdown": {
     "tool-poisoning": 20,
-    "schema-smell": 8
+    "schema-smell": 8,
+    "toxic-flow": 20
   },
   "errors": []
 }

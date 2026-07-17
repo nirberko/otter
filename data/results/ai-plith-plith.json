@@ -97,3 +97,86 @@
   },
   "errors": []
 }
+      "name": "guardrail_check",
+      "descriptionHash": "2f898a085a7e33cd1cd6db5bb6bf10278e6e81de92171187d06a7a0bf3226fd5",
+      "description": "Evaluate a proposed agent action against your governance policies. Returns allow or deny with the matched policy reason. Requires at least one active policy created via guardrail_create_policy. Deterministic rule evaluation — no LLM. Costs 1 credit."
+    },
+    {
+      "name": "guardrail_create_policy",
+      "descriptionHash": "3b0edf912d6edc3eb1de4823e856cdf3963abd8a4b32b5993b9814df5c32f446",
+      "description": "Create a persistent governance policy that guardrail_check evaluates on every subsequent call. Define rules using and/or/not operators over action types, resource patterns, and budget thresholds. Call this before using guardrail_check — checks require at least one active policy. Policies persist unt"
+    },
+    {
+      "name": "pitfalldb_query",
+      "descriptionHash": "7310c419cbbedffcdf9b8d04c2dab5e7ddf40d03f3fa694c8b5f95fcd35a3db6",
+      "description": "Check for known failure patterns before executing a task type. Returns pitfalls with severity, fix suggestions, and confidence scores. After your agent runs, submit failures via pitfalldb_report so others benefit. Costs 2 credits.",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "pitfalldb_report",
+      "descriptionHash": "c2401b375570ed69d6bb070e24ee42ddf51ee0cfa8bb090dad14f2e718b3e933",
+      "description": "Report an agent failure. PII-scrubbed before storage. Linked to existing pitfalls if similar. Free — no credits charged."
+    },
+    {
+      "name": "rigor_plan",
+      "descriptionHash": "d6737f7aec31bed6cdd1cb548de319008e4619dcf4ef566562295f829f62fdf6",
+      "description": "Before executing a complex task, get a structured workflow plan with per-step cost estimates. Classifies your task, selects the optimal framework sequence, and returns the full plan without executing anything. Free — no credits charged."
+    },
+    {
+      "name": "rigor_execute",
+      "descriptionHash": "54260a45a504c09403f32be9633af4a1ca3f7fd5b29138af5aad8983a08e324e",
+      "description": "Execute a structured workflow end-to-end. Call rigor_plan first (free) to preview the step sequence and cost estimate before committing credits. Classifies the task, selects the optimal tool sequence, and executes each step with the right LLM model. Returns a complete deliverable — solution designs,",
+      "labels": [
+        "private-data",
+        "public-sink",
+        "destructive"
+      ]
+    },
+    {
+      "name": "rigor_status",
+      "descriptionHash": "2e723498a1dc8225cd1ee559d2e7d914dc94060bbac256fc9bf9c87dc30b6adc",
+      "description": "Check the status of a running or completed Rigor workflow. Returns progress, step results, and the full deliverable when complete. Use after rigor_execute with polling delivery to retrieve results."
+    },
+    {
+      "name": "rigor_workflows",
+      "descriptionHash": "b83e16eb6c6d64f92945306d174df74247cedf0aae98a73903ab747c440299ab",
+      "description": "List all Rigor workflows for your organization with filtering and pagination. Returns status, progress, capacity usage, and available actions per workflow. Use to monitor workflow state, understand concurrent limit usage, and identify stuck or completed workflows."
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOOL-POISON-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description issues instructions to the model",
+      "detail": "Description of \"guardrail_create_policy\" contains imperative instructions directed at the AI assistant rather than describing the tool. This is the core tool-poisoning technique.",
+      "evidence": {
+        "source": "tool:guardrail_create_policy",
+        "snippet": "Create a persistent governance policy that guardrail_check evaluates on every subsequent call. Define rules using and/or/not operators over action types, resour…"
+      },
+      "confidence": 0.7,
+      "remediation": "Treat the server as untrusted; the model may obey embedded instructions."
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: qualitygate_validate · Private data: burnrate_track, rigor_execute · Public sink: pitfalldb_query, rigor_execute · Destructive: dedupq_check, rigor_execute.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: qualitygate_validate · Private data: burnrate_track, rigor_execute · Public sink: pitfalldb_query, rigor_execute · Destructive: dedupq_check, rigor_execute"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 60,
+  "scoreBreakdown": {
+    "tool-poisoning": 20,
+    "toxic-flow": 20
+  },
+  "errors": []
+}
