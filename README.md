@@ -1,22 +1,31 @@
 <p align="center">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="logo-dark.svg">
-    <img alt="mcpscan" src="logo-light.svg" width="240">
+    <img alt="otter" src="logo-light.svg" width="240">
   </picture>
 </p>
 
-# mcpscan
+# otter
+
+[![ci](https://github.com/nirberko/otter/actions/workflows/ci.yml/badge.svg)](https://github.com/nirberko/otter/actions/workflows/ci.yml)
+[![npm](https://img.shields.io/npm/v/@nirberko/otter)](https://www.npmjs.com/package/@nirberko/otter)
+[![license](https://img.shields.io/badge/license-Apache--2.0-blue)](LICENSE)
+[![catalog](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fnirberko.github.io%2Fotter%2Fregistry.json&query=%24.count&label=servers%20scanned)](https://nirberko.github.io/otter/)
 
 Security scanner for MCP (Model Context Protocol) servers. Catches the attack
 classes that normal SCA tools (Snyk, Socket, Dependabot) miss because they never
 look at what an MCP server advertises to the LLM.
 
+Every server in the [official MCP registry](https://registry.modelcontextprotocol.io)
+is continuously scanned and published, with scores and per-server badges, in the
+public **[MCP Security Catalog](https://nirberko.github.io/otter/)**.
+
 ```
-npx mcpscan ./path
-npx mcpscan gh:owner/repo
-npx mcpscan npm:some-mcp-server
-npx mcpscan url:https://host/mcp
-npx mcpscan stdio:"node server.js"
+npx @nirberko/otter ./path
+npx @nirberko/otter gh:owner/repo
+npx @nirberko/otter npm:some-mcp-server
+npx @nirberko/otter url:https://host/mcp
+npx @nirberko/otter stdio:"node server.js"
 ```
 
 ## What it detects
@@ -68,12 +77,33 @@ Reports export as terminal, JSON, or **SARIF** (`--format sarif`) for GitHub cod
 you trust until the container sandbox (roadmap) lands. Remote `url:` targets are
 connected to as a client and never execute code locally.
 
+## Catalog & public API
+
+The [catalog](https://nirberko.github.io/otter/) exposes free, static, CDN-served
+JSON — no key, no rate limit:
+
+```
+GET /registry.json               full catalog, one stable record per server
+GET /api/server/<slug>.json      a single server's scan record
+GET /api/badge/<slug>.json       shields.io endpoint for the score badge
+```
+
+**Server authors:** embed your badge (copy-paste Markdown is on each server's
+catalog page):
+
+```markdown
+[![otter](https://nirberko.github.io/otter/badge/<slug>.svg)](https://nirberko.github.io/otter/server/<slug>.html)
+```
+
 ## Roadmap
 
-Container sandbox for untrusted execution, pypi/oci target support, and a
-continuous public catalog (GitHub Action → GitHub Pages with per-server badges).
+See [`ROADMAP.md`](ROADMAP.md) — GitHub Action, `otter audit` for your own
+MCP client config, weekly rug-pull reports, and a container sandbox for
+untrusted execution.
 
 ## Develop
+
+See [`CONTRIBUTING.md`](CONTRIBUTING.md).
 
 ```
 npm install

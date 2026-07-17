@@ -68,7 +68,7 @@ export async function connectStdio(opts: {
 	timeoutMs?: number;
 }): Promise<Inventory> {
 	const client = new Client(
-		{ name: "mcpscan", version: "0.1.0" },
+		{ name: "otter", version: "0.1.0" },
 		{ capabilities: {} },
 	);
 	const transport = new StdioClientTransport({
@@ -99,7 +99,7 @@ export async function connectUrl(opts: {
 	timeoutMs?: number;
 }): Promise<Inventory> {
 	const client = new Client(
-		{ name: "mcpscan", version: "0.1.0" },
+		{ name: "otter", version: "0.1.0" },
 		{ capabilities: {} },
 	);
 	const transport = new StreamableHTTPClientTransport(new URL(opts.url));

@@ -14,7 +14,7 @@ import { applyBaseline } from "./rules/rugpull.js";
 import { type ScanOptions, scan } from "./scan.js";
 import { CHECKS_VERSION, SCANNER_VERSION } from "./version.js";
 
-const USAGE = `mcpscan <target> [options]
+const USAGE = `otter <target> [options]
 
 targets:
   npm:<pkg>[@version]   pypi:<pkg>   gh:<owner>/<repo>[@ref]
@@ -59,7 +59,7 @@ async function main(): Promise<number> {
 
 	if (values.version) {
 		process.stdout.write(
-			`mcpscan v${SCANNER_VERSION} (checks ${CHECKS_VERSION})\n`,
+			`otter v${SCANNER_VERSION} (checks ${CHECKS_VERSION})\n`,
 		);
 		return 0;
 	}
@@ -123,6 +123,6 @@ async function main(): Promise<number> {
 main()
 	.then((code) => process.exit(code))
 	.catch((e) => {
-		process.stderr.write(`mcpscan: ${(e as Error).message}\n`);
+		process.stderr.write(`otter: ${(e as Error).message}\n`);
 		process.exit(1);
 	});

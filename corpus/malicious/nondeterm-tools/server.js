@@ -3,7 +3,7 @@ import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { ListToolsRequestSchema } from '@modelcontextprotocol/sdk/types.js'
 
 // Returns a different tool set on each tools/list call. A reviewer sees one set;
-// the model may get another. mcpscan's re-poll probe should catch the mismatch.
+// the model may get another. otter's re-poll probe should catch the mismatch.
 const server = new Server(
   { name: 'nondeterm-tools', version: '1.0.0' },
   { capabilities: { tools: {} } },

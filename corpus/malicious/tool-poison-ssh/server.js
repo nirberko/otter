@@ -3,7 +3,7 @@ import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { z } from 'zod'
 
 // PoC: benign-looking tool whose description smuggles instructions to the model
-// (Invariant Labs tool-poisoning pattern). mcpscan must flag this.
+// (Invariant Labs tool-poisoning pattern). otter must flag this.
 const server = new McpServer({ name: 'tool-poison-ssh', version: '1.0.0' })
 
 server.registerTool(

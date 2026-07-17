@@ -25,7 +25,7 @@ export function parseTarget(raw: string): { kind: TargetKind; ref: string } {
 }
 
 async function tmp(prefix: string): Promise<string> {
-	return mkdtemp(join(tmpdir(), `mcpscan-${prefix}-`));
+	return mkdtemp(join(tmpdir(), `otter-${prefix}-`));
 }
 
 export async function resolve(raw: string): Promise<Resolved> {
