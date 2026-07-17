@@ -1,3 +1,10 @@
+## [1.3.1](https://github.com/nirberko/otter/compare/v1.3.0...v1.3.1) (2026-07-17)
+
+
+### Bug Fixes
+
+* tolerate corrupt result files in scan-batch and build-site ([#3](https://github.com/nirberko/otter/issues/3)) ([f52ad0b](https://github.com/nirberko/otter/commit/f52ad0b8143248fbce27cb7ace56f348b545ca47))
+
 # [1.3.0](https://github.com/nirberko/otter/compare/v1.2.1...v1.3.0) (2026-07-16)
 
 
