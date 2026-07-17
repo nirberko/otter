@@ -3,9 +3,9 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { type CatalogRow, isOutdated } from "./catalog.js";
 import {
+	FRAMEWORKS,
 	controlsForFinding,
 	evaluateFrameworks,
-	FRAMEWORKS,
 } from "./frameworks.js";
 import type { Finding, ScanReport } from "./model.js";
 import { CHECKS_VERSION, SCANNER_VERSION } from "./version.js";
@@ -224,7 +224,9 @@ function findingHtml(f: Finding): string {
 	}[f.severity];
 	return `<div class="finding">
 <span class="sev" style="color:${color}">${f.severity}</span>
-<strong>${esc(f.title)}</strong> <code>${esc(f.id)}</code>${controlsForFinding(f)
+<strong>${esc(f.title)}</strong> <code>${esc(f.id)}</code>${controlsForFinding(
+		f,
+	)
 		.map((c) => `<span class="chip">${esc(c.code)}</span>`)
 		.join("")}
 <div>${esc(f.detail)}</div>

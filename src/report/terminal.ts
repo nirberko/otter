@@ -81,7 +81,9 @@ export function renderTerminal(report: ScanReport): string {
 	for (const r of evaluateFrameworks(report.findings)) {
 		const failed = r.controls.filter((c) => c.status === "fail");
 		const summary = failed.length
-			? pc.red(`${failed.length} failed: ${failed.map((c) => c.code).join(", ")}`)
+			? pc.red(
+					`${failed.length} failed: ${failed.map((c) => c.code).join(", ")}`,
+				)
 			: pc.green("all assessed controls pass");
 		lines.push(
 			`  ${pc.bold(`${r.framework.name} ${r.framework.version}`)}  ` +
