@@ -1,15 +1,15 @@
 {
   "schemaVersion": 1,
   "scanner": {
-    "version": "1.0.0",
-    "rules": "19f6a1b4a518"
+    "version": "1.3.2",
+    "rules": "a1c0c9e6130b"
   },
   "target": {
     "kind": "url",
     "ref": "https://rides.rs/api/mcp"
   },
-  "scannedAt": "2026-07-16T16:34:13.615Z",
-  "durationMs": 1438,
+  "scannedAt": "2026-07-17T06:44:24.557Z",
+  "durationMs": 1774,
   "layers": {
     "metadata": true,
     "static": false
@@ -17,31 +17,61 @@
   "tools": [
     {
       "name": "list_routes",
-      "descriptionHash": "30d081bd493c1796f673ae10d6d3c77161e737c1156ef934e37688114f4bc53d"
+      "descriptionHash": "30d081bd493c1796f673ae10d6d3c77161e737c1156ef934e37688114f4bc53d",
+      "description": "List all active airport-transfer routes with their slug, endpoints, distance, travel time, available directions, and starting price. Use this first to discover what routes exist."
     },
     {
       "name": "get_pricing",
-      "descriptionHash": "dd064a9b90b25d1a1c2e3204b69006634a4f77932809a39c104493d064d0f0f3"
+      "descriptionHash": "dd064a9b90b25d1a1c2e3204b69006634a4f77932809a39c104493d064d0f0f3",
+      "description": "Get fixed per-vehicle prices for a route, or for all routes if no routeSlug is given. Prices are fixed (no surge, no metered fares), in EUR and RSD. Each vehicle tier lists max passengers and luggage."
     },
     {
       "name": "estimate_price",
-      "descriptionHash": "7049df99438166da9b67c84a8c50d3476e4239c3f145667c69e6387445edac12"
+      "descriptionHash": "7049df99438166da9b67c84a8c50d3476e4239c3f145667c69e6387445edac12",
+      "description": "Estimate the price for a trip. Given a route and passenger count (and optional luggage count), returns the cheapest vehicle that fits the group, plus all fitting options. Use this to answer 'how much for N people from X to the airport?'."
     },
     {
       "name": "get_service_info",
-      "descriptionHash": "5a5cc4675742a413e07d9141ef307b0504b261fd3b0d886b79af83c3d30425de"
+      "descriptionHash": "5a5cc4675742a413e07d9141ef307b0504b261fd3b0d886b79af83c3d30425de",
+      "description": "Get business info: service area, accepted payment methods, supported languages, minimum booking lead time, contact details, and how to book (including the booking URL template).",
+      "labels": [
+        "untrusted-content",
+        "private-data"
+      ]
     },
     {
       "name": "create_booking_request",
-      "descriptionHash": "45d4154cb83835498103e9802200ccb75ec99d53243d3bf49c59a69330583fdf"
+      "descriptionHash": "45d4154cb83835498103e9802200ccb75ec99d53243d3bf49c59a69330583fdf",
+      "description": "Start a provisional airport-transfer booking. This does NOT finalize a booking — it emails the passenger a one-tap confirmation link, and the ride is only booked once they click it. Payment is to the driver (cash or card); no online payment is needed. Call estimate_price first to confirm the vehicle",
+      "labels": [
+        "untrusted-content",
+        "public-sink"
+      ]
     },
     {
       "name": "get_booking_request_status",
-      "descriptionHash": "2e223b6a56bab5f8ec4b658a0c8b3ec5e04d7643622e6c4980f5b56ed183a2c3"
+      "descriptionHash": "2e223b6a56bab5f8ec4b658a0c8b3ec5e04d7643622e6c4980f5b56ed183a2c3",
+      "description": "Check whether a booking request (from create_booking_request) has been confirmed by the passenger yet. Returns 'pending', 'confirmed' (with the booking number), or 'expired'."
     }
   ],
-  "findings": [],
-  "score": 100,
-  "scoreBreakdown": {},
+  "findings": [
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: get_service_info, create_booking_request · Private data: get_service_info · Public sink: create_booking_request.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: get_service_info, create_booking_request · Private data: get_service_info · Public sink: create_booking_request"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 80,
+  "scoreBreakdown": {
+    "toxic-flow": 20
+  },
   "errors": []
 }

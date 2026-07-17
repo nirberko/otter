@@ -89,3 +89,111 @@
   "scoreBreakdown": {},
   "errors": []
 }
+    {
+      "name": "modify_bid",
+      "descriptionHash": "fc8aa1c24e54ad311250d10d8b10a5c91ed477644d89fd0fdef6d08e0494acef",
+      "description": "Change the amount of a bid already prepared/placed on a booking. Same as place_bid but for updating an existing bid — pass the sessionId, the NEW amount, and the cabin/segment if ambiguous. The new amount is validated against the airline's range; payment/confirmation completes on the operator's secu",
+      "labels": [
+        "destructive"
+      ]
+    },
+    {
+      "name": "get_bid_status",
+      "descriptionHash": "281a371ade3c1a824b1bfd2d393bde663253c6703b275dd53b6c367c0b9ee6cc",
+      "description": "Check any bids already on a booking (submitted / accepted / declined) and the bid-eligible cabins with their ranges. Pass the sessionId from start_eligibility_check. Reflects the booking as of that secure check."
+    },
+    {
+      "name": "predict_bid_success",
+      "descriptionHash": "873a1080bfa162e76310c2396b700bbfa335d8830a1dae7ce11aa1bc02df157a",
+      "description": "Given a SPECIFIC bid amount, returns the probability it succeeds, grounded in Plusgrade's own resolved accept/reject outcomes for this carrier and cabin — never a guess. Use this when a traveler asks something like 'will $400 get me the upgrade?' or before confirming a bid amount with place_bid. If "
+    },
+    {
+      "name": "start_watch",
+      "descriptionHash": "80b6c67bf48fec5a1ce3ccf273e0229451d25c2d7aa4f52b8cefbe579ba55518",
+      "description": "Set up a Watcher Concierge: have Upgrade Agent CONTINUOUSLY watch a traveler's booking between now and departure and surface improvements to their trip — a better seat (even window-vs-middle), an empty adjacent seat, a cabin upgrade, lounge, or fast track — acting within a budget or notifying them. ",
+      "labels": [
+        "untrusted-content",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "get_watch_status",
+      "descriptionHash": "8e72866edd48ed59fb2bf77a36258deeb9490f277bc5836a07d6dc6d26a833e1",
+      "description": "Check a Watcher Concierge watch (created with start_watch). Returns its status, what it's watching for, and any improvements found so far. Pass the token from start_watch.",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "ask_upgrade_agent",
+      "descriptionHash": "41da469f704c71ec9c5582f4d2bf6a643931f95788fd8602f13db23c5b2061d1",
+      "description": "Answer a general (not booking-specific) travel-upgrade question — how bid/instant/points upgrades work, eligibility rules, bidding strategy, and which airlines, cruise lines, or rail operators offer upgrades. Use this for informational questions only. To check a SPECIFIC booking, use start_eligibili"
+    },
+    {
+      "name": "partner_question_insights",
+      "descriptionHash": "b462757a14126911fa0251011bae099c62319320a23d880931c402753c0e233c",
+      "description": "Report what travelers and AI agents are asking about a specific partner's upgrade programs: total volume, the most frequent questions, which agents are asking, and which answers were strong vs. which need review. Pass the partner name (e.g. 'Air Canada', 'MSC Cruises')."
+    },
+    {
+      "name": "usage_totals",
+      "descriptionHash": "50362819ca037b2a71f50786dab43c1fe246acef0aa9e622f286894ecc281b62",
+      "description": "Running totals across the whole system: how many questions have been asked, and how many were answered successfully (quality at or above the success threshold)."
+    },
+    {
+      "name": "list_partners",
+      "descriptionHash": "340b4b42923f0248c3e059002795b3bf8d45c3079a570f6d6cf535326ec427ff",
+      "description": "List the travel operators that offer upgrade programs, with optional filters. Returns each operator's name, IATA/code, vertical, region, and the upgrade products it offers. Use this to build travel workflows or answer 'which airlines/cruise lines offer upgrades'."
+    },
+    {
+      "name": "get_partner_info",
+      "descriptionHash": "7f91cb605134f1a744b717ad47829aa50e429d37b5eb633d982024d48b3494fd",
+      "description": "Get the full upgrade profile for one operator — products offered (with the official page URL), loyalty program, cabin paths, how to access, and summary. More detailed than ask_upgrade_agent. Accepts an IATA code or a name (e.g. 'AC' or 'Air Canada').",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "get_upgrade_pricing",
+      "descriptionHash": "a27085ca458c95ec46702681a989950d8dbb2fb39f1c82893e0a5d666c7491e2",
+      "description": "Answer 'how much does it cost to upgrade on <airline>?' WITHOUT needing a booking. Returns typical upgrade BID ranges (low / typical / high, per cabin) for an operator, aggregated from real anonymized eligibility checks — never invented. Accepts an IATA code or a name (e.g. 'LH' or 'Lufthansa'). Use"
+    },
+    {
+      "name": "search_upgrade_options",
+      "descriptionHash": "7edd5b13ebbf7cc70b97a46556b8ddd7ce663e41eaa016c3e72cd260a6cacc77",
+      "description": "Find operators that offer upgrades, filtered by vertical, region, and/or product. NOTE: Upgrade Agent has operator coverage by region, not flight route networks — it cannot confirm a specific origin→destination city pair. If origin/destination are given, results are operators offering upgrades (opti"
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOOL-POISON-007",
+      "severity": "low",
+      "category": "tool-poisoning",
+      "title": "Description uses pressure/override language",
+      "detail": "Description of \"start_eligibility_check\" stacks urgency/override words (immediately, always, never). Legitimate tool descriptions rarely pressure the model to act or ignore prior guidance.",
+      "evidence": {
+        "source": "tool:start_eligibility_check",
+        "snippet": "Check whether a specific booking is eligible for an upgrade. THIS IS HOW YOU CHECK A BOOKING. You do NOT need access to any reservation system, booking database…"
+      },
+      "confidence": 0.3
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: check_upgrade_eligibility, start_eligibility_check, get_eligibility_result, place_bid, start_watch, get_partner_info · Private data: start_eligibility_check, get_watch_status · Public sink: start_eligibility_check, start_watch · Destructive: modify_bid.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: check_upgrade_eligibility, start_eligibility_check, get_eligibility_result, place_bid, start_watch, get_partner_info · Private data: start_eligibility_check, get_watch_status · Public sink: start_eligibility_check, start_watch · Destructive: modify_bid"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 77,
+  "scoreBreakdown": {
+    "tool-poisoning": 3,
+    "toxic-flow": 20
+  },
+  "errors": []
+}

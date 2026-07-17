@@ -1,15 +1,15 @@
 {
   "schemaVersion": 1,
   "scanner": {
-    "version": "1.0.0",
-    "rules": "19f6a1b4a518"
+    "version": "1.3.2",
+    "rules": "a1c0c9e6130b"
   },
   "target": {
     "kind": "url",
     "ref": "https://www.pactlio.com/api/mcp"
   },
-  "scannedAt": "2026-07-16T16:30:57.640Z",
-  "durationMs": 419,
+  "scannedAt": "2026-07-17T06:41:36.366Z",
+  "durationMs": 1271,
   "layers": {
     "metadata": true,
     "static": false
@@ -17,35 +17,53 @@
   "tools": [
     {
       "name": "list_contract_types",
-      "descriptionHash": "be9c0c7baee6da960cf4b04d9c18bc3f3eeff925dc65952cc9f77cb69905297a"
+      "descriptionHash": "be9c0c7baee6da960cf4b04d9c18bc3f3eeff925dc65952cc9f77cb69905297a",
+      "description": "List all contract and legal document types Pactlio can generate, with descriptions, use cases, and USD prices. Start here to find the right contract type slug/id for other tools.",
+      "labels": [
+        "private-data"
+      ]
     },
     {
       "name": "get_jurisdiction_requirements",
-      "descriptionHash": "c38e30fbf41cb05a641943d8fbdd546f07ed22c2378c90d528e7e4aee33e2294"
+      "descriptionHash": "c38e30fbf41cb05a641943d8fbdd546f07ed22c2378c90d528e7e4aee33e2294",
+      "description": "Statute-cited legal requirements, key differences, common pitfalls, terminology, and FAQs for a contract type in a specific US state or country. Use contract slug (e.g. \"contractor-agreement\") + jurisdiction slug (e.g. \"california\", \"us\", \"uk\", \"eu-gdpr\")."
     },
     {
       "name": "check_non_compete_enforceability",
-      "descriptionHash": "23f73619b433a5b7dfc8c8880291d7c8d9423f5ff4296a1549d460c9c5b79401"
+      "descriptionHash": "23f73619b433a5b7dfc8c8880291d7c8d9423f5ff4296a1549d460c9c5b79401",
+      "description": "Whether a non-compete agreement is enforceable, limited, or void in a given US state (or DC), with salary thresholds and the key statute. Data covers all 50 states + DC."
     },
     {
       "name": "get_intake_questions",
-      "descriptionHash": "ea6ef5cd25a28ff40df37ec2b79ea9727fb2015bcccc9219a478876b79926523"
+      "descriptionHash": "ea6ef5cd25a28ff40df37ec2b79ea9727fb2015bcccc9219a478876b79926523",
+      "description": "The questions Pactlio asks to draft a specific contract type — use these to collect the information needed before calling start_contract_draft. Returns fields, types, options, and validation rules."
     },
     {
       "name": "start_contract_draft",
-      "descriptionHash": "9a868447d9a956eec84421698eaee2974ecdd13d49e26cc919d91eb404a26474"
+      "descriptionHash": "9a868447d9a956eec84421698eaee2974ecdd13d49e26cc919d91eb404a26474",
+      "description": "Start generating a contract draft with Pactlio's multi-agent AI engine (drafter, critic, compliance checker). Takes 3-5 minutes — returns a preview_id immediately; poll get_draft_status. Free preview shows the opening sections; the full contract is unlocked by a human via checkout. Provide deal_summ"
     },
     {
       "name": "get_draft_status",
-      "descriptionHash": "a63923b3a5d55600953beea1731e3c0cfa0828d2bb8610a443a247a52ab3e409"
+      "descriptionHash": "a63923b3a5d55600953beea1731e3c0cfa0828d2bb8610a443a247a52ab3e409",
+      "description": "Check a contract draft started with start_contract_draft. While generating returns status \"pending\". When complete, returns the free preview (opening sections), the titles of locked sections, and the URL where a human can pay to unlock the full contract.",
+      "labels": [
+        "untrusted-content"
+      ]
     },
     {
       "name": "get_checkout_link",
-      "descriptionHash": "12507945b683102ed91489f6e73905989382001417ccfe5538e6eb93e5c192b0"
+      "descriptionHash": "12507945b683102ed91489f6e73905989382001417ccfe5538e6eb93e5c192b0",
+      "description": "Returns the URL where a human can view the preview and pay to unlock the full contract for a draft created with start_contract_draft. Share this link with your user.",
+      "labels": [
+        "untrusted-content",
+        "public-sink"
+      ]
     },
     {
       "name": "analyze_contract",
-      "descriptionHash": "a228882940bac2ffc411a73b706e5ae6713bed6297a0ac742a47efc1d9319357"
+      "descriptionHash": "a228882940bac2ffc411a73b706e5ae6713bed6297a0ac742a47efc1d9319357",
+      "description": "Paste contract text and get an AI risk analysis: red flags, one-sided clauses, missing protections, and questions to ask. Free (2/day). Not legal advice."
     }
   ],
   "findings": [
@@ -61,11 +79,25 @@
       },
       "confidence": 0.7,
       "remediation": "Treat the server as untrusted; the model may obey embedded instructions."
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: get_draft_status, get_checkout_link · Private data: list_contract_types · Public sink: get_checkout_link.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: get_draft_status, get_checkout_link · Private data: list_contract_types · Public sink: get_checkout_link"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
     }
   ],
-  "score": 80,
+  "score": 60,
   "scoreBreakdown": {
-    "tool-poisoning": 20
+    "tool-poisoning": 20,
+    "toxic-flow": 20
   },
   "errors": []
 }

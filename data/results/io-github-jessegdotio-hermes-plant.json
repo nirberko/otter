@@ -1,15 +1,15 @@
 {
   "schemaVersion": 1,
   "scanner": {
-    "version": "1.2.1",
+    "version": "1.3.2",
     "rules": "a1c0c9e6130b"
   },
   "target": {
     "kind": "url",
     "ref": "https://mcp.hermesplant.com/mcp"
   },
-  "scannedAt": "2026-07-16T17:58:13.364Z",
-  "durationMs": 1696,
+  "scannedAt": "2026-07-17T06:42:57.748Z",
+  "durationMs": 1502,
   "layers": {
     "metadata": true,
     "static": false
@@ -58,6 +58,23 @@
       "name": "purchase_with_x402",
       "descriptionHash": "9438566d1ef718f828fd7f8e7c4129dd0cff583043095179a81c70055f09e807",
       "description": "Purchase a one-time product via x402 (returns 402 challenge or fulfillment JSON). Call get_x402_manifest first, verify method/path/network/amount/payTo, then sign and retry with PAYMENT-SIGNATURE."
+    },
+    {
+      "name": "action_safety_quick_gate",
+      "descriptionHash": "40fa510a6fd9e48c32e6c0b5032ae65de8fc3821f3a6c905dd0359ac23765e68",
+      "description": "AI agent action safety quick gate ($0.01 over x402 or free-tier quota). Deterministically scores a consequential action and returns the exact next call: proceed, request full DestructGuard evidence, or run the complete Action Safety workflow.",
+      "labels": [
+        "destructive"
+      ]
+    },
+    {
+      "name": "action_safety_run",
+      "descriptionHash": "777c64213067942dabb3bcdbbde07059a31aaf77033e241e5afe01ddbf159407",
+      "description": "Complete AI agent action safety workflow ($0.25 over x402 or free-tier quota): DestructGuard evidence, conditional ReviewQueue triage for high or critical risk, an honest decision, signed receipt, and 30-day status record. Triage does not imply human approval.",
+      "labels": [
+        "private-data",
+        "destructive"
+      ]
     },
     {
       "name": "submit_reviewqueue_request",
@@ -182,6 +199,18 @@
       "confidence": 0.65
     },
     {
+      "id": "MCP-SCHEMA-SMELL-001",
+      "severity": "medium",
+      "category": "schema-smell",
+      "title": "Read-only tool requests dangerous parameters",
+      "detail": "Tool \"action_safety_run\" appears informational but accepts parameters (command) that enable code/file/secret access.",
+      "evidence": {
+        "source": "tool:action_safety_run",
+        "snippet": "command, repo, cwd, branch, actor, intent, diffStat, apiKey, paymentSignature, xPayment, paymentIdentifier, synthetic, channel, campaign, actorType, payer"
+      },
+      "confidence": 0.55
+    },
+    {
       "id": "MCP-TOOL-POISON-003",
       "severity": "high",
       "category": "tool-poisoning",
@@ -198,18 +227,19 @@
       "severity": "high",
       "category": "toxic-flow",
       "title": "Lethal trifecta: untrusted input + private data + external sink",
-      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: freetier_status, get_checkout_policies · Private data: freetier_status, walletguard_score, emailguard_validate, emailguard_validate_batch, payment_policy_decide, assurance_attest, assurance_verify · Public sink: freetier_status, submit_reviewqueue_request, dealanalyzer_analyze, bond_analyze, emailguard_validate · Destructive: freetier_status.",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: freetier_status, get_checkout_policies · Private data: freetier_status, action_safety_run, walletguard_score, emailguard_validate, emailguard_validate_batch, payment_policy_decide, assurance_attest, assurance_verify · Public sink: freetier_status, submit_reviewqueue_request, dealanalyzer_analyze, bond_analyze, emailguard_validate · Destructive: freetier_status, action_safety_quick_gate, action_safety_run.",
       "evidence": {
         "source": "server:mcp",
-        "snippet": "Untrusted content: freetier_status, get_checkout_policies · Private data: freetier_status, walletguard_score, emailguard_validate, emailguard_validate_batch, payment_policy_decide, assurance_attest, assurance_verify · Public sink: freetier_status, submit_reviewqueue_request, dealanalyzer_analyze, bond_analyze, emailguard_validate · Destructive: freetier_status"
+        "snippet": "Untrusted content: freetier_status, get_checkout_policies · Private data: freetier_status, action_safety_run, walletguard_score, emailguard_validate, emailguard_validate_batch, payment_policy_decide, assurance_attest, assurance_verify · Public sink: freetier_status, submit_reviewqueue_request, dealanalyzer_analyze, bond_analyze, emailguard_validate · Destructive: freetier_status, action_safety_quick_gate, action_safety_run"
       },
       "confidence": 0.6,
       "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
     }
   ],
-  "score": 50,
+  "score": 42,
   "scoreBreakdown": {
     "tool-poisoning": 30,
+    "schema-smell": 8,
     "toxic-flow": 20
   },
   "errors": []

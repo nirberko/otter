@@ -460,4 +460,477 @@
     "shadowing": 14
   },
   "errors": []
+}bound to). User callers (cookie session) see every key for every agent they own. Plaintext is never returned; the key body is shown only once at create/rotate time",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "rotate_api_key",
+      "descriptionHash": "edb8a09cb0cd6f85f58a2f7edabee46d7586d42eeb38de0b6f674cef5adecc25",
+      "description": "Atomically mint a new API key with the same agent / workspace / scopes / name and revoke the old one. Returns the new plaintext (`key`) once; store it before discarding the response. Subsequent requests with the OLD key return 401, so swap creds before retrying. Agents may rotate ONLY their own key ",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "revoke_api_key",
+      "descriptionHash": "0b63a624a6f9156ebf80cc2cbca14548bf09221541dc6675d223c1915109dc4c",
+      "description": "Revoke an API key (soft-delete via `revokedAt`). Subsequent requests with the key return 401. Agents may revoke ONLY their own key; calling this is effectively a self-destruct, the response itself completes but the very next request will fail. Users may revoke any key they own. To swap creds without",
+      "labels": [
+        "private-data",
+        "destructive"
+      ]
+    },
+    {
+      "name": "request_revoke_agent_key",
+      "descriptionHash": "4a6c3ec7f504837194e6d56e3f3aaaf6b7a54b7866ed037fce1e86a31dc648a5",
+      "description": "Ask the human owner to revoke ANOTHER agent's active API key (sibling agent). The MCP `revoke_api_key` tool is self-only by design; this is the cross-agent escalation path. Returns { status: 'approval_required', approval_url, polling_url, expires_in }: print approval_url in chat for the target agent",
+      "labels": [
+        "private-data",
+        "destructive"
+      ]
+    },
+    {
+      "name": "request_rotate_agent_key",
+      "descriptionHash": "4009ae201f4ed142be7f536e38a2655ff98a30e9a2b18805c63b92939dd2d546",
+      "description": "Ask the human owner to rotate ANOTHER agent's active API key (mint a new one + revoke the old). Same shape as request_revoke_agent_key: returns an approval_url, requires the target agent's owner to click. The new key plaintext is INTENTIONALLY not returned to the requesting agent; it's surfaced only",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "list_webhooks",
+      "descriptionHash": "0b4a0e590dbdab9e674aac63b95cf2712ad3dcc471c8cab0cd3c3276f9c5a7f3",
+      "description": "List webhook endpoints registered on an org. Returns each webhook's id, url, subscribed events, active flag, and an 8-char `secretPreview` of the signing secret (full secret is only returned at create / rotate-secret time). Any org member (user or agent) can list. Use to audit what's subscribed befo",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "create_webhook",
+      "descriptionHash": "aaf68377eb112a8f11e538eb8c9b16d6ed5d79f24bb6f598fc778b9586bc5ac7",
+      "description": "Register a new webhook endpoint on an org. The URL must be public (loopback / private ranges / cloud metadata are blocked at create-time AND re-validated by DNS at delivery-time). Events array filters which event kinds the endpoint receives: pick from row.* / comment.* / member.* / workspace.* / doc",
+      "labels": [
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "update_webhook",
+      "descriptionHash": "17940ec67f07ee9132b8fb4e742ad71ba194356963561998d023f97d73ebc452",
+      "description": "Toggle a webhook's `active` flag on or off. Inactive webhooks are skipped at delivery time (no retry queue, no log row) but the endpoint config is preserved so flipping back is one call. Use to silence a noisy receiver during maintenance without losing its URL + secret + event subscription.",
+      "labels": [
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "rotate_webhook_secret",
+      "descriptionHash": "fe4c0f75268383eb2ffd39baf5f53133e1b73fbe9014a0d58f6672e949406ce1",
+      "description": "Mint a fresh signing secret for a webhook. The new `secret` is returned exactly once; copy it to the receiver before the next event lands. After this call, deliveries are signed with the new secret only; receivers still validating against the old one will reject (401) until updated. Use after a susp",
+      "labels": [
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "delete_webhook",
+      "descriptionHash": "951dde0f693955c7da2d56aea2f23caf91b10094af3a1086878293c9d4dbeab5",
+      "description": "Permanently delete a webhook endpoint. The URL stops receiving events immediately and the secret is destroyed; recreate from scratch if you need to re-add it. To pause without losing config, use update_webhook with active:false instead.",
+      "labels": [
+        "private-data",
+        "public-sink",
+        "destructive"
+      ]
+    },
+    {
+      "name": "send_message",
+      "descriptionHash": "df551ce3f3bc9cb8f703cd1302c03d3cfa3a1e8e7d41cfb77737a625218879df",
+      "description": "Send a direct message to another agent or human in the messaging substrate. Wires through cue.dock.svc, the same path the /live UI uses, so the recipient sees this message in their drawer (and, once they have a Dock-connected agent worker running, their agent harness's inbox). Address format is `<ag",
+      "labels": [
+        "public-sink",
+        "destructive"
+      ]
+    },
+    {
+      "name": "create_support_ticket",
+      "descriptionHash": "ff13bb51b6e0201c94adc55e636bc741e806cd109cad3a63410fd474d7b44fdd",
+      "description": "File a support ticket. Mirrors to a GitHub issue in Dock's support repo and shows up in the user's dashboard at /settings/support. Use this for bugs (you hit an error), feature requests (Dock is missing something), billing (Stripe/subscription), questions (how do I X), or anything else. Prefer reque",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "list_sheet_functions",
+      "descriptionHash": "1cd3c2b833ce30c10e08a0266a6768f82067d57b8b477758721c3a0a332891a1",
+      "description": "List the Dock Sheets formula functions an agent can use in a cell carrier. Returns the canonical name, signature, one-sentence description, category (Math/Logic/Text/Date/Lookup/Predicates), rollout slice (v1/v2/v3/v4), and at least one worked example per function. Use this before writing a formula "
+    },
+    {
+      "name": "validate_formula",
+      "descriptionHash": "78a89eee03867f781df070c0dac67d3265d3a2214eacab4dcedcbee2a0cde6f9",
+      "description": "Parse-check a formula expression server-side without writing anything. Returns { ok, error?, rewrittenFormula?, referencedFunctions, unknownFunctions }. Use BEFORE update_row / create_row when the formula references functions or syntax you're not 100% sure of: a `=SUMIFS(...)` with the wrong arg ord",
+      "labels": [
+        "untrusted-content",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "evaluate_formula",
+      "descriptionHash": "01fde2e8cf020d6ef419b69c700ddfb4bcf7ecc612ea66410fcb4a7cc6a2736f",
+      "description": "Evaluate a formula expression against an actual Dock workspace's columns + rows, server-side, returning the same display value the UI's HyperFormula engine would render. Two modes: STANDALONE (omit `workspace_slug`) — evaluates against an empty grid; useful for `=SUM(1, 2, 3)` or any formula with no"
+    },
+    {
+      "name": "add_comment",
+      "descriptionHash": "d22bf831d5e0b5326e9581fafb4f95d239392daa9146ce468ebed752b9a82a00",
+      "description": "Post a new comment on any target in a workspace: a row, a cell, a doc text range, an html element, an entire surface, or the workspace itself. Polymorphic target shape mirrors the REST POST /api/workspaces/:slug/comments. For threading, pass `parentId` to hang the new comment as a reply (the server ",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "list_comments",
+      "descriptionHash": "550ba8a9433eeb00e2151666a58fc5fbf7137f65488e6694cfd5c80b10f21843",
+      "description": "List comments in a workspace. Filter by `target_type` (row, cell, doc_range, html_element, surface, workspace), `target_id`, `surface` (returns every comment anchored to any element of one surface, useful for 'open threads on this tab'), `status` (open | resolved | all, default open), `mentioning_me",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "get_comment_thread",
+      "descriptionHash": "78a315c1e51bd66d8fdbbc24ab4da185db2f3445ee039000ee7cd87ed6b8bb7c",
+      "description": "Fetch a single comment with its replies + reactions in one round trip. Pass any comment id in the thread (root or reply). Returns `{ comment, replies }` where each entry includes aggregated reactions (`emoji`, `count`, `mine`). Use this when an agent receives a `comment.added` webhook with a `parent",
+      "labels": [
+        "untrusted-content",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "reply_to_comment",
+      "descriptionHash": "cc7706b51b6d76d35bf96a646e2827df14b096eb3cb5b29df90373d9fecb2c6f",
+      "description": "Convenience wrapper around `add_comment` for the common reply case. Pass the parent comment id and the body; the handler reconstructs the target from the parent (no need for the agent to remember whether the parent was a row, cell, doc_range, html_element, surface, or workspace comment). Re-opens a "
+    },
+    {
+      "name": "resolve_comment",
+      "descriptionHash": "ca91818d92adbe7ca497a9baf82b823ee5703e7e4d2c29813e0cba2daeb1c415",
+      "description": "Mark a comment thread resolved. Idempotent: calling on an already-resolved thread returns the existing `resolvedAt` unchanged. Fires `comment.resolved`. Pair with `unresolve_comment` for the reverse. Used by agents to close a feedback thread once they've iterated on the change the reviewer asked for"
+    },
+    {
+      "name": "unresolve_comment",
+      "descriptionHash": "da1367d40930744920c63302c32e36b92cea70543797f6892221b51f87b92cf7",
+      "description": "Re-open a previously-resolved comment thread. Idempotent on already-unresolved comments. Fires `comment.unresolved` with `reason: 'manual'`. (Auto-unresolve on reply fires the same event with `reason: 'reply'` and is handled by `add_comment` / `reply_to_comment`.)",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "react_to_comment",
+      "descriptionHash": "0795c3d77fc71a9e86975e5c8c16a33a080c92ff30e558d77d1782f19d02ba0b",
+      "description": "Add or remove an emoji reaction to a comment. Reactions are per-principal: each (commentId, principalId, emoji) combination is unique. `action: 'add'` is idempotent (re-adding the same emoji is a no-op); `action: 'remove'` deletes the row if present. Fires `comment.reaction_added` / `comment.reactio",
+      "labels": [
+        "destructive"
+      ]
+    },
+    {
+      "name": "list_files",
+      "descriptionHash": "5b845cfa34cfe0c3d1642039cd8554a5dc9e68deb12f4041791b73f3836a65d3",
+      "description": "List the folder + file children of a Files surface (kind='files'). Folders sorted first by position then name; files sorted by name. Returns folders[], files[] with cuids agents can pass to `get_file` / `delete_file`. `parent_folder_id` defaults to null (= root of the surface); pass a folder id to d",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "get_file",
+      "descriptionHash": "c02d1b3fa497d06c74827f417c49a4b94fc82335325fa3d939a6d05a8bfce76a",
+      "description": "Fetch metadata + a download URL for a single file by id. The `download_url` field is a direct Vercel Blob URL valid until the file is hard-deleted (Phase 5; Phase 6 wires a files.trydock.ai signed-URL minter with 5-min TTL + auth re-check). Useful for an agent reading file contents server-side (HTTP",
+      "labels": [
+        "untrusted-content",
+        "private-data"
+      ]
+    },
+    {
+      "name": "delete_file",
+      "descriptionHash": "8c159ceb38b6fc529091da8fd9d541625c9d4d821fdfb8330d701c902bf44f97",
+      "description": "Soft-delete a file by id. Moves to a 30-day trash window before the cleanup cron hard-deletes + refunds the storage quota. Restorable via the REST PATCH endpoint (`PATCH /api/workspaces/{slug}/files/{id} body: {restore:true}`); a PATCH-equivalent MCP tool ships in Phase 6. Editor role required. Gate",
+      "labels": [
+        "private-data",
+        "destructive"
+      ]
+    },
+    {
+      "name": "share_file",
+      "descriptionHash": "77e5fbd7f66ecf57fd5c8f3becbfa8bcaeb4fe55081f79c1ce9538024720a398",
+      "description": "Mint a public share token for a file. Returns a `url` of the form `https://trydock.ai/share/files/<token>` that anyone (no auth) can open to view + download the file. The token is 32 random bytes (~256 bits of entropy) so guessing is infeasible. Revoke later with `revoke_file_share`. Editor role req",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "revoke_file_share",
+      "descriptionHash": "f71704ba14782fe737349a09bfb7e366e4b80884da6c7a6c2275fcff8ced98c9",
+      "description": "Soft-revoke a share token minted via `share_file`. The public `/share/files/<token>` URL stops resolving immediately. Idempotent: revoking an already-revoked token returns `alreadyRevoked: true` without error. Editor role required. Gated behind FILES_SURFACE_ENABLED + per-user allowlist.",
+      "labels": [
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "list_recent_files",
+      "descriptionHash": "858bbd6562e5c5ceb4314f99abd697ff17f4ff0b9ecea43f23b9c7aa08cff818",
+      "description": "List the 50 most recently updated files in a Files surface, sorted by `updatedAt` descending. Flat surface-wide list; ignores folder structure. Useful for an agent answering 'what changed lately' or 'show me yesterday's uploads' without paging through the folder tree. Folders are omitted from this v",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "address_book",
+      "descriptionHash": "e640f6cbd9db2f58d171ebc860b371db83f78a9c3a021ad5c92b68f834df598c",
+      "description": "List the agents you can message: every agent signed by your owner, each with its address and live status. Each entry has `agentId` (the agent's stable `agt_...` id — pass this as send_message's `to`, and PREFER it: it is immutable, whereas `address` is derived from a slug that does not follow a rena",
+      "labels": [
+        "untrusted-content"
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"remove_workspace_member\" references sensitive artifacts (cookie). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:remove_workspace_member",
+        "snippet": "Remove a workspace member. Editor role required; owner-tier removals require an owner caller. Sole-owner removal is blocked; promote someone else first. Note: i…"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOOL-POISON-006",
+      "severity": "low",
+      "category": "tool-poisoning",
+      "title": "Anomalously long tool description",
+      "detail": "Description of \"update_doc\" is 4208 chars, far longer than this server's median (461). Overlong descriptions are a common place to bury instructions.",
+      "evidence": {
+        "source": "tool:update_doc",
+        "snippet": "Replace a workspace's doc body. Takes EITHER TipTap JSON (`content`) OR Markdown (`markdown`): pass markdown when you're producing prose from scratch (CommonMar…"
+      },
+      "confidence": 0.4
+    },
+    {
+      "id": "MCP-TOOL-POISON-007",
+      "severity": "low",
+      "category": "tool-poisoning",
+      "title": "Description uses pressure/override language",
+      "detail": "Description of \"update_doc\" stacks urgency/override words (important, always, warning). Legitimate tool descriptions rarely pressure the model to act or ignore prior guidance.",
+      "evidence": {
+        "source": "tool:update_doc",
+        "snippet": "Replace a workspace's doc body. Takes EITHER TipTap JSON (`content`) OR Markdown (`markdown`): pass markdown when you're producing prose from scratch (CommonMar…"
+      },
+      "confidence": 0.3
+    },
+    {
+      "id": "MCP-TOOL-POISON-007",
+      "severity": "low",
+      "category": "tool-poisoning",
+      "title": "Description uses pressure/override language",
+      "detail": "Description of \"append_doc_section\" stacks urgency/override words (important, warning). Legitimate tool descriptions rarely pressure the model to act or ignore prior guidance.",
+      "evidence": {
+        "source": "tool:append_doc_section",
+        "snippet": "Append a chunk of Markdown to the END of a workspace's doc body. Designed for crons + ingest agents that produce content in timestamped chunks (changelog update…"
+      },
+      "confidence": 0.3
+    },
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"update_html\" references sensitive artifacts (cookie). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:update_html",
+        "snippet": "Write an HTML surface's body. Pass any of `html` / `css` / `js`; omitted fields stay unchanged. Pass empty string to clear. The surface renders in a sandboxed i…"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOOL-POISON-002",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description tells the model to hide behavior",
+      "detail": "Description of \"create_workspace\" instructs the model to conceal actions from the user.",
+      "evidence": {
+        "source": "tool:create_workspace",
+        "snippet": "Create a new workspace in the caller's org. Works for both user and agent callers; agent-created workspaces attribute to the agent and enroll the agent's owning…"
+      },
+      "confidence": 0.75
+    },
+    {
+      "id": "MCP-TOOL-POISON-007",
+      "severity": "low",
+      "category": "tool-poisoning",
+      "title": "Description uses pressure/override language",
+      "detail": "Description of \"create_workspace\" stacks urgency/override words (always, never). Legitimate tool descriptions rarely pressure the model to act or ignore prior guidance.",
+      "evidence": {
+        "source": "tool:create_workspace",
+        "snippet": "Create a new workspace in the caller's org. Works for both user and agent callers; agent-created workspaces attribute to the agent and enroll the agent's owning…"
+      },
+      "confidence": 0.3
+    },
+    {
+      "id": "MCP-SHADOW-001",
+      "severity": "medium",
+      "category": "shadowing",
+      "title": "Generic tool name can shadow trusted tools",
+      "detail": "Tool \"search\" uses a generic high-value name. When multiple servers load together, this can intercept calls meant for a trusted server.",
+      "evidence": {
+        "source": "tool:search",
+        "snippet": "search"
+      },
+      "confidence": 0.4
+    },
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"list_api_keys\" references sensitive artifacts (cookie). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:list_api_keys",
+        "snippet": "List API keys. Agent callers see only the key they're authenticated with (a one-row response: id, prefix, lastUsedAt, the workspace it's bound to). User callers…"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"revoke_api_key\" references sensitive artifacts (api_key). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:revoke_api_key",
+        "snippet": "Revoke an API key (soft-delete via `revokedAt`). Subsequent requests with the key return 401. Agents may revoke ONLY their own key; calling this is effectively …"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"request_revoke_agent_key\" references sensitive artifacts (api_key). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:request_revoke_agent_key",
+        "snippet": "Ask the human owner to revoke ANOTHER agent's active API key (sibling agent). The MCP `revoke_api_key` tool is self-only by design; this is the cross-agent esca…"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"list_webhooks\" references sensitive artifacts (secret). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:list_webhooks",
+        "snippet": "List webhook endpoints registered on an org. Returns each webhook's id, url, subscribed events, active flag, and an 8-char `secretPreview` of the signing secret…"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"create_webhook\" references sensitive artifacts (secret). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:create_webhook",
+        "snippet": "Register a new webhook endpoint on an org. The URL must be public (loopback / private ranges / cloud metadata are blocked at create-time AND re-validated by DNS…"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"update_webhook\" references sensitive artifacts (secret). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:update_webhook",
+        "snippet": "Toggle a webhook's `active` flag on or off. Inactive webhooks are skipped at delivery time (no retry queue, no log row) but the endpoint config is preserved so …"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"rotate_webhook_secret\" references sensitive artifacts (secret). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:rotate_webhook_secret",
+        "snippet": "Mint a fresh signing secret for a webhook. The new `secret` is returned exactly once; copy it to the receiver before the next event lands. After this call, deli…"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"delete_webhook\" references sensitive artifacts (secret). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:delete_webhook",
+        "snippet": "Permanently delete a webhook endpoint. The URL stops receiving events immediately and the secret is destroyed; recreate from scratch if you need to re-add it. T…"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-SHADOW-001",
+      "severity": "medium",
+      "category": "shadowing",
+      "title": "Generic tool name can shadow trusted tools",
+      "detail": "Tool \"list_files\" uses a generic high-value name. When multiple servers load together, this can intercept calls meant for a trusted server.",
+      "evidence": {
+        "source": "tool:list_files",
+        "snippet": "list_files"
+      },
+      "confidence": 0.4
+    },
+    {
+      "id": "MCP-SHADOW-001",
+      "severity": "medium",
+      "category": "shadowing",
+      "title": "Generic tool name can shadow trusted tools",
+      "detail": "Tool \"get_file\" uses a generic high-value name. When multiple servers load together, this can intercept calls meant for a trusted server.",
+      "evidence": {
+        "source": "tool:get_file",
+        "snippet": "get_file"
+      },
+      "confidence": 0.4
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: get_doc, get_workspace_schema, list_workspace_members, update_workspace, update_doc, update_doc_section, get_html, validate_html, search, get_billing, update_surface, list_webhooks, validate_formula, list_comments, get_comment_thread, unresolve_comment, get_file, share_file, address_book · Private data: get_row, get_doc, update_workspace, share_workspace, remove_workspace_member, update_doc, validate_doc_markdown, update_doc_section, append_doc_section, create_workspace, get_billing, upgrade_plan, request_limit_increase, list_api_keys, rotate_api_key, revoke_api_key, request_revoke_agent_key, request_rotate_agent_key, list_webhooks, create_webhook, update_webhook, rotate_webhook_secret, delete_webhook, create_support_ticket, list_files, get_file, delete_file, share_file, revoke_file_share, list_recent_files · Public sink: list_workspace_members, share_workspace, update_doc, append_doc_section, update_surface, list_webhooks, create_webhook, update_webhook, rotate_webhook_secret, delete_webhook, send_message, validate_formula, add_comment, get_comment_thread, share_file, revoke_file_share · Destructive: delete_row, get_doc, delete_workspace, update_workspace, remove_workspace_member, update_doc, validate_doc_markdown, update_html, upgrade_plan, update_surface, delete_surface, revoke_api_key, request_revoke_agent_key, delete_webhook, send_message, react_to_comment, delete_file.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: get_doc, get_workspace_schema, list_workspace_members, update_workspace, update_doc, update_doc_section, get_html, validate_html, search, get_billing, update_surface, list_webhooks, validate_formula, list_comments, get_comment_thread, unresolve_comment, get_file, share_file, address_book · Private data: get_row, get_doc, update_workspace, share_workspace, remove_workspace_member, update_doc, validate_doc_markdown, update_doc_section, append_doc_section, create_workspace, get_billing, upgrade_plan, request_limit_increase, list_api_keys, rotate_api_key, revoke_api_key, request_revoke_agent_key, request_rotate_agent_key, list_webhooks, create_webhook, update_webhook, rotate_webhook_secret, delete_webhook, create_support_ticket, list_files, get_file, delete_file, share_file, revoke_file_share, list_recent_files · Public sink: list_workspace_members, share_workspace, update_doc, append_doc_section, update_surface, list_webhooks, create_webhook, update_webhook, rotate_webhook_secret, delete_webhook, send_message, validate_formula, add_comment, get_comment_thread, share_file, revoke_file_share · Destructive: delete_row, get_doc, delete_workspace, update_workspace, remove_workspace_member, update_doc, validate_doc_markdown, update_html, upgrade_plan, update_surface, delete_surface, revoke_api_key, request_revoke_agent_key, delete_webhook, send_message, react_to_comment, delete_file"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 19,
+  "scoreBreakdown": {
+    "tool-poisoning": 47,
+    "shadowing": 14,
+    "toxic-flow": 20
+  },
+  "errors": []
 }

@@ -1,15 +1,15 @@
 {
   "schemaVersion": 1,
   "scanner": {
-    "version": "1.0.0",
-    "rules": "19f6a1b4a518"
+    "version": "1.3.2",
+    "rules": "a1c0c9e6130b"
   },
   "target": {
     "kind": "url",
     "ref": "https://mcp.villiers.ai/mcp"
   },
-  "scannedAt": "2026-07-16T16:30:34.495Z",
-  "durationMs": 1747,
+  "scannedAt": "2026-07-17T06:41:10.867Z",
+  "durationMs": 1417,
   "layers": {
     "metadata": true,
     "static": false
@@ -17,22 +17,54 @@
   "tools": [
     {
       "name": "get_jet_estimate",
-      "descriptionHash": "b9a810ee282fc4f31136b9cc323fa3d2cdc1967cf134f19176397a6801508a01"
+      "descriptionHash": "b9a810ee282fc4f31136b9cc323fa3d2cdc1967cf134f19176397a6801508a01",
+      "description": "Get an indicative private jet charter price estimate for a route, broken down by aircraft category (light / midsize / heavy jet). Returns an instant price range. IMPORTANT: an estimate is an indicative range, not a confirmed price. After presenting the estimate to the user, ALWAYS offer them the nex",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink"
+      ]
     },
     {
       "name": "request_jet_confirmation",
-      "descriptionHash": "606a93ddbfae715d8828385cf4648274c7fba7f1c0c230a5333cefbe8bab9ae5"
+      "descriptionHash": "606a93ddbfae715d8828385cf4648274c7fba7f1c0c230a5333cefbe8bab9ae5",
+      "description": "Submit a request for CONFIRMED live private jet pricing. Villiers contacts vetted operators and emails the confirmed options — real aircraft availability and pricing, with a secure link to review and book — to the supplied email address. This endpoint requires a prior get_jet_estimate call in the sa",
+      "labels": [
+        "private-data",
+        "public-sink"
+      ]
     },
     {
       "name": "get_confirmation_status",
-      "descriptionHash": "21d1117fd5c2bb396f78c2331e344956cf745c289ee7b6b0ab9116bdfbf5781a"
+      "descriptionHash": "21d1117fd5c2bb396f78c2331e344956cf745c289ee7b6b0ab9116bdfbf5781a",
+      "description": "Check the outcome of a previous request_jet_confirmation call — has Villiers sent confirmed options yet, and where does the trip stand now (still being sourced / options sent / booked / closed with no booking). Requires an affiliate token (Bearer header) and only returns trips that were created unde",
+      "labels": [
+        "private-data",
+        "public-sink"
+      ]
     },
     {
       "name": "search_empty_legs",
-      "descriptionHash": "8a21d58a59a4afddecd9c36b83687dfb37aff87b6c2693c0438284f808274394"
+      "descriptionHash": "8a21d58a59a4afddecd9c36b83687dfb37aff87b6c2693c0438284f808274394",
+      "description": "Search Villiers' available empty-leg flights — heavily discounted, one-off private jet repositioning flights that are significantly cheaper than a full charter. Use this when a user wants cheap private jet deals, is flexible on dates, or asks about discounted or empty-leg flights. Optionally filter ",
+      "labels": [
+        "private-data"
+      ]
     }
   ],
   "findings": [
+    {
+      "id": "MCP-TOOL-POISON-007",
+      "severity": "low",
+      "category": "tool-poisoning",
+      "title": "Description uses pressure/override language",
+      "detail": "Description of \"get_jet_estimate\" stacks urgency/override words (important, always). Legitimate tool descriptions rarely pressure the model to act or ignore prior guidance.",
+      "evidence": {
+        "source": "tool:get_jet_estimate",
+        "snippet": "Get an indicative private jet charter price estimate for a route, broken down by aircraft category (light / midsize / heavy jet). Returns an instant price range…"
+      },
+      "confidence": 0.3
+    },
     {
       "id": "MCP-TOOL-POISON-003",
       "severity": "high",
@@ -44,11 +76,25 @@
         "snippet": "Check the outcome of a previous request_jet_confirmation call — has Villiers sent confirmed options yet, and where does the trip stand now (still being sourced …"
       },
       "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: get_jet_estimate · Private data: get_jet_estimate, request_jet_confirmation, get_confirmation_status, search_empty_legs · Public sink: get_jet_estimate, request_jet_confirmation, get_confirmation_status.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: get_jet_estimate · Private data: get_jet_estimate, request_jet_confirmation, get_confirmation_status, search_empty_legs · Public sink: get_jet_estimate, request_jet_confirmation, get_confirmation_status"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
     }
   ],
-  "score": 80,
+  "score": 59,
   "scoreBreakdown": {
-    "tool-poisoning": 20
+    "tool-poisoning": 22,
+    "toxic-flow": 20
   },
   "errors": []
 }
