@@ -1,15 +1,15 @@
 {
   "schemaVersion": 1,
   "scanner": {
-    "version": "1.0.0",
-    "rules": "19f6a1b4a518"
+    "version": "1.6.0",
+    "rules": "402995650b68"
   },
   "target": {
     "kind": "url",
     "ref": "https://mcp.ghostswap.io/mcp"
   },
-  "scannedAt": "2026-07-16T16:32:12.055Z",
-  "durationMs": 1267,
+  "scannedAt": "2026-07-17T17:36:43.742Z",
+  "durationMs": 1370,
   "layers": {
     "metadata": true,
     "static": false
@@ -17,31 +17,64 @@
   "tools": [
     {
       "name": "list_currencies",
-      "descriptionHash": "b3e6af7ee00b2c1f236dfde2671fe6aba59b04a56481678ee372ac1dce6ac675"
+      "descriptionHash": "b3e6af7ee00b2c1f236dfde2671fe6aba59b04a56481678ee372ac1dce6ac675",
+      "description": "List all coins GhostSwap supports for swapping (1,600+ assets). Use lite=true for just an array of tickers (e.g. [\"btc\",\"eth\",\"ltc\"])."
     },
     {
       "name": "get_pair",
-      "descriptionHash": "3256a90c8082f984e698395390822e010a7341bc72c71d8a661c2df26f4b841b"
+      "descriptionHash": "3256a90c8082f984e698395390822e010a7341bc72c71d8a661c2df26f4b841b",
+      "description": "Get the min and max swap amount for a single (from, to) pair. Returns separate min/max for float-rate and fixed-rate modes."
     },
     {
       "name": "validate_address",
-      "descriptionHash": "c79659646a0c078c004dd2e62becadc5fa5d61203ae325587325ac2fe391f95c"
+      "descriptionHash": "c79659646a0c078c004dd2e62becadc5fa5d61203ae325587325ac2fe391f95c",
+      "description": "Check whether a wallet address is valid for a given currency. Returns {valid:true} or {valid:false,message}. Permissive pre-check — create_swap runs a stricter validator.",
+      "labels": [
+        "untrusted-content",
+        "private-data"
+      ]
     },
     {
       "name": "get_quote",
-      "descriptionHash": "16870a0de372535a0dc0b2482f1c2cb92b92cc0b3dcacceef23d91f58e5b4e79"
+      "descriptionHash": "16870a0de372535a0dc0b2482f1c2cb92b92cc0b3dcacceef23d91f58e5b4e79",
+      "description": "Get a live swap quote — rate, amountUserReceives, network fee, min/max. Always display amountUserReceives (not amountTo). mode=\"fixed\" locks the rate and returns a short-lived rateId."
     },
     {
       "name": "create_swap",
-      "descriptionHash": "138850c98dfe7009ae9bd2dc349a75bc575b00fd8eca41532c70f846309e5dd3"
+      "descriptionHash": "138850c98dfe7009ae9bd2dc349a75bc575b00fd8eca41532c70f846309e5dd3",
+      "description": "Create a new swap. Returns payinAddress where the end-user must send funds. REQUIRES refundAddress (the user's own wallet on the FROM chain). IDEMPOTENT — pass a stable idempotencyKey (UUID v4) per logical \"Confirm\" and reuse it on retries; never create the same swap twice. If a result has stop:true",
+      "labels": [
+        "private-data",
+        "public-sink"
+      ]
     },
     {
       "name": "get_swap",
-      "descriptionHash": "2460a28f8704cad4aeb4249675557a9f59cdac8e0c1c04caa7ac7da309bd9c32"
+      "descriptionHash": "2460a28f8704cad4aeb4249675557a9f59cdac8e0c1c04caa7ac7da309bd9c32",
+      "description": "Get the current status of a swap by id. Poll every 10–30s after create_swap until terminal: finished | failed | refunded | overdue | expired. `hold` = AML/KYC review (slow polling; direct end-user to support@ghostswap.io).",
+      "labels": [
+        "untrusted-content"
+      ]
     }
   ],
-  "findings": [],
-  "score": 100,
-  "scoreBreakdown": {},
+  "findings": [
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: validate_address, get_swap · Private data: validate_address, create_swap · Public sink: create_swap.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: validate_address, get_swap · Private data: validate_address, create_swap · Public sink: create_swap"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 80,
+  "scoreBreakdown": {
+    "toxic-flow": 20
+  },
   "errors": []
 }

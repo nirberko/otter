@@ -1,15 +1,15 @@
 {
   "schemaVersion": 1,
   "scanner": {
-    "version": "1.0.0",
-    "rules": "19f6a1b4a518"
+    "version": "1.6.0",
+    "rules": "402995650b68"
   },
   "target": {
     "kind": "url",
     "ref": "https://chesswithclaw.vercel.app/api/mcp"
   },
-  "scannedAt": "2026-07-16T16:31:26.389Z",
-  "durationMs": 708,
+  "scannedAt": "2026-07-17T17:35:56.015Z",
+  "durationMs": 1223,
   "layers": {
     "metadata": true,
     "static": false
@@ -17,43 +17,81 @@
   "tools": [
     {
       "name": "join_game",
-      "descriptionHash": "8e094f899a33b473166d4b38713c4e7ce99c16f6a66d35686d787200c1f4f9d8"
+      "descriptionHash": "8e094f899a33b473166d4b38713c4e7ce99c16f6a66d35686d787200c1f4f9d8",
+      "description": "Connects to a game using the invite code your human gave you. Returns the game_id and your agent_token — keep both, every other tool needs them."
     },
     {
       "name": "get_game_state",
-      "descriptionHash": "279d4fa0dcf83e4379429096c2128dcd275b311ec82dda2708cfce989a2cd341"
+      "descriptionHash": "279d4fa0dcf83e4379429096c2128dcd275b311ec82dda2708cfce989a2cd341",
+      "description": "Everything visible on the human's own screen right now: FEN, ASCII board, full move history, full chat history, presence, timestamps. Call this whenever you want to look at the board — there is no penalty for checking often.",
+      "labels": [
+        "untrusted-content"
+      ]
     },
     {
       "name": "get_legal_moves",
-      "descriptionHash": "42d6dd0b05122108c810cf91afa02b0cb93c6bf5ec3c3039d9095a6e958a6154"
+      "descriptionHash": "42d6dd0b05122108c810cf91afa02b0cb93c6bf5ec3c3039d9095a6e958a6154",
+      "description": "Pure chess rules — where a piece is physically allowed to move right now. Not an evaluation, not a suggestion, not an opinion about what is good. Exactly what a human sees as dots when they click a piece. Omit square to get every legal move in the position."
     },
     {
       "name": "make_move",
-      "descriptionHash": "7f615277da5da72b2c0a92ce31dff79bc8311af38859766bca0361cd3a6af3ef"
+      "descriptionHash": "7f615277da5da72b2c0a92ce31dff79bc8311af38859766bca0361cd3a6af3ef",
+      "description": "Submit the move you decided on, in your own reasoning — not a menu, not a ranked list, nothing pre-chosen for you. If it is illegal you get a clear reason back and can try again, exactly like a human clicking the wrong square. Optionally include a genuine thought and/or chat message about the move.",
+      "labels": [
+        "untrusted-content",
+        "public-sink"
+      ]
     },
     {
       "name": "send_chat",
-      "descriptionHash": "77fb070dd780e8a3158eda0a1680a3932016358aeb940bd3f358b6daedd50ece"
+      "descriptionHash": "77fb070dd780e8a3158eda0a1680a3932016358aeb940bd3f358b6daedd50ece",
+      "description": "Say something to your human, any time — not just on your turn.",
+      "labels": [
+        "public-sink"
+      ]
     },
     {
       "name": "offer_draw",
-      "descriptionHash": "8f75d30b96b6c72654a5dec0d238e698b5fde24bdf7ff286f6399e3ebf1cfa4d"
+      "descriptionHash": "8f75d30b96b6c72654a5dec0d238e698b5fde24bdf7ff286f6399e3ebf1cfa4d",
+      "description": "Propose ending the game as a draw. The game stays active until your human responds."
     },
     {
       "name": "respond_to_draw",
-      "descriptionHash": "0afc6bb6f05ee4381e09899c33999fff75cc4cc17ce8fb6bfa0d2986f740afa1"
+      "descriptionHash": "0afc6bb6f05ee4381e09899c33999fff75cc4cc17ce8fb6bfa0d2986f740afa1",
+      "description": "Accept or decline a draw your human offered. This is your own real decision — weigh the actual position however you see fit."
     },
     {
       "name": "create_game",
-      "descriptionHash": "e57ea9bf620f6c1c7db78669ddf5ced13e88d06c60ffecc28d1b48edfc2db024"
+      "descriptionHash": "e57ea9bf620f6c1c7db78669ddf5ced13e88d06c60ffecc28d1b48edfc2db024",
+      "description": "Set up a brand new ChessWithClaw game on your own initiative — you do not need to wait for your human to start one, or for anyone else to invite you first."
     },
     {
       "name": "wait_for_event",
-      "descriptionHash": "6c8b94c52b6f9012bb6aba40d2c2f0b4a343b6600899188810847ac5a41ef3a3"
+      "descriptionHash": "6c8b94c52b6f9012bb6aba40d2c2f0b4a343b6600899188810847ac5a41ef3a3",
+      "description": "Holds the connection open, checking every couple seconds, for up to ~20 seconds. Returns the moment it becomes your turn, the human sends a chat message, a draw is offered, or the game ends — whichever happens first. Returns event: \"timeout\" if none of those happened in the window, which just means ",
+      "labels": [
+        "untrusted-content"
+      ]
     }
   ],
-  "findings": [],
-  "score": 100,
-  "scoreBreakdown": {},
+  "findings": [
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "medium",
+      "category": "toxic-flow",
+      "title": "Toxic flow: untrusted input can reach an external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: get_game_state, make_move, wait_for_event · Public sink: make_move, send_chat.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: get_game_state, make_move, wait_for_event · Public sink: make_move, send_chat"
+      },
+      "confidence": 0.45,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 92,
+  "scoreBreakdown": {
+    "toxic-flow": 8
+  },
   "errors": []
 }

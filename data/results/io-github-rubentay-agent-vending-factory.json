@@ -1,15 +1,15 @@
 {
   "schemaVersion": 1,
   "scanner": {
-    "version": "1.0.0",
-    "rules": "19f6a1b4a518"
+    "version": "1.6.0",
+    "rules": "402995650b68"
   },
   "target": {
     "kind": "url",
     "ref": "https://agent-vending-factory-3srpjtr7na-ew.a.run.app/mcp"
   },
-  "scannedAt": "2026-07-16T16:33:31.683Z",
-  "durationMs": 813,
+  "scannedAt": "2026-07-17T17:38:11.079Z",
+  "durationMs": 597,
   "layers": {
     "metadata": true,
     "static": false
@@ -17,31 +17,79 @@
   "tools": [
     {
       "name": "agent_example",
-      "descriptionHash": "ade705ca674229764a4b79e5b11dc0ed1ecc733dc65d21220264b8a12b9b48a9"
+      "descriptionHash": "ade705ca674229764a4b79e5b11dc0ed1ecc733dc65d21220264b8a12b9b48a9",
+      "description": "POST /agents/agent_example/run — Single-turn Claude Sonnet inference endpoint. Input: {question: string, max_tokens: integer (default 1024)}. Output: {success, answer, usage: {input_tokens, output_tokens}, error}. No tool use or agentic loop — direct model call. Use for QA, summarisation, or classif",
+      "labels": [
+        "public-sink",
+        "destructive"
+      ]
     },
     {
       "name": "tool_example",
-      "descriptionHash": "57a71987d9de4bdab8d0ad336ff6666ccf22d2a7ff6ce11f3a5a0250fceaf9aa"
+      "descriptionHash": "57a71987d9de4bdab8d0ad336ff6666ccf22d2a7ff6ce11f3a5a0250fceaf9aa",
+      "description": "POST /tools/tool_example/run — Stateless text utility for testing x402 payment flows. Input: {text: string}. Output: {original, uppercase, word_count, char_count}. Cost: $0.0010 USDC per call.",
+      "labels": [
+        "public-sink",
+        "destructive"
+      ]
     },
     {
       "name": "tool_zar_prices",
-      "descriptionHash": "d3508f6bcf6aec0133ebd7c353d6dece0177135bdfb7d7d1d365d90b637600c0"
+      "descriptionHash": "d3508f6bcf6aec0133ebd7c353d6dece0177135bdfb7d7d1d365d90b637600c0",
+      "description": "POST /tools/zar-prices/run — Returns live bid/ask/last prices for crypto/ZAR pairs. Input: {pair: 'BTC/ZAR'|'ETH/ZAR'|'SOL/ZAR'|'USDC/ZAR'|'all'}. Output: array of {exchange, pair, price, bid, ask, timestamp} objects. Sources: VALR (all 4 pairs), Luno (BTC/ZAR + ETH/ZAR only). SOL/ZAR and USDC/ZAR a",
+      "labels": [
+        "public-sink",
+        "destructive"
+      ]
     },
     {
       "name": "tool_data_transformer",
-      "descriptionHash": "66641d09d6ec410c3b8ae09631a54176164fb620af91b1d73b652a3fe65b9b38"
+      "descriptionHash": "66641d09d6ec410c3b8ae09631a54176164fb620af91b1d73b652a3fe65b9b38",
+      "description": "POST /tools/tool_data_transformer/run — Extracts structured JSON from raw text using a caller-supplied JSON Schema. Input: {raw_text: string, target_json_schema: object (JSON Schema draft-07)}. Output: {success, extracted_data, extraction_method, validation_passed, error}. extraction_method is one o",
+      "labels": [
+        "public-sink",
+        "destructive"
+      ]
     },
     {
       "name": "tool_compute_sandbox",
-      "descriptionHash": "612c7abb469f9c513fd7c47282d67d28bd69d51990ffb456704b8fc8d4c77a18"
+      "descriptionHash": "612c7abb469f9c513fd7c47282d67d28bd69d51990ffb456704b8fc8d4c77a18",
+      "description": "POST /tools/tool_compute_sandbox/run — Executes Python 3.12 code in an isolated subprocess with a 5-second hard timeout. Input: {python_code: string, input_data: any (optional, bound as variable 'input_data')}. Output: {success, result, stdout (capped 50KB), execution_time_ms, error_type}. Return va",
+      "labels": [
+        "untrusted-content",
+        "public-sink",
+        "destructive"
+      ]
     },
     {
       "name": "tool_sa_airport_oracle",
-      "descriptionHash": "2901049bccdf48a6488ed37b0e60349f2156fadf3010c46914099d2d1e6fec40"
+      "descriptionHash": "2901049bccdf48a6488ed37b0e60349f2156fadf3010c46914099d2d1e6fec40",
+      "description": "POST /tools/sa-airport-oracle/run — Returns live flight status from ACSA (airports.co.za). Input: {airport_code: 'JNB'|'CPT'|'DUR', flight_number: string, request_type: 'arrival'|'departure'}. Output: {success, live_status, scheduled_time, estimated_time, actual_time, gate, carousel, terminal, fligh",
+      "labels": [
+        "untrusted-content",
+        "public-sink",
+        "destructive"
+      ]
     }
   ],
-  "findings": [],
-  "score": 100,
-  "scoreBreakdown": {},
+  "findings": [
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "medium",
+      "category": "toxic-flow",
+      "title": "Toxic flow: untrusted input can reach an external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: tool_compute_sandbox, tool_sa_airport_oracle · Public sink: agent_example, tool_example, tool_zar_prices, tool_data_transformer, tool_compute_sandbox, tool_sa_airport_oracle · Destructive: agent_example, tool_example, tool_zar_prices, tool_data_transformer, tool_compute_sandbox, tool_sa_airport_oracle.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: tool_compute_sandbox, tool_sa_airport_oracle · Public sink: agent_example, tool_example, tool_zar_prices, tool_data_transformer, tool_compute_sandbox, tool_sa_airport_oracle · Destructive: agent_example, tool_example, tool_zar_prices, tool_data_transformer, tool_compute_sandbox, tool_sa_airport_oracle"
+      },
+      "confidence": 0.45,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 92,
+  "scoreBreakdown": {
+    "toxic-flow": 8
+  },
   "errors": []
 }
