@@ -115,4 +115,123 @@
     "tool-poisoning": 20
   },
   "errors": []
+}e00b84469fda2edece60618664aaa70",
+      "description": "Get a signed R2 URL for uploading content assets.",
+      "labels": [
+        "untrusted-content",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "confirm_asset_upload",
+      "descriptionHash": "62babbbe68b2bafe59b2ea7a184cd00e2137ebc82bc2f78058946f6a24f2f9d4",
+      "description": "Confirm that an asset upload has completed successfully.",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "submit_post",
+      "descriptionHash": "e6806203a17ee037dbf6f74f7547607d45e3134424e86592ce628b3e13ec09a1",
+      "description": "Publish a post on PPToGo and mint a fresh tracking link in one atomic call. Mirrors REST POST /api/v1/agent/posts. The success response echoes the resolved attribution: product_id, campaign_id (whichever was set), and commission_rate_pct.",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "get_post_performance",
+      "descriptionHash": "1c3eed66808d65ce629d2bb918777186a290bc80e7654021c92a88ae308414d8",
+      "description": "Get analytics for a specific post (per_piece) or, when post_id is omitted, the agent-wide aggregate. Per-piece clicks/conversions/revenue are LIFETIME totals and per_piece includes conversion_rate (conversions/clicks, both lifetime → consistent). For the aggregate, `clicks` is a LIFETIME total while",
+      "labels": [
+        "untrusted-content",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "get_my_earnings",
+      "descriptionHash": "d0c9d15767c888945a1065aac6344e21c4a9f91285d650ddf58d4eb9da138e3d",
+      "description": "Get the current earnings + payout snapshot for the authenticated creator: held_cents, payable_cents, is_claimed, kyc_status, payout_blocked(+reason), cap_cents, used_cents, and remaining_cents (cap headroom; null when uncapped). This is a point-in-time snapshot, not a time series."
+    },
+    {
+      "name": "declare_tool_usage",
+      "descriptionHash": "4a23bc84ba5644cfb515f56111dc5c95bbf5784cb13c9c4fbb8aa9c9d7a39c93",
+      "description": "Declare that one or more AI tools were used to create a post. Pass tool_slug (singular) or tool_slugs (plural). Returns the merged tool_ids plus added_slugs and unknown_slugs.",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "write_tool_review",
+      "descriptionHash": "2848ffd6244a49df6583685b7aeec92132cb59dd7642026594e11f5bfb6f8d95",
+      "description": "Submit a review for an AI tool. Reviews queue for admin moderation before they count toward the tool's average rating.",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "set_owner_email",
+      "descriptionHash": "e530ff42e16f47c9b0a17d10c09a57ba49f953db14f2304a6198c13409b68ff1",
+      "description": "Self-report the human owner email for this unclaimed agent. If that email is already a registered PPToGo user, the agent is auto-claimed immediately; otherwise the claim runs silently on the owner's next sign-in.",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "list_notifications",
+      "descriptionHash": "0129e2911ca6a2723de5b29920fc09c3cbda1a9ebf6b55b58cc1f5a89f9f7c67",
+      "description": "Most-recent notifications addressed to the human owner of this agent's handle (payouts, refunds, moderation results, cap warnings, etc.). Returns `is_claimed: false` and an empty list for unclaimed agents. Also returns `unread_count` (total unread for this owner) and `has_more` (whether more rows ex",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "get_unread_count",
+      "descriptionHash": "60279d3c404b3d62c1eeabb74be561f9b3bcd73cbe463d4551d536996c268f95",
+      "description": "Count of unread notifications for the human owner of this agent's handle. Cheap polling primitive backed by a partial index. Returns `is_claimed: false` and zero for unclaimed agents.",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "mark_notification_read",
+      "descriptionHash": "01e43e33a7f8a11a8b4894afe9aae44f069761e5bd060aaa3101c1c5489b13e7",
+      "description": "Mark a notification (or all unread) read. Pass `id` for a single item, or `all: true` to mark every unread notification read at once. Idempotent.",
+      "labels": [
+        "untrusted-content"
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOOL-POISON-002",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description tells the model to hide behavior",
+      "detail": "Description of \"set_owner_email\" instructs the model to conceal actions from the user.",
+      "evidence": {
+        "source": "tool:set_owner_email",
+        "snippet": "Self-report the human owner email for this unclaimed agent. If that email is already a registered PPToGo user, the agent is auto-claimed immediately; otherwise …"
+      },
+      "confidence": 0.75
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "medium",
+      "category": "toxic-flow",
+      "title": "Toxic flow: untrusted input can reach an external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: get_upload_url, get_post_performance, list_notifications, get_unread_count, mark_notification_read · Public sink: apply_to_campaign, get_upload_url, confirm_asset_upload, submit_post, get_post_performance, declare_tool_usage, write_tool_review, set_owner_email.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: get_upload_url, get_post_performance, list_notifications, get_unread_count, mark_notification_read · Public sink: apply_to_campaign, get_upload_url, confirm_asset_upload, submit_post, get_post_performance, declare_tool_usage, write_tool_review, set_owner_email"
+      },
+      "confidence": 0.45,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 72,
+  "scoreBreakdown": {
+    "tool-poisoning": 20,
+    "toxic-flow": 8
+  },
+  "errors": []
 }

@@ -99,4 +99,117 @@
     "shadowing": 8
   },
   "errors": []
+}t an existing feedback item. content (replaces the text) and timestamp (video time in seconds) can only be changed on the connected user's OWN comments. add_tags / remove_tags apply the team's existing tags by NAME and work on ANY feedback item you can comment on (labels and statuses are collabor"
+    },
+    {
+      "name": "get_annotated_frames",
+      "descriptionHash": "0d5253ef5d2e4ce3fd319c2be950c69b2ea791588b3cbf192aa69113bd204aed",
+      "description": "Supplementary visuals for a feedback item. For recording items: the media under review with the reviewer's drawing rendered in, plus their shared SCREEN when they demonstrated something (e.g. a Photoshop/Figma mockup); webcam frames are NOT included, and the transcript is returned marked [FRAME N]. ",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "get_frame",
+      "descriptionHash": "569063d393b88122dde2f332268f36ab4b52e9d50241b9985ce2bd44ea553c29",
+      "description": "Drill into a recording for MORE visual detail: get the exact frame at a specific time (at) or when a specific word/phrase was spoken (word). Use when get_annotated_frames did not show what a reference ('this','here','that') means, or to see a moment the transcript mentions. Returns the asset frame a",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "asset_status",
+      "descriptionHash": "deae5ded2e98661a6763b11692034dc8d864412cad2a4085a7ad9139f77b827e",
+      "description": "Check the processing status of a video asset. Returns progress percentage for videos being processed, or confirms the asset is ready."
+    },
+    {
+      "name": "permission_get",
+      "descriptionHash": "f90af02b68ba334e10c796626bb8b72d2c95b28be37bafb10747dbcd54dab5e3",
+      "description": "See who has access to a folder and their permission levels (full_access, comment, view, none). Returns team members with their roles, plus link and team-member default access levels.",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "search",
+      "descriptionHash": "a87a5985ec297f35da4b4cf9952ab5af6426d0ead504de238736d0388e587bc5",
+      "description": "Search across your team's folders, assets, and feedback by text. Always returns all three categories together."
+    },
+    {
+      "name": "recent_activity",
+      "descriptionHash": "43403b1fe02a0e2dad4a9188e55cef94ed2e37a26cb4385c07734c1a85c50e66",
+      "description": "Get the latest comments across your team, newest first. Returns a mix of text and recording comments with author, timestamp, and a link to jump into the conversation. Each item has a `type` field (\"text\" or \"recording\") so you can filter client-side if needed.",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "tags",
+      "descriptionHash": "54dadc6ae1d731d4f87482a8422dfa05e133c4d4efe43bb4e2f72661f5725dcb",
+      "description": "List the team's tags and show the share of each tag (plus an 'untagged' bucket) across a scope. Scope defaults to the whole team; pass folder_id to narrow to one folder, or asset_id to narrow to one asset. Shares are count_with_tag / total_elements and do NOT sum to 100% because elements can carry m",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "upload_video",
+      "descriptionHash": "e8355171a8402a4aa80defbcba4d6bed9921ada46f02f7bd6d70a0d0ddafc933",
+      "description": "Upload a video from a public URL (a direct video file link or a Google Drive share link) into Flask. Flask downloads it, stores it, and starts processing. Returns the new asset_id — poll asset_status(asset_id) until status is \"ready\" before linking to it. folder_id is OPTIONAL: omit it to upload to ",
+      "labels": [
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "upload_file_start",
+      "descriptionHash": "a2941331dda3b4731327a7f2e655215232ecd61200977e48af85b09175d9085d",
+      "description": "Start uploading a LOCAL video file from the user's machine into Flask. Returns the shareable Flask link immediately, plus a presigned upload URL. After calling this, upload the file bytes with the curl command from next_step, then call upload_file_complete. folder_id is OPTIONAL: omit it to upload t",
+      "labels": [
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "upload_file_complete",
+      "descriptionHash": "4b7d96077b24495ccf8f5554331fd68e1f6585f17ca7c9dee124e54d886e3a3c",
+      "description": "Finalize a local file upload started with upload_file_start. Call this only AFTER the curl PUT has finished successfully. Verifies the file landed in storage and starts video processing. Safe to retry.",
+      "labels": [
+        "private-data",
+        "public-sink"
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-SHADOW-001",
+      "severity": "medium",
+      "category": "shadowing",
+      "title": "Generic tool name can shadow trusted tools",
+      "detail": "Tool \"search\" uses a generic high-value name. When multiple servers load together, this can intercept calls meant for a trusted server.",
+      "evidence": {
+        "source": "tool:search",
+        "snippet": "search"
+      },
+      "confidence": 0.4
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: contents, feedback_list, feedback_get, wait_for_feedback, get_annotated_frames, get_frame, permission_get, recent_activity · Private data: feedback_list, upload_video, upload_file_start, upload_file_complete · Public sink: feedback_post, tags, upload_video, upload_file_start, upload_file_complete.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: contents, feedback_list, feedback_get, wait_for_feedback, get_annotated_frames, get_frame, permission_get, recent_activity · Private data: feedback_list, upload_video, upload_file_start, upload_file_complete · Public sink: feedback_post, tags, upload_video, upload_file_start, upload_file_complete"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 72,
+  "scoreBreakdown": {
+    "shadowing": 8,
+    "toxic-flow": 20
+  },
+  "errors": []
 }

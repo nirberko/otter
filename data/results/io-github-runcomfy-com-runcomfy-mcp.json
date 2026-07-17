@@ -75,4 +75,83 @@
     "tool-poisoning": 20
   },
   "errors": []
+}_deployment(is_enabled=false)`` to pause\n    instead.",
+      "labels": [
+        "destructive"
+      ]
+    },
+    {
+      "name": "submit_request",
+      "descriptionHash": "5eb542ed90359fdf8861fe4d591f95b71adf994782d4b459eaa9d17ec76e8b5b",
+      "description": "Submit an async inference request to a deployment.\n\n    Backs ``POST /prod/v1/deployments/{deployment_id}/inference``.\n\n    Args:\n        deployment_id: Target deployment.\n        overrides: Partial graph keyed by node_id, e.g.\n            ``{\"6\": {\"inputs\": {\"text\": \"a cat\"}}}``.\n            Use ``",
+      "labels": [
+        "private-data",
+        "public-sink",
+        "destructive"
+      ]
+    },
+    {
+      "name": "get_request_status",
+      "descriptionHash": "3fb39a3458f52d544892c0812ca1c1c51047c774c0cbeade792d9bdada87556c",
+      "description": "Poll a request's current status.\n\n    Backs ``GET /prod/v1/deployments/{deployment_id}/requests/{request_id}/status``.\n    Lifecycle: ``in_queue`` → ``in_progress`` → ``completed`` / ``cancelled``."
+    },
+    {
+      "name": "get_request_result",
+      "descriptionHash": "f02b79e3c017bfa4d9dedf70ff2a142088434280ec05010de2538530874b3d98",
+      "description": "Fetch a completed request's outputs.\n\n    Backs ``GET /prod/v1/deployments/{deployment_id}/requests/{request_id}/result``.\n    Output URLs are hosted for 7 days.",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "cancel_request",
+      "descriptionHash": "3dfd3025513abe7926b331670b32a74b0982c79a6cc77eb2a25f310395f7a6fd",
+      "description": "Cancel a queued or running request.\n\n    Backs ``POST /prod/v1/deployments/{deployment_id}/requests/{request_id}/cancel``.\n    Returns ``cancelled`` if accepted, ``not_cancellable`` if already done.",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "call_instance_proxy",
+      "descriptionHash": "82b280b97c5a778d4b51b3cfa38828f7d256c9aad8bf9364aa5643866457b351",
+      "description": "Call a ComfyUI backend endpoint on a live instance.\n\n    Backs ``POST /prod/v2/deployments/{deployment_id}/instances/{instance_id}/proxy/{path}``.\n\n    Get the instance_id from ``get_request_status`` once the status is\n    ``in_progress``. Common target: ``api/free`` with\n    ``{\"unload_models\": tru",
+      "labels": [
+        "untrusted-content",
+        "public-sink"
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"submit_request\" references sensitive artifacts (api_key). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:submit_request",
+        "snippet": "Submit an async inference request to a deployment. Backs ``POST /prod/v1/deployments/{deployment_id}/inference``. Args: deployment_id: Target deployment. overri…"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: get_request_result, call_instance_proxy · Private data: submit_request · Public sink: create_deployment, submit_request, cancel_request, call_instance_proxy · Destructive: delete_deployment, submit_request.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: get_request_result, call_instance_proxy · Private data: submit_request · Public sink: create_deployment, submit_request, cancel_request, call_instance_proxy · Destructive: delete_deployment, submit_request"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 60,
+  "scoreBreakdown": {
+    "tool-poisoning": 20,
+    "toxic-flow": 20
+  },
+  "errors": []
 }

@@ -140,4 +140,129 @@
     "shadowing": 12
   },
   "errors": []
+}ments that have finished training (status READY).",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "configure_agent",
+      "descriptionHash": "75965ab77f3c14ec9d7a57d4fa8a29e139cfa01e7ba2b49e31ffa121d011a6f7",
+      "description": "Configure this workspace's AI support agent. All fields are optional, only the fields you pass are updated; the rest keep their current values. Call with no fields to just read back the current configuration. Does not touch or return any API keys.",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "set_keywords",
+      "descriptionHash": "203b283618690b0f2497d590dd89a04898062691f57103727baf8791b749a338",
+      "description": "Add a keyword auto-reply rule: when an inbound message matches any of the keywords, the bot replies with the given text. Good for canned FAQ-style triggers (e.g. keyword 'invoice' -> 'Download it from the billing page')."
+    },
+    {
+      "name": "manage_faq",
+      "descriptionHash": "8e5d866e2533f5fca1fb2b82e1d7fa11fa9d9937b75c802d0c5f369595fd76d8",
+      "description": "List, create, update, or delete this workspace's FAQ items (shown in the chat widget and usable by the AI agent). Set `action` to 'list' | 'create' | 'update' | 'delete'. 'create' needs `question` + `answer`; 'update' and 'delete' need `id`.",
+      "labels": [
+        "untrusted-content",
+        "destructive"
+      ]
+    },
+    {
+      "name": "get_analytics",
+      "descriptionHash": "1c30d541072738366af1b73830f94827a1bb3453c518e6aa5b2cb68e9a706875",
+      "description": "Return a compact analytics summary for this workspace over the last `days` days (default 30): conversation counts + resolution rate, message volume + AI share, plus a live snapshot of today (UTC).",
+      "labels": [
+        "untrusted-content",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "search",
+      "descriptionHash": "7ede86ffe79e2040798d8f70cd1f6469fa43d8fd08fbdc2f03cbb60251789d54",
+      "description": "Search SingChat for relevant documents. When called with a workspace API key, this searches that workspace knowledge base; without a key it searches SingChat's own help content (what SingChat is, adding the chat widget, MCP setup, free tier, AI training, channels, white label, pricing). Returns a li",
+      "labels": [
+        "untrusted-content",
+        "private-data"
+      ]
+    },
+    {
+      "name": "fetch",
+      "descriptionHash": "f4e3597f7dfacd298591f6d7db4dc09c6ce160ddd64ce788fd5eb5d6966a891c",
+      "description": "Fetch the full text of a single document by id, using an id returned by the search tool. With a workspace API key this reads a knowledge document from that workspace; without a key it reads a SingChat help article. Returns id, title, text, url, and optional metadata.",
+      "labels": [
+        "untrusted-content",
+        "private-data"
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"singchat_setup\" references sensitive artifacts (password). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:singchat_setup",
+        "snippet": "Get the user up and running with SingChat live-chat. Call this FIRST. If no workspace API key is configured, this creates a brand-new free workspace and returns…"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"claim_account\" references sensitive artifacts (password). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:claim_account",
+        "snippet": "Return the link to claim (permanently secure) this SingChat workspace by setting an email and password. Use this for workspaces that were auto-created via MCP s…"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-SHADOW-001",
+      "severity": "medium",
+      "category": "shadowing",
+      "title": "Generic tool name can shadow trusted tools",
+      "detail": "Tool \"search\" uses a generic high-value name. When multiple servers load together, this can intercept calls meant for a trusted server.",
+      "evidence": {
+        "source": "tool:search",
+        "snippet": "search"
+      },
+      "confidence": 0.4
+    },
+    {
+      "id": "MCP-SHADOW-001",
+      "severity": "medium",
+      "category": "shadowing",
+      "title": "Generic tool name can shadow trusted tools",
+      "detail": "Tool \"fetch\" uses a generic high-value name. When multiple servers load together, this can intercept calls meant for a trusted server.",
+      "evidence": {
+        "source": "tool:fetch",
+        "snippet": "fetch"
+      },
+      "confidence": 0.4
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp.singchat.org\" exposes tools that together enable an exfiltration flow. Untrusted content: singchat_setup, get_embed_snippet, list_conversations, get_conversation, manage_faq, get_analytics, search, fetch · Private data: singchat_setup, get_embed_snippet, claim_account, list_conversations, get_conversation, list_knowledge, search_knowledge, configure_agent, search, fetch · Public sink: singchat_setup, claim_account, list_conversations, reply_to_conversation, get_analytics · Destructive: manage_faq.",
+      "evidence": {
+        "source": "server:mcp.singchat.org",
+        "snippet": "Untrusted content: singchat_setup, get_embed_snippet, list_conversations, get_conversation, manage_faq, get_analytics, search, fetch · Private data: singchat_setup, get_embed_snippet, claim_account, list_conversations, get_conversation, list_knowledge, search_knowledge, configure_agent, search, fetch · Public sink: singchat_setup, claim_account, list_conversations, reply_to_conversation, get_analytics · Destructive: manage_faq"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 38,
+  "scoreBreakdown": {
+    "tool-poisoning": 30,
+    "shadowing": 12,
+    "toxic-flow": 20
+  },
+  "errors": []
 }

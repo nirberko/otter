@@ -96,4 +96,110 @@
     "tool-poisoning": 20
   },
   "errors": []
+}at do the same job. Use this instead of calling check + recipe + alternativ"
+    },
+    {
+      "name": "discover_tools",
+      "descriptionHash": "a30d295e97e5df4b0c017003479aaea346ce821bf1dd6b2ed77990c2d1b16418",
+      "description": "Find LIVE tools that can accomplish a task you describe in plain language — call this when you do NOT yet know which tool to use. Unlike find_alternatives / find_related_tools (which need a tool id you already have), this takes a free-text capability query (e.g. 'send a slack message', 'convert curr",
+      "labels": [
+        "untrusted-content",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "find_alternatives",
+      "descriptionHash": "e1732c1a1c06ba6d3675f70ae43543bbf82bb1eedaa2fee915cf45bf0bbf04fa",
+      "description": "Find LIVE tools that do a similar job to a given tool — call this when a tool is down, rate-limited, or missing, to get a working substitute ranked by capability similarity and real traffic. Returns ready-to-use tool ids — each with its actual connection endpoint (MCP endpoint URL or package to laun",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "preflight_tools",
+      "descriptionHash": "60b12fcba71e1cb3844c6bc2c328b95fc7b78eac724f59212e53ab3e6502341c",
+      "description": "Pre-flight a WHOLE task in one call: pass every tool you might use and get a compact verdict + recommendation (proceed | proceed_with_caution | avoid) for each, so you can plan around broken tools before you start. Call this once at the beginning of a multi-tool task instead of checking tools one at"
+    },
+    {
+      "name": "find_related_tools",
+      "descriptionHash": "0a9f9d68fdc5180003e141bae7dfb99ce30f685d51db75d53ddab3e54af4c77f",
+      "description": "Discover tools that other agents commonly use TOGETHER with a given tool (from real usage). Call this to find the complementary tools you'll likely need next for a task, or to discover better-fitting tools you didn't know existed."
+    },
+    {
+      "name": "watch_tool",
+      "descriptionHash": "0dc6dacba1d4cc7984bf4b66e903e7d60a6a7b562955e13775dcbfb9faefecf1",
+      "description": "Subscribe to reliability alerts for one or more tools (or all critical outages). Provide a `webhook` URL (generic, Slack, or Discord — auto-detected) to receive PUSH alerts, or omit it to get a pull `token` you poll with get_notifications (no inbound URL needed — ideal for agents). Call this to be t",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "get_notifications",
+      "descriptionHash": "9d31932eca46cd9b78c2871af2bd51ce14c35388728f146abc89a7737ca0b23c",
+      "description": "Fetch new reliability alerts for your subscription token (events since your last poll, then the cursor advances). Use this after watch_tool without a webhook to react to outages/recoveries — no public endpoint required. Returns events with tool id, severity, and a link.",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "unwatch",
+      "descriptionHash": "9362bbc62c4f0a54208f5135c0d46c25cfa7ac932aeb5c79e47bc44c80f2e8f4",
+      "description": "Cancel a subscription created by watch_tool, using its token.",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "list_breakages",
+      "descriptionHash": "2bf949a30991d17e8f731cddc1bfc8e323afd1cb91a71d3c2e9017106627659b",
+      "description": "List tools across the MCP ecosystem whose real-world success rate just dropped sharply (active outages/regressions), newest and most severe first. Call this to steer away from tools that are currently broken, or to monitor the health of tools your task depends on. Backed by real-usage outcome data, "
+    },
+    {
+      "name": "report_outcome",
+      "descriptionHash": "6ef29e99bb7da11565611ee0e485fe5e97dd1a2286d1e0435d71993f51d788a4",
+      "description": "After you call a tool (especially one Glimind routed you to), report what happened in ONE call — did it work, how long it took, and (on failure) the error class. This closes the loop: it's how Glimind learns which tools actually work for which tasks, so its answers get sharper for you and everyone. ",
+      "labels": [
+        "public-sink",
+        "destructive"
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOOL-POISON-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description issues instructions to the model",
+      "detail": "Description of \"prepare_tool_call\" contains imperative instructions directed at the AI assistant rather than describing the tool. This is the core tool-poisoning technique.",
+      "evidence": {
+        "source": "tool:prepare_tool_call",
+        "snippet": "The one call to make right before using a tool. Returns, in a single round-trip: is it healthy now (verdict + recommendation), a known-good input shape (recipe)…"
+      },
+      "confidence": 0.7,
+      "remediation": "Treat the server as untrusted; the model may obey embedded instructions."
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: route_task, check_tool_reliability, discover_tools, find_alternatives, watch_tool, get_notifications · Private data: how_to_use_glimind, route_tasks, watch_tool, get_notifications, unwatch · Public sink: discover_tools, watch_tool, get_notifications, report_outcome · Destructive: report_outcome.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: route_task, check_tool_reliability, discover_tools, find_alternatives, watch_tool, get_notifications · Private data: how_to_use_glimind, route_tasks, watch_tool, get_notifications, unwatch · Public sink: discover_tools, watch_tool, get_notifications, report_outcome · Destructive: report_outcome"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 60,
+  "scoreBreakdown": {
+    "tool-poisoning": 20,
+    "toxic-flow": 20
+  },
+  "errors": []
 }
