@@ -45,8 +45,10 @@ a{color:#58a6ff;text-decoration:none}a:hover{text-decoration:underline}
 .wrap{max-width:1100px;margin:0 auto;padding:32px 20px}
 h1{font-size:28px;margin:0 0 4px}
 .sub{color:#8b949e;margin:0 0 24px}
-input{background:#161b22;border:1px solid #30363d;color:#e6edf3;border-radius:6px;
-  padding:8px 12px;width:100%;max-width:340px;margin-bottom:16px;font-size:14px}
+input,select{background:#161b22;border:1px solid #30363d;color:#e6edf3;border-radius:6px;
+  padding:8px 12px;margin-bottom:16px;font-size:14px}
+input{width:100%;max-width:340px}
+select{margin-left:8px}
 table{width:100%;border-collapse:collapse;font-size:14px}
 th,td{text-align:left;padding:10px 12px;border-bottom:1px solid #21262d}
 th{color:#8b949e;font-weight:600;cursor:pointer;user-select:none;white-space:nowrap}
@@ -167,6 +169,7 @@ function indexPage(rows: CatalogRow[]): string {
 Continuously scanned from the <a href="https://registry.modelcontextprotocol.io">official MCP registry</a>.</p>
 ${banner}
 <input id="q" placeholder="Filter by name or description…">
+<select id="ofq"><option value="">All publishers</option><option value="official">Official</option><option value="unofficial">Unofficial</option><option value="unknown">Unknown</option></select>
 <table id="t"><thead><tr>
 <th data-col="sc" data-num="1">Score</th><th data-col="id">Server</th>
 <th data-col="of">Publisher</th><th data-col="d">Description</th><th data-col="fi">Findings</th>
@@ -179,7 +182,8 @@ ${banner}
 const SIZE=${PAGE_SIZE};
 let DATA=[],view=[],page=0,sortCol='sc',dir=1;
 const tb=document.querySelector('#t tbody'),q=document.getElementById('q'),
-  info=document.getElementById('pageinfo'),empty=document.getElementById('empty');
+  info=document.getElementById('pageinfo'),empty=document.getElementById('empty'),
+  ofq=document.getElementById('ofq');
 function row(r){const s=r.sc==null?'n/a':r.sc;
   const scan=r.od?'<span class="outdated">v'+r.sv+' · outdated</span>':'<span class="sub">v'+r.sv+'</span>';
   return '<tr><td><span class="score" style="background:'+r.co+'">'+s+'</span></td>'
@@ -187,8 +191,8 @@ function row(r){const s=r.sc==null?'n/a':r.sc;
     +'<td><span class="fw off '+r.of+'">'+r.of+'</span></td>'
     +'<td class="desc" title="'+r.d+'">'+r.d+'</td>'
     +'<td>'+r.fi+'</td><td>'+r.fp+'</td><td>'+r.so+'</td><td>'+scan+'</td></tr>';}
-function apply(){const v=q.value.toLowerCase();
-  view=v?DATA.filter(r=>r.q.includes(v)):DATA.slice();
+function apply(){const v=q.value.toLowerCase(),of=ofq.value;
+  view=DATA.filter(r=>(!v||r.q.includes(v))&&(!of||r.of===of));
   const num=sortCol==='sc'||sortCol==='ff'||sortCol==='od';
   view.sort((a,b)=>{let x=a[sortCol],y=b[sortCol];
     if(sortCol==='sc'){x=x==null?101:x;y=y==null?101:y}
@@ -204,7 +208,7 @@ function render(){const pages=Math.max(1,Math.ceil(view.length/SIZE));
   info.textContent=view.length?('page '+(page+1)+' / '+pages+' · '+view.length+' servers'):'';
   document.getElementById('prev').disabled=page<=0;
   document.getElementById('next').disabled=page>=pages-1;}
-q.oninput=apply;
+q.oninput=apply;ofq.onchange=apply;
 document.getElementById('prev').onclick=()=>{page--;render()};
 document.getElementById('next').onclick=()=>{page++;render()};
 document.querySelector('#t thead').addEventListener('click',e=>{const th=e.target.closest('th');if(!th)return;
