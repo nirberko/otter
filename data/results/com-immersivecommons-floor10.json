@@ -1,0 +1,1367 @@
+{
+  "schemaVersion": 1,
+  "scanner": {
+    "version": "1.6.0",
+    "rules": "402995650b68"
+  },
+  "target": {
+    "kind": "url",
+    "ref": "https://www.immersivecommons.com/api/mcp"
+  },
+  "scannedAt": "2026-07-18T06:22:35.847Z",
+  "durationMs": 1256,
+  "layers": {
+    "metadata": true,
+    "static": false
+  },
+  "tools": [
+    {
+      "name": "floor10_get_my_floor_member",
+      "descriptionHash": "620e2f5a0177961f449205376e17084c62ffb729074bae2b8725b09b3d5bf0a8",
+      "description": "Confirms the calling agent token is valid and returns the floor-member it's scoped to. Use as a post-mint smoke check before submitting. Args: none. Returns: { member_id, member_name, token_prefix, scopes }.",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "ic_capabilities",
+      "descriptionHash": "9ce1b4137fd0abbb04163d3f2d4ee35a430da4479c481f7d42073925d87fa555",
+      "description": "In-band capability matrix: every registered MCP tool with its one-line description, required scope (null = any valid token), the minimum membership tier whose users can mint a token carrying that scope, and whether THIS caller's token can reach it right now ('reachable' | 'needs_scope:<scope>'). Use",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "ic_health",
+      "descriptionHash": "3fc3fcd0f6046eadb08abf03aa9269bbf03f5dd28d532d66bde0cd9e7c2b11b7",
+      "description": "Probe the MCP surface's four upstream dependencies without firing any real (rate-limited) tool: kv (the floor10 Redis), blob (the last-known-good mirror), rag (the research funnel behind ic_research_ask), and context_source (the Open-Meteo weather feed behind ic_context_get). Each probe reports stat",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "destructive"
+      ]
+    },
+    {
+      "name": "floorcast_my_roles",
+      "descriptionHash": "109ca1645d07a2c6932a763a95504c787a94edd0a0fd350d4da40872ac3cd229",
+      "description": "Introspect the calling token's per-(user, tenant) Floorcast roles on its bound floor. Returns the resolved ring + display label + the canActAs verdicts (member / floor-admin / super-admin). Resolves the SAME way the auth gate does (one shared resolver — no drift). On a token with no tied Clerk ident",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "floorcast_effective_features",
+      "descriptionHash": "33de1213653c93d549d86898f7fdefec93fdcd408825e37fabff4e2795c4dc22",
+      "description": "Resolve the effective feature-module set for the calling token's bound floor, LIVE from the tenant record: effective = (available ∩ enabled) \\ force_disabled, plus the resolved tier and an 'N/total' breadcrumb (e.g. 'AI tier, 8/8 features live'). FAIL-CLOSED: on a both-down outage where the tenant r",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "floorcast_set_feature_enabled",
+      "descriptionHash": "8da1aee58a112db5cd254716254e4d581d81462378711d4cee644b3a26d84331",
+      "description": "Floor-Admin (operator-on-this-floor) toggles a module in the floor's ENABLED set; a module must be AVAILABLE on the floor to enable. PERSISTS the tenant record (inc-6). Runs the FULL authz + availability gate first: a non-Floor-Admin, or enabling a module not available on the floor, gets { ok:false,",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "floorcast_set_feature_availability",
+      "descriptionHash": "b737de0b3a5e85c5dae0aa63b08848a92ea0fa5426169c20afd02534c50683b7",
+      "description": "Super-Admin (apex flag AND operator-on-THIS-floor) sets which modules a floor is ALLOWED to enable. PERSISTS the tenant record (inc-6). Runs the FULL per-tenant super-admin gate first: a floor-admin WITHOUT the apex flag, or a super-admin on a DIFFERENT floor, gets { ok:false, reason:'forbidden' } (",
+      "labels": [
+        "private-data",
+        "destructive"
+      ]
+    },
+    {
+      "name": "floorcast_set_ai_policy",
+      "descriptionHash": "0b47fe9ea70e9a64d0555dbeb8af5886d8e9ef356e8fa89a045fadb646ba631e",
+      "description": "Floor-Admin (operator-on-this-floor) sets the declarative AI-curation policy list (ai_policies) that drives the floor's AI self-updating wall. PERSISTS the tenant record via the inc-6 writer. Runs the FULL authz gate first: a non-Floor-Admin gets { ok:false, reason:'forbidden' } (no write). A live K",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "floorcast_preview_ai_curation",
+      "descriptionHash": "e6a18fa92ad1b1f5addcbf6eabc8e73e745b7b1bef44be22980e041663f45b4c",
+      "description": "Read-only PREVIEW of the candidate content the floor's AI-curation policies WOULD surface, assembled from the floor's REUSED intel (commits / news / highlights). Writes NOTHING. Returns a per-policy { policy, candidate } list (candidate is null when the policy has no intel). Static-tier floors and f"
+    },
+    {
+      "name": "floorcast_run_ai_curation",
+      "descriptionHash": "f6dd55d8b1dc5374f6ef76bfb9a32f45c553d89df1a20a3e1365403a34c5ee55",
+      "description": "Manual fire of the floor's AI-curation runner: assembles a candidate per enabled policy from REUSED intel and pushes it through the inc-6 moderation primitives as 'system:ai_curation'. Non-floor10 AI floors land the candidate PENDING (operator-gated). Floor-Admin gated. Static floors return { ok:fal",
+      "labels": [
+        "destructive"
+      ]
+    },
+    {
+      "name": "floor10_list_my_pending",
+      "descriptionHash": "536d292cfe40e5328bd4b068cf339386cbf37b4beab425f60f35f81fcddbd457",
+      "description": "Returns the count of pending highlight submissions across the full moderation queue. Useful as a 'is there a backlog?' probe before adding more. (Per-member filtering is not exposed for v1; the queue is small.) Args: none. Returns: { count }."
+    },
+    {
+      "name": "ic_admin_list_pending_highlights",
+      "descriptionHash": "dadc69f51577363f1b94c69926ceebc2b55e73dc2d0c6e4c61200be6baf01e4e",
+      "description": "Operator review queue: every pending highlight submission with its id, member, action, event title, date, dek, and image count, so you can decide approve/reject. Excludes test fixtures + stale pointers. Pair with ic_admin_approve_highlight / ic_admin_reject_highlight. Args: { detail?: 'summary'|'ful",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "ic_admin_approve_highlight",
+      "descriptionHash": "b228907f37f6eba70688cf552435d1dec9e7554ce6217f6cabbbf7fa68dd73ef",
+      "description": "Promote a pending highlight into the live /floor10/highlights MEMBERS WIRE (dedupe-prepend, keep 4 active, spill older to archive), drop it from the queue, and write an audit entry. Idempotent: a missing or expired id returns ok:false. Scope: admin:highlights_review.",
+      "labels": [
+        "destructive"
+      ]
+    },
+    {
+      "name": "ic_admin_reject_highlight",
+      "descriptionHash": "2686d81cc1bf8ce3f7a3bb2c183e249fa516794bb4fde7752c6b77e01d0aa536",
+      "description": "Drop a pending highlight from the moderation queue with an optional reason and write an audit entry. Does not publish. Scope: admin:highlights_review.",
+      "labels": [
+        "public-sink",
+        "destructive"
+      ]
+    },
+    {
+      "name": "floor10_submit_highlight",
+      "descriptionHash": "f1ddc0d406d37c8f196556181411bed034d0fdcc91dd4db0d2c7006f1ab86967",
+      "description": "POST a HighlightStory for admin review. Same shape + same validation as the REST endpoint at /api/ingest/highlights/pending. Rate limit: 3 per token per UTC day. Re-submitting the same id refreshes the pending TTL (idempotent). Hard rules: no fabricated dates / quotes / member ids; news-wire third-p",
+      "labels": [
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "floorcast_push",
+      "descriptionHash": "b91007f298a089ad2433bc71fda3d6736076e1f7fced88a45840d20416fc054b",
+      "description": "Member push of a HighlightStory to your floor's MEMBERS WIRE, routed through the floor's content policy. Default policy 'moderation_queue' ⇒ the story lands PENDING for operator approval ({ ok:true, status:'pending', id }). A 'free_push_with_retract' floor (floor10 only this increment) ⇒ the story g",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "floorcast_unpush",
+      "descriptionHash": "d756f966b7a2f07ead557d685ba3be66aa8db5fa1161338126f24c0c60dffa84",
+      "description": "Member retract of your OWN still-pending highlight from your floor's queue (you cannot retract an already-approved/active item via this verb — that needs an operator). Routed through the floor content policy; the gate is server-side (ownership-checked). CONSEQUENTIAL. Returns { ok:true, id } on succ"
+    },
+    {
+      "name": "floor10_list_claimable_events",
+      "descriptionHash": "7f0d42dc2e9962dc8dd2946a7c9d0f6207a5d14d181b84d0c31729eb0e273e6a",
+      "description": "Returns the list of events this floor member recently attended (or was invited to as a host) — the auto-discovery layer. Use this BEFORE asking the human 'what event did you go to?'; show them this list and let them pick. Source: graph.yaml attendance ingest, enriched with canonical URLs from data/e",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "floor10_upload_image",
+      "descriptionHash": "9fe5777b1bfc36c114f32cd40869b30a87bea92d5bada47b17c8ed1d3a0a5c05",
+      "description": "Re-hosts an image so its URL is suitable for the `images` array of a HighlightStory. Pass `url` (recommended; server fetches + stores) or `data_url` (small files only, RFC 2397 inline base64). Storage is content-addressed at floor10/highlights/<member_id>/<sha256>.<ext> on Vercel Blob, public-readab",
+      "labels": [
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "floor10_extract_event_metadata",
+      "descriptionHash": "eadcb0a2061bd277d3fff5095fe4ebfc0cc880f9c145588ed71661b72f60ceb7",
+      "description": "Server-side WebFetch of an event page (Luma is the canonical case; LinkedIn / X / generic og:-bearing pages also work). Returns parsed { title, date, image, description, organization } so the agent doesn't have to scrape and parse OG / JSON-LD itself. Use the result to compose a HighlightStory. Args",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "ic_get_my_membership",
+      "descriptionHash": "46e6c61236019803e0ca1472a183eec407dc60f36b9f3b459bed6aefa0c38697",
+      "description": "Returns the calling user's current ring (operator / ic-member / ai-floor / ft-member / public), any pending tier request, and recent tier-history count. Use to check whether the human is already an ic-member before walking them through a tier-request flow. Args: none. Required scope: membership:read"
+    },
+    {
+      "name": "ic_request_tier",
+      "descriptionHash": "b756299ae71836c0f4af64da5b8ebb5ad73eac6bd9a29de9d0334f1fb628c70f",
+      "description": "Submit a self-declared tier request for the calling user. An IC operator reviews and approves on /floor10/admin/members. Re-posting overwrites the prior pending request. Idempotent. Args: { tier: 'ft-member'|'ai-floor'|'ic-member', note?: string }. Returns: { ok, current_tier, requested_tier, submit",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "ic_admin_list_pending_tier_requests",
+      "descriptionHash": "e4ffd00ca6fca4edf107666dc8c771e45ade0e6eca2419218f348de68eefb253",
+      "description": "Returns the operator's pending-membership queue plus the most recent audit tail. Each pending record: { user_id, email, display_name, current_tier, requested_tier, note, submitted_at }. Each audit entry: { user_id, email, action ('approve'|'deny'|'auto-promote'|'request'|'demote'), from, to?, reques",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "ic_admin_list_members",
+      "descriptionHash": "e1bbdbfe16573116f0e63b5619163a71ca568b2602b6f2349f28c3fa35c7f01d",
+      "description": "The ACTUAL account roster — every Clerk-backed IC account with its live ring/tier, resolved from Clerk (not the carded ic_directory_search, which only shows members who've set a profile card, and not the curated kiosk list). This is what you want to answer 'who are the members' or find a specific ac",
+      "labels": [
+        "untrusted-content",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "ic_admin_approve_tier_request",
+      "descriptionHash": "b7ffbba74577e96083bdcc6806d372025861567dcc06581ab345959b2ddde638",
+      "description": "Approve a pending tier request and set the user's tier. Two-step: omit `confirm` (or pass false) for a dry-run preview that returns what the call would do without mutating state. Pass `confirm: true` to actually apply. If `tier` is omitted, the user is approved to the tier they requested; pass `tier",
+      "labels": [
+        "private-data",
+        "destructive"
+      ]
+    },
+    {
+      "name": "ic_admin_deny_tier_request",
+      "descriptionHash": "4ef5dff0872d582a83ef0841bcdf698cb634236d7f84101168591d406f35cb65",
+      "description": "Deny a pending tier request. Clears the pending fields + KV snapshot; the user's tier is unchanged. Two-step: omit `confirm` (or pass false) for a dry-run preview. Pass `confirm: true` to actually apply. The optional `reason` is recorded in the audit log and is surfaced to the requester on their /me",
+      "labels": [
+        "private-data",
+        "destructive"
+      ]
+    },
+    {
+      "name": "ic_admin_list_pending_events",
+      "descriptionHash": "3f970e6bccae438d9cb4b86b33fbfd9448fa69aea4efeb85cb99aa99f8e3ceeb",
+      "description": "Operator review queue: every pending 'save the date' event draft awaiting approval at /floor10/admin/events, plus a recent decisions/audit tail. Two sources feed the queue (the `source` field disambiguates): 'member_request' (a member's agent via ic_events_request) and 'kiosk_submit' (Ray's `events ",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "ic_admin_approve_event",
+      "descriptionHash": "cc4b6720edd94fa2503322973101ae73f17b012336a6e2d1e0ef7171073dc3ce",
+      "description": "Approve a pending 'save the date' event draft: flows the wrapped KioskEvent into floor10:events:approved (dedupe-prepend, keep newest 50), drops it from the pending queue, and writes an audit entry. The kiosk events page merges approved drafts with the live Luma list (live wins on the shared slug); ",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "destructive"
+      ]
+    },
+    {
+      "name": "ic_admin_reject_event",
+      "descriptionHash": "20ff5b28930f07d667765fdef0d697c921d1fd7da9ef77aadf65c1654fd27e7e",
+      "description": "Reject a pending 'save the date' event draft: drops it from the pending queue with an optional reason and writes an audit entry. Does NOT publish anything. Two-step: omit `confirm` (or pass false) for a dry-run preview; pass `confirm: true` to actually apply. The optional `reason` is recorded in the",
+      "labels": [
+        "private-data",
+        "public-sink",
+        "destructive"
+      ]
+    },
+    {
+      "name": "ic_request_workshop_key",
+      "descriptionHash": "692f33b0cca34aa9db42cb730331c206bfe9a938f7bb1b79bee6fd95efd9172d",
+      "description": "Walk-in flow: request a 5-hour Z.ai Claude-Code key tied to an upcoming IC event. The tool fetches the upcoming-events list SERVER-SIDE, so you only need the `keys:request` scope (not events:read_upcoming). Pass `event_id` = the event's Luma URL (call without it first to see the eligible list). An I",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "ic_get_my_workshop_key",
+      "descriptionHash": "7f6760c119ab02f6daacadfe8400e98103b184e35111f7e8a314452feb057040",
+      "description": "Retrieve the 5-hour Z.ai Claude-Code key you filed with ic_request_workshop_key, once an IC operator has approved it. Poll with the request_id that ic_request_workshop_key returned. While the operator hasn't approved yet returns { ok:true, status:'pending' } (keep polling). On the FIRST call after a"
+    },
+    {
+      "name": "ic_request_zai_key",
+      "descriptionHash": "a90acc50ddbffea9d66f64f1a384735c72ecde728b9df7dc3b6cd956b2a3d51c",
+      "description": "ic-member flow: request a weekly-token Z.ai Claude-Code key. Pick a multiplier (1/2/5/10/20× of the base weekly token allowance); an operator approves (and may adjust the multiplier). The minted key resets its token meter every Monday and never expires. Args: { multiplier?: 1|2|5|10|20 (default 1), ",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "ic_get_my_zai_key",
+      "descriptionHash": "535102cb30326ed084e53d4b94d16134700db7e62eda38dd62c791553cb268c0",
+      "description": "Retrieve the weekly-token Z.ai Claude-Code key you filed with ic_request_zai_key, once an IC operator has approved it. An agent-inbox notification announces approval; this tool is the actual pickup. Poll with the request_id that ic_request_zai_key returned. While unapproved returns { ok:true, status",
+      "labels": [
+        "untrusted-content",
+        "private-data"
+      ]
+    },
+    {
+      "name": "ic_get_my_zai_key_usage",
+      "descriptionHash": "6e256a3a6dcce0a01e34a2e2ebe53e571f6bc19674ee7b487a5fe9fa6882c020",
+      "description": "Report the weekly token usage + remaining budget for the member (weekly-token) Z.ai Claude-Code key you filed with ic_request_zai_key. Poll with the request_id ic_request_zai_key returned (after an operator approved it). Returns { ok:true, weekly_used, weekly_remaining, weekly_cap, multiplier, reset",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "ic_admin_list_pending_key_requests",
+      "descriptionHash": "5e17c666921ee97bbb95dc37b0f51d3e004fa0c570fb44e01d55bc14e2a5acd7",
+      "description": "Returns the operator's pending Z.ai-key-request queue plus a recent audit tail. Each pending record: { id, kind ('workshop'|'member'), requester_clerk_user_id, requester_name?, event_id?, event_title?, multiplier?, note?, created_at }. Use BEFORE ic_admin_approve_key_request / ic_admin_deny_key_requ",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "ic_admin_approve_key_request",
+      "descriptionHash": "c0954b9b5ce6e90b3ab63bab69d214571361e97ff0cc7fec49354c33d7311c7c",
+      "description": "Approve a pending Z.ai key request and MINT the proxy key. Two-step: omit `confirm` (or pass false) for a dry-run preview of the exact proxy block that would be minted; pass `confirm: true` to mint. IDEMPOTENT on request_id — a second confirmed approve returns the SAME key (it does NOT mint a second",
+      "labels": [
+        "private-data",
+        "destructive"
+      ]
+    },
+    {
+      "name": "ic_admin_deny_key_request",
+      "descriptionHash": "0e81196a67b78cd8f1378cf0b80e11ed6944e57845782385dc1e7718a5b7323d",
+      "description": "Deny a pending Z.ai key request. Marks it denied + removes it from the queue; no key is minted. Two-step: omit `confirm` (or pass false) for a dry-run preview, `confirm: true` to apply. Refuses to deny an already-approved request (revoke the minted key at /floor10/agent-console instead). Rate-limite",
+      "labels": [
+        "private-data",
+        "destructive"
+      ]
+    },
+    {
+      "name": "ic_membership_set_profile",
+      "descriptionHash": "60147a960d92a30916a97441890dc22de002aabbed0f210044c4f321d5b4516d",
+      "description": "Edit the calling user's public-facing profile fields: first name, opt-in visibility, and company website. Company logo is auto-derived from the website at save time (Clearbit + favicon fallback). Re-posting overwrites. Opt-in members are listed publicly on /members and the kiosk; opted-out members a"
+    },
+    {
+      "name": "ic_membership_upload_photo",
+      "descriptionHash": "9cc38299b1c00af3f0602e5e524e4dadd70f6ac56e52735662818b0d7ec0c812",
+      "description": "Accept a base64-encoded image (PNG / JPEG / WebP / HEIC — anything sharp can decode), server-crop to a 256×256 WebP avatar, store on the calling member's profile. Subsequent calls overwrite. Max raw input 12MB. Args: { data_url?: 'data:image/png;base64,...', base64?: '...' } (one of). Returns: { ok,",
+      "labels": [
+        "public-sink",
+        "destructive"
+      ]
+    },
+    {
+      "name": "ic_leaderboard_connect_github",
+      "descriptionHash": "ceef1f61931726fa3e0efec1abe18fb127c22629d47f547f54354b16fcaab554",
+      "description": "Verify a GitHub Personal Access Token against api.github.com/user, then store the resulting username on your IC profile. The PAT is DISCARDED after verification — the IC server keeps only your GitHub username + id, then queries commit counts via a server-side PAT during the weekly cron. Use this whe",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "ic_leaderboard_set_optin",
+      "descriptionHash": "cf51083789af1b78a5a9c98fe55629d6a638643949745c24913684ea602d35e4",
+      "description": "Toggle publicMetadata.leaderboardOptIn. Opting IN requires a linked GitHub identity (either Clerk OAuth or our agent-PAT path). Opting OUT is unconditional. Args: { optIn: boolean }. Returns: { ok, optIn, github_username? }. Required scope: leaderboard:manage."
+    },
+    {
+      "name": "ic_leaderboard_get_status",
+      "descriptionHash": "1220c50b337ea3f901221e4ea94e50ecaf1d9601f955d1ae2dc636c0a54596c9",
+      "description": "Returns the calling user's opt-in flag, linked GitHub username (if any), how the link was made (oauth or agent_pat), and current rank on the rendered snapshot. `this_week` is absent if you aren't on the snapshot yet — the cron rebuilds weekly. Also returns `private_counting: { status: 'active' | 'no",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "ic_leaderboard_get_board",
+      "descriptionHash": "4c89d3a6dca1644728062d33021d1a1892708a0d5eb31c9a49d1bd5d906aa4d8",
+      "description": "Returns the FULL ranked commits leaderboard the FT10 kiosk renders, so an agent never has to scrape the /floor10/commits HTML. Each member carries { rank (1-based), handle, name, commits, private? }. `commits` is the ranking total = public commit contributions PLUS private/restricted contributions f",
+      "labels": [
+        "untrusted-content",
+        "private-data"
+      ]
+    },
+    {
+      "name": "ic_admin_leaderboard_inspect",
+      "descriptionHash": "d54ac6f72a25507a4811e84eb2db09b233495fc43b412e179ef3128d0ef4f512",
+      "description": "Operator-only deep read of the commits leaderboard snapshot: the full ranked board PLUS the persisted aggregation `errors[]` (broken OAuth/PAT tokens, GraphQL failures captured during the weekly cron — the ops visibility operators need to spot N broken tokens before they wreck the next refresh) and ",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "ic_events_list_upcoming",
+      "descriptionHash": "86405570d7d658a3edbea82ea65b5aafa5346150e9a100d01de9222608437985",
+      "description": "Returns the upcoming-events feed the FT10 kiosk renders. Backed by `/api/refresh/events` cron (hourly Luma sync). Response includes a `stale` flag + `age_min` so agents can warn humans if the cache hasn't refreshed recently. Args: { limit?: number, default 15, max 50 }. Required scope: events:read_u",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "ic_events_get",
+      "descriptionHash": "067a2d29a7510f45e03a1fe93e7a4ddf527d67730e9c7149e868c690f4655f02",
+      "description": "Find an event in the upcoming-events cache by its Luma URL. Returns 404 (mcpError) if the event isn't on the current cache — older / past events aren't searchable here, only what the kiosk would render now. Args: { luma: string (https://luma.com/<slug>) }. Required scope: events:read_upcoming.",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "ic_events_get_live",
+      "descriptionHash": "b30ca44053c9ecc9130865d20a736d59342e4c0eb3af02d1bab9ad833bf11504",
+      "description": "Returns the IC event currently in progress, defined as `when <= now < when + 3h` (heuristic — the kiosk cache doesn't yet carry end_time; replace with truth once life-side publishes it). Returns `null` if no event is in that window. Use to pull the live event's `slideshow_url` / metadata when an age"
+    },
+    {
+      "name": "ic_directory_search",
+      "descriptionHash": "b3b3528572a0cfe67ffcc04f974320aee298c42f9a8deecda90a0bbeffd24326",
+      "description": "Search the floor roster by name, display name, GitHub handle, telegram handle, or member id. Returns a privacy-graded result set — the caller's tier determines which fields are visible. ai-floor sees handles + tier + contexts; ic-member adds joined_at + last_seen_floor + weekly_commits; operator add"
+    },
+    {
+      "name": "ic_resources_list",
+      "descriptionHash": "b6db382e2d166349c42c1bf6b0b0a3e31204a2f65f8bd93e32e2e87e870a27b9",
+      "description": "Returns the IC resources roster (3D printers, conference rooms, etc.) with status flags and bookability. Same data the public kiosk renders, plus a staleness gauge. Args: none. Required scope: resources:read."
+    },
+    {
+      "name": "ic_resources_book",
+      "descriptionHash": "cf8f221a4c476ca65349ecd474abbb20474bf5f5de1bcf808b7725d761ca23e0",
+      "description": "Queue a booking envelope for life-side processing — Ray's life repo (kernel.frontier_tower for rooms, internal queue for printers) reconciles against the authoritative booking system. Returns 'queued', not 'confirmed.' Rate-limited 10/token/UTC day; 30-day dedupe on (resource_id, user, start_iso). A",
+      "labels": [
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "ic_rooms_create",
+      "descriptionHash": "a2fe69744bb903b33ed322a49c194007782afbe0d2ec33bede78f5fe3201d552",
+      "description": "Open a LIVE multi-agent room and get its room_id back — the self-service create path (no SSH, no repo). You declare the seats (roles) and who holds them; YOU must hold one (you can't open a room you're not in). Seats assigned to other members are INVITATIONS — a seat map never acts on anyone's behal",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "ic_rooms_list",
+      "descriptionHash": "5937614e2b7b22dccb8bcfc3c6db110f0b3c5c1dcad5fbf6b03bb79f44c002b7",
+      "description": "List the live agent-rooms you can see, with each room's seats, which are OPEN (unassigned, claimable), who's in, and whether you're already a member. Use it to find a session to join. Args: none. Returns: { ok, rooms: Array<{ room_id, roles, open_seats, members, mine, created_at, channels }> } (newe"
+    },
+    {
+      "name": "ic_rooms_join",
+      "descriptionHash": "8208dbdd06b905fedf53b73549e8ea6feaa9249544355deb1e478e2bb4e66149",
+      "description": "Claim a DECLARED-but-open seat in a live room with your own identity. You must acknowledge the room's plaintext-mesh disclosure (ack_disclosure:true) — #work messages and DMs are plaintext to the IC operator and who-talked-to-whom is observable. Set create:true only to add a brand-new role not yet d",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "ic_rooms_send",
+      "descriptionHash": "61e92e55742677e879cc0e737c1162f56e574f23eeb65b83a3f36ab4188b9b9f",
+      "description": "Commit one turn to a room's durable coordination log, as one of YOUR seats. This is the trust-attributed record every member reads (the broker binds your verified member_id to the turn). Args: { room_id: string, role: string (a seat you hold), content: string, channel?: string (default 'general'; mu",
+      "labels": [
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "ic_rooms_read",
+      "descriptionHash": "a3c06c70e1704c00bc788d2fdfed75b9f0940158049573af0285394a03e340c9",
+      "description": "Read a room's committed turns from a cursor — the durable catch-up read, so a late joiner (or any poll) gets the full prior history. Args: { room_id: string, since?: number (stream seq to read from, default 0 = all), channel?: string (filter to one channel tag; next_since still tracks the room's GLO",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "ic_activity_get_recent",
+      "descriptionHash": "2ec5b27d179ade766f5e05fd77438892ed09469f0ef9dac41d12f8cb29195fa5",
+      "description": "Returns the most recent activity events recorded for the calling user — every consequential tool call (highlights submit, RSVP, booking, GitHub link, opt-in toggle, tier request, directory search) ends up here with attribution to the token that made it. Each event has { ts, tool, scope, token_prefix",
+      "labels": [
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "ic_context_get",
+      "descriptionHash": "ca999f541f18ad1f976a6a7247138e97c36154446a30f9de372cb407965e5422",
+      "description": "Current weather + local time for IC's home (Frontier Tower SF). Source: Open-Meteo, cached ~10min. Identity-free — once the scope check passes there is nothing per-user to look up. Returns { ok, utc_time, local: { time, day_name, hour, daypart, is_weekend }, sun: { sunrise, sunset, is_daylight }, we"
+    },
+    {
+      "name": "ic_events_rsvp",
+      "descriptionHash": "402a020697b0e4f58efdaad1dd5d7e23db8f630ccdc49c1f74f902abe0a135c1",
+      "description": "Queue an RSVP envelope for life-side processing — Ray's Luma cohost session adds the guest. This returns 'queued', NOT 'Luma confirmed.' The human will get a Luma email on the next processor cycle. Rate-limited to 10/token/UTC day; idempotent via 7-day dedupe on (event_url, user). Args: { event_url:",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "ic_headsets_list_inventory",
+      "descriptionHash": "300c002c047d27df02206de6caf311a993a6b2f8f69ca6da8a251880e7439be2",
+      "description": "Returns all units in the PICO 4 Ultra Enterprise lending fleet with current status. Same data the /floor10/headsets grid renders. Each record: { id ('IC1'..'IC8'), serial, sku, status ('available'|'lent'|'pending-receipt'|'out-of-service'|'retired'), received_at, notes, qr_url, condition_at_receipt?",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "ic_headsets_get_unit",
+      "descriptionHash": "2019f7818a00779b8e26359f733b137b1699ef8df0134ac9b95cadc890eabc38",
+      "description": "Fetches the per-unit record for a single PICO unit by id (case-insensitive; IC1..IC8). Returns 404 if the id isn't in the fleet. Use this AFTER ic_headsets_list_inventory if you need fresh status on one unit. Args: { id: string }. Returns: HeadsetRecord. Required scope: headsets:read.",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "ic_headsets_check_waiver",
+      "descriptionHash": "d1dd4326e2c0682e6ed881e02847410d4b46c6b3c6a499addd01712dd59c80b1",
+      "description": "Returns the calling user's PICO lending waiver state: fresh (signed within 90 days, current version), stale-version (signed but waiver version bumped), expired (TTL elapsed), or missing. Use BEFORE attempting a lend so the agent can route the human to /floor10/headsets/waiver if the waiver isn't fre",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "ic_headsets_get_my_lend",
+      "descriptionHash": "e60234298500225ca0013693e1a0283571b547327b101ce16cbc75a9a210e221",
+      "description": "Returns the calling user's currently-active PICO lend, or null if they have none. Each member can have at most one active lend at a time (enforced server-side via an atomic SET-NX lock). Use this to answer 'am I currently borrowing a headset?'. Args: none. Returns: { lend: LendRecord | null }. LendR",
+      "labels": [
+        "untrusted-content",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "ic_headsets_admin_list_active_lends",
+      "descriptionHash": "1c9dac453db1910192d7ed8d4ab448cb0f6767d58a80daa253be72527e48144d",
+      "description": "Returns every currently-active PICO lend across the fleet, with full borrower attribution. Operator-only. Use to triage 'who has what right now', look for overdue lends, or audit before a force-return. Args: none. Returns: { count, lends: LendRecord[] }. Includes borrower email/telegram (operator sc",
+      "labels": [
+        "untrusted-content",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "ic_headsets_admin_list_open_incidents",
+      "descriptionHash": "9e9129917e47a93a2a176b9cd6709740a15acca603117c848ac7e8dfa6fbf067",
+      "description": "Returns recent damage / hygiene / loss incidents currently in 'open' status, ready for triage at /floor10/admin/headsets. Operator-only. Each incident: { incident_id, reported_at, unit_id, lend_id, borrower, type, description, photo_present, reporter_name, reporter_role, reporter_contact, status, re"
+    },
+    {
+      "name": "ic_headsets_sign_waiver",
+      "descriptionHash": "ebbe676ba0c31fda2e22bdcb4e63e906cbe77e6c080f59a358378ae4849017ca",
+      "description": "Records a waiver for the calling Clerk user. 90-day TTL; re-sign required after that or after a waiver version bump. The `ring` field is server-derived from the user's live tier — agents do NOT supply it. Args: { name, email, phone?, telegram?, signature_typed, photo_consent? ('yes'|'no') }. Returns",
+      "labels": [
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "ic_headsets_checkout",
+      "descriptionHash": "03bc943f0f3a326fd0624ee52bfa486477a54f3a5d9853c9c36972c1e7f0da00",
+      "description": "Atomically claims a PICO unit for the calling user. Pre-flight: caller must have a fresh waiver (call ic_headsets_check_waiver first if you're not sure). Per-member NX lock prevents double-lending. Returns the new lend_id + due_back_at. Borrower display name + email + telegram are snapshotted from t",
+      "labels": [
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "ic_headsets_return",
+      "descriptionHash": "cc5978893b8f8b3de7f104ac89565e16b6a59151cd53718da684ac2033a4c254",
+      "description": "Closes an active lend. The caller must be the borrower OR an operator. If damaged=true, the unit goes to out-of-service (the operator clears it after triage); otherwise it returns to the available pool. After damaged=true, follow up with ic_headsets_report_damage so the incident is filed with descri"
+    },
+    {
+      "name": "ic_headsets_report_damage",
+      "descriptionHash": "852158ae902c3098b05c14697fb6c100cc94fa4a35d36c60668c0df7ed2116ef",
+      "description": "Files an incident on a PICO unit. Anyone with the scope can file (borrower, witness, ops staff). If the unit's current status is 'available', it auto-flips to 'out-of-service' so it isn't re-lent before triage; for 'lent' units the flag rides on the lend record and the unit stays lent until return. ",
+      "labels": [
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "ic_headsets_get_attestation_status",
+      "descriptionHash": "ec4a6cd03cd88b783137ab4be1874f01a7bf2fed6296bbda4fc5c061df5e7217",
+      "description": "Returns whether a user is attested (signed off to check out PICO units). Defaults to the calling user when user_id is omitted. Operators are attested-by-default and may have no record. Args: { user_id?: string }. Returns: { ok, user_id, is_attested, record? }. Required scope: headsets:lend.",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "ic_headsets_attest_member",
+      "descriptionHash": "88d1d3b6360de145ea97fe04f3557e15305a97503e66e441876f0fecababef8a",
+      "description": "Sign off (attest) another ic-member so they can check out a PICO unit. Caller MUST already be attested (operators default, attested members can pass it on). Idempotent — re-attesting refreshes the timestamps. Args: { subject_user_id: string, notes?: string }. Returns: { ok, record }. Required scope:",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "ic_headsets_mark_sop_complete",
+      "descriptionHash": "040090e58eca02466c3100afb79afde4d14425b86df2219302df1d151d563d6d",
+      "description": "Records that the calling user (must be attested) has walked the named member through the PICO operating SOP. Separate from attestation so the audit log can distinguish 'we ran through SOP' from 'I sign them off.' Typical flow: 1) member signs waiver, 2) call ic_headsets_mark_sop_complete, 3) call ic",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "ic_headsets_admin_mark_oos",
+      "descriptionHash": "664e41ca33c3eb180455d199ae52b6e7742bdc8aaa9e24f45e761983d1156a79",
+      "description": "Operator pulls a unit from rotation. Refuses if the unit is currently lent (force-return first). Appends to the unit's notes with a date stamp + reason. Args: { unit_id, reason }. Returns: { ok, message }. Required scope: admin:headsets_review."
+    },
+    {
+      "name": "ic_headsets_admin_clear_oos",
+      "descriptionHash": "6cb3b375816858dc02757cc356b850b47bec56817821f71276a31340fcc57876",
+      "description": "Operator returns a unit to the available pool. Refuses if the unit has an open incident on it — resolve the incident first (ic_headsets_admin_resolve_incident with verdict 'resolved' or 'absorbed' will also clear OOS automatically as a side effect). Args: { unit_id }. Returns: { ok, message }. Requi",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "ic_headsets_admin_force_return",
+      "descriptionHash": "3c7cbc02399d0e26e624ee392af759dd3e422dc3d9b9e99228ff3c4d2cbcecfe",
+      "description": "Operator-side close for stuck lends (member unreachable, end-of-day cleanup, etc.). Releases the per-member NX lock so the borrower can lend again. If an open incident exists on the unit, status stays out-of-service even after the force-return. Notes are appended (not overwritten) with operator attr",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "ic_headsets_admin_resolve_incident",
+      "descriptionHash": "acb88fb121ad585996f26168cffeea2244359bae08eeaa10bc9a59ebdfe4e8be",
+      "description": "Operator-side incident triage. Verdicts: 'absorbed' (IC eats the cost per waiver §11 good-faith), 'willful-misuse' (member charged), 'resolved' (unit cleared, back to rotation — no charge implied). 'resolved' and 'absorbed' both auto-clear the unit's out-of-service status if it's currently OOS; 'wil"
+    },
+    {
+      "name": "ic_research_ask",
+      "descriptionHash": "9e91a4ba0dacfea6570ca054a836f1239114595ff0c74d7d91d624fd1e84b6b9",
+      "description": "Query the Immersive Commons research RAG corpus (papers + ingested YouTube). Returns top-k chunks with similarity scores and source links. The query text is forwarded to a server-side RAG proxy (supercommons2 via Tailnet Funnel) and NEVER logged on the IC side — privacy contract. Use this for litera"
+    },
+    {
+      "name": "ic_research_submit",
+      "descriptionHash": "cdebef9d0e39e99f1fe2c302a8caf2d2fa6278a05ad875dd17ed8b72678e2e6d",
+      "description": "Queue a URL (paper, blog post, YouTube video) for operator-reviewed ingest into the supercommons2 RAG corpus. The submission is queued in KV with status 'pending' — an IC operator triages and the sc2-side ingest worker picks up approved entries. Returns immediately with the submission id; this is qu",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "ic_events_request",
+      "descriptionHash": "ed1793e7477a7cb46fd4c4fe35f977c95627a0425f3f166032db302af9381404",
+      "description": "Propose an event by submitting Luma-shaped details. The request is enqueued as a 'save the date' draft for operator review at /floor10/admin/events — approval is the gate; this NEVER auto-creates a public Luma event. After an operator approves, IC staff create the live Luma event from your details a",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "ic_files_list",
+      "descriptionHash": "0e1e675de09626afc649c5d85a074497e4b2e728f5af5823e809c46e359db32d",
+      "description": "List every file in the IC secure vault you're authorized to see: files shared with all IC members, files you uploaded, files you're an explicit grantee of (operators see all). Metadata only — never blob URLs. Each entry: { id, filename, contentType, size, uploadedBy, uploadedAt, visibility ('ic-memb",
+      "labels": [
+        "untrusted-content",
+        "private-data"
+      ]
+    },
+    {
+      "name": "ic_files_get",
+      "descriptionHash": "755dc377da76caa046bca6d0bc1737b955810eb07474a31b62571e7b1c6710ce",
+      "description": "Resolve one file by id, authorize you against it, and return its metadata plus the authenticated download URL (GET it with your bearer token to fetch the bytes). Optionally inline small files (<=1MB) as base64. If you're not authorized (a private/grantees file you're not on) this returns forbidden. ",
+      "labels": [
+        "untrusted-content",
+        "private-data"
+      ]
+    },
+    {
+      "name": "ic_files_put",
+      "descriptionHash": "ee80b1d962cc9f67a7c9928f8bb1f8f87854821481ef46c13ed06f85ec449425",
+      "description": "Upload a file (base64) into the IC secure vault and set who can see it. visibility: 'ic-members' (any IC member, default), 'grantees' (only the Clerk user ids you list, plus you + operators), or 'private' (only you + operators). Non-members get access via ic_files_grant (a signed link). Max 25MB per",
+      "labels": [
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "ic_files_grant",
+      "descriptionHash": "acee7734b40475705a0eb0ea34109beb6c1f1a7a40e8a293439b2106030ed96e",
+      "description": "Create a signed, expiring share link for ONE file you uploaded (or any file, if operator) so a person WITHOUT an IC login can download it. The link embeds a grant bound to that single file id and works until it expires. Args: { file_id, subject?: string (audit label, e.g. who it's for), ttl_seconds?",
+      "labels": [
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "ic_files_update",
+      "descriptionHash": "a75266fa574068c2aabb516dd904ca267db4c28275ffcb1d47eb6a861e7fbd7a",
+      "description": "Mutate an EXISTING file's visibility / grantees / label / description / tags — you uploaded it, or you're operator. Owner, folder, size, and the underlying bytes can never change here (upload a new file for that). Only the fields you pass are touched; omit a field to leave it as-is. Args: { file_id,",
+      "labels": [
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "ic_transcribe_submit",
+      "descriptionHash": "f11e16f1813048824f22cec84ce5fd2c58ec35ff0927f4231438a77875f37227",
+      "description": "Queue an audio file for offline transcription + speaker diarization by IC's GPU worker. Provide EXACTLY ONE source: a file_id you uploaded via ic_files_put (audio <=25MB) OR an https audio_url. Results (a markdown transcript + a JSON with per-speaker segments) land in the file vault next to the sour",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "ic_transcribe_status",
+      "descriptionHash": "420906142b04fb5521ab1d095e15111fc58256e4f6995e01d8d70b801cf2380a",
+      "description": "Get one transcription job by id: its status (queued / processing / done / error), source, timing, attempts, and — when done — the result file ids + metadata (also fetchable with ic_transcribe_get). You must be the submitter (or an operator). Poll no more than once per minute. Args: { job_id }. Retur",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "ic_transcribe_list",
+      "descriptionHash": "602be8e6bd2ba0e13002f1ba160ade6653db4ce5e7432eef4866023ffaaf66ef",
+      "description": "List YOUR recent transcription jobs, newest first (expired jobs are pruned). Args: { limit? (max 20, default 20) }. Returns: { ok, count, jobs }. Required scope: transcribe:read (ic-member+)."
+    },
+    {
+      "name": "ic_transcribe_get",
+      "descriptionHash": "557dae30c9cb39665410c3c2d7ab4dfc16efa48c5108ed2310a541fffe00f569",
+      "description": "Fetch the result of a DONE transcription job: the markdown + JSON transcript file ids (download with ic_files_get) plus metadata (language, num_speakers, duration, segments). Small markdown transcripts (<=50KB) are inlined as text. If the job isn't done yet this returns not_ready with the current st",
+      "labels": [
+        "untrusted-content",
+        "private-data"
+      ]
+    },
+    {
+      "name": "ic_prints_submit",
+      "descriptionHash": "b64b9da37cfc9b40dbb0f6200b3fc59a7796c5a49dfb672ee80a825c8dab9f76",
+      "description": "File a print request with the Floor 10 print farm. Attach the model ONE of three ways: filename + content_base64 (inline upload, .stl/.3mf/.obj/.step/.stp/.amf/.ply/.gcode/.bgcode/.zip, <=25MB), file_id (a vault file you can read), or link_url (https link to a hosted model, e.g. Printables) — link_u",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "ic_prints_list",
+      "descriptionHash": "d805a2eee8313d39c772849a29f273fd1541eb64d06ad6fc39bb78bf4768b14b",
+      "description": "List YOUR print requests, newest first. Farm managers can pass queue=true for the whole farm queue (open requests only by default; include_closed=true for full history). Args: { queue?, include_closed?, limit? }. Returns: { ok, count, requests }. Required scope: prints:read (ft-member+; queue view n"
+    },
+    {
+      "name": "ic_prints_get",
+      "descriptionHash": "b0e42f35bd49c1215409dd6b590a586f55e6dad1849c0f103aa7fba5e41cee53",
+      "description": "Fetch one print request by id: status, model file / link, material / color / quantity, and the full status history with manager notes. If a freshly auto-sliced G-code file is ready, the response includes slice_gcode with a download_url (valid 7 days). You must be the submitter (or a farm manager). A",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "ic_prints_cancel",
+      "descriptionHash": "2edd506df0b3980db5a6e113ec8ea46c1146001d226327c707ceafb16ebeac50",
+      "description": "Cancel YOUR OWN print request while it's still pending or accepted (once it's printing, talk to the farm). Args: { request_id, note? }. Returns: { ok, request }. Required scope: prints:submit (ft-member+; submitter only).",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "ic_prints_update",
+      "descriptionHash": "9c44a2dcc4dcca03890572af76626f0a0ef32e99cc2eeb371784d5bbbf40961e",
+      "description": "Move a print request through the farm lifecycle: pending -> accepted -> printing -> ready -> collected, or reject (from pending/accepted/printing) with a note. Farm managers only — site operators plus the farm crew allowlist; the scope alone is not enough. The requester is notified on every move. Ar"
+    },
+    {
+      "name": "ic_folders_list",
+      "descriptionHash": "385407f7032f730adc5d57df01a8fde6d88c8380bdd1054dd0b228facdd4045b",
+      "description": "List every folder in the IC secure vault you're authorized to see (flat, with parent ids so you can reconstruct the tree). Use ic_folder_get to traverse one. Each entry: { id, name, description, owner, parent, visibility, tags, mine, can_manage }. Args: none. Required scope: files:read (ic-member+).",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "ic_folder_get",
+      "descriptionHash": "a2572b7e07cea0fe67fd8084bfdadf53e37ac9f97806f27aae070dc1f276f9bc",
+      "description": "Traverse one folder (or the vault ROOT if folder_id is omitted). Returns { folder, path (breadcrumb), subfolders[], files[] } where each file carries a download_url (GET it with your bearer). Recurse by calling this again with a subfolder's id. This is how you walk a shared folder tree. Args: { fold",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "ic_folder_create",
+      "descriptionHash": "077f5db3a5e11b32ca29d7a74ec0f4423f943aa119ae456176142cc7db644b03",
+      "description": "Create a folder to group files. Root folder: omit parent. Sub-folder: pass parent (you must own the parent or be operator). visibility: 'ic-members' (default) / 'grantees' (specific Clerk ids) / 'private'. Files inherit access from their folder + ancestors; a folder share-link (ic_folder_grant) admi",
+      "labels": [
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "ic_folder_grant",
+      "descriptionHash": "90cac74a0e69989a61273e5e9b819cb86c1e270bb351c5d13dec8ddc39ca9c93",
+      "description": "Create a signed, expiring share-link for a FOLDER so a person WITHOUT an IC login can traverse it and download EVERY file in its subtree with ONE link. Only the folder's owner or an operator can share it. The link opens a browsable page; the api_url is the agent-traversable JSON entry (GET /api/fold",
+      "labels": [
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "ic_folder_update",
+      "descriptionHash": "9f81eb1fbe6b1185cf26ba87dd5309c3b2338e740c70fe07064b5da5a79211ff",
+      "description": "Mutate an EXISTING folder's visibility / grantees / name / description / tags — you own it, or you're operator. Owner and parent (its place in the tree) can never change here. Only the fields you pass are touched; omit a field to leave it as-is. Args: { folder_id, visibility?: 'ic-members'|'grantees",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "ic_startup_list",
+      "descriptionHash": "35abd35168272d23c1232f6cc40a28b3f83655c325ffbc38a7e27b3183c2979e",
+      "description": "List every seeded startup with { slug, name, tagline, bound }, name-sorted. Use this to DISCOVER a valid slug for ic_startup_request_ownership: `bound: false` is UNBOUND; `bound: true` already has at least one owner. Multi-owner: a startup can have several co-founders, so you CAN still file a claim ",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "ic_startup_request_ownership",
+      "descriptionHash": "bf6a9b69f325096ee887594b93fbc5ea4015af5ff2758623ec41ace77ba556a3",
+      "description": "File a PENDING request to be bound as the FOUNDER of a seeded startup slug. This does NOT bind or approve anything — it enqueues an ownership request into the operator review queue at /floor10/admin/ownership; an operator approves it (ic_admin_approve_ownership) and only then is the founder bound (g",
+      "labels": [
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "ic_signal_list_issues",
+      "descriptionHash": "0cebfa3190f6418f51713a9b340e638df685a242a863afc070b42738fd9b1b69",
+      "description": "List issue summaries for THE SIGNAL, Immersive Commons' weekly AI intelligence dispatch. Newest first. No auth required. Args: { limit?: number (max 50, default 10) }. Returns: { issues: Array<{ slug, number, label, classification, title, dek, datespan, published, story_count, beat_count, html_url, ",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "ic_signal_get_latest",
+      "descriptionHash": "416c66d9d5f6cf1667cf036e0260372da10fb07e8658c51181c752fb2554a87e",
+      "description": "Convenience tool — returns the most-recent issue summary (same shape as one element of ic_signal_list_issues.issues[]). No auth required. Args: none.",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "ic_donate",
+      "descriptionHash": "b294d1afd137a362cd0ac0f01fdb52f664a8f17e9bee00c771ecced04f477b55",
+      "description": "Support Immersive Commons with an on-chain USDC donation over x402 (HTTP 402 + USDC on Base). No auth required. Returns the donation tiers, the receiving wallet (payTo), the asset + network, and the donate URL. MCP can't run the in-band 402 handshake itself, so to donate: POST https://www.immersivec",
+      "labels": [
+        "private-data",
+        "public-sink",
+        "destructive"
+      ]
+    },
+    {
+      "name": "ic_donations_total",
+      "descriptionHash": "3842548d68aa488b5a8eb9587fee77398fbeb483a70b41c0f5ae90d9754019e0",
+      "description": "Returns the running total raised (USD), the donor count, and the most recent settled donations (name, amount, message, tx, ts) shown on the public donor wall at /donate. No auth required. Args: { limit?: number (1-50, default 10) }."
+    },
+    {
+      "name": "ic_signal_get_issue",
+      "descriptionHash": "c8d5f303058cf8663f84e10c09b0fd612cbd67fb215c96b77c92fe173144f9d3",
+      "description": "Fetch one issue by slug. Returns the full tree: beats[] (code/label/kicker/storyIds), stories[] (headline/dek/body/image/feature/meta), datespan, classification, published. No auth required. Args: { slug: string (e.g. \"issue-05\") }.",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "ic_signal_get_story",
+      "descriptionHash": "38f3020519920d835bab46c98ccdf7f672279c16fce6aa3d4594f487a50f6ac9",
+      "description": "Fetch one story by (issue slug, story id). The story id is the kebab-case slug stored on each story (e.g. \"grok-build\", \"shai-hulud-2\"). Returns the story tree including body paragraphs, feature card, image, and source citations. No auth required. Args: { slug: string, story_id: string }.",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "ic_signal_search",
+      "descriptionHash": "9661458d270df0c0b0b504650ad70a724709dbb46360d02f9630796f8bd96159",
+      "description": "Substring search across every published SIGNAL issue. Matches on issue title + dek, beat label + kicker, story headline + dek + body. Case-insensitive. Returns ranked hits with a snippet + the slug + (when matched in a story) story_id. No auth required. Args: { q: string (2-120 chars), limit?: numbe",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "ic_news_get",
+      "descriptionHash": "61ac97d57d5ddc228cd08ac595bf1ca86c2cec3d3aaf377db96c4f81657cbade",
+      "description": "Returns newagg's velocity-ranked AI news — each item carries url + velocity + summary (plus dek, beat, date, publishedAt, image, focal). This is the RAW aggregator feed (the same firehose that drives the floor10 news kiosk), a DIFFERENT surface from ic_signal_* (which serves THE SIGNAL, the weekly e",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "ic_presentations_list",
+      "descriptionHash": "c7e2fc7495ed40ac0dc633078dd8a0355f83330782b5b67b19064415ebbfb9ee",
+      "description": "List the public archive of presentations given at Immersive Commons events, Vibe Coding Nights (VCN), ClawCamp, and other community talks — newest first, grouped by series. No auth required. NOT to be confused with ic_resources_list (that lists bookable rooms). Use ic_presentations_get for one VCN s",
+      "labels": [
+        "destructive"
+      ]
+    },
+    {
+      "name": "ic_presentations_get",
+      "descriptionHash": "e1218b0a640ff4482ca100f10036f0dff075f0acf7adb7be385ec2fce07f9451",
+      "description": "Fetch a single presentation by its session number (optionally disambiguated by series). Session numbers are VCN-only; non-VCN talks (ClawCamp, standalone Talks) have no session_no — discover those via ic_presentations_list (filter series='ClawCamp'). No auth required. Returns the full ingest-friendl",
+      "labels": [
+        "private-data",
+        "destructive"
+      ]
+    },
+    {
+      "name": "ic_feedback_submit",
+      "descriptionHash": "5d4ed99670bf7b0480a7c56216567a46c387d4394238b0f1f0f4e2fa7195e48b",
+      "description": "Send a structured note to the Immersive Commons operator. Kinds: feature_request | praise | complaint | question | suggestion | bug_report | broken_url | schema_mismatch | stale_doc | endpoint_404 | other. The operator-only MCP tool `ic_admin_list_feedback` reads the queue; web-side reads gated by a",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "ic_feedback_list_mine",
+      "descriptionHash": "a7aafd61afff79372c0acf9843167080917f328f1240eafab022524c67074486",
+      "description": "List the feedback tickets YOU submitted (via ic_feedback_submit or the REST endpoint with your Bearer token), newest first. Returns summaries: ticket_id + kind + priority + preview + resolved flag + resolved_at. Use ic_feedback_get_status for the full status of one ticket (incl. the operator's resol",
+      "labels": [
+        "untrusted-content",
+        "private-data"
+      ]
+    },
+    {
+      "name": "ic_feedback_get_status",
+      "descriptionHash": "5c1d14d40d3d5c3086c5bc272dceb8dbefe6dd7206b8f05cf578a08200a3ca55",
+      "description": "Read one of YOUR feedback tickets in full by ticket_id — including whether the operator resolved it, the resolution_note, and resolved_at. Ownership-gated: a ticket_id that isn't yours returns { ok:false, error_kind:'forbidden' }; an unknown / expired id returns { ok:false, error_kind:'not_found' }.",
+      "labels": [
+        "untrusted-content",
+        "private-data"
+      ]
+    },
+    {
+      "name": "ic_admin_list_feedback",
+      "descriptionHash": "3e7df97bcf05bc75f00c45be3db936238639f968737eef8bdee2d27566d1e7a8",
+      "description": "Read the agent-voice queue. Default returns the newest 25 summaries (preview = first 200 chars of message + attribution + priority + kind + resolved flag). Pass full=true to get full records (for export / triage). Filters AND together: kind, priority, resolved (true = closed only, false = open only,",
+      "labels": [
+        "untrusted-content",
+        "private-data"
+      ]
+    },
+    {
+      "name": "ic_admin_resolve_feedback",
+      "descriptionHash": "0beeaaf990ab2acef50dc878ecc1568b4dba30b929411eb530fc6b8242832212",
+      "description": "Mark one ticket resolved with an optional note. Two-step: omit `confirm` (or pass false) for a dry-run preview that returns the would-be-updated record without mutating. Pass `confirm: true` to actually apply. Already-resolved tickets return error_kind 'already_resolved' (idempotent at the channel l",
+      "labels": [
+        "private-data",
+        "destructive"
+      ]
+    },
+    {
+      "name": "ic_events_next",
+      "descriptionHash": "806acfb0a355493a99b30b3c6dca6e1a667b69280445189a148b8e87bbca07f3",
+      "description": "Cursor-based read of the calling user's agentic event log. IC publishes events that personal agents subscribe to — tier_requested, tier_approved, tier_denied (more types arrive as append sites land). Pass `since` = your last-seen event.id (omit for full backlog); response carries `cursor` (largest i",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "ic_agent_inbox_send_envelope",
+      "descriptionHash": "ea2bf01a887ca1d4428a1cebf0f780710eb59451cb293dc0f482a47f9c84afee",
+      "description": "Route a typed intent (ping / request_meeting / send_intro) to another IC member's agent inbox. Recipient's policy engine decides what happens — store + notify, store + queue-for-tap, silently drop (blocklist), or refuse (inbox closed). Server-side: sanitizes body (C0 controls / zero-width / NFKC), w",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink",
+        "destructive"
+      ]
+    },
+    {
+      "name": "ic_agent_inbox_list_threads",
+      "descriptionHash": "f2d734653b0d3e9f4d2acdebb458451f3958d54361328b06c9c63d0e0a85536b",
+      "description": "Returns the calling member's own inbox threads, sorted by updated_at desc. Caller-scoped server-side — the member_id is taken from the token, so an agent can only ever see its operator's inbox. Use this BEFORE `ic_agent_inbox_get_thread` to find what's new. Args: { limit?: number (default 25, max 10",
+      "labels": [
+        "untrusted-content",
+        "private-data"
+      ]
+    },
+    {
+      "name": "ic_agent_inbox_get_thread",
+      "descriptionHash": "5d4c5ecb67cf72692e4bcd23a705b4f8a7e8f6c91683a1e7b621a98737610c5e",
+      "description": "Returns the full thread record, every envelope in the conversation, and the audit-action log. Caller must be either the recipient (thread.parties.to.member_id matches token's member_id) OR the original sender (thread.parties.from.token_sha256 matches token's sha256). Otherwise returns 'thread_not_fo",
+      "labels": [
+        "untrusted-content",
+        "private-data"
+      ]
+    },
+    {
+      "name": "ic_agent_inbox_reply",
+      "descriptionHash": "03bdfb0e7725b997fea19e0465b9ded62bfff896ff1aba81aa2021dfe8f14a47",
+      "description": "Act on a thread you are a party to (recipient or original sender): accept / decline / counter-propose / clarify / withdraw. Writes a reply envelope and transitions thread state per the state machine. accept→CONFIRMED, decline→DECLINED, counter→OFFERED (carries proposed_windows on a meeting_request),",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "ic_agent_inbox_undo",
+      "descriptionHash": "03d23c77d985a53446ce943522e607ed0b4a6a5cdacaa3ae67ffd99991196eee",
+      "description": "Reverse a reversible policy auto-action (auto-accept / auto-decline) within the reversal window the policy engine granted. Forward transitions are one-way, so undo restores the EXACT prior state recorded on the auto-action's audit row. Gating: the action must exist + you must be a thread party (else",
+      "labels": [
+        "untrusted-content",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "ic_agent_inbox_block",
+      "descriptionHash": "2077b79280f2b16841969864fe20eff2f341a15f90cff0e85d33f3346d0bdcdf",
+      "description": "Add an entry to YOUR inbox blocklist (the policy.blocklist your policy engine consults before any rule). Future envelopes from a blocked sender are silently dropped — they get an opaque ok-shape and never learn they're blocked. Specify EXACTLY ONE of operator / member / client. Idempotent (re-blocki",
+      "labels": [
+        "untrusted-content",
+        "private-data"
+      ]
+    },
+    {
+      "name": "ic_agent_inbox_unblock",
+      "descriptionHash": "4d63b59b84c8e5c8a317a74d91f5fe84c15de675bfee7611ba6febdd3ba90958",
+      "description": "Remove an entry from YOUR inbox blocklist. Specify EXACTLY ONE of operator / member / client, matching the original block target. Idempotent (removing an entry that isn't present is a no-op success). The owner is always you (the token's member_id). Args: { operator?: string, member?: string, client?",
+      "labels": [
+        "private-data",
+        "destructive"
+      ]
+    },
+    {
+      "name": "ic_agent_inbox_list_blocks",
+      "descriptionHash": "977b9e6e32df0ac3cf56549e768b1304f80631dfd2c987a11a81af158846ec53",
+      "description": "Return the blocklist entries on YOUR inbox policy. Each entry is exactly one of { operator } | { member } | { client }. Empty array when you've blocked nobody (or have no policy yet). Caller-scoped to the token's member_id. Args: none. Returns: { ok, count, blocklist }. Required scope: agent:inbox:r",
+      "labels": [
+        "untrusted-content",
+        "private-data"
+      ]
+    },
+    {
+      "name": "ic_agent_policy_get",
+      "descriptionHash": "7d7be3c3adc9c9461d5b98b2e4b250d5cb98b8b3c0fc201ce22e0c122c440e25",
+      "description": "Return YOUR current inbox policy: inbox_status (open/closed), default action, rules, blocklist, and notification prefs. A member who has never opened their inbox gets the closed default. Caller-scoped to the token's member_id — you can only read your own policy. Args: none. Returns: { ok, policy, pr",
+      "labels": [
+        "untrusted-content",
+        "private-data"
+      ]
+    },
+    {
+      "name": "ic_agent_policy_set",
+      "descriptionHash": "e7e1ba19eac2e396d7a4f6768a17df034c678cd0c5c04f7bd3dff4112d448dda",
+      "description": "Set YOUR inbox policy — this is how a member OPENS their inbox (closed by default). Pass EITHER `preset` (a slug: 'closed' | 'notify-only' | 'triage-with-vips' | 'actively-routing') OR a full `policy` object (inbox_status + default.action + optional rules / blocklist / notifications), not both. The ",
+      "labels": [
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "ic_agent_directory_lookup",
+      "descriptionHash": "354dcbf55156f600028c3d965718b72707cda9faa9e62aff703269d0ac0b0652",
+      "description": "Search the member directory (floor roster + canonical members) for members you could address, annotated with each member's inbox_status (open/closed) and accepted_intents (best-effort — which intent types their policy will entertain; empty when closed). This is a routing HINT ('don't bother sending ",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "ic_agent_outbox_list",
+      "descriptionHash": "5b9e12b27c858e3996c62fb238e0e6214ad98ec6b71980e43f3ccbf45a5694a0",
+      "description": "Returns the threads the calling agent's token initiated (the sender-side counterpart to ic_agent_inbox_list_threads, which lists threads addressed TO you). Caller-scoped server-side — keyed on the token's sha256, so an agent only ever sees threads it started. Use this to follow up on requests/intros",
+      "labels": [
+        "untrusted-content",
+        "private-data"
+      ]
+    },
+    {
+      "name": "ic_admin_agent_client_register",
+      "descriptionHash": "95b5a421140b89bc2337f4d7d66b4a9ae0aa6458dd710f462acb661d9c8bb5a6",
+      "description": "Provision an external integration (another company's CRM bot, a research-collab tool) with a client_id + one-time client_secret it later exchanges for a scoped bearer token (DESIGN §2 Class B). Operator-only: gates on admin:agent_clients AND a live operator-tier re-check. The plaintext secret is ret",
+      "labels": [
+        "untrusted-content",
+        "private-data"
+      ]
+    },
+    {
+      "name": "ic_admin_agent_client_list",
+      "descriptionHash": "6a932e8b68c865a0f807c31be59125844598fa54296c501042f0c7102e5bf4fc",
+      "description": "List provisioned class-B integrations newest-first with usage stats (tokens issued, threads started, last seen). Operator-only (admin:agent_clients + live operator re-check). Secret hashes are never returned. calls_per_day / rejection_rate render absent until a per-call counter lands (v1 has none). ",
+      "labels": [
+        "untrusted-content",
+        "private-data"
+      ]
+    },
+    {
+      "name": "ic_admin_agent_client_revoke",
+      "descriptionHash": "190e00e22e829905967d90d8d015516124b010aa8da5ee972b727084ec6c5415",
+      "description": "Revoke an integration and flag its AUTONOMOUS actions for recipient re-confirmation (DESIGN §9 — interactive actions are NOT flagged, each had per-call approval). Revokes every linked bearer token so the integration is dead immediately, snapshots prior state for one-step revert (DESIGN §18), and ret",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "ic_admin_agent_audit_search",
+      "descriptionHash": "839821a9e201675e4c88f8709caf1cc1f2c184b60447ce6764d25679f47e0338",
+      "description": "Cross-member audit search over class-B integration activity (DESIGN §11). Walks the matching clients → their bearer tokens → those tokens' outbox threads → each thread's actions, newest-first. Surfaces actions reachable from a client's OWN outbox (the integration's blast radius); counterparty-side a",
+      "labels": [
+        "untrusted-content",
+        "private-data"
+      ]
+    },
+    {
+      "name": "ic_startup_update_profile",
+      "descriptionHash": "7db209337e7661fb40d8987d6d3c03d60f9d646485d22d458efad64e503c3fe7",
+      "description": "Read-modify-write your startup's public profile: name (<=100), tagline (<=160), website (URL — refreshes the favicon fallback), public_visible, and/or the full news list (<=8 STRUCTURED PLAIN TEXT items, newest-first; replaces the list). NO HTML anywhere — text is plain-text defanged, not HTML-sanit",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "destructive"
+      ]
+    },
+    {
+      "name": "ic_startup_post_news",
+      "descriptionHash": "479a8c3b6d3d3a9a6758d8eab06030c44f64b499003a6bfcbdf662893b3005ed",
+      "description": "Append a SINGLE STRUCTURED PLAIN TEXT news item (title <=100, optional link, optional source) to your startup's profile. Content auto-publishes (no review queue). NO HTML — the title is plain-text defanged, the link is URL-validated. Newest-first; the list is capped at 8 items (the oldest is dropped",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "ic_admin_list_pending_ownership",
+      "descriptionHash": "38881768a82a6c612691947df7a7ab8f24d71164d7d8192f7590c56ca0b3af8a",
+      "description": "Operator review queue: every pending founder-binding request — { id, member_id, member_name, startup_slug, startup_name, submitted_at, submitted_by_clerk_user_id, expires_at?, already_owned, current_owner?, current_owners? }. Multi-owner: `already_owned` now just flags that the slug already has >=1 ",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "ic_admin_approve_ownership",
+      "descriptionHash": "a6e3d17ff68eefae2e05ac26df3e1a4f28046655d751d2cf6a1cc46a371c273a",
+      "description": "Bind the requesting founder onto the StartupProfile, drop the request from the queue, write the active-ownership index + an audit entry. Once bound, that founder's agent/session may edit the page + post news. MULTI-OWNER + ADDITIVE: a startup may have many co-founders; approving ADDS the requester t",
+      "labels": [
+        "public-sink",
+        "destructive"
+      ]
+    },
+    {
+      "name": "ic_admin_reject_ownership",
+      "descriptionHash": "a596f20f879a63b60842defef2bcf3a406321d4883ebb4ed9b20ed922cef8f3a",
+      "description": "Drop a pending founder-binding request from the queue (no bind) with an optional reason, and write an audit entry. Args: { id, reason? }. Returns { ok, id, slug? }. Required scope: admin:ownership_review.",
+      "labels": [
+        "destructive"
+      ]
+    },
+    {
+      "name": "ic_admin_list_recent_startup_content",
+      "descriptionHash": "7b251fbf5435072801ee3bdb9dae67050df8d8d2c5c8b2faf2548a0fae4d7a9f",
+      "description": "Flat, newest-first list of recent startup news items (one row per item) for the auto-publish safety net. 'Recent' = posted within `days` (default 7) OR the parent profile was edited in that window. Each row: { slug, startup_name, public_visible, item_id, title, url?, posted_at, source?, profile_upda",
+      "labels": [
+        "untrusted-content",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "ic_admin_takedown_startup_content",
+      "descriptionHash": "0e39d17ee907944390317df19d366a08725ba5e6e6457facbc1c494f39274307",
+      "description": "Pull auto-published founder content. With `item_id`: remove that single news item from the profile's news[]. Without `item_id`: hide the WHOLE startup (public_visible=false). Both rebuild the public cards, mirror to blob, revalidate the public pages, and write an audit entry. Idempotent (removing an",
+      "labels": [
+        "public-sink",
+        "destructive"
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOOL-POISON-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description issues instructions to the model",
+      "detail": "Description of \"ic_capabilities\" contains imperative instructions directed at the AI assistant rather than describing the tool. This is the core tool-poisoning technique.",
+      "evidence": {
+        "source": "tool:ic_capabilities",
+        "snippet": "In-band capability matrix: every registered MCP tool with its one-line description, required scope (null = any valid token), the minimum membership tier whose u…"
+      },
+      "confidence": 0.7,
+      "remediation": "Treat the server as untrusted; the model may obey embedded instructions."
+    },
+    {
+      "id": "MCP-TOOL-POISON-007",
+      "severity": "low",
+      "category": "tool-poisoning",
+      "title": "Description uses pressure/override language",
+      "detail": "Description of \"ic_health\" stacks urgency/override words (always, never). Legitimate tool descriptions rarely pressure the model to act or ignore prior guidance.",
+      "evidence": {
+        "source": "tool:ic_health",
+        "snippet": "Probe the MCP surface's four upstream dependencies without firing any real (rate-limited) tool: kv (the floor10 Redis), blob (the last-known-good mirror), rag (…"
+      },
+      "confidence": 0.3
+    },
+    {
+      "id": "MCP-TOOL-POISON-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description issues instructions to the model",
+      "detail": "Description of \"floorcast_run_ai_curation\" contains imperative instructions directed at the AI assistant rather than describing the tool. This is the core tool-poisoning technique.",
+      "evidence": {
+        "source": "tool:floorcast_run_ai_curation",
+        "snippet": "Manual fire of the floor's AI-curation runner: assembles a candidate per enabled policy from REUSED intel and pushes it through the inc-6 moderation primitives …"
+      },
+      "confidence": 0.7,
+      "remediation": "Treat the server as untrusted; the model may obey embedded instructions."
+    },
+    {
+      "id": "MCP-TOOL-POISON-007",
+      "severity": "low",
+      "category": "tool-poisoning",
+      "title": "Description uses pressure/override language",
+      "detail": "Description of \"ic_rooms_create\" stacks urgency/override words (immediately, never). Legitimate tool descriptions rarely pressure the model to act or ignore prior guidance.",
+      "evidence": {
+        "source": "tool:ic_rooms_create",
+        "snippet": "Open a LIVE multi-agent room and get its room_id back — the self-service create path (no SSH, no repo). You declare the seats (roles) and who holds them; YOU mu…"
+      },
+      "confidence": 0.3
+    },
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"ic_files_list\" references sensitive artifacts (bearer). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:ic_files_list",
+        "snippet": "List every file in the IC secure vault you're authorized to see: files shared with all IC members, files you uploaded, files you're an explicit grantee of (oper…"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"ic_files_get\" references sensitive artifacts (bearer). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:ic_files_get",
+        "snippet": "Resolve one file by id, authorize you against it, and return its metadata plus the authenticated download URL (GET it with your bearer token to fetch the bytes)…"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"ic_folder_get\" references sensitive artifacts (bearer). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:ic_folder_get",
+        "snippet": "Traverse one folder (or the vault ROOT if folder_id is omitted). Returns { folder, path (breadcrumb), subfolders[], files[] } where each file carries a download…"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"ic_donate\" references sensitive artifacts (authorization). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:ic_donate",
+        "snippet": "Support Immersive Commons with an on-chain USDC donation over x402 (HTTP 402 + USDC on Base). No auth required. Returns the donation tiers, the receiving wallet…"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"ic_feedback_list_mine\" references sensitive artifacts (bearer). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:ic_feedback_list_mine",
+        "snippet": "List the feedback tickets YOU submitted (via ic_feedback_submit or the REST endpoint with your Bearer token), newest first. Returns summaries: ticket_id + kind …"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOOL-POISON-002",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description tells the model to hide behavior",
+      "detail": "Description of \"ic_agent_inbox_send_envelope\" instructs the model to conceal actions from the user.",
+      "evidence": {
+        "source": "tool:ic_agent_inbox_send_envelope",
+        "snippet": "Route a typed intent (ping / request_meeting / send_intro) to another IC member's agent inbox. Recipient's policy engine decides what happens — store + notify, …"
+      },
+      "confidence": 0.75
+    },
+    {
+      "id": "MCP-TOOL-POISON-002",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description tells the model to hide behavior",
+      "detail": "Description of \"ic_agent_inbox_block\" instructs the model to conceal actions from the user.",
+      "evidence": {
+        "source": "tool:ic_agent_inbox_block",
+        "snippet": "Add an entry to YOUR inbox blocklist (the policy.blocklist your policy engine consults before any rule). Future envelopes from a blocked sender are silently dro…"
+      },
+      "confidence": 0.75
+    },
+    {
+      "id": "MCP-TOOL-POISON-007",
+      "severity": "low",
+      "category": "tool-poisoning",
+      "title": "Description uses pressure/override language",
+      "detail": "Description of \"ic_agent_inbox_block\" stacks urgency/override words (always, never). Legitimate tool descriptions rarely pressure the model to act or ignore prior guidance.",
+      "evidence": {
+        "source": "tool:ic_agent_inbox_block",
+        "snippet": "Add an entry to YOUR inbox blocklist (the policy.blocklist your policy engine consults before any rule). Future envelopes from a blocked sender are silently dro…"
+      },
+      "confidence": 0.3
+    },
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"ic_admin_agent_client_register\" references sensitive artifacts (secret, bearer). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:ic_admin_agent_client_register",
+        "snippet": "Provision an external integration (another company's CRM bot, a research-collab tool) with a client_id + one-time client_secret it later exchanges for a scoped …"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"ic_admin_agent_client_list\" references sensitive artifacts (secret). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:ic_admin_agent_client_list",
+        "snippet": "List provisioned class-B integrations newest-first with usage stats (tokens issued, threads started, last seen). Operator-only (admin:agent_clients + live opera…"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"ic_admin_agent_client_revoke\" references sensitive artifacts (bearer). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:ic_admin_agent_client_revoke",
+        "snippet": "Revoke an integration and flag its AUTONOMOUS actions for recipient re-confirmation (DESIGN §9 — interactive actions are NOT flagged, each had per-call approval…"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"ic_admin_agent_audit_search\" references sensitive artifacts (bearer). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:ic_admin_agent_audit_search",
+        "snippet": "Cross-member audit search over class-B integration activity (DESIGN §11). Walks the matching clients → their bearer tokens → those tokens' outbox threads → each…"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"ic_startup_update_profile\" references sensitive artifacts (bearer). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:ic_startup_update_profile",
+        "snippet": "Read-modify-write your startup's public profile: name (<=100), tagline (<=160), website (URL — refreshes the favicon fallback), public_visible, and/or the full …"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: floor10_get_my_floor_member, ic_health, ic_admin_list_pending_highlights, floor10_list_claimable_events, floor10_extract_event_metadata, ic_admin_list_pending_tier_requests, ic_admin_list_members, ic_admin_list_pending_events, ic_admin_approve_event, ic_request_workshop_key, ic_get_my_zai_key, ic_leaderboard_get_board, ic_events_list_upcoming, ic_events_get, ic_rooms_create, ic_rooms_join, ic_events_rsvp, ic_headsets_check_waiver, ic_headsets_get_my_lend, ic_headsets_admin_list_active_lends, ic_headsets_admin_clear_oos, ic_headsets_admin_force_return, ic_files_list, ic_files_get, ic_transcribe_submit, ic_transcribe_get, ic_prints_submit, ic_signal_list_issues, ic_signal_get_latest, ic_signal_get_issue, ic_signal_get_story, ic_signal_search, ic_news_get, ic_feedback_list_mine, ic_feedback_get_status, ic_admin_list_feedback, ic_agent_inbox_send_envelope, ic_agent_inbox_list_threads, ic_agent_inbox_get_thread, ic_agent_inbox_undo, ic_agent_inbox_block, ic_agent_inbox_list_blocks, ic_agent_policy_get, ic_agent_directory_lookup, ic_agent_outbox_list, ic_admin_agent_client_register, ic_admin_agent_client_list, ic_admin_agent_audit_search, ic_startup_update_profile, ic_startup_post_news, ic_admin_list_pending_ownership, ic_admin_list_recent_startup_content · Private data: floor10_get_my_floor_member, ic_capabilities, ic_health, floorcast_my_roles, floorcast_effective_features, floorcast_set_feature_enabled, floorcast_set_feature_availability, floorcast_set_ai_policy, floor10_submit_highlight, floorcast_push, floor10_upload_image, ic_admin_list_pending_tier_requests, ic_admin_approve_tier_request, ic_admin_deny_tier_request, ic_admin_list_pending_events, ic_admin_approve_event, ic_admin_reject_event, ic_request_zai_key, ic_get_my_zai_key, ic_get_my_zai_key_usage, ic_admin_list_pending_key_requests, ic_admin_approve_key_request, ic_admin_deny_key_request, ic_leaderboard_connect_github, ic_leaderboard_get_status, ic_leaderboard_get_board, ic_admin_leaderboard_inspect, ic_resources_book, ic_rooms_create, ic_rooms_send, ic_activity_get_recent, ic_events_rsvp, ic_headsets_list_inventory, ic_headsets_get_unit, ic_headsets_check_waiver, ic_headsets_sign_waiver, ic_headsets_checkout, ic_headsets_report_damage, ic_headsets_get_attestation_status, ic_headsets_attest_member, ic_headsets_mark_sop_complete, ic_events_request, ic_files_list, ic_files_get, ic_files_put, ic_files_grant, ic_files_update, ic_transcribe_submit, ic_transcribe_status, ic_transcribe_get, ic_prints_submit, ic_prints_get, ic_folders_list, ic_folder_get, ic_folder_create, ic_folder_grant, ic_folder_update, ic_startup_list, ic_startup_request_ownership, ic_donate, ic_presentations_get, ic_feedback_list_mine, ic_feedback_get_status, ic_admin_list_feedback, ic_admin_resolve_feedback, ic_events_next, ic_agent_inbox_send_envelope, ic_agent_inbox_list_threads, ic_agent_inbox_get_thread, ic_agent_inbox_reply, ic_agent_inbox_block, ic_agent_inbox_unblock, ic_agent_inbox_list_blocks, ic_agent_policy_get, ic_agent_policy_set, ic_agent_outbox_list, ic_admin_agent_client_register, ic_admin_agent_client_list, ic_admin_agent_client_revoke, ic_admin_agent_audit_search, ic_startup_update_profile, ic_startup_post_news · Public sink: floor10_get_my_floor_member, ic_admin_reject_highlight, floor10_submit_highlight, floor10_upload_image, ic_request_tier, ic_admin_list_pending_tier_requests, ic_admin_list_members, ic_admin_list_pending_events, ic_admin_reject_event, ic_membership_upload_photo, ic_resources_book, ic_rooms_create, ic_rooms_send, ic_rooms_read, ic_activity_get_recent, ic_events_rsvp, ic_headsets_check_waiver, ic_headsets_get_my_lend, ic_headsets_admin_list_active_lends, ic_headsets_sign_waiver, ic_headsets_checkout, ic_headsets_report_damage, ic_research_submit, ic_files_put, ic_files_grant, ic_files_update, ic_transcribe_submit, ic_prints_submit, ic_prints_cancel, ic_folder_create, ic_folder_grant, ic_startup_request_ownership, ic_donate, ic_feedback_submit, ic_agent_inbox_send_envelope, ic_agent_inbox_undo, ic_agent_policy_set, ic_startup_post_news, ic_admin_approve_ownership, ic_admin_list_recent_startup_content, ic_admin_takedown_startup_content · Destructive: ic_health, floorcast_set_feature_availability, floorcast_run_ai_curation, ic_admin_approve_highlight, ic_admin_reject_highlight, ic_admin_approve_tier_request, ic_admin_deny_tier_request, ic_admin_approve_event, ic_admin_reject_event, ic_admin_approve_key_request, ic_admin_deny_key_request, ic_membership_upload_photo, ic_donate, ic_presentations_list, ic_presentations_get, ic_admin_resolve_feedback, ic_agent_inbox_send_envelope, ic_agent_inbox_unblock, ic_startup_update_profile, ic_admin_approve_ownership, ic_admin_reject_ownership, ic_admin_takedown_startup_content.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: floor10_get_my_floor_member, ic_health, ic_admin_list_pending_highlights, floor10_list_claimable_events, floor10_extract_event_metadata, ic_admin_list_pending_tier_requests, ic_admin_list_members, ic_admin_list_pending_events, ic_admin_approve_event, ic_request_workshop_key, ic_get_my_zai_key, ic_leaderboard_get_board, ic_events_list_upcoming, ic_events_get, ic_rooms_create, ic_rooms_join, ic_events_rsvp, ic_headsets_check_waiver, ic_headsets_get_my_lend, ic_headsets_admin_list_active_lends, ic_headsets_admin_clear_oos, ic_headsets_admin_force_return, ic_files_list, ic_files_get, ic_transcribe_submit, ic_transcribe_get, ic_prints_submit, ic_signal_list_issues, ic_signal_get_latest, ic_signal_get_issue, ic_signal_get_story, ic_signal_search, ic_news_get, ic_feedback_list_mine, ic_feedback_get_status, ic_admin_list_feedback, ic_agent_inbox_send_envelope, ic_agent_inbox_list_threads, ic_agent_inbox_get_thread, ic_agent_inbox_undo, ic_agent_inbox_block, ic_agent_inbox_list_blocks, ic_agent_policy_get, ic_agent_directory_lookup, ic_agent_outbox_list, ic_admin_agent_client_register, ic_admin_agent_client_list, ic_admin_agent_audit_search, ic_startup_update_profile, ic_startup_post_news, ic_admin_list_pending_ownership, ic_admin_list_recent_startup_content · Private data: floor10_get_my_floor_member, ic_capabilities, ic_health, floorcast_my_roles, floorcast_effective_features, floorcast_set_feature_enabled, floorcast_set_feature_availability, floorcast_set_ai_policy, floor10_submit_highlight, floorcast_push, floor10_upload_image, ic_admin_list_pending_tier_requests, ic_admin_approve_tier_request, ic_admin_deny_tier_request, ic_admin_list_pending_events, ic_admin_approve_event, ic_admin_reject_event, ic_request_zai_key, ic_get_my_zai_key, ic_get_my_zai_key_usage, ic_admin_list_pending_key_requests, ic_admin_approve_key_request, ic_admin_deny_key_request, ic_leaderboard_connect_github, ic_leaderboard_get_status, ic_leaderboard_get_board, ic_admin_leaderboard_inspect, ic_resources_book, ic_rooms_create, ic_rooms_send, ic_activity_get_recent, ic_events_rsvp, ic_headsets_list_inventory, ic_headsets_get_unit, ic_headsets_check_waiver, ic_headsets_sign_waiver, ic_headsets_checkout, ic_headsets_report_damage, ic_headsets_get_attestation_status, ic_headsets_attest_member, ic_headsets_mark_sop_complete, ic_events_request, ic_files_list, ic_files_get, ic_files_put, ic_files_grant, ic_files_update, ic_transcribe_submit, ic_transcribe_status, ic_transcribe_get, ic_prints_submit, ic_prints_get, ic_folders_list, ic_folder_get, ic_folder_create, ic_folder_grant, ic_folder_update, ic_startup_list, ic_startup_request_ownership, ic_donate, ic_presentations_get, ic_feedback_list_mine, ic_feedback_get_status, ic_admin_list_feedback, ic_admin_resolve_feedback, ic_events_next, ic_agent_inbox_send_envelope, ic_agent_inbox_list_threads, ic_agent_inbox_get_thread, ic_agent_inbox_reply, ic_agent_inbox_block, ic_agent_inbox_unblock, ic_agent_inbox_list_blocks, ic_agent_policy_get, ic_agent_policy_set, ic_agent_outbox_list, ic_admin_agent_client_register, ic_admin_agent_client_list, ic_admin_agent_client_revoke, ic_admin_agent_audit_search, ic_startup_update_profile, ic_startup_post_news · Public sink: floor10_get_my_floor_member, ic_admin_reject_highlight, floor10_submit_highlight, floor10_upload_image, ic_request_tier, ic_admin_list_pending_tier_requests, ic_admin_list_members, ic_admin_list_pending_events, ic_admin_reject_event, ic_membership_upload_photo, ic_resources_book, ic_rooms_create, ic_rooms_send, ic_rooms_read, ic_activity_get_recent, ic_events_rsvp, ic_headsets_check_waiver, ic_headsets_get_my_lend, ic_headsets_admin_list_active_lends, ic_headsets_sign_waiver, ic_headsets_checkout, ic_headsets_report_damage, ic_research_submit, ic_files_put, ic_files_grant, ic_files_update, ic_transcribe_submit, ic_prints_submit, ic_prints_cancel, ic_folder_create, ic_folder_grant, ic_startup_request_ownership, ic_donate, ic_feedback_submit, ic_agent_inbox_send_envelope, ic_agent_inbox_undo, ic_agent_policy_set, ic_startup_post_news, ic_admin_approve_ownership, ic_admin_list_recent_startup_content, ic_admin_takedown_startup_content · Destructive: ic_health, floorcast_set_feature_availability, floorcast_run_ai_curation, ic_admin_approve_highlight, ic_admin_reject_highlight, ic_admin_approve_tier_request, ic_admin_deny_tier_request, ic_admin_approve_event, ic_admin_reject_event, ic_admin_approve_key_request, ic_admin_deny_key_request, ic_membership_upload_photo, ic_donate, ic_presentations_list, ic_presentations_get, ic_admin_resolve_feedback, ic_agent_inbox_send_envelope, ic_agent_inbox_unblock, ic_startup_update_profile, ic_admin_approve_ownership, ic_admin_reject_ownership, ic_admin_takedown_startup_content"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 29,
+  "scoreBreakdown": {
+    "tool-poisoning": 51,
+    "toxic-flow": 20
+  },
+  "errors": []
+}
