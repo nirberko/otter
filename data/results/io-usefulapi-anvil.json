@@ -8,19 +8,102 @@
     "kind": "url",
     "ref": "https://anvil.usefulapi.io/mcp"
   },
-  "scannedAt": "2026-07-18T06:31:21.704Z",
-  "durationMs": 213,
+  "scannedAt": "2026-07-19T06:54:38.915Z",
+  "durationMs": 749,
   "layers": {
-    "metadata": false,
+    "metadata": true,
     "static": false
   },
-  "findings": [],
-  "score": 100,
-  "scoreBreakdown": {},
-  "errors": [
+  "tools": [
     {
-      "scanner": "metadata",
-      "message": "Streamable HTTP error: Error POSTing to endpoint: {\"error\":\"invalid_token\",\"error_description\":\"Missing or invalid access token\"}"
+      "name": "anvil_current_user",
+      "descriptionHash": "a82ad3d8350a7b20e6763e044d952ca4f83621a7115263f88e023f8f3f951c47",
+      "description": "Get the authenticated Anvil user (from the API key) and the organizations they belong to (eid, name, slug). Good first call to discover org slugs/eids for other tools. GraphQL query: currentUser.",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "anvil_get_organization",
+      "descriptionHash": "481c5fb374a63028c0929ded53b47611e02008bb797210622eb347e693581063",
+      "description": "Fetch an Anvil organization and its PDF templates (casts) and workflows (welds). Provide either its slug or its eid (at least one is required). GraphQL query: organization."
+    },
+    {
+      "name": "anvil_get_cast",
+      "descriptionHash": "1b09c567901f4dbed09d79084de3c1df2b7adc299c638cafccda962cab912c93",
+      "description": "Fetch a cast — an Anvil PDF template — by its eid: title, version number, and whether it is a template. Use the returned eid as the cast_eid for anvil_fill_pdf. GraphQL query: cast."
+    },
+    {
+      "name": "anvil_get_etch_packet",
+      "descriptionHash": "3ab2799638770c10247a0ab6d7a5c5b712071d11239d317bdcd29d66d3f1fc92",
+      "description": "Fetch an Etch e-signature packet by eid: its status, details URL, document group, and every signer (eid, aliasId, name, email, status, routing order). Use this to check signature progress. GraphQL query: etchPacket.",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "anvil_get_weld",
+      "descriptionHash": "5c8dce9c4d2f1c3bfa1ecfe4343434159664d8e8315ffc6c7b80085fc1d48e4c",
+      "description": "Fetch a weld — an Anvil workflow — by eid, including its forges (the individual form steps: eid, name, slug). GraphQL query: weld."
+    },
+    {
+      "name": "anvil_get_weld_data",
+      "descriptionHash": "e60f196081d37dbbf4099935201b8eeff8f697053bc9324eed90a5cb93fded72",
+      "description": "Fetch a weldData record — a single submission to a weld (workflow) — by eid: completion state, test flag, and creation time. GraphQL query: weldData.",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "anvil_fill_pdf",
+      "descriptionHash": "0688f78a605d5ede24063f9b7fe86fe3d6eb2e3148ab66a95ee51e96ecde6fef",
+      "description": "Fill an Anvil PDF template (cast) with data and return the finished PDF as base64. REST: POST /fill/{castEid}.pdf. Returns { filename, byteLength, pdfBase64 }. The `data` object's keys are the template's field aliases.",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "anvil_generate_pdf",
+      "descriptionHash": "1e4f984aa822f2ccdad65cd269ac64f78fa5a3fe0ea3f2325e0d7e625aa1f4c2",
+      "description": "Generate a brand-new PDF from HTML or Markdown and return it as base64. REST: POST /generate-pdf. For type=html, pass data = { html, css? }. For type=markdown, pass data = [ { label, content }, ... ]. Returns { filename, byteLength, pdfBase64 }.",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "anvil_create_etch_packet",
+      "descriptionHash": "5477fc22dd69219ef25e748a69e3760d6351362ca197028bda8cc3599ebd9d40",
+      "description": "Create an Etch e-signature packet (documents + signers). GraphQL mutation: createEtchPacket. IMPORTANT: isDraft defaults to true (a safe draft that sends nothing). Setting isDraft=false with real signers SENDS signature-request emails to those signers. Use isTest=true while developing.",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "anvil_generate_etch_sign_url",
+      "descriptionHash": "5b75eee0dcdeccd5f569ba55f4dd62a299bd9b8188766fad95a053688402383f",
+      "description": "Generate a one-time embedded signing URL for a specific signer in an Etch packet (for iframe/redirect signing flows). GraphQL mutation: generateEtchSignURL. Returns { url }."
     }
-  ]
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: anvil_get_etch_packet · Private data: anvil_current_user, anvil_get_etch_packet, anvil_get_weld_data, anvil_create_etch_packet · Public sink: anvil_get_etch_packet, anvil_fill_pdf, anvil_generate_pdf.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: anvil_get_etch_packet · Private data: anvil_current_user, anvil_get_etch_packet, anvil_get_weld_data, anvil_create_etch_packet · Public sink: anvil_get_etch_packet, anvil_fill_pdf, anvil_generate_pdf"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 80,
+  "scoreBreakdown": {
+    "toxic-flow": 20
+  },
+  "errors": []
 }
