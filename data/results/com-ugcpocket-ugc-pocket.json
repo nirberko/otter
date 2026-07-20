@@ -1,26 +1,97 @@
 {
   "schemaVersion": 1,
   "scanner": {
-    "version": "1.0.0",
-    "rules": "19f6a1b4a518"
+    "version": "1.6.0",
+    "rules": "402995650b68"
   },
   "target": {
     "kind": "url",
     "ref": "https://ugcpocket.com/mcp"
   },
-  "scannedAt": "2026-07-16T16:35:55.429Z",
-  "durationMs": 45559,
+  "scannedAt": "2026-07-20T07:39:13.676Z",
+  "durationMs": 1493,
   "layers": {
-    "metadata": false,
+    "metadata": true,
     "static": false
   },
-  "findings": [],
-  "score": 100,
-  "scoreBreakdown": {},
-  "errors": [
+  "tools": [
     {
-      "scanner": "metadata",
-      "message": "timeout during list after 45000ms"
+      "name": "get_service_info",
+      "descriptionHash": "3968ef97e9767e0a04a44bba69273e5cb01774ab4de72d3473c6ce7b9c8ffe5a",
+      "description": "Returns the UGC Pocket service descriptor: creator categories (e.g. dog, cooking, sport), prestation types, supported platforms, currency (EUR, budgets in cents), minimum campaign budget (300000 = €3,000, a spend cap for the whole campaign) and the order model (agent creates a draft, a human confirm"
+    },
+    {
+      "name": "estimate_campaign",
+      "descriptionHash": "59a0a1e10d6c6efaf2543365a0cac65ff351b7804626fd88f385e4c6aa862061",
+      "description": "Analyzes a free-text campaign brief (French or English) and returns structured campaign fields (title, prestation, categories, platforms, budget_max_cents) plus an estimate of what that cap can produce (creators briefed, videos, maximum tracked views). budget_max_cents is the spend cap for the WHOLE",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "create_campaign_order",
+      "descriptionHash": "7cad08efd4a427a51922e29a4943f59721cf4bd3eca465c76ada8bf2117295a8",
+      "description": "Creates a UGC video campaign as a DRAFT (status='draft'). Nothing is charged: the brand owner must confirm and fund the campaign in the UGC Pocket app (the response includes a confirm_url to hand to them). Budgets are in euro cents: budget_max_cents is the spend cap for the WHOLE campaign, minimum 3",
+      "labels": [
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "check_campaign_status",
+      "descriptionHash": "450b70a0aeca11972da32c7532dca0335f00e665be8288424f9bdcc07afaa9e7",
+      "description": "Returns the status of a campaign (draft / open / in_progress / completed / cancelled). Scoped to campaigns belonging to the organization that owns the API key. Requires an API key.",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "list_my_campaigns",
+      "descriptionHash": "fe7095c323da110c8ea70a02ee763f2e74e2f7df1812cf54857db65c5a78af57",
+      "description": "For CREATOR API keys: lists the campaigns you are selected on (accepted application), with campaign_id, title, status, payment trigger and budget. Use the campaign_id with submit_posted_video to attach your published videos. Requires a creator API key (creator:submit scope) — generated in the UGC Po",
+      "labels": [
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "submit_posted_video",
+      "descriptionHash": "cc56465ca71e59dd3c6643206389c6f26c96674e37a1893de6499497bb133a1e",
+      "description": "For CREATOR API keys: declare that you published a video on a social network for a campaign you are selected on. Give the public video URL (TikTok, Instagram or YouTube for automatic daily view tracking over 1 month; other https URLs are stored without tracking) and the campaign_id (see list_my_camp",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "list_my_deliverables",
+      "descriptionHash": "8bf54429e4dbb9ed30bdf5d1833d1bf7769422a14e5adce3bc307fe4ffa3f523",
+      "description": "For CREATOR API keys: lists your submitted videos and their state (submitted / published / validated / revision / paid), tracked view counts and validated amounts in cents. Optionally filter by campaign_id. Requires a creator API key (creator:submit scope).",
+      "labels": [
+        "private-data",
+        "public-sink"
+      ]
     }
-  ]
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: submit_posted_video · Private data: estimate_campaign, create_campaign_order, check_campaign_status, list_my_campaigns, submit_posted_video, list_my_deliverables · Public sink: create_campaign_order, list_my_campaigns, submit_posted_video, list_my_deliverables.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: submit_posted_video · Private data: estimate_campaign, create_campaign_order, check_campaign_status, list_my_campaigns, submit_posted_video, list_my_deliverables · Public sink: create_campaign_order, list_my_campaigns, submit_posted_video, list_my_deliverables"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 80,
+  "scoreBreakdown": {
+    "toxic-flow": 20
+  },
+  "errors": []
 }

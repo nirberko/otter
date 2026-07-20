@@ -1,15 +1,15 @@
 {
   "schemaVersion": 1,
   "scanner": {
-    "version": "1.0.0",
-    "rules": "19f6a1b4a518"
+    "version": "1.6.0",
+    "rules": "402995650b68"
   },
   "target": {
     "kind": "url",
     "ref": "https://scribo.causaprima.ai/mcp"
   },
-  "scannedAt": "2026-07-16T16:36:42.195Z",
-  "durationMs": 1167,
+  "scannedAt": "2026-07-20T07:39:50.822Z",
+  "durationMs": 1247,
   "layers": {
     "metadata": true,
     "static": false
@@ -17,23 +17,71 @@
   "tools": [
     {
       "name": "create_invoice",
-      "descriptionHash": "942ef475bd3ff790e8ade899873f9e5bfc156472f34cd5548e44e5ee50394ea0"
+      "descriptionHash": "942ef475bd3ff790e8ade899873f9e5bfc156472f34cd5548e44e5ee50394ea0",
+      "description": "Generate an invoice. **Phase 1 supports Germany (DE) and the United States (US) only** — DE emits an EN 16931-compliant XRechnung (UBL by default, CII via format_override) or ZUGFeRD COMFORT, US emits a plain PDF. Any other sender jurisdiction is rejected with `unsupported_jurisdiction`. The format ",
+      "labels": [
+        "private-data",
+        "public-sink",
+        "destructive"
+      ]
     },
     {
       "name": "get_invoice",
-      "descriptionHash": "964d43bb907ba0e992485c6f203bd040421a0318bae4c065bbca26abf6c6e618"
+      "descriptionHash": "964d43bb907ba0e992485c6f203bd040421a0318bae4c065bbca26abf6c6e618",
+      "description": "Fetch a previously generated invoice by its `invoice_id` and return its current metadata plus a freshly signed download URL. Read-only and tenant-scoped — cross-tenant lookups return 404. Use this after `create_invoice` to re-download bytes from a different device, or to obtain a new signed URL afte",
+      "labels": [
+        "untrusted-content"
+      ]
     },
     {
       "name": "list_supported_jurisdictions",
-      "descriptionHash": "17b040899cd73b31424c8ac65c97078f6e366ab05f9f307d51a403ca5fbd7d48"
+      "descriptionHash": "17b040899cd73b31424c8ac65c97078f6e366ab05f9f307d51a403ca5fbd7d48",
+      "description": "List jurisdictions Scribo can emit invoices for, with each jurisdiction's available formats and the default format applied when no override is given. Phase 1 returns Germany (DE — XRechnung / ZUGFeRD) and the United States (US — plain PDF) only. Read-only and side-effect-free; safe to call before `c",
+      "labels": [
+        "destructive"
+      ]
     },
     {
       "name": "verify_email_code",
-      "descriptionHash": "d762ee46285bef04e659c44bea5e1ee95fb2872b9608146db680ca3fc4bbd971"
+      "descriptionHash": "d762ee46285bef04e659c44bea5e1ee95fb2872b9608146db680ca3fc4bbd971",
+      "description": "Use this after `create_invoice` returns `verification_required`. Arguments: `{ challenge_id, code }`. On success returns a `verification_token`. Retry `create_invoice` with the same arguments plus that `verification_token` passed in its `verification_token` field. The token is reusable for ~30 min, ",
+      "labels": [
+        "private-data",
+        "public-sink"
+      ]
     }
   ],
-  "findings": [],
-  "score": 100,
-  "scoreBreakdown": {},
+  "findings": [
+    {
+      "id": "MCP-TOOL-POISON-007",
+      "severity": "low",
+      "category": "tool-poisoning",
+      "title": "Description uses pressure/override language",
+      "detail": "Description of \"create_invoice\" stacks urgency/override words (never, override). Legitimate tool descriptions rarely pressure the model to act or ignore prior guidance.",
+      "evidence": {
+        "source": "tool:create_invoice",
+        "snippet": "Generate an invoice. **Phase 1 supports Germany (DE) and the United States (US) only** — DE emits an EN 16931-compliant XRechnung (UBL by default, CII via forma…"
+      },
+      "confidence": 0.3
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: get_invoice · Private data: create_invoice, verify_email_code · Public sink: create_invoice, verify_email_code · Destructive: create_invoice, list_supported_jurisdictions.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: get_invoice · Private data: create_invoice, verify_email_code · Public sink: create_invoice, verify_email_code · Destructive: create_invoice, list_supported_jurisdictions"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 77,
+  "scoreBreakdown": {
+    "tool-poisoning": 3,
+    "toxic-flow": 20
+  },
   "errors": []
 }
