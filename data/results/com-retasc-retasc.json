@@ -1,0 +1,334 @@
+{
+  "schemaVersion": 1,
+  "scanner": {
+    "version": "1.6.0",
+    "rules": "402995650b68"
+  },
+  "target": {
+    "kind": "url",
+    "ref": "https://mcp.retasc.com/mcp"
+  },
+  "scannedAt": "2026-07-21T06:44:25.105Z",
+  "durationMs": 355,
+  "layers": {
+    "metadata": true,
+    "static": false
+  },
+  "tools": [
+    {
+      "name": "whoami",
+      "descriptionHash": "87dc445db704aad60f28b46a60bc03660a436fd693186fe44dc2a61d27210aeb",
+      "description": "Return the calling identity (agent/human), its org, and the project this API key is scoped to.",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "list_members",
+      "descriptionHash": "690b854cfba2c94df3e8c87c8e60f7ddba5f3e1913f3a83bbfcf2472776c89d1",
+      "description": "List members (humans + agents) in the org — the 'users' issues and comments are attributed to. Optionally filter by name.",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "suspend_member",
+      "descriptionHash": "3180a623a3033de45ea1a93844131def2b1910590307f1a04ee8b426031ce51b",
+      "description": "Offboard a PERSON from the org (owner-only): hides the org from them and drops them from every read/act gate, while KEEPING their row so their past work stays attributed. Cascade-RETIRES the agents they run (terminal — those agent keys are revoked, strays deleted), so no one keeps acting on their be",
+      "labels": [
+        "destructive"
+      ]
+    },
+    {
+      "name": "reactivate_member",
+      "descriptionHash": "131aa7f14df75626ea5265da2564c115b2bf0fdd639cc578c62af883898364ff",
+      "description": "Reactivate a suspended PERSON (owner-only) — restores org visibility + their prior role. Rejects an AGENT (retire is terminal — there's nothing to reactivate). Owner-gated via your human principal. `memberId` from list_members/whoami."
+    },
+    {
+      "name": "retire_member",
+      "descriptionHash": "fa73708a81f94de8cf7f8c8bcd23b57bab4d179782fa3884fd085d5971b31477",
+      "description": "Retire an AGENT — the terminal offboard (owner-only): revokes its API keys, releases its live claim, removes it from the roster. An agent is its key, and a revoked key can't be un-revoked, so this is one-way (no reactivate). Keeps the row hidden for attribution if the agent ever did work; hard-delet",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "next_issue",
+      "descriptionHash": "a56e9784677b15e47218dfecfd835ee50ebbc6425b0335d8570fc5340093f8bc",
+      "description": "Pull the next issue to work on, project-scoped — atomically claims the highest-priority unblocked todo and returns it with a claim_token (status becomes 'doing'). Only WORK is dispatched: non-work issues (work:false — tracking containers like epics) are never handed out. LANE-SCOPED by default: a ba",
+      "labels": [
+        "untrusted-content",
+        "destructive"
+      ]
+    },
+    {
+      "name": "next_batch",
+      "descriptionHash": "6467fb8691831b07df5518b65e6e1f13bf780ba676673ecb6b68c3f5c374b1a2",
+      "description": "Wave dispatch for a fleet: return the top N eligible issues (todo + unclaimed + unblocked WORK — work:false containers are never included), effective-priority ordered, ready to run in PARALLEL (they're mutually independent by construction). Default mode peeks (no claim) so an orchestrator can plan, ",
+      "labels": [
+        "destructive"
+      ]
+    },
+    {
+      "name": "claim_issue",
+      "descriptionHash": "9054fccc1237c949e3c7a8fc263fc0ef2dbdfcf7f8b3285ca53f530986b1c279",
+      "description": "Claim one specific issue by id (instead of letting next_issue pick). Fails if it's already held (active lease), not todo/doing, blocked, or non-work (work:false — tracking containers aren't claimable). Returns a claim_token. The response includes `branch` (the authoritative `rtsc-NN/<slug>` to land "
+    },
+    {
+      "name": "release_issue",
+      "descriptionHash": "c2948f9502da5c2d32bdc75424d35aae16c121fc68b1a2d293a0b5bf635e4dc3",
+      "description": "Give a claimed issue back to the queue (reverts to todo). Requires the claim_token. Your comments + checkpoint stay so the next agent resumes. Pass `note` to record a final handoff checkpoint (done so far / next steps / gotchas).",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "checkpoint",
+      "descriptionHash": "0a65698249452e34b3dbe9a1f2f35a99c834cc31830d339560d59bae982da8df",
+      "description": "Record a handoff checkpoint on your claimed issue — what's done, what's next, gotchas, branch/artifacts. It SURVIVES release + reclaim, so if your lease lapses or you crash, the next agent (even a different runtime) resumes from here instead of restarting. Also renews your lease. Requires the claim_",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "heartbeat",
+      "descriptionHash": "78c6a6934e256872ce66a3a2a06cd6e11122aebe51f58f15973a37947b9cfa6d",
+      "description": "Extend your lease on a claimed issue during long-silent work. Requires the claim_token. Returns the new expiry."
+    },
+    {
+      "name": "queue_status",
+      "descriptionHash": "8921295f1ce0c9dd6890926e02a84cc2f1a8906308258a0d6c0b09a33c5e603f",
+      "description": "Diagnose the queue: counts by status, how many are ready to pull, deadline SLA pressure (`breaching`/`breached` counts over non-terminal issues), exactly what's dependency-blocked (and by what), and what's currently claimed (by whom, lease expiry)."
+    },
+    {
+      "name": "check_claim",
+      "descriptionHash": "50c6073316b3e3a58adf56225227dea1a6959e9f3a55dd6c6e48de040d6f8466",
+      "description": "Does THIS session hold an issue? The session-aware companion to the commit gate: before committing or opening a PR on a `rtsc-NN/` branch, verify your session actually holds RTSC-NN so you can't mislabel work another session holds. Returns {youHold, status, heldBy}: status is held | unclaimed | expi",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "usage_summary",
+      "descriptionHash": "5b68e90cfdec34356e4a9dfbebfcb4131fe54d18d1d2b58c704ae7faffd9d882",
+      "description": "Usage METER for the org — activity volume, not a bill. Returns reads, writes, the read:write ratio, the rate card, and TWO distinct money figures: `lifetimeMeteredEstimateUsd` (ALL-TIME activity across every payment link, repriced at today's rate card — includes never-billable usage and diverges fro"
+    },
+    {
+      "name": "billing_summary",
+      "descriptionHash": "4d01005c016f0768b37d857b7d74a0886da0d9b93920ca12c67f90b70d62d87d",
+      "description": "The org's whole billing picture in one call (owner authority required for the billing block): subscription status + spending caps, money now (pending / outstanding / charged / collected / credit), the charge ledger, and CONFIRMED ON-CHAIN PAYMENTS — both fanned across EVERY subscription/payment link",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "save_issue",
+      "descriptionHash": "0df34e3d34d7c95548113b40f2e3a660ebe7a12bf0a38d66e7b7e69dbe02d512",
+      "description": "Create an issue (omit `identifier`) or update one (pass `identifier`, e.g. XEN-12). Only `title` is required to create. Setting status to `canceled` requires `cancelReason`. `labels` replaces the issue's labels. CREATE requires TWO declarations: (1) a dependency declaration — `blockedBy` (ids this d"
+    },
+    {
+      "name": "get_issue",
+      "descriptionHash": "8f6ff8940c9b1d67b50150c5e210b7234d0536c410173bb28cb319c1731ac07c",
+      "description": "Get one issue in full: body, status, priority, labels, relations, computed blocking (is it blocked, and by what), and its derived deadline surface (dueAt, effectiveDeadline, timeRemainingMs, slaState).",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "list_issues",
+      "descriptionHash": "d2f4a6c7b3b7feb3382903833d98125e13050920bae8545b0858998e83ed6ca2",
+      "description": "List issues in the project, compact (each includes its author + createdAt + derived deadline `slaState`). Defaults to active work (hides done/canceled). Filter by status (one or many), priority, label, author, or SLA state. Ordered priority-first (None last), recent tiebreak. Each issue carries `sla",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "save_comment",
+      "descriptionHash": "e97df217a2a325f88b0c7dda4721423d3f35234415ea1d51b859c0dee061b8e5",
+      "description": "Add a comment to an issue. Comments + activity are the agent's shared memory — record what you did and why.",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "list_comments",
+      "descriptionHash": "b240faf3f203347ced7f54199fbcb5baa73e45c6e4a1a88860e4b92c6465a738",
+      "description": "List an issue's comments in chronological (thread) order.",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "retract_comment",
+      "descriptionHash": "fb258a9e585688f1d42edb931e10268791bdbd78baa02e35075e2a5c4f96b90e",
+      "description": "Retract a comment (strike it through) instead of deleting — the text stays as memory. Requires a note explaining why it's no longer valid (shown un-struck)."
+    },
+    {
+      "name": "save_attachment",
+      "descriptionHash": "415a0beb8f7a23dc7c1e88f5b97e011acdc15d423ebf4613aec2b04302fed5d3",
+      "description": "Attach a link (URL) to an issue."
+    },
+    {
+      "name": "list_attachments",
+      "descriptionHash": "8c9b606c803e676575e8ced84911b36ca582eabec293f90c5e7eebf3ba95bef5",
+      "description": "List an issue's attachments (obsolete ones are flagged, not hidden).",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "get_attachment",
+      "descriptionHash": "cf14e5be4a79a1ddc2f8d53d1455f7f4edeb68eeb4a678908fe803ee9b005638",
+      "description": "Read one attachment by id."
+    },
+    {
+      "name": "obsolete_attachment",
+      "descriptionHash": "9de69ab3f7a3a46a1417361e8e9e6e39abf01e11481e2bf42f45d73a84a1f118",
+      "description": "Mark an attachment obsolete (the delete-equivalent) — keeps it as a record. Requires a reason.",
+      "labels": [
+        "private-data",
+        "destructive"
+      ]
+    },
+    {
+      "name": "add_relation",
+      "descriptionHash": "3308964b62ce9df42f7cf2b9bc046b780499e85af4fc11694e5402314dbc16d7",
+      "description": "Link two issues. type: blocks | blocked_by | related | duplicate. `blocks`/`blocked_by` form the dependency graph that drives blocking; dependency cycles are rejected."
+    },
+    {
+      "name": "remove_relation",
+      "descriptionHash": "d67551eb865f6aa01ea4c893cd4a8dab3fe3f53a8d25d29dac79de6785cb957a",
+      "description": "Remove a link between two issues (same args as add_relation).",
+      "labels": [
+        "destructive"
+      ]
+    },
+    {
+      "name": "save_label",
+      "descriptionHash": "c021ee0a2ab2aa581ad50f2d6c76743c28f7fa2d1dbc5d4abdd8753a199082a4",
+      "description": "Create or update a label (idempotent by name)."
+    },
+    {
+      "name": "list_labels",
+      "descriptionHash": "94dfab4dd3edb74ad6289d35b806e7616f5080d7ad8e01fca960b35a1024fe8d",
+      "description": "List all labels in the org with issue counts.",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "list_projects",
+      "descriptionHash": "bc89cafd2b070e88619d66d681bb605656c454e41627bcab5333a8578fa5fdcc",
+      "description": "List projects in the org (prefix, name, issue counter).",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "get_project",
+      "descriptionHash": "bf906e944ea829ebc4fc4b3242e3e43e63c26d6a97300b3463f54b6e150ded86",
+      "description": "Get a project and a breakdown of its issues by status. Defaults to the API key's project.",
+      "labels": [
+        "untrusted-content",
+        "private-data"
+      ]
+    },
+    {
+      "name": "mint_session_key",
+      "descriptionHash": "adc6650179443dc2034356ba5784157058b8e65a4aeef8dfa46a878da91abce3",
+      "description": "Mint a per-session API key bound to YOUR identity (same org/project/agent), distinctly labeled. The watchdog proxy calls this once at startup and uses the returned key, so concurrent sessions of one agent become distinguishable in queue_status/whoami. Same access as your key — no privilege change. T",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "list_connectors",
+      "descriptionHash": "80d394fe02d36acc081d37565a4d5c5948991e9845c582c051002a9b1fcbc6db",
+      "description": "List the org's intake connectors (e.g. GitHub Issues → Retasc issues, RTSC-189). Each row: provider, repo, target project, whether outbound sync-back is wired (hasToken), and created/revoked timestamps. METADATA ONLY — the inbound webhook secret and outbound GitHub token are NEVER returned. Read-onl",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "revoke_connector",
+      "descriptionHash": "e464360d31c9ae1922c8db796bd3d3bb116cea5dd5a85b1d8d30f347259e545c",
+      "description": "Disconnect an intake connector by id (from list_connectors). Marks it revoked so its inbound webhook stops syncing — that endpoint then answers 401. Revoke-don't-delete (the row stays, flagged), idempotent, org-scoped (only connectors in YOUR org; an unknown/other-org id is NOT_FOUND). To reconnect,",
+      "labels": [
+        "private-data",
+        "public-sink",
+        "destructive"
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOOL-POISON-006",
+      "severity": "low",
+      "category": "tool-poisoning",
+      "title": "Anomalously long tool description",
+      "detail": "Description of \"next_issue\" is 2045 chars, far longer than this server's median (215). Overlong descriptions are a common place to bury instructions.",
+      "evidence": {
+        "source": "tool:next_issue",
+        "snippet": "Pull the next issue to work on, project-scoped — atomically claims the highest-priority unblocked todo and returns it with a claim_token (status becomes 'doing'…"
+      },
+      "confidence": 0.4
+    },
+    {
+      "id": "MCP-TOOL-POISON-006",
+      "severity": "low",
+      "category": "tool-poisoning",
+      "title": "Anomalously long tool description",
+      "detail": "Description of \"claim_issue\" is 1149 chars, far longer than this server's median (215). Overlong descriptions are a common place to bury instructions.",
+      "evidence": {
+        "source": "tool:claim_issue",
+        "snippet": "Claim one specific issue by id (instead of letting next_issue pick). Fails if it's already held (active lease), not todo/doing, blocked, or non-work (work:false…"
+      },
+      "confidence": 0.4
+    },
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"list_connectors\" references sensitive artifacts (secret). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:list_connectors",
+        "snippet": "List the org's intake connectors (e.g. GitHub Issues → Retasc issues, RTSC-189). Each row: provider, repo, target project, whether outbound sync-back is wired (…"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"revoke_connector\" references sensitive artifacts (secret). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:revoke_connector",
+        "snippet": "Disconnect an intake connector by id (from list_connectors). Marks it revoked so its inbound webhook stops syncing — that endpoint then answers 401. Revoke-don'…"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: list_members, next_issue, check_claim, get_issue, list_issues, list_comments, list_attachments, list_labels, list_projects, get_project, list_connectors · Private data: whoami, retire_member, release_issue, checkpoint, billing_summary, save_comment, obsolete_attachment, get_project, mint_session_key, list_connectors, revoke_connector · Public sink: list_connectors, revoke_connector · Destructive: suspend_member, next_issue, next_batch, obsolete_attachment, remove_relation, revoke_connector.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: list_members, next_issue, check_claim, get_issue, list_issues, list_comments, list_attachments, list_labels, list_projects, get_project, list_connectors · Private data: whoami, retire_member, release_issue, checkpoint, billing_summary, save_comment, obsolete_attachment, get_project, mint_session_key, list_connectors, revoke_connector · Public sink: list_connectors, revoke_connector · Destructive: suspend_member, next_issue, next_batch, obsolete_attachment, remove_relation, revoke_connector"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 49,
+  "scoreBreakdown": {
+    "tool-poisoning": 31,
+    "toxic-flow": 20
+  },
+  "errors": []
+}

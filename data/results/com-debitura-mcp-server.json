@@ -100,4 +100,107 @@
     "tool-poisoning": 20
   },
   "errors": []
+} it: returns eligibility, the assigned collection partner, pricing (success fee), and any contracts that would need signing. Nothing is persisted. ALWAYS call this before create_case and show the user the pricing and requirements.",
+      "labels": [
+        "destructive"
+      ]
+    },
+    {
+      "name": "list_team_members",
+      "descriptionHash": "e39b9152e116e6f0889a0c7c154a3f86661924a43e092da3d0ebd7c8e8012b53",
+      "description": "List the team members on the creditor's Debitura account. Use this to resolve a valid sender (userId or email) before calling send_case_message, or a case owner for create_case.",
+      "labels": [
+        "untrusted-content",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "list_case_files",
+      "descriptionHash": "adda57f1fb7edd25966ef05c8c27b59715836deefc684e28885653e7d8843ec7",
+      "description": "List all documents attached to a case: file name, document type, description, upload date, and a time-limited SAS download URL. Each file also carries downloadUrlExpiresAt (UTC) — when the download URL stops working, so a cached URL can be refreshed in time. Use upload_case_file to attach new docume",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "get_account_summary",
+      "descriptionHash": "b75214859bc57a2ed857695974a3bad96800b9ef0ba80d708868e4fe752f7788",
+      "description": "Return a count of cases per lifecycle stage for the creditor's account. Useful for a quick portfolio overview without listing all cases. Stages: PendingContractSigning, PendingVerificationInternal, PendingVerification, NeedsAdditionalDetails, Leads, LeadsQuoteGiven, Active, Paused, Closed, Merged. N"
+    },
+    {
+      "name": "list_tasks",
+      "descriptionHash": "a714b4ef077302629b6e83d0450f50e670b1c8039ed923945f79a9eab9966412",
+      "description": "List every open task (action-item) across your whole account — things the platform needs you to do before a case (or your account) can proceed: reply to a chat, sign a contract, assign a bank account, and so on. Use get_case_tasks instead to scope this to one case.\n\nTasks auto-resolve once the under",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "get_case_tasks",
+      "descriptionHash": "f321afe437d36078d82f8eddd6a8cb7bea00d263790dde63fd8faf1d4d73ee1c",
+      "description": "List the open tasks (action-items) attached to one specific case — same data as list_tasks, scoped to a single case. Use this when you're already working a specific case and want just its outstanding tasks.\n\nNote: account-level tasks that aren't tied to any one case (e.g. SignContract, AssignBankAcc"
+    },
+    {
+      "name": "create_case",
+      "descriptionHash": "f295680fd5a1a9b519d5ed339d7e4efa81e41ba89af95ca48d7d7bda370a1e6b",
+      "description": "Submit a debt collection case to Debitura. This is a LEGAL AND FINANCIAL ACTION: a collection partner starts recovery against the debtor, and contractual fees apply on success.\n\nRequired workflow — never skip it:\n1. Call preview_case first and show the user the pricing, assigned partner, and any con",
+      "labels": [
+        "untrusted-content",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "upload_case_file",
+      "descriptionHash": "239ca3c96aa951bcc7e744f5af7af64700e0edd59357b69d274b39bc4d13decf",
+      "description": "Attach a document to a case (invoice copy, contract, correspondence, proof of delivery). Max 25 MB. Allowed extensions: .pdf, .xls, .xlsx, .csv, .txt, .jpg, .jpeg, .png, .gif. Provide the file content base64-encoded.",
+      "labels": [
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "send_case_message",
+      "descriptionHash": "3f960aa8e8c364eaa74745ae0ff2e1e0c931e0122b8d1cb7ae186de0884cda46",
+      "description": "Send a chat message on a case to the collection partner handling it. The partner is notified by email. The message is attributed to a named team member, so a sender is REQUIRED: pass the sender's userId or email from list_team_members. Ask the user who the message should be sent as if it is not obvi",
+      "labels": [
+        "public-sink"
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOOL-POISON-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description issues instructions to the model",
+      "detail": "Description of \"list_team_members\" contains imperative instructions directed at the AI assistant rather than describing the tool. This is the core tool-poisoning technique.",
+      "evidence": {
+        "source": "tool:list_team_members",
+        "snippet": "List the team members on the creditor's Debitura account. Use this to resolve a valid sender (userId or email) before calling send_case_message, or a case owner…"
+      },
+      "confidence": 0.7,
+      "remediation": "Treat the server as untrusted; the model may obey embedded instructions."
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: get_case_messages, get_case_contract_status, list_team_members, list_case_files, list_tasks, create_case · Private data: ping, get_case_contract_status, list_case_files, upload_case_file · Public sink: list_team_members, list_case_files, create_case, upload_case_file, send_case_message · Destructive: list_cases, preview_case.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: get_case_messages, get_case_contract_status, list_team_members, list_case_files, list_tasks, create_case · Private data: ping, get_case_contract_status, list_case_files, upload_case_file · Public sink: list_team_members, list_case_files, create_case, upload_case_file, send_case_message · Destructive: list_cases, preview_case"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 60,
+  "scoreBreakdown": {
+    "tool-poisoning": 20,
+    "toxic-flow": 20
+  },
+  "errors": []
 }

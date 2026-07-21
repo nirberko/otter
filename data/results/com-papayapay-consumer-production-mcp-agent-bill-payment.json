@@ -49,10 +49,63 @@
       "detail": "Description of \"analyze_bill\" contains imperative instructions directed at the AI assistant rather than describing the tool. This is the core tool-poisoning technique.",
       "evidence": {
         "source": "tool:analyze_bill",
+        "snippet": "Read a bill from the user's description and create it for payment. This is the first step. Capture every address ahave asked.\n    If analyze_bill reported a need for ext",
+      "labels": [
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "get_new_auth_token",
+      "descriptionHash": "edf2ed0d6f76eb1e19dd2fb33cb143f86d9638066de82192551b458c394954ab",
+      "description": "Get a fresh auth token when another tool fails with an authorization error. Pass\n    the user's current refresh_token; returns a new auth_token/refresh_token pair to use\n    on the retried call and on later calls. Call this only in response to an auth failure,\n    not preemptively.\n\n    Args:\n      ",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "fetch_bill_status",
+      "descriptionHash": "fd2bffa5abd9d1bbfee56dbfe8df1b137004e3903c4886dd6ab708045d881d95",
+      "description": "Check the payment status of a submitted bill. Read `value` for the current status.\n    statusEvaluatedDescription is only present when the payment was declined or failed,\n    and then explains why - relay that reason to the user. It is omitted for every other\n    status, so treat its presence as a d",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "request_bill_cancellation",
+      "descriptionHash": "a43af567269a3996628e13ff4385db665d485981e1d2553fe64b0d92cc46ce6c",
+      "description": "Cancel a submitted bill so it will not be paid. Use when the user wants to stop a\n    bill they submitted; cancellation may be rejected if the payment has already\n    progressed too far - relay any error to the user. Not for correcting bill details:\n    re-run analyze_bill for that.\n\n    Args:\n     ",
+      "labels": [
+        "private-data",
+        "destructive"
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOOL-POISON-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description issues instructions to the model",
+      "detail": "Description of \"analyze_bill\" contains imperative instructions directed at the AI assistant rather than describing the tool. This is the core tool-poisoning technique.",
+      "evidence": {
+        "source": "tool:analyze_bill",
         "snippet": "Read a bill from the user's description and create it for payment. This is the first step. Capture every address and identifier on the bill (remit-to address, a…"
       },
       "confidence": 0.7,
       "remediation": "Treat the server as untrusted; the model may obey embedded instructions."
+    },
+    {
+      "id": "MCP-TOOL-POISON-007",
+      "severity": "low",
+      "category": "tool-poisoning",
+      "title": "Description uses pressure/override language",
+      "detail": "Description of \"analyze_bill\" stacks urgency/override words (important, always, never). Legitimate tool descriptions rarely pressure the model to act or ignore prior guidance.",
+      "evidence": {
+        "source": "tool:analyze_bill",
+        "snippet": "Read a bill from the user's description and create it for payment. This is the first step. Capture every address and identifier on the bill (remit-to address, a…"
+      },
+      "confidence": 0.3
     },
     {
       "id": "MCP-TOOL-POISON-003",
@@ -89,11 +142,25 @@
         "snippet": "Cancel a submitted bill so it will not be paid. Use when the user wants to stop a bill they submitted; cancellation may be rejected if the payment has already p…"
       },
       "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: analyze_bill · Private data: analyze_bill, confirm_payment_intent, get_new_auth_token, fetch_bill_status, request_bill_cancellation · Public sink: confirm_payment_intent · Destructive: request_bill_cancellation.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: analyze_bill · Private data: analyze_bill, confirm_payment_intent, get_new_auth_token, fetch_bill_status, request_bill_cancellation · Public sink: confirm_payment_intent · Destructive: request_bill_cancellation"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
     }
   ],
-  "score": 63,
+  "score": 42,
   "scoreBreakdown": {
-    "tool-poisoning": 38
+    "tool-poisoning": 38,
+    "toxic-flow": 20
   },
   "errors": []
 }
