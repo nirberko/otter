@@ -8,8 +8,8 @@
     "kind": "url",
     "ref": "https://www.primitive.dev/mcp"
   },
-  "scannedAt": "2026-07-17T18:09:52.508Z",
-  "durationMs": 789,
+  "scannedAt": "2026-07-22T06:45:31.486Z",
+  "durationMs": 1404,
   "layers": {
     "metadata": true,
     "static": false
@@ -106,16 +106,16 @@
     },
     {
       "name": "sendEmail",
-      "descriptionHash": "ed62e5eae17d6bb2e98664bd50212c0268c020726cb4fb10e57109af0a853642",
-      "description": "Use this when the user has confirmed a new outbound email. Sends real email through Primitive's relay and can wait for the first SMTP delivery outcome.",
+      "descriptionHash": "a5b5d9942bde37ca00b9ce8f595c045d9ef444851b4bbaebde355bd6d6c3dd95",
+      "description": "Use this when the user has confirmed a new outbound email. Sends real email through Primitive's relay and can wait for the first SMTP delivery outcome, or schedule the send for a future time with scheduled_at.",
       "labels": [
         "public-sink"
       ]
     },
     {
       "name": "sendEmailDemo",
-      "descriptionHash": "a3c03ef837bd07664aed8155fdd23826cbb4132f0664b6489c33ae7c91e28f22",
-      "description": "Send a SIMULATED email with no account required. Validates the body against the exact same schema as sendEmail, then returns a realistic synthetic success envelope (demo: true) — it never actually sends, queues, or stores anything. Use this to let someone try Primitive and see the response shape bef",
+      "descriptionHash": "30f731ec54bc2cbb2eacc539250a66427bf5d95a76ed18530d8c8877e8758ec6",
+      "description": "Send a SIMULATED email with no account required. Validates the body against the exact same schema as sendEmail (including cc/bcc, reply_to, tags, attachments, and scheduled_at), then returns a realistic synthetic success envelope (demo: true); it never actually sends, queues, or stores anything. Dem",
       "labels": [
         "private-data",
         "public-sink"
@@ -136,6 +136,14 @@
       "labels": [
         "untrusted-content",
         "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "cancelScheduledSend",
+      "descriptionHash": "4eeecfdbf4e3d4e7f5d925f8ced6f9af95711f47c0da82878bff0db78499a7ff",
+      "description": "Cancel a still-scheduled send before it dispatches (terminal status \"canceled\"; the same idempotency key becomes reusable). Pass the sent email id from a sendEmail response that used scheduled_at, or from listSentEmails. Returns a conflict error once the send has already started dispatching.",
+      "labels": [
         "public-sink"
       ]
     },
@@ -265,18 +273,44 @@
       "severity": "high",
       "category": "toxic-flow",
       "title": "Lethal trifecta: untrusted input + private data + external sink",
-      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: getOutboundStatus, listEmails, listSentEmails, getSentEmail, awaitReply, getConversation, getThread, downloadEmailAttachments, listEndpoints, createEndpoint, listWebhookDeliveries · Private data: listDomains, addDomain, verifyDomain, downloadDomainZoneFile, getAccount, sendEmailDemo, getSentEmail, getThread · Public sink: addDomain, getAccount, getInboxStatus, getOutboundStatus, getEmail, replyToEmail, sendEmail, sendEmailDemo, getSentEmail, awaitReply, getConversation, getThread, downloadEmailAttachments, listEndpoints, createEndpoint, deleteEndpoint, testEndpoint, listWebhookDeliveries, replayWebhookDelivery · Destructive: downloadDomainZoneFile, deleteEndpoint, deleteFilter.",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: getOutboundStatus, listEmails, listSentEmails, getSentEmail, awaitReply, getConversation, getThread, downloadEmailAttachments, listEndpoints, createEndpoint, listWebhookDeliveries · Private data: listDomains, addDomain, verifyDomain, downloadDomainZoneFile, getAccount, sendEmailDemo, getSentEmail, getThread · Public sink: addDomain, getAccount, getInboxStatus, getOutboundStatus, getEmail, replyToEmail, sendEmail, sendEmailDemo, getSentEmail, cancelScheduledSend, awaitReply, getConversation, getThread, downloadEmailAttachments, listEndpoints, createEndpoint, deleteEndpoint, testEndpoint, listWebhookDeliveries, replayWebhookDelivery · Destructive: downloadDomainZoneFile, deleteEndpoint, deleteFilter.",
       "evidence": {
         "source": "server:mcp",
-        "snippet": "Untrusted content: getOutboundStatus, listEmails, listSentEmails, getSentEmail, awaitReply, getConversation, getThread, downloadEmailAttachments, listEndpoints, createEndpoint, listWebhookDeliveries · Private data: listDomains, addDomain, verifyDomain, downloadDomainZoneFile, getAccount, sendEmailDemo, getSentEmail, getThread · Public sink: addDomain, getAccount, getInboxStatus, getOutboundStatus, getEmail, replyToEmail, sendEmail, sendEmailDemo, getSentEmail, awaitReply, getConversation, getThread, downloadEmailAttachments, listEndpoints, createEndpoint, deleteEndpoint, testEndpoint, listWebhookDeliveries, replayWebhookDelivery · Destructive: downloadDomainZoneFile, deleteEndpoint, deleteFilter"
+        "snippet": "Untrusted content: getOutboundStatus, listEmails, listSentEmails, getSentEmail, awaitReply, getConversation, getThread, downloadEmailAttachments, listEndpoints, createEndpoint, listWebhookDeliveries · Private data: listDomains, addDomain, verifyDomain, downloadDomainZoneFile, getAccount, sendEmailDemo, getSentEmail, getThread · Public sink: addDomain, getAccount, getInboxStatus, getOutboundStatus, getEmail, replyToEmail, sendEmail, sendEmailDemo, getSentEmail, cancelScheduledSend, awaitReply, getConversation, getThread, downloadEmailAttachments, listEndpoints, createEndpoint, deleteEndpoint, testEndpoint, listWebhookDeliveries, replayWebhookDelivery · Destructive: downloadDomainZoneFile, deleteEndpoint, deleteFilter"
       },
       "confidence": 0.6,
       "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"sendEmail\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:sendEmail",
+        "snippet": "before: \"Use this when the user has confirmed a new outbound email. Sends real email through Primitive's relay and can wait for the first SMTP delivery outcome.\" → after: \"Use this when the user has confirmed a new outbound email. Sends real email through Primitive's relay and can wait for the first SMTP delivery outcome, or schedule the send for a future time with scheduled_at.\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"sendEmailDemo\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:sendEmailDemo",
+        "snippet": "before: \"Send a SIMULATED email with no account required. Validates the body against the exact same schema as sendEmail, then returns a realistic synthetic success envelope (demo: true) — it never actually sends, queues, or stores anything. Use this to let someone try Primitive and see the response shape bef\" → after: \"Send a SIMULATED email with no account required. Validates the body against the exact same schema as sendEmail (including cc/bcc, reply_to, tags, attachments, and scheduled_at), then returns a realistic synthetic success envelope (demo: true); it never actually sends, queues, or stores anything. Dem\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
     }
   ],
-  "score": 60,
+  "score": 45,
   "scoreBreakdown": {
-    "tool-poisoning": 20,
+    "tool-poisoning": 35,
     "toxic-flow": 20
   },
   "errors": []
