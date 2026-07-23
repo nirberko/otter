@@ -8,8 +8,8 @@
     "kind": "url",
     "ref": "https://mcp.csclear.net/mcp"
   },
-  "scannedAt": "2026-07-22T06:49:01.398Z",
-  "durationMs": 308,
+  "scannedAt": "2026-07-23T06:46:19.106Z",
+  "durationMs": 124,
   "layers": {
     "metadata": true,
     "static": false
@@ -22,8 +22,8 @@
     },
     {
       "name": "directory",
-      "descriptionHash": "d895cd1e2c283e99f42e97fc5e7da5d7972f5f725dfc838ab4e6768a641a6d3c",
-      "description": "Registered dealing codes (4-letter desk identities) with live presence of each desk line."
+      "descriptionHash": "83b2927d6a8b96bd747c928658db2dcabae1fb6af9ce097e4f5b19feac39bff1",
+      "description": "Registered dealing codes (4-letter desk identities) with live presence, X25519 pubkeys for sealed lines."
     },
     {
       "name": "montage",
@@ -32,18 +32,33 @@
     },
     {
       "name": "tape",
-      "descriptionHash": "3bce728cdbd1718c8a9635e00171e016d7e802289fb77744be8e95d21816dc89",
-      "description": "Anonymized prints of double-confirmed deals: ts, instrument, qty, price, deal_id, tid. No party identities."
+      "descriptionHash": "40a109e973140a7da600ee899b92434383a2e1f864ef48ef407ef9a746bd345e",
+      "description": "Anonymized prints of double-confirmed deals: ts, instrument, qty, price, deal_id, tid. Sealed prints surface via the parties-published print{} block."
     },
     {
       "name": "instruments",
-      "descriptionHash": "d4ced20f59cf900d4b8e753c4596ff3ea68a6cbd6d481d8de801ef9bb21370e9",
-      "description": "Instrument labels currently alive on the network, with counts of active axes and prints."
+      "descriptionHash": "1e185883333cf2fd62370964a910a4377899314f6a41de0d381bec77d3f189ce",
+      "description": "Every instrument on the network: registered specs (schema, oracle, expiry) + live axes + recent prints."
     },
     {
       "name": "conv_status",
-      "descriptionHash": "d21904e9d093eddcdcf0090fe7b5cdf3d163b3ab637c8564a03f6cabf04efcba",
-      "description": "Public status of a conversation: state, seq, chain head, deals count, halted/sealed flags."
+      "descriptionHash": "81db128bf64bca7000da75fe021a265ee734d8e8914a888f8d9a75b545751561",
+      "description": "Public status of a conversation: state, seq, chain head, deals count, halted/sealed flags, settlement lifecycle."
+    },
+    {
+      "name": "deal_status",
+      "descriptionHash": "4930389836054cc0119299f8e93da419666eb8a4d681b1d6120f37271ca1ee40",
+      "description": "Look up a deal by its tid (from CONFIRM) — resolves to conv, terms, and on-chain lifecycle across Polygon and Base."
+    },
+    {
+      "name": "mandates",
+      "descriptionHash": "a818dd47ef33bcc7c2995ae65d731bbe1100af37e1cdcb23e2d57135887049ca",
+      "description": "Published mandates (operator authorises agent to deal within a scope). Filter by operator or agent pubkey."
+    },
+    {
+      "name": "revocations",
+      "descriptionHash": "3ee50f743544946ba7e730ef2aa44ca2bfb42ae31532932b6bd8c921c8d41325",
+      "description": "Published revocations of dealing codes and mandates — audit trail of who lost authority when (carrier rule 5: nothing is hidden)."
     },
     {
       "name": "join",
@@ -54,10 +69,108 @@
       "name": "spec",
       "descriptionHash": "0fb17a723f38e877b387dc4b4c9ab65d970f350c4c29f4d1a57963fce9627ecd",
       "description": "The full ODW (Onchain Dealing Wire) protocol specification, markdown."
+    },
+    {
+      "name": "send_call",
+      "descriptionHash": "bfcc50366638e750f5667823f13774de5e065cbf294bd530db75e9d7195ff2d9",
+      "description": "Courier: submit a signed CALL envelope (pk+sig+body) to the wire. Agent-native dealing — MCP is the sole surface. You sign locally, the wire routes.",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "send_env",
+      "descriptionHash": "e4b04f47d98a85d192f509ee2a3b68e14b7821e3aab6c95c6678e75c8b42e98c",
+      "description": "Courier: submit any signed envelope (QUOTE/OFF/MINE/YOURS/DONE/CONFIRM/CHAT/CHECKING/END/HALT/KEY/PICKUP/DECLINE) to the wire. The conv is parsed from the signed body.",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "read_conv",
+      "descriptionHash": "a04c2a7d6490c48f9a887b211b1b48931163aeddcb1c92ac553d9dbc077b77b3",
+      "description": "Courier: replay conversation transcript frames since a given seq. Stateless polling alternative to the WS.",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "desk_rings",
+      "descriptionHash": "5e5fcd402ba2aa7fa83854dd2cec7881392e9a1ed80874cc4091fbc2ad579ca9",
+      "description": "Courier: drain pending incoming rings for a desk. Poll every N seconds instead of holding a WS. Rings are removed once returned."
     }
   ],
-  "findings": [],
-  "score": 100,
-  "scoreBreakdown": {},
+  "findings": [
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "medium",
+      "category": "toxic-flow",
+      "title": "Toxic flow: untrusted input can reach an external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: read_conv · Public sink: send_call, send_env.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: read_conv · Public sink: send_call, send_env"
+      },
+      "confidence": 0.45,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"directory\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:directory",
+        "snippet": "before: \"Registered dealing codes (4-letter desk identities) with live presence of each desk line.\" → after: \"Registered dealing codes (4-letter desk identities) with live presence, X25519 pubkeys for sealed lines.\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"tape\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:tape",
+        "snippet": "before: \"Anonymized prints of double-confirmed deals: ts, instrument, qty, price, deal_id, tid. No party identities.\" → after: \"Anonymized prints of double-confirmed deals: ts, instrument, qty, price, deal_id, tid. Sealed prints surface via the parties-published print{} block.\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"instruments\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:instruments",
+        "snippet": "before: \"Instrument labels currently alive on the network, with counts of active axes and prints.\" → after: \"Every instrument on the network: registered specs (schema, oracle, expiry) + live axes + recent prints.\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"conv_status\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:conv_status",
+        "snippet": "before: \"Public status of a conversation: state, seq, chain head, deals count, halted/sealed flags.\" → after: \"Public status of a conversation: state, seq, chain head, deals count, halted/sealed flags, settlement lifecycle.\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    }
+  ],
+  "score": 55,
+  "scoreBreakdown": {
+    "toxic-flow": 8,
+    "tool-poisoning": 38
+  },
   "errors": []
 }

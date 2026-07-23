@@ -8,8 +8,8 @@
     "kind": "url",
     "ref": "https://mcp.tweetfeed.live/"
   },
-  "scannedAt": "2026-07-18T06:22:52.570Z",
-  "durationMs": 229,
+  "scannedAt": "2026-07-23T06:43:13.811Z",
+  "durationMs": 110,
   "layers": {
     "metadata": true,
     "static": false
@@ -34,13 +34,13 @@
     },
     {
       "name": "check_ip",
-      "descriptionHash": "d3c84bdf6faea68259ed4e6706d1523d296357804bdbfcb41449dd2ed107c4e6",
-      "description": "Check whether an IP address appears in the TweetFeed corpus over the past 30 days. Useful for confirming if an observed IP has been flagged as attacker infrastructure (C2, scanner, phishing host) by the public infosec Twitter/X community. Substring match against the 'value' field of type=ip IOCs (so"
+      "descriptionHash": "2b296a1c70535dbf3727f5574d88a1434d3130c90a23c32adcdf0f2dc20009fb",
+      "description": "Check whether an IP address appears in the TweetFeed corpus. Exact match over the past 365 days (falls back to a 30-day substring window if there's no exact hit, so '1.2.3' will still match '1.2.3.4' there). Useful for confirming if an observed IP has been flagged as attacker infrastructure (C2, sca"
     },
     {
       "name": "check_hash",
-      "descriptionHash": "8f9c8b85f2c09c83191f188fad6e4a63d2f084d067fd07430e083950c4cd425b",
-      "description": "Check whether a file hash (MD5 or SHA-256) appears in the TweetFeed corpus over the past 30 days. Useful for confirming if a binary sample has been shared by the public infosec Twitter/X community. Hash type auto-detected from length (32 hex = MD5, 64 hex = SHA-256). Exact match on hex value, case-i",
+      "descriptionHash": "5470c511a611fb10b39417e44f78b7bf09a9e44ef57eb98d54656b7599b49911",
+      "description": "Check whether a file hash (MD5 or SHA-256) appears in the TweetFeed corpus. Exact match over the past 365 days (falls back to a 30-day window if there's no exact hit). Useful for confirming if a binary sample has been shared by the public infosec Twitter/X community. Hash type auto-detected from len",
       "labels": [
         "private-data"
       ]
@@ -57,8 +57,8 @@
     },
     {
       "name": "get_trending",
-      "descriptionHash": "807933f7683f027d24686e7b37d32659706ad3f6a0f7643e2325c69f1da22635",
-      "description": "Top tags and IOC-type distribution for a given time window, computed from the live counts.json aggregate. Useful for 'what is the infosec community talking about right now' or 'which malware family is spiking this week' queries. Source: https://raw.githubusercontent.com/0xDanielLopez/TweetFeed/maste"
+      "descriptionHash": "685017aae8ec8dbb2bf3ffa6ad029ed879bd072257dc05e55c33ea825a023da8",
+      "description": "Top tags and IOC-type distribution for a given time window, computed from the live counts.json aggregate. Useful for 'what is the infosec community talking about right now' or 'which malware family is spiking this week' queries. Source: GET https://api.tweetfeed.live/v1/counts (regenerated every 15 "
     },
     {
       "name": "enrich_ioc",
@@ -72,6 +72,14 @@
       "labels": [
         "untrusted-content"
       ]
+    },
+    {
+      "name": "get_trends",
+      "descriptionHash": "761af2da1cef0a231c8527bdab5de26b38f1be5ec3b9eacc7f51684dbdf2fbfa",
+      "description": "IOC trend analytics from the last 31 days: daily volume by type, top moving tags week-over-week, most-abused TLDs, new vs recurring indicator ratio, and feed producer concentration.",
+      "labels": [
+        "untrusted-content"
+      ]
     }
   ],
   "findings": [
@@ -80,18 +88,58 @@
       "severity": "high",
       "category": "toxic-flow",
       "title": "Lethal trifecta: untrusted input + private data + external sink",
-      "detail": "Server \"mcp.tweetfeed.live\" exposes tools that together enable an exfiltration flow. Untrusted content: check_url, get_campaigns · Private data: check_hash · Public sink: query_iocs, check_url.",
+      "detail": "Server \"mcp.tweetfeed.live\" exposes tools that together enable an exfiltration flow. Untrusted content: check_url, get_campaigns, get_trends · Private data: check_hash · Public sink: query_iocs, check_url.",
       "evidence": {
         "source": "server:mcp.tweetfeed.live",
-        "snippet": "Untrusted content: check_url, get_campaigns · Private data: check_hash · Public sink: query_iocs, check_url"
+        "snippet": "Untrusted content: check_url, get_campaigns, get_trends · Private data: check_hash · Public sink: query_iocs, check_url"
       },
       "confidence": 0.6,
       "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"check_ip\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:check_ip",
+        "snippet": "before: \"Check whether an IP address appears in the TweetFeed corpus over the past 30 days. Useful for confirming if an observed IP has been flagged as attacker infrastructure (C2, scanner, phishing host) by the public infosec Twitter/X community. Substring match against the 'value' field of type=ip IOCs (so\" → after: \"Check whether an IP address appears in the TweetFeed corpus. Exact match over the past 365 days (falls back to a 30-day substring window if there's no exact hit, so '1.2.3' will still match '1.2.3.4' there). Useful for confirming if an observed IP has been flagged as attacker infrastructure (C2, sca\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"check_hash\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:check_hash",
+        "snippet": "before: \"Check whether a file hash (MD5 or SHA-256) appears in the TweetFeed corpus over the past 30 days. Useful for confirming if a binary sample has been shared by the public infosec Twitter/X community. Hash type auto-detected from length (32 hex = MD5, 64 hex = SHA-256). Exact match on hex value, case-i\" → after: \"Check whether a file hash (MD5 or SHA-256) appears in the TweetFeed corpus. Exact match over the past 365 days (falls back to a 30-day window if there's no exact hit). Useful for confirming if a binary sample has been shared by the public infosec Twitter/X community. Hash type auto-detected from len\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"get_trending\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:get_trending",
+        "snippet": "before: \"Top tags and IOC-type distribution for a given time window, computed from the live counts.json aggregate. Useful for 'what is the infosec community talking about right now' or 'which malware family is spiking this week' queries. Source: https://raw.githubusercontent.com/0xDanielLopez/TweetFeed/maste\" → after: \"Top tags and IOC-type distribution for a given time window, computed from the live counts.json aggregate. Useful for 'what is the infosec community talking about right now' or 'which malware family is spiking this week' queries. Source: GET https://api.tweetfeed.live/v1/counts (regenerated every 15 \""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
     }
   ],
-  "score": 80,
+  "score": 45,
   "scoreBreakdown": {
-    "toxic-flow": 20
+    "toxic-flow": 20,
+    "tool-poisoning": 35
   },
   "errors": []
 }

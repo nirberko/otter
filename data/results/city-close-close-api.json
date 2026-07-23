@@ -1,0 +1,112 @@
+{
+  "schemaVersion": 1,
+  "scanner": {
+    "version": "1.6.0",
+    "rules": "402995650b68"
+  },
+  "target": {
+    "kind": "url",
+    "ref": "https://mcp.close.city/mcp"
+  },
+  "scannedAt": "2026-07-23T06:48:16.131Z",
+  "durationMs": 496,
+  "layers": {
+    "metadata": true,
+    "static": false
+  },
+  "tools": [
+    {
+      "name": "find_place",
+      "descriptionHash": "b54eeaf32601f8fc2f90e5af793de5b51689773682ba9945d3122e6a97e6b0ad",
+      "description": "Look up a US city or town by name (free, no key). Returns matches with their census place GEOID and centre point (lon/lat). The entry point: feed a GEOID to blocks_in_area, or a centre to walkability_summary."
+    },
+    {
+      "name": "get_catalog",
+      "descriptionHash": "d8913f526adb74c373c1cc0cf7760667b93c93c39a3c77ab885525736a40cb21",
+      "description": "List the travel modes and the destination-type taxonomy (free, no key). Use it to resolve type names to the numeric ids the other tools take. Modes are walk, bike, transit — there is no drive mode."
+    },
+    {
+      "name": "walkability_summary",
+      "descriptionHash": "0ad456a6b050a3189ad60232efd34260e0c6f95b219a91334b7cecf9a7c4f99d",
+      "description": "Fastest travel time from a location to each destination category, by mode (metered: ~1 token per returned row). Give either block_geoid or lat+lon. A missing category means it is not reachable within 30 minutes.",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "nearby_pois",
+      "descriptionHash": "0dead6a86a6211d1295ee755689b0ad49a458095149bcd5597641d77c01c2094",
+      "description": "Nearby points of interest and the travel time to each, from a location (metered: 1 token per returned row). Give block_geoid or lat+lon. Keep limit small to control spend and context size.",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "isochrone",
+      "descriptionHash": "167d1d1ef12c58bcbfb79b0067e1558d31004bcb6f127b80f017a7c17891b2af",
+      "description": "The area reachable from a location within a time budget, as GeoJSON contours (metered: 10 tokens per contour). Give block_geoid or lat+lon. Defaults to a single 30-minute contour; ask for more only when needed (bodies can be large).",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "blocks_in_area",
+      "descriptionHash": "5ed4a15b1ee705c8a7fb0adfed0fb80ed30e3ff005089014795040b1964cf3bd",
+      "description": "Per-block travel times for every census block in an area (metered: 1 token per returned row). Give place_geoid (from find_place) for a whole city, or center {lat, lon} + radius_m. Rows carry a numeric mode_id.",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "request_sign_in",
+      "descriptionHash": "57424e60fa6f3738807fea3692b0a2e7d0cb974a4df08c798fc826f8779c1837",
+      "description": "Start free sign-up for the user: email them a six-digit code. The user must read the code from their own inbox and give it to you, then call redeem_code. This is how an agent gets the user an API key (5,000 free tokens, no card).",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "redeem_code",
+      "descriptionHash": "922387b906ac9b538ffe9f629773a78657609ae6da52da3a4b076e00ba411622",
+      "description": "Complete sign-up with the six-digit code the user received, and return a new API key (shown once). Call request_sign_in first. The key grants 5,000 free tokens; store it and pass it as the Authorization bearer on future calls.",
+      "labels": [
+        "private-data"
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"redeem_code\" references sensitive artifacts (authorization, bearer). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:redeem_code",
+        "snippet": "Complete sign-up with the six-digit code the user received, and return a new API key (shown once). Call request_sign_in first. The key grants 5,000 free tokens;…"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: request_sign_in · Private data: walkability_summary, nearby_pois, isochrone, blocks_in_area, request_sign_in, redeem_code · Public sink: request_sign_in.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: request_sign_in · Private data: walkability_summary, nearby_pois, isochrone, blocks_in_area, request_sign_in, redeem_code · Public sink: request_sign_in"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 60,
+  "scoreBreakdown": {
+    "tool-poisoning": 20,
+    "toxic-flow": 20
+  },
+  "errors": []
+}
