@@ -1,0 +1,121 @@
+{
+  "schemaVersion": 1,
+  "scanner": {
+    "version": "1.6.0",
+    "rules": "402995650b68"
+  },
+  "target": {
+    "kind": "url",
+    "ref": "https://agenticfabricationnetwork.ai/mcp"
+  },
+  "scannedAt": "2026-07-24T06:47:37.420Z",
+  "durationMs": 931,
+  "layers": {
+    "metadata": true,
+    "static": false
+  },
+  "tools": [
+    {
+      "name": "get_fabrication_quote",
+      "descriptionHash": "672b4d4244c989ad8bdade3cc3d03e95a64bdb9acf3768218357f17cdc69a75d",
+      "description": "Get ranked, purchasable offers (price, ETA, preview image) for fabricating a physical item from a design file. process=fdm_print for 3D printing a model (STL/OBJ/PLY/3MF/AMF/STEP/IGES), process=cnc or process=sheetmetal for machined/bent metal parts (STEP, IGES, DXF), process=decal for stickers/deca",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "refine_quote",
+      "descriptionHash": "a5232a2979592270375a70f1ab843fc4e690393f4bbab25ae868a600c11c27cb",
+      "description": "Narrow an existing quote with new constraints (destination ZIP the user just provided, deadline, outdoor/waterproof/heat/food-safety requirements, budget, vendor reliability, verbatim requirements terms, drawing callouts, or a process filter — \"no, I meant in sheet metal\" → processes) — or CHANGE it"
+    },
+    {
+      "name": "create_checkout",
+      "descriptionHash": "aa210dd51e2bfc9cfe5e32536c9d6df2ec4f77467bd1ed145c4b2b4b39259ebf",
+      "description": "Create the order and get a hosted payment link for a chosen offer. Call this as soon as the user picks an offer + shipping speed — do NOT ask for their address first: the secure payment page collects the shipping address and email. Only pass address fields if the user already volunteered them. Retur",
+      "labels": [
+        "untrusted-content",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "get_order_status",
+      "descriptionHash": "fe551a08fa08dcaca08766ff317bf9f81f7261b957dd3c76881a8141bdcfa1a1",
+      "description": "Check status, ETA and tracking for a UFP order."
+    },
+    {
+      "name": "list_orders",
+      "descriptionHash": "3fce6e660d5259b9bfa5448ffe104bc32f6596c83aadf636d94bb85126e7f642",
+      "description": "List this agent's recent UFP orders (newest first): order id, what was made, vendor, status, total, ETA, created date. Use it to resolve vague references — \"my sticker order\", \"that order from 6 days ago\" — to a concrete order_id before calling get_order_status or leave_review."
+    },
+    {
+      "name": "leave_review",
+      "descriptionHash": "5bb1b5c3ba3f0d8dc69c0d91392b6513471b40d4979f954ee170a7d9a1a25b14",
+      "description": "Record the user's verified-purchase review of how a UFP order turned out. YOUR JOB IS TO STRUCTURE THE FEEDBACK: turn what the user actually said into stars (1-5 overall) and facet scores — \"the cut was sloppy\" -> quality, \"parts arrived 2 days late\" -> timeliness, \"wrong color\" -> accuracy. Keep th",
+      "labels": [
+        "private-data",
+        "public-sink"
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOOL-POISON-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description issues instructions to the model",
+      "detail": "Description of \"list_orders\" contains imperative instructions directed at the AI assistant rather than describing the tool. This is the core tool-poisoning technique.",
+      "evidence": {
+        "source": "tool:list_orders",
+        "snippet": "List this agent's recent UFP orders (newest first): order id, what was made, vendor, status, total, ETA, created date. Use it to resolve vague references — \"my …"
+      },
+      "confidence": 0.7,
+      "remediation": "Treat the server as untrusted; the model may obey embedded instructions."
+    },
+    {
+      "id": "MCP-TOOL-POISON-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description issues instructions to the model",
+      "detail": "Description of \"leave_review\" contains imperative instructions directed at the AI assistant rather than describing the tool. This is the core tool-poisoning technique.",
+      "evidence": {
+        "source": "tool:leave_review",
+        "snippet": "Record the user's verified-purchase review of how a UFP order turned out. YOUR JOB IS TO STRUCTURE THE FEEDBACK: turn what the user actually said into stars (1-…"
+      },
+      "confidence": 0.7,
+      "remediation": "Treat the server as untrusted; the model may obey embedded instructions."
+    },
+    {
+      "id": "MCP-TOOL-POISON-007",
+      "severity": "low",
+      "category": "tool-poisoning",
+      "title": "Description uses pressure/override language",
+      "detail": "Description of \"leave_review\" stacks urgency/override words (always, never). Legitimate tool descriptions rarely pressure the model to act or ignore prior guidance.",
+      "evidence": {
+        "source": "tool:leave_review",
+        "snippet": "Record the user's verified-purchase review of how a UFP order turned out. YOUR JOB IS TO STRUCTURE THE FEEDBACK: turn what the user actually said into stars (1-…"
+      },
+      "confidence": 0.3
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: get_fabrication_quote, create_checkout · Private data: get_fabrication_quote, leave_review · Public sink: get_fabrication_quote, create_checkout, leave_review.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: get_fabrication_quote, create_checkout · Private data: get_fabrication_quote, leave_review · Public sink: get_fabrication_quote, create_checkout, leave_review"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 49,
+  "scoreBreakdown": {
+    "tool-poisoning": 31,
+    "toxic-flow": 20
+  },
+  "errors": []
+}

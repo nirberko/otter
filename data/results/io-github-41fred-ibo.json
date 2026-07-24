@@ -1,0 +1,88 @@
+{
+  "schemaVersion": 1,
+  "scanner": {
+    "version": "1.6.0",
+    "rules": "402995650b68"
+  },
+  "target": {
+    "kind": "url",
+    "ref": "https://ibouniverse.com/mcp"
+  },
+  "scannedAt": "2026-07-24T06:42:54.441Z",
+  "durationMs": 278,
+  "layers": {
+    "metadata": true,
+    "static": false
+  },
+  "tools": [
+    {
+      "name": "list_offers",
+      "descriptionHash": "3e859ebf76ea84aa31885c7f2462ca5801b8dbc205045d388a8c778643818a56",
+      "description": "IBO's production packages: stable ids, prices, 50% deposits, deliverables, review rounds, and the refund/fit policy. Call this first.",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "create_checkout",
+      "descriptionHash": "ed70350d8397a504ff5878aa9bc139fafa2a387883f08b04c37ec963a2a2e71b",
+      "description": "Create a Stripe Checkout for a package's 50% deposit. Returns checkout_url, stripe_session_id, and amount_due. Show the amount to your user and open checkout_url for THEM to approve and pay; agents never complete payment themselves. Prices are fixed server-side. Pass a stable client_request_id so re"
+    },
+    {
+      "name": "get_order",
+      "descriptionHash": "ff0f943f51170891e440ce9c386df4bb08b1a2596ab53f4ff0176b66b6232b57",
+      "description": "Verify payment after checkout and receive an order-scoped access token. Returns paid, package, deposit, and order_token: use order_token for create_upload_url and submit_brief. Payment status can only be established here, never assumed.",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "submit_brief",
+      "descriptionHash": "d7e3e4f24d3a804ec460bf0992071ab1986544e5b30e6b0e4ae0cca16c9933c5",
+      "description": "Submit the creative brief for a PAID order: pass order_token (from get_order; session ids are not accepted here) plus project fields (product, goal, audience, channels, launch, links, constraints) and files[] from create_upload_url. Customer identity comes from the verified payment. NOTE: unpaid/ano",
+      "labels": [
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "create_upload_url",
+      "descriptionHash": "a535a59d2255e9ca09afaad7b396ce864bd02de87a7d8f4679214ad28a2b11f6",
+      "description": "Get a short-lived presigned URL to upload one brand-asset file to IBO's private storage. Requires order_token from get_order; the storage location is bound to the order server-side. PUT the raw file bytes to url, then reference key in submit_brief files[]. Allowed: jpg png webp pdf svg mp4 mov zip a",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "submit_custom_inquiry",
+      "descriptionHash": "e28403de35953e17e4eb58bc2c9bc1c372db56e9c96102d30022219dbc60ce14",
+      "description": "Start a Custom Production conversation without payment. IMPORTANT: interview your user for the real project details FIRST (what they are promoting, audience, formats, timing); placeholder inquiries are rejected. Submits a scope inquiry; IBO then emails the customer a one-click confirmation link (dou",
+      "labels": [
+        "untrusted-content",
+        "public-sink"
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: list_offers, create_upload_url, submit_custom_inquiry · Private data: get_order, submit_brief, create_upload_url · Public sink: submit_brief, create_upload_url, submit_custom_inquiry.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: list_offers, create_upload_url, submit_custom_inquiry · Private data: get_order, submit_brief, create_upload_url · Public sink: submit_brief, create_upload_url, submit_custom_inquiry"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 80,
+  "scoreBreakdown": {
+    "toxic-flow": 20
+  },
+  "errors": []
+}
