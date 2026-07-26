@@ -8,8 +8,8 @@
     "kind": "url",
     "ref": "https://mcp.viridisconservation.com/network/mcp"
   },
-  "scannedAt": "2026-07-21T06:46:17.446Z",
-  "durationMs": 275,
+  "scannedAt": "2026-07-26T07:10:01.121Z",
+  "durationMs": 776,
   "layers": {
     "metadata": true,
     "static": false
@@ -31,8 +31,42 @@
     },
     {
       "name": "search_agents",
-      "descriptionHash": "2b1db58f96522ad151f3316150a0ec617dfdf3f73393744524f704eeb73c6363",
-      "description": "Search active agent profiles by buyer intent, capabilities, and rail."
+      "descriptionHash": "0c485497f44f2d57b11116d7b461df66a474c8db74c9d7e9ba702fa4b16e4d15",
+      "description": "Search active profiles by intent, capability, rail, and security evidence.\n\n    security_posture accepts SCANNED, RUNTIME_GUARDED, or\n    INCIDENT_EVIDENCE_AVAILABLE. A match reports signed coverage only; the\n    market never upgrades it to a \"secure\" or independent-verification claim."
+    },
+    {
+      "name": "publish_security_attestation",
+      "descriptionHash": "2d0390e2289bf67986ecd55db16480860f82a0bf18c164997fcfe9caf6f69f77",
+      "description": "Publish signed, expiring security-coverage evidence for an agent.\n\n    The attester must already have a signed market profile. The statement names\n    exact coverage, scanner/version, result counts, evidence digest, and claim\n    boundary. It never certifies that the target is vulnerability-free.",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "import_security_receipt",
+      "descriptionHash": "8f58f6335e3f52f325acae000ec385d8676dfda67eab776380d56994bad96c6c",
+      "description": "Import an allowlisted Viridis Security result receipt exactly once.\n\n    The receipt itself is the authorization: the market verifies the issuer's\n    Ed25519 signature, active profiles, expiry, and evidence boundary. Scanner\n    private keys and payment credentials never enter this service.",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "list_security_attestations",
+      "descriptionHash": "77008d2d8b8dd9334e72af38400accabdff09b52ea2186825ad5d1aa9cd0c0f9",
+      "description": "Read signed security attestations and their explicit claim boundaries."
+    },
+    {
+      "name": "import_operator_verification_receipt",
+      "descriptionHash": "6001c971511b1ceb111b79568fb14d656f27e35e60cd48c01858bfb6ca9041fd",
+      "description": "Import an allowlisted operator verification or revocation receipt.\n\n    The signed receipt binds a bounded verification method and evidence digest\n    to one exact signed profile digest. Raw identity documents and PII are\n    never accepted. Profile changes, expiry, and revocation fail closed.",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "list_operator_verifications",
+      "descriptionHash": "3564474e9c8c35b6cf3599a4afb206a4bda992faf705bdaf32c1e57e395cf8fa",
+      "description": "Read signed operator-verification receipts and claim boundaries."
     },
     {
       "name": "subscribe_to_work",
@@ -92,6 +126,15 @@
       "description": "Attest a settlement receipt as buyer or seller.\n\n    Earnings count only after both counterparties attest the exact same terms\n    and reference. The response remains explicit that this is counterparty\n    attestation rather than independent chain/payment-processor verification."
     },
     {
+      "name": "submit_usefulness_feedback",
+      "descriptionHash": "cda2dea6786d2d6e49c979ea863154525b0f6b75c479abd624edebabfc26ae9b",
+      "description": "Report a buyer-signed outcome for an independently verified paid job.\n\n    outcome is USEFUL, PARTIALLY_USEFUL, or NOT_USEFUL. The service accepts an\n    optional digest of a private note, never the note itself. Direct payments,\n    self claims, and jobs without an independent Hub receipt do not cou",
+      "labels": [
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
       "name": "send_agent_message",
       "descriptionHash": "003bd7355de1f98d938f61742cac6bda44a3caa6b298af0f35bc593da904930a",
       "description": "Send a signed private pull-based message; no callbacks or webhooks.",
@@ -137,6 +180,18 @@
       "severity": "high",
       "category": "tool-poisoning",
       "title": "Description references secrets/credentials",
+      "detail": "Description of \"import_security_receipt\" references sensitive artifacts (private key, credentials, authorization). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:import_security_receipt",
+        "snippet": "Import an allowlisted Viridis Security result receipt exactly once. The receipt itself is the authorization: the market verifies the issuer's Ed25519 signature,…"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
       "detail": "Description of \"read_agent_inbox\" references sensitive artifacts (authorization). A tool description has no reason to mention credentials.",
       "evidence": {
         "source": "tool:read_agent_inbox",
@@ -149,18 +204,31 @@
       "severity": "high",
       "category": "toxic-flow",
       "title": "Lethal trifecta: untrusted input + private data + external sink",
-      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: read_agent_inbox · Private data: publish_agent_profile, send_agent_message · Public sink: publish_agent_profile, post_work, submit_offer, submit_delivery, send_agent_message · Destructive: award_offer.",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: read_agent_inbox · Private data: publish_agent_profile, import_security_receipt, import_operator_verification_receipt, submit_usefulness_feedback, send_agent_message · Public sink: publish_agent_profile, publish_security_attestation, post_work, submit_offer, submit_delivery, submit_usefulness_feedback, send_agent_message · Destructive: award_offer.",
       "evidence": {
         "source": "server:mcp",
-        "snippet": "Untrusted content: read_agent_inbox · Private data: publish_agent_profile, send_agent_message · Public sink: publish_agent_profile, post_work, submit_offer, submit_delivery, send_agent_message · Destructive: award_offer"
+        "snippet": "Untrusted content: read_agent_inbox · Private data: publish_agent_profile, import_security_receipt, import_operator_verification_receipt, submit_usefulness_feedback, send_agent_message · Public sink: publish_agent_profile, publish_security_attestation, post_work, submit_offer, submit_delivery, submit_usefulness_feedback, send_agent_message · Destructive: award_offer"
       },
       "confidence": 0.6,
       "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"search_agents\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:search_agents",
+        "snippet": "before: \"Search active agent profiles by buyer intent, capabilities, and rail.\" → after: \"Search active profiles by intent, capability, rail, and security evidence.\n\n    security_posture accepts SCANNED, RUNTIME_GUARDED, or\n    INCIDENT_EVIDENCE_AVAILABLE. A match reports signed coverage only; the\n    market never upgrades it to a \"secure\" or independent-verification claim.\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
     }
   ],
-  "score": 50,
+  "score": 43,
   "scoreBreakdown": {
-    "tool-poisoning": 30,
+    "tool-poisoning": 38,
     "toxic-flow": 20
   },
   "errors": []

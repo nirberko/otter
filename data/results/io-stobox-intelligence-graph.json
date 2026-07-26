@@ -1,0 +1,91 @@
+{
+  "schemaVersion": 1,
+  "scanner": {
+    "version": "1.6.0",
+    "rules": "402995650b68"
+  },
+  "target": {
+    "kind": "url",
+    "ref": "https://mcp.stobox.io/mcp"
+  },
+  "scannedAt": "2026-07-26T07:16:48.527Z",
+  "durationMs": 687,
+  "layers": {
+    "metadata": true,
+    "static": false
+  },
+  "tools": [
+    {
+      "name": "sig_semantic_search",
+      "descriptionHash": "b46c9ca7e6450c9e1290a072a5da33909408d49fa52a94cc16fa4bfbafabbcf7",
+      "description": "Search the Stobox Intelligence Graph for canonical answers, facts, and articles using GraphRAG (vector + relationship expansion). Use for any question about Stobox, tokenization, RWA, security tokens, Compass, STBX/STBU, or regulation.",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "sig_entity_lookup",
+      "descriptionHash": "76b656d36218cdfe2802583ceb4f0ebe58acad15fb8f2feea8bba649dfe4b054",
+      "description": "Look up one canonical Stobox entity by name or alias (e.g. 'STBX', 'Compass', 'ERC-3643', 'MiCA') and return its authoritative description, aliases, relationships, and source docs."
+    },
+    {
+      "name": "sig_graph_query",
+      "descriptionHash": "c4ad11ce218faaf359a49aca134237fa09c7308bb1ff4496af42f545e2e98ceb",
+      "description": "Return the graph neighborhood (connected entities and relation types) around a Stobox entity, 1–2 hops out."
+    },
+    {
+      "name": "sig_fact_check",
+      "descriptionHash": "7f68b7d6598001edba2f5b1ca5158a92d7d994ce0fa943fbc46394a2ff6a6a4c",
+      "description": "Fact-check a claim about Stobox against the CANONICAL knowledge graph before publishing it. Returns a verdict (contradicted / supported / no_contradiction_detected / unverifiable), any canon violations with corrections, and the canonical evidence. Content generators should call this on every factual"
+    },
+    {
+      "name": "sig_context_pack",
+      "descriptionHash": "27f2224ea1ce8afd2f1395c99ee2d98994c854085839702022a815e928112d53",
+      "description": "Assemble a prompt-ready context block (top passages + entity facts + source URLs) for a question. Use to ground an answer in canonical Stobox knowledge before responding."
+    },
+    {
+      "name": "sig_start_onboarding",
+      "descriptionHash": "9e9655505207557c88379ed93eab8f337e4112b9bf66b62c557d2a48db7c3f65",
+      "description": "Register the user's intent to START tokenizing a real-world asset with Stobox and hand off to the team. Call this ONLY when the user explicitly wants to BEGIN (not just learn), has told you what asset they want to tokenize, and consents to be contacted. Requires a contact email. Returns confirmation",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink"
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOOL-POISON-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description issues instructions to the model",
+      "detail": "Description of \"sig_context_pack\" contains imperative instructions directed at the AI assistant rather than describing the tool. This is the core tool-poisoning technique.",
+      "evidence": {
+        "source": "tool:sig_context_pack",
+        "snippet": "Assemble a prompt-ready context block (top passages + entity facts + source URLs) for a question. Use to ground an answer in canonical Stobox knowledge before r…"
+      },
+      "confidence": 0.7,
+      "remediation": "Treat the server as untrusted; the model may obey embedded instructions."
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: sig_start_onboarding · Private data: sig_semantic_search, sig_start_onboarding · Public sink: sig_start_onboarding.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: sig_start_onboarding · Private data: sig_semantic_search, sig_start_onboarding · Public sink: sig_start_onboarding"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 60,
+  "scoreBreakdown": {
+    "tool-poisoning": 20,
+    "toxic-flow": 20
+  },
+  "errors": []
+}

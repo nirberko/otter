@@ -1,0 +1,108 @@
+{
+  "schemaVersion": 1,
+  "scanner": {
+    "version": "1.6.0",
+    "rules": "402995650b68"
+  },
+  "target": {
+    "kind": "url",
+    "ref": "https://api.acuris-geo.com/mcp"
+  },
+  "scannedAt": "2026-07-26T07:13:08.384Z",
+  "durationMs": 1888,
+  "layers": {
+    "metadata": true,
+    "static": false
+  },
+  "tools": [
+    {
+      "name": "validate_address",
+      "descriptionHash": "2205c72efeea0834b4703acff0faf5a629709d2231c5de5d451bc973ce20ad45",
+      "description": "Validate and standardize one postal address (240+ countries; UK via the\n    official Royal Mail PAF with UDPRN + UPRN).\n\n    Give `country` as ISO-3 lowercase (e.g. usa, can, deu, gbr) plus EITHER a\n    free-text `address_line` OR fielded parts (street, house_number, city,\n    state, postcode). Retu"
+    },
+    {
+      "name": "validate_addresses_batch",
+      "descriptionHash": "3404886203922efbec3ee109f4bee9544aabfb597e65bd3bcb79ed4830ad0cd2",
+      "description": "Validate up to 50 addresses in one call (mixed countries allowed).\n\n    `addresses` is a list where each entry is either a free-text string, or an\n    object {\"input\": <string or fielded object>, \"country\": \"iso3\"}. Entries\n    without their own country use the `country` parameter. UK (gbr) rows are",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "enrich_us_ca_address",
+      "descriptionHash": "d28c55cf448bbcf474f054c3e4e5ec42a180b3d8f04126fa51a8ba706da9ccfb",
+      "description": "Address → census & geographic codes (USA + Canada), FREE with validation.\n\n    USA: state & county FIPS, census tract (11-digit GEOID), block group,\n    CBSA/MSA, congressional district (119th Congress), school district.\n    Canada: province, census division, dissemination area, census subdivision,\n"
+    },
+    {
+      "name": "geocode_address",
+      "descriptionHash": "a7ca099754b8cf88da8526d3e854253319d8ab538f1c945936acbce55429dbe8",
+      "description": "Forward-geocode an address to coordinates (lat/lng) with an explicit\n    accuracy_type (rooftop, street_interpolated, street_centroid,\n    postcode_centroid, locality_centroid) — you always know what you got.\n\n    `country` is ISO-3 lowercase. Give fielded parts or a single line in `q`.\n    For UK (",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "reverse_geocode",
+      "descriptionHash": "dd3a7deb19baeeb46f501369333539895afd05f50b7456b54123b27079c96150",
+      "description": "Coordinates → nearest address(es). Returns the closest reference\n    addresses to (lat, lng), nearest first, with distances.\n\n    Optional: `country` (ISO-3) to constrain the search, `radius_m`, `limit`.\n\n    Cost: 1 credit per successful lookup; an empty radius (no addresses found)\n    is refunded."
+    },
+    {
+      "name": "expand_uk_postcode",
+      "descriptionHash": "ea8f91ce692a271b33f1c88ad35c41138736ab845bc9933506f0786a05ea274f",
+      "description": "Expand a UK postcode into every Royal Mail delivery point at that\n    postcode — organisation, building, street, town, county, plus UDPRN, UPRN\n    and rooftop coordinates for each address.\n\n    Cost: 1 credit per postcode, regardless of how many addresses come back;\n    an unknown/invalid postcode "
+    },
+    {
+      "name": "check_balance",
+      "descriptionHash": "8ecaa46717d8a15275bd933054590f5c23186de30ecb37ddef64be3a0c64289f",
+      "description": "Show the connected API key's remaining credit balances (validation,\n    geocode, email, phone pools; trial expiry; the UK free-trial PAF counter\n    for trial keys). Free — never consumes credits.",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "request_trial_key",
+      "descriptionHash": "86dd8b9964c38c638e19002fc22e5cb8c3d3da93504f39f4615847d9c89f5329",
+      "description": "Get an instant FREE Acuris trial API key — 100 credits, valid 7 days,\n    no card, no signup form. Idempotent: asking again with the same email\n    within 24h returns the SAME key.\n\n    After receiving the key, reconfigure this MCP server connection with the\n    header \"Authorization: Bearer <key>\" ",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink"
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"request_trial_key\" references sensitive artifacts (api_key, authorization, bearer). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:request_trial_key",
+        "snippet": "Get an instant FREE Acuris trial API key — 100 credits, valid 7 days, no card, no signup form. Idempotent: asking again with the same email within 24h returns t…"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: check_balance, request_trial_key · Private data: validate_addresses_batch, check_balance, request_trial_key · Public sink: geocode_address, check_balance, request_trial_key.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: check_balance, request_trial_key · Private data: validate_addresses_batch, check_balance, request_trial_key · Public sink: geocode_address, check_balance, request_trial_key"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 60,
+  "scoreBreakdown": {
+    "tool-poisoning": 20,
+    "toxic-flow": 20
+  },
+  "errors": []
+}
