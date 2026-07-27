@@ -179,6 +179,34 @@
       "description": "List this account's jobs, newest first (summaries without the result blob).\n\n        Args: limit (1-200, default 50), offset (>=0), api_key. Returns {jobs:[{job_id,\n        status, stage, progress_pct, created_at, started_at, finished_at}], limit,\n        offset, total}. Errors: unauthorized, rate_l"
     },
     {
+      "name": "set_webhook",
+      "descriptionHash": "9f947944f62a94693f8a6f7d919d5e7c409a3bec95f61009a5bf889503244c17",
+      "description": "Register (or replace) this account's webhook; the secret is returned ONCE. Admin scope.\n\n        VHGENGINE POSTs signed job.succeeded/job.failed/credits.low (WP-M). `url` https, no\n        creds, public host; re-registering ROTATES the secret (a repeat call is not a no-op).\n        Verify via X-VHG-",
+      "labels": [
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "get_webhook",
+      "descriptionHash": "09e40d4856fa4d1c5a8333f525788b8bd1a67f8ef70ce991349bdc43d7bc1387",
+      "description": "This account's webhook (url + last delivery status; never the secret). Free read.\n\n        Args: api_key (read scope). Cost=free. Returns {url, created_at, last_delivery_status,\n        last_delivery_at, events}. Errors: unauthorized, not_found (none registered),\n        rate_limited.",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "delete_webhook",
+      "descriptionHash": "1205efc9f3a6dd7ffd56fcb676ff661076dd6cac8f727a98083ebcddfdf9626b",
+      "description": "Remove this account's webhook (WP-M). Admin scope.\n\n        Args: api_key (admin scope). Cost=free. Returns {deleted: true}. Errors: unauthorized,\n        forbidden, not_found (none registered), rate_limited.",
+      "labels": [
+        "public-sink",
+        "destructive"
+      ]
+    },
+    {
       "name": "list_webhook_deliveries",
       "descriptionHash": "6cea25730bd2ad5491fa31389edbf9d11618b76d162bc49859a4f4b4c76b8074",
       "description": "List this account's webhook deliveries, newest first. Free read (WP-HOOKS).\n\n        Verify your receiver end-to-end (a webhook.test ping is enqueued at registration) and\n        diagnose failures without waiting out a real event. Args: status (pending|retrying|\n        delivered|dead|retired), limi",
@@ -310,7 +338,7 @@
       "detail": "Description of \"score_hooks_batch\" references sensitive artifacts (api_key). A tool description has no reason to mention credentials.",
       "evidence": {
         "source": "tool:score_hooks_batch",
-        "snippet": "Score many hooks at once; get them ranked plus the `best`. 1 credit each. All-or-nothing charge. Args: texts (1-25, each 3-300), platform, tags (1-5 fleet slugs…"
+        "snippet": "Score many hooks ranked with `best`, or compare named SETS. 1 credit per text. All-or-nothing charge. Plain: texts (1-25, each 3-300 chars). Self-test (E13): co…"
       },
       "confidence": 0.65
     },
@@ -391,6 +419,42 @@
       "severity": "high",
       "category": "tool-poisoning",
       "title": "Description references secrets/credentials",
+      "detail": "Description of \"set_webhook\" references sensitive artifacts (secret, api_key). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:set_webhook",
+        "snippet": "Register (or replace) this account's webhook; the secret is returned ONCE. Admin scope. VHGENGINE POSTs signed job.succeeded/job.failed/credits.low (WP-M). `url…"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"get_webhook\" references sensitive artifacts (secret, api_key). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:get_webhook",
+        "snippet": "This account's webhook (url + last delivery status; never the secret). Free read. Args: api_key (read scope). Cost=free. Returns {url, created_at, last_delivery…"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"delete_webhook\" references sensitive artifacts (api_key). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:delete_webhook",
+        "snippet": "Remove this account's webhook (WP-M). Admin scope. Args: api_key (admin scope). Cost=free. Returns {deleted: true}. Errors: unauthorized, forbidden, not_found (…"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
       "detail": "Description of \"list_webhook_deliveries\" references sensitive artifacts (api_key). A tool description has no reason to mention credentials.",
       "evidence": {
         "source": "tool:list_webhook_deliveries",
@@ -427,51 +491,7 @@
       "severity": "high",
       "category": "toxic-flow",
       "title": "Lethal trifecta: untrusted input + private data + external sink",
-      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: signup, report_outcome, get_activity · Private data: signup, health, get_account, create_key, list_keys · Public sink: signup, create_checkout, delete_account, start_generate_job, list_webhook_deliveries, redrive_webhook_delivery · Destructive: revoke_key, delete_account, redrive_webhook_delivery, get_activity.",
-      "evidence": {
-        "source": "server:mcp",
-        "snippet": "Untrusted content: signup, report_outcome, get_activity · Private data: signup, health, get_account, create_key, list_keys · Public sink: signup, create_checkout, delete_account, start_generate_job, list_webhook_deliveries, redrive_webhook_delivery · Destructive: revoke_key, delete_account, redrive_webhook_delivery, get_activity"
-      },
-      "confidence": 0.6,
-      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
-    }
-  ],
-  "score": 26,
-  "scoreBreakdown": {
-    "tool-poisoning": 54,
-    "toxic-flow": 20
-  },
-  "errors": []
-}le": "Tool description changed since last scan",
-      "detail": "Tool \"score_hooks_batch\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
-      "evidence": {
-        "source": "tool:score_hooks_batch",
-        "snippet": "before: \"Score many hooks at once; get them ranked plus the `best`. 1 credit each.\n\n        All-or-nothing charge. Args: texts (1-25, each 3-300), platform, tags (1-5 fleet\n        slugs, WP-J), verbosity (applies to every result), api_key, idempotency_key.\n        Returns {results:[{text, score, verdict, ra\" → after: \"Score many hooks ranked with `best`, or compare named SETS. 1 credit per text.\n\n        All-or-nothing charge. Plain: texts (1-25, each 3-300 chars). Self-test (E13):\n        compare=true + sets (2-4 named lists, <=25 texts total) INSTEAD of texts -> per-set\n        rankings + avg_score + winner + a\""
-      },
-      "confidence": 0.8,
-      "remediation": "Re-review the tool before continuing to trust it."
-    },
-    {
-      "id": "MCP-RUGPULL-001",
-      "severity": "high",
-      "category": "tool-poisoning",
-      "title": "Tool description changed since last scan",
-      "detail": "Tool \"list_hooks\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
-      "evidence": {
-        "source": "tool:list_hooks",
-        "snippet": "before: \"List the hooks this account has bought, newest first. Free (WP-G).\n\n        Persisted hooks stay retrievable for 90 days. Args: mode (instant|smart|research|\n        remix), since (ISO timestamp), tag (exact fleet-tag match, WP-SCOPE), topic\n        (case-insensitive substring, WP-SCOPE), limit (1-1\" → after: \"List the hooks this account has bought, newest first. Free (WP-G).\n\n        Persisted hooks stay retrievable for 90 days. Args: mode (instant|smart|research|\n        remix), since (ISO timestamp), tag (exact fleet-tag match), topic (substring),\n        unreported (true: only hooks a first outcome re\""
-      },
-      "confidence": 0.8,
-      "remediation": "Re-review the tool before continuing to trust it."
-    }
-  ],
-  "score": 24,
-  "scoreBreakdown": {
-    "tool-poisoning": 56,
-    "toxic-flow": 20
-  },
-  "errors": []
-}, get_webhook, get_activity · Private data: signup, health, get_account, create_key, list_keys, set_webhook, get_webhook · Public sink: signup, create_checkout, delete_account, start_generate_job, set_webhook, get_webhook, delete_webhook, list_webhook_deliveries, redrive_webhook_delivery · Destructive: revoke_key, delete_account, delete_webhook, redrive_webhook_delivery, get_activity.",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: signup, report_outcome, get_webhook, get_activity · Private data: signup, health, get_account, create_key, list_keys, set_webhook, get_webhook · Public sink: signup, create_checkout, delete_account, start_generate_job, set_webhook, get_webhook, delete_webhook, list_webhook_deliveries, redrive_webhook_delivery · Destructive: revoke_key, delete_account, delete_webhook, redrive_webhook_delivery, get_activity.",
       "evidence": {
         "source": "server:mcp",
         "snippet": "Untrusted content: signup, report_outcome, get_webhook, get_activity · Private data: signup, health, get_account, create_key, list_keys, set_webhook, get_webhook · Public sink: signup, create_checkout, delete_account, start_generate_job, set_webhook, get_webhook, delete_webhook, list_webhook_deliveries, redrive_webhook_delivery · Destructive: revoke_key, delete_account, delete_webhook, redrive_webhook_delivery, get_activity"
