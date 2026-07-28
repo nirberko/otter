@@ -1,0 +1,92 @@
+{
+  "schemaVersion": 1,
+  "scanner": {
+    "version": "1.6.0",
+    "rules": "402995650b68"
+  },
+  "target": {
+    "kind": "url",
+    "ref": "https://mcp.creditcards.best"
+  },
+  "scannedAt": "2026-07-28T06:44:24.647Z",
+  "durationMs": 1055,
+  "layers": {
+    "metadata": true,
+    "static": false
+  },
+  "tools": [
+    {
+      "name": "search_cards",
+      "descriptionHash": "34a288eb28cc096b343e36d3b30c64c12b8c79f6460d43dc2278dc927f0c5dad",
+      "description": "Filter the US credit-card dataset by product type, rewards currency (program name or kind), issuer, annual fee, foreign-transaction fee, signup-bonus value, credit band, or curated category. Searches ONLY issuer-verified cards by default, because unverified stubs carry null for most filterable field"
+    },
+    {
+      "name": "get_card",
+      "descriptionHash": "a49e533987f1fa6e4e33bc9f8f00a16f11bbbdbf9801087fe1ad29a348969505",
+      "description": "Full detail for a single card by id (slug), including earn rates, credits, eligibility, sources and lastVerified. The apply link is our tracked redirect, not the issuer URL.",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "estimate_rewards",
+      "descriptionHash": "c67a1da1a0795427955c3446f25900ec18ea0abe3e7a83a206ed7e3ae7f3b104",
+      "description": "Given an annual spending profile (USD per category, e.g. { dining: 6000, groceries: 8000, travel: 4000, other: 20000 }), estimate each card's net rewards value and rank them. Net value = rewards earned on spend + first-year signup bonus − annual fee. Statement credits are reported separately (max va"
+    },
+    {
+      "name": "check_eligibility",
+      "descriptionHash": "5a23ea99043b3028121ec50a9d83a4aefa5d43b69dea12dfd961f96632fdb422",
+      "description": "Given a user's credit band (and optionally income), return cards they would typically qualify for, surfacing issuer application rules (e.g. Chase 5/24) and any income floor. Only cards that publish a credit requirement can be answered; cards with no published requirement are counted in `unknownCount",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "get_apply_link",
+      "descriptionHash": "d73c896a343263013dfe6553ea7f826fbc93805f8b9bbf01526dd66e060222de",
+      "description": "Return the apply link for a card. This is always a creditcards.best tracked redirect that records the referral and forwards to the issuer; the raw issuer URL is never returned.",
+      "labels": [
+        "untrusted-content",
+        "private-data"
+      ]
+    },
+    {
+      "name": "compare_cards",
+      "descriptionHash": "bd52da0e254108d9519d8daac5d7c396ef28953482900ccb758cd9be9a719b93",
+      "description": "Side-by-side detail for two or more cards by id: fees, foreign-transaction fee, signup bonus, earn rates, credits and eligibility. Apply links are tracked redirects."
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOOL-POISON-007",
+      "severity": "low",
+      "category": "tool-poisoning",
+      "title": "Description uses pressure/override language",
+      "detail": "Description of \"get_apply_link\" stacks urgency/override words (always, never). Legitimate tool descriptions rarely pressure the model to act or ignore prior guidance.",
+      "evidence": {
+        "source": "tool:get_apply_link",
+        "snippet": "Return the apply link for a card. This is always a creditcards.best tracked redirect that records the referral and forwards to the issuer; the raw issuer URL is…"
+      },
+      "confidence": 0.3
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp.creditcards.best\" exposes tools that together enable an exfiltration flow. Untrusted content: get_card, get_apply_link · Private data: get_apply_link · Public sink: check_eligibility.",
+      "evidence": {
+        "source": "server:mcp.creditcards.best",
+        "snippet": "Untrusted content: get_card, get_apply_link · Private data: get_apply_link · Public sink: check_eligibility"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 77,
+  "scoreBreakdown": {
+    "tool-poisoning": 3,
+    "toxic-flow": 20
+  },
+  "errors": []
+}

@@ -8,13 +8,34 @@
     "kind": "url",
     "ref": "https://api.flowcastle.ai/api/mcp"
   },
-  "scannedAt": "2026-07-25T06:32:41.269Z",
-  "durationMs": 1184,
+  "scannedAt": "2026-07-28T06:44:07.775Z",
+  "durationMs": 2226,
   "layers": {
     "metadata": true,
     "static": false
   },
   "tools": [
+    {
+      "name": "list_applications",
+      "descriptionHash": "ad8576d16bc35e8db37734483bb0f7d0a6f99ed045e748ff8231aa9cfa4362ec",
+      "description": "List the applications this API key can access, with the caller role and the permissions it grants. Start here when using a personal API key (usr_...): every other tool needs an explicit applicationId, which this tool supplies.",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "create_application",
+      "descriptionHash": "3ea5f91cb49a667286c5575603843317939d6b5368c0937d390b507da0d329dc",
+      "description": "Create a new application (workspace) owned by the caller. Requires a personal API key (usr_...) — application-scoped keys cannot create applications. Seeds default flows unless skipDefaultFlows is true.",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "update_application",
+      "descriptionHash": "0d733760129094d371045cfc9d4736c2b98c5aaa474ffa8c47154edeb311229f",
+      "description": "Update application-level settings (name, active state, default language, incoming-message behavior). Requires the manage_settings permission in that application."
+    },
     {
       "name": "get_workspace_summary",
       "descriptionHash": "62704851acce3b449005f32f282983657ddf2c9a9ac1e779e7d9d70cb93628e7",
@@ -39,6 +60,11 @@
       "name": "get_module_details",
       "descriptionHash": "141bfc0ea9648102dcddaecd3cba5bd01c804d2c267efcd4bd4cbe22d59158a1",
       "description": "Return full details for one selected module, including action input fields, trigger config, manual setup fields, and installed action references."
+    },
+    {
+      "name": "install_module",
+      "descriptionHash": "197203dc555547ba50db7e4e06e43595f8bed75a6618e2707f7b4e86e0a5fe16",
+      "description": "Install an exact marketplace module version into an application and create any missing installed-template actions. Requires the manage_automation permission. Call get_module_catalog first to select the module and version, then get_module_details after installation to inspect setup requirements and i"
     },
     {
       "name": "get_flow_context",
@@ -87,6 +113,15 @@
       "description": "Validate and apply a batch of flow-builder actions. Validation always runs first; when it fails, nothing is applied and the same errors validate_actions would return are reported. Call this directly — a separate validate_actions call beforehand is unnecessary."
     },
     {
+      "name": "send_message",
+      "descriptionHash": "32a070a3c82da2086f43716b33b3c99a87940fdce4519440ff445e7f4e0f2ee9",
+      "description": "Send a plain-text message to ONE contact right now, outside any flow. For reaching many contacts use a broadcast instead. Target the contact with contactId (globally unique — preferred), or with platformId (the platform-side id, e.g. the Telegram user id). platformId is NOT globally unique: it is un",
+      "labels": [
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
       "name": "list_broadcasts",
       "descriptionHash": "d5f6754fa6f8a581273ffc511f37697cd593a766fe3606b5ea065e5f2084d877",
       "description": "List broadcasts in the application, with status, schedule, and delivery counts. Supports filtering by status/bot/recurrence and pagination."
@@ -111,21 +146,34 @@
   ],
   "findings": [
     {
+      "id": "MCP-TOOL-POISON-006",
+      "severity": "low",
+      "category": "tool-poisoning",
+      "title": "Anomalously long tool description",
+      "detail": "Description of \"send_message\" is 905 chars, far longer than this server's median (139). Overlong descriptions are a common place to bury instructions.",
+      "evidence": {
+        "source": "tool:send_message",
+        "snippet": "Send a plain-text message to ONE contact right now, outside any flow. For reaching many contacts use a broadcast instead. Target the contact with contactId (glo…"
+      },
+      "confidence": 0.4
+    },
+    {
       "id": "MCP-TOXIC-FLOW-001",
       "severity": "high",
       "category": "toxic-flow",
       "title": "Lethal trifecta: untrusted input + private data + external sink",
-      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: get_broadcast_analytics · Private data: get_block_details · Public sink: get_broadcast_details, get_broadcast_analytics · Destructive: validate_actions.",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: get_broadcast_analytics · Private data: list_applications, create_application, get_block_details, send_message · Public sink: send_message, get_broadcast_details, get_broadcast_analytics · Destructive: validate_actions.",
       "evidence": {
         "source": "server:mcp",
-        "snippet": "Untrusted content: get_broadcast_analytics · Private data: get_block_details · Public sink: get_broadcast_details, get_broadcast_analytics · Destructive: validate_actions"
+        "snippet": "Untrusted content: get_broadcast_analytics · Private data: list_applications, create_application, get_block_details, send_message · Public sink: send_message, get_broadcast_details, get_broadcast_analytics · Destructive: validate_actions"
       },
       "confidence": 0.6,
       "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
     }
   ],
-  "score": 80,
+  "score": 77,
   "scoreBreakdown": {
+    "tool-poisoning": 3,
     "toxic-flow": 20
   },
   "errors": []

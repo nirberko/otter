@@ -164,6 +164,54 @@
     },
     {
       "name": "domain_check",
+      "descriptionHash": "a41ebf79ea36a18198374206c85f4a5538b3bce703e56be4a6074573a380ddb0059ec67525eea2f5ed1c663",
+      "description": "Read SMS messages received on a phone number you own. Costs 0.02 USDC, paid per-action via x402.",
+      "labels": [
+        "untrusted-content",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "wait_for_otp",
+      "descriptionHash": "34dc328a6e6f197c84118534d8f4c19662178b2fbb20b5024a0d8871d59eb6aa",
+      "description": "Wait for an SMS verification code / OTP to arrive on a Palmyr phone number you own, and return the parsed code. Blocks up to timeout_s (default 60, max 90) checking every ~2s — one call replaces hand-rolled polling of phone_read_messages during account signups and 2FA flows. Messages that arrived up",
+      "labels": [
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "phone_temp_number",
+      "descriptionHash": "95a9febae0df8fa2b04c18d5710becc1f067811fb004dfae45291dddfb7147ed",
+      "description": "Lease a cheap, instant, receive-only US phone number from a pool to receive one SMS verification code — the phone analogue of a disposable temp email inbox. $0.20 for 30 min (ttl_seconds, clamped 300–1800), returned to the pool at expiry; call wait_for_otp to catch the code. Good for one-time SMS ve",
+      "labels": [
+        "untrusted-content",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "phone_extend_temp",
+      "descriptionHash": "f86f229b3f007e14829ab619fd3ad477fd747e75ec34d446afde72eae2ee5ed4",
+      "description": "Rent another 30 minutes on a live disposable temp number — each call pushes expires_at 30 min further (stackable up to 24h total lease). Owner-only; expired temp leases cannot be revived (lease a fresh one via phone_temp_number). Costs 0.20 USDC, paid per-action via x402."
+    },
+    {
+      "name": "twitter_post",
+      "descriptionHash": "5cdf4c64b90b04e3996d8a24d9ea3e4aa2c6744f03da55be209b088cfbae8c0c",
+      "description": "Post a tweet from an X account you control (via injected session cookies). Costs 0.001 USDC, paid per-action via x402.",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "tiktok_post",
+      "descriptionHash": "f56d55e4d349578cf53a3ef53e27db1a1b2c55321cdcc1fd93790f8f20d37caa",
+      "description": "Post a video to a TikTok account you control (from video_base64 or video_url). Async: returns an operation to poll. Costs 0.01 USDC, paid per-action via x402.",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "domain_check",
       "descriptionHash": "a41ebf79ea36a18198374206c85f4a5538b3bce703e56be4a6074573aeca796e",
       "description": "Check domain availability and per-TLD pricing. Pass a full domain (example.com) or a bare name to scan popular TLDs. Free — no payment required."
     },
@@ -186,6 +234,18 @@
   ],
   "findings": [
     {
+      "id": "MCP-TOOL-POISON-006",
+      "severity": "low",
+      "category": "tool-poisoning",
+      "title": "Anomalously long tool description",
+      "detail": "Description of \"wait_for_otp\" is 918 chars, far longer than this server's median (144). Overlong descriptions are a common place to bury instructions.",
+      "evidence": {
+        "source": "tool:wait_for_otp",
+        "snippet": "Wait for an SMS verification code / OTP to arrive on a Palmyr phone number you own, and return the parsed code. Blocks up to timeout_s (default 60, max 90) chec…"
+      },
+      "confidence": 0.4
+    },
+    {
       "id": "MCP-TOOL-POISON-003",
       "severity": "high",
       "category": "tool-poisoning",
@@ -202,18 +262,18 @@
       "severity": "high",
       "category": "toxic-flow",
       "title": "Lethal trifecta: untrusted input + private data + external sink",
-      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: email_read_messages, phone_read_messages · Private data: card_get, card_list, email_create_inbox, email_read_messages, domain_register, compute_deploy · Public sink: email_create_inbox, email_send, email_read_messages, phone_buy_number, phone_send_sms, phone_read_messages, twitter_post, tiktok_post · Destructive: palmyr_capabilities.",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: email_create_temp, email_read_messages, phone_read_messages, phone_temp_number · Private data: card_get, card_list, email_create_inbox, email_create_temp, email_read_messages, wait_for_otp, domain_register, compute_deploy · Public sink: email_create_inbox, email_create_temp, email_extend_temp, email_send, email_read_messages, phone_buy_number, phone_send_sms, phone_read_messages, wait_for_otp, phone_temp_number, twitter_post, tiktok_post · Destructive: palmyr_capabilities.",
       "evidence": {
         "source": "server:mcp",
-        "snippet": "Untrusted content: email_read_messages, phone_read_messages · Private data: card_get, card_list, email_create_inbox, email_read_messages, domain_register, compute_deploy · Public sink: email_create_inbox, email_send, email_read_messages, phone_buy_number, phone_send_sms, phone_read_messages, twitter_post, tiktok_post · Destructive: palmyr_capabilities"
+        "snippet": "Untrusted content: email_create_temp, email_read_messages, phone_read_messages, phone_temp_number · Private data: card_get, card_list, email_create_inbox, email_create_temp, email_read_messages, wait_for_otp, domain_register, compute_deploy · Public sink: email_create_inbox, email_create_temp, email_extend_temp, email_send, email_read_messages, phone_buy_number, phone_send_sms, phone_read_messages, wait_for_otp, phone_temp_number, twitter_post, tiktok_post · Destructive: palmyr_capabilities"
       },
       "confidence": 0.6,
       "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
     }
   ],
-  "score": 60,
+  "score": 59,
   "scoreBreakdown": {
-    "tool-poisoning": 20,
+    "tool-poisoning": 22,
     "toxic-flow": 20
   },
   "errors": []
