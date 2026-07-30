@@ -177,4 +177,393 @@
     "toxic-flow": 20
   },
   "errors": []
+}.g. the Telegram user id). platformId is NOT globally unique: it is un",
+      "labels": [
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "list_broadcasts",
+      "descriptionHash": "5368a6c23ae2756f573b80c7adebd6cc0aa3f33a0be499ae783c907756b2b337",
+      "description": "List broadcasts in the application with status, schedule, and delivery counts. Read-only. Filters combine as AND. Note that delivery counts report messages attempted, not confirmed deliveries. Use get_broadcast_details for one broadcast's full breakdown.",
+      "labels": [
+        "untrusted-content",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "get_broadcast_details",
+      "descriptionHash": "9da053bbc08a3811854671e095cf833156fe9b6a2860d976d6ab494b5327a0ac",
+      "description": "Return full details for a single broadcast: status, schedule, recurrence rule, linked flow, and delivery breakdown by status. Read-only. Call list_broadcasts first to find the broadcastId. For per-message-block engagement stats use get_broadcast_analytics instead.",
+      "labels": [
+        "untrusted-content",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "get_broadcast_analytics",
+      "descriptionHash": "03018e686173c9144ead51416aeefe3afb0bc73c0ed532969b821c80250da060",
+      "description": "Return engagement analytics for a broadcast: delivery breakdown by status plus per-message-block sent and clicked counts for its flow, over an optional date window. Read-only. Sent counts reflect messages attempted, not confirmed deliveries.",
+      "labels": [
+        "untrusted-content",
+        "public-sink"
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"get_variable_context\" references sensitive artifacts (secret). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:get_variable_context",
+        "snippet": "Search variable definitions by scope and keyword. Read-only. Returns { variables, total, returned, truncated } — compare returned against total to detect a cut-…"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"get_module_details\" references sensitive artifacts (credentials). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:get_module_details",
+        "snippet": "Return everything needed to use one module: action input fields and their types, trigger configuration, manual setup fields (credentials an operator must fill i…"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"install_module\" references sensitive artifacts (credentials). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:install_module",
+        "snippet": "Install an exact marketplace module version into an application and create any missing installed-template actions. Requires the manage_automation permission. Ca…"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOOL-POISON-007",
+      "severity": "low",
+      "category": "tool-poisoning",
+      "title": "Description uses pressure/override language",
+      "detail": "Description of \"apply_actions\" stacks urgency/override words (always, never). Legitimate tool descriptions rarely pressure the model to act or ignore prior guidance.",
+      "evidence": {
+        "source": "tool:apply_actions",
+        "snippet": "Validate and apply a batch of flow-builder actions — the single write path for editing flows, blocks, variables, broadcasts, sequences, and folders. Call this d…"
+      },
+      "confidence": 0.3
+    },
+    {
+      "id": "MCP-TOOL-POISON-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description issues instructions to the model",
+      "detail": "Description of \"send_message\" contains imperative instructions directed at the AI assistant rather than describing the tool. This is the core tool-poisoning technique.",
+      "evidence": {
+        "source": "tool:send_message",
+        "snippet": "Send a plain-text message to ONE contact right now, outside any flow. For reaching many contacts use a broadcast instead. Target the contact with contactId (glo…"
+      },
+      "confidence": 0.7,
+      "remediation": "Treat the server as untrusted; the model may obey embedded instructions."
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: list_broadcasts, get_broadcast_details, get_broadcast_analytics · Private data: list_applications, create_application, get_variable_context, get_module_details, install_module, get_block_details, get_action_schema, get_design_guidelines, search_flow_examples, get_flow_example, apply_actions, send_message · Public sink: get_block_details, apply_actions, send_message, list_broadcasts, get_broadcast_details, get_broadcast_analytics · Destructive: install_module, validate_actions, apply_actions.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: list_broadcasts, get_broadcast_details, get_broadcast_analytics · Private data: list_applications, create_application, get_variable_context, get_module_details, install_module, get_block_details, get_action_schema, get_design_guidelines, search_flow_examples, get_flow_example, apply_actions, send_message · Public sink: get_block_details, apply_actions, send_message, list_broadcasts, get_broadcast_details, get_broadcast_analytics · Destructive: install_module, validate_actions, apply_actions"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"list_applications\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:list_applications",
+        "snippet": "before: \"List the applications this API key can access, with the caller role and the permissions it grants. Start here when using a personal API key (usr_...): every other tool needs an explicit applicationId, which this tool supplies.\" → after: \"List the applications this API key can access, with the caller role and the permissions it grants. Start here when using a personal API key (usr_...): every other tool needs an explicit applicationId, which this tool supplies. Read-only, takes no arguments. Returns an array of { id, name, role, perm\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"create_application\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:create_application",
+        "snippet": "before: \"Create a new application (workspace) owned by the caller. Requires a personal API key (usr_...) — application-scoped keys cannot create applications. Seeds default flows unless skipDefaultFlows is true.\" → after: \"Create a new application (workspace) owned by the caller. Requires a personal API key (usr_...) — application-scoped keys cannot create applications. Seeds default flows unless skipDefaultFlows is true. Creates persistent state and is NOT idempotent: calling it twice creates two applications. Return\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"update_application\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:update_application",
+        "snippet": "before: \"Update application-level settings (name, active state, default language, incoming-message behavior). Requires the manage_settings permission in that application.\" → after: \"Update application-level settings (name, active state, default language, incoming-message behavior). Requires the manage_settings permission in that application. Only the fields you pass are changed; omitted fields keep their current value, so the call is idempotent. Returns the updated application.\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"get_workspace_summary\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:get_workspace_summary",
+        "snippet": "before: \"Return compact application, flow, and bot summary without variables or full graph details.\" → after: \"Return a compact application, flow, sequence, operation, and bot summary — the cheapest way to orient in a workspace. Read-only, no side effects. Deliberately omits variables and full flow graphs: use get_variable_context for variables, get_flow_context for a flow's topology, and get_application_con\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"get_variable_context\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:get_variable_context",
+        "snippet": "before: \"Search variables by scope/query. Values are omitted unless includeValues is true.\" → after: \"Search variable definitions by scope and keyword. Read-only. Returns { variables, total, returned, truncated } — compare returned against total to detect a cut-off result set and re-call with a higher limit. Values are withheld unless includeValues is true; variables marked secret stay redacted eith\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"get_application_context\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:get_application_context",
+        "snippet": "before: \"Return application-level automation context: flows, bots, and variables.\" → after: \"Return the full application-level automation context in one read-only call: every flow (with folders), connected bots, variables, sequences, and operations. This is the broad orientation call — prefer get_workspace_summary when you only need names and counts, since this response grows with workspace\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"get_module_catalog\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:get_module_catalog",
+        "snippet": "before: \"Return a compact installed and marketplace module index with names, descriptions, actions, and triggers.\" → after: \"Return a compact index of both installed and available marketplace modules, with each module's key, versions, description, actions, and triggers. Read-only. Start here when you need a capability the core action kinds do not cover; then call get_module_details for the exact input fields of one module\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"get_module_details\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:get_module_details",
+        "snippet": "before: \"Return full details for one selected module, including action input fields, trigger config, manual setup fields, and installed action references.\" → after: \"Return everything needed to use one module: action input fields and their types, trigger configuration, manual setup fields (credentials an operator must fill in the dashboard), and references to already-installed actions. Read-only. Call get_module_catalog first to obtain moduleKey, and call this a\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"install_module\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:install_module",
+        "snippet": "before: \"Install an exact marketplace module version into an application and create any missing installed-template actions. Requires the manage_automation permission. Call get_module_catalog first to select the module and version, then get_module_details after installation to inspect setup requirements and i\" → after: \"Install an exact marketplace module version into an application and create any missing installed-template actions. Requires the manage_automation permission. Call get_module_catalog first to select the module and version, then get_module_details after installation to inspect setup requirements and i\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"get_flow_context\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:get_flow_context",
+        "snippet": "before: \"Return compact flow graph topology and block summaries without full block data or action configs.\" → after: \"Return one flow's graph topology: its blocks, how they link, and a short summary per block. Read-only. Deliberately omits block data and action configs to stay cheap — once you know which block matters, call get_block_details for its full contents. This is the normal first step before editing an exi\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"get_block_details\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:get_block_details",
+        "snippet": "before: \"Return full details for one selected block, including block data, action configs, HTTP bodies, custom code files, triggers, menu payloads, and media paths.\" → after: \"Return the complete contents of one block: block data, action configs, HTTP request bodies, custom-code files, triggers, menu payloads, and media paths. Read-only. This is the heaviest read in the API — call get_flow_context first to find the block you need rather than walking a flow block by block.\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"get_action_schema\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:get_action_schema",
+        "snippet": "before: \"Return supported action kinds and important invariants for draft/apply flow edits.\" → after: \"Return the action-authoring contract: every supported action kind with its required fields, the placeholder ids for referencing entities created earlier in the same batch, the `{{var|...}}` / `{{sysvar|...}}` / `{{out|...}}` reference syntax, and the creatable block types. Read-only, takes no argume\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"get_design_guidelines\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:get_design_guidelines",
+        "snippet": "before: \"Return shared flow-design guidance and examples used by both AI prompt assembly and MCP consumers.\" → after: \"Return the flow-design rules that validation does NOT enforce: when to split a branch into its own flow, how navigation and menus must be wired, and worked examples. Read-only, takes no arguments, and needs no API key. Read this before any structural edit (new blocks, new branches, new flows) — a ba\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"search_flow_examples\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:search_flow_examples",
+        "snippet": "before: \"Search compact reusable flow examples by keyword or tag for common business cases.\" → after: \"Search the library of reusable flow examples covering common business cases (lead capture, onboarding, payments, reminders). Read-only, needs no API key. Returns compact matches — id, title, summary, tags — with no flow body; pass an id to get_flow_example for the full example. Calling it with no ar\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"get_flow_example\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:get_flow_example",
+        "snippet": "before: \"Return one reusable flow example by id, optionally including its full action-batch schema example.\" → after: \"Return one reusable flow example by id, optionally with a complete action batch you can adapt and pass to apply_actions. Read-only, needs no API key. Call search_flow_examples first to find the id.\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"validate_actions\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:validate_actions",
+        "snippet": "before: \"Dry-run validation of a proposed batch of flow-builder actions without mutating state. OPTIONAL: apply_actions runs this same validation itself and applies nothing when invalid, so calling validate_actions first is redundant — use it only to check a draft you do not intend to apply yet.\" → after: \"Dry-run validation of a proposed batch of flow-builder actions. Mutates nothing and is safe to repeat. OPTIONAL: apply_actions runs this exact validation itself and applies nothing when invalid, so calling validate_actions first is redundant — use it only to check a draft you do not intend to apply \""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"apply_actions\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:apply_actions",
+        "snippet": "before: \"Validate and apply a batch of flow-builder actions. Validation always runs first; when it fails, nothing is applied and the same errors validate_actions would return are reported. Call this directly — a separate validate_actions call beforehand is unnecessary.\" → after: \"Validate and apply a batch of flow-builder actions — the single write path for editing flows, blocks, variables, broadcasts, sequences, and folders. Call this directly; a separate validate_actions call beforehand is unnecessary. DESTRUCTIVE: the batch may include delete_block, delete_link, delete_fl\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"send_message\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:send_message",
+        "snippet": "before: \"Send a plain-text message to ONE contact right now, outside any flow. For reaching many contacts use a broadcast instead. Target the contact with contactId (globally unique — preferred), or with platformId (the platform-side id, e.g. the Telegram user id). platformId is NOT globally unique: it is un\" → after: \"Send a plain-text message to ONE contact right now, outside any flow. For reaching many contacts use a broadcast instead. Target the contact with contactId (globally unique — preferred), or with platformId (the platform-side id, e.g. the Telegram user id). platformId is NOT globally unique: it is un\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"list_broadcasts\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:list_broadcasts",
+        "snippet": "before: \"List broadcasts in the application, with status, schedule, and delivery counts. Supports filtering by status/bot/recurrence and pagination.\" → after: \"List broadcasts in the application with status, schedule, and delivery counts. Read-only. Filters combine as AND. Note that delivery counts report messages attempted, not confirmed deliveries. Use get_broadcast_details for one broadcast's full breakdown.\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"get_broadcast_details\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:get_broadcast_details",
+        "snippet": "before: \"Return full details for a single broadcast: status, schedule, recurrence, linked flow, and delivery breakdown by status.\" → after: \"Return full details for a single broadcast: status, schedule, recurrence rule, linked flow, and delivery breakdown by status. Read-only. Call list_broadcasts first to find the broadcastId. For per-message-block engagement stats use get_broadcast_analytics instead.\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"get_broadcast_analytics\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:get_broadcast_analytics",
+        "snippet": "before: \"Return analytics/stats for a broadcast: delivery breakdown by status plus per-message-block sent/clicked stats for its flow over an optional date window.\" → after: \"Return engagement analytics for a broadcast: delivery breakdown by status plus per-message-block sent and clicked counts for its flow, over an optional date window. Read-only. Sent counts reflect messages attempted, not confirmed deliveries.\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    }
+  ],
+  "score": 16,
+  "scoreBreakdown": {
+    "tool-poisoning": 64,
+    "toxic-flow": 20
+  },
+  "errors": []
 }

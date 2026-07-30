@@ -1,0 +1,101 @@
+{
+  "schemaVersion": 1,
+  "scanner": {
+    "version": "1.6.0",
+    "rules": "402995650b68"
+  },
+  "target": {
+    "kind": "url",
+    "ref": "https://core-api.gvrn.ai/incorporation-mcp"
+  },
+  "scannedAt": "2026-07-30T06:44:49.029Z",
+  "durationMs": 3096,
+  "layers": {
+    "metadata": true,
+    "static": false
+  },
+  "tools": [
+    {
+      "name": "get_incorporation_guide",
+      "descriptionHash": "cec182be113058afa52fbc9c5a1f8282ff6757cc933122a36a45c836d872f342",
+      "description": "Returns the full GVRN incorporation workflow guide: the fields collected, the email-verification steps, and the review lifecycle. Also available as the MCP resource gvrn://incorporation/guide.",
+      "labels": [
+        "untrusted-content",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "request_email_otp",
+      "descriptionHash": "2082399c692fdfc21cf4846b36f735177f5786377aeb23493630c5e8acda9c9b",
+      "description": "Sends a 6-digit verification code to the given email address. The code is exchanged for a verificationToken via verify_email_otp, and that token authorizes the draft tools. Codes expire after 10 minutes and are rate-limited per email.",
+      "labels": [
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "verify_email_otp",
+      "descriptionHash": "8c9fcde754cf1f598ff939fd85f20a0af8bdf1cf9e7c0ec31b2a39e2580b9fba",
+      "description": "Verifies a 6-digit email code and returns a verificationToken valid for ~30 minutes. The draft tools require this token. Re-verifying the same email issues a fresh token that still reaches the same drafts.",
+      "labels": [
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "create_incorporation_draft",
+      "descriptionHash": "9a5ce8b1efa59d1d0e3ec562e5b1850b518b53b035fe1850b31f68bb9fbd7f11",
+      "description": "Creates a new incorporation request draft bound to the verified email, using any fields provided. Requires a verificationToken from verify_email_otp; every other field is optional. Returns a draftId that identifies the draft for later updates, submission, and status checks.",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "update_incorporation_draft",
+      "descriptionHash": "fa65a53a4a778659a60d641fac4df07396be68616ee3446ca06b0f002e5b8b9e",
+      "description": "Adds or corrects fields on an existing draft (patch semantics: only provided fields are changed; array fields are replaced whole). Requires a verificationToken for the email that created the draft. Fails once the draft has been submitted.",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "submit_incorporation",
+      "descriptionHash": "4a3bf8ae82f21e1cf8ed4698b3553b5e5e6e4c07e1fed1856e85a0b2f1853311",
+      "description": "Submits a draft for review by the GVRN team and returns the request status. Requires a verificationToken for the email that created the draft, which becomes the contact for the request. Optional fields may be left blank. Irreversible: the draft becomes read-only and a review request is filed with th",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "get_incorporation_status",
+      "descriptionHash": "b61e62b9eeadf76082e99369d8ad761a1bac21cae0775ce585dde1ec19a29c48",
+      "description": "Returns the current status of an incorporation request (DRAFT → QUEUED_FOR_REVIEW → UNDER_REVIEW → COMPLETED). Requires a verificationToken for the email that created the draft; requests are only visible to that email.",
+      "labels": [
+        "untrusted-content",
+        "public-sink"
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"incorporation-mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: get_incorporation_guide, submit_incorporation, get_incorporation_status · Private data: request_email_otp, verify_email_otp, submit_incorporation · Public sink: get_incorporation_guide, request_email_otp, verify_email_otp, create_incorporation_draft, update_incorporation_draft, submit_incorporation, get_incorporation_status.",
+      "evidence": {
+        "source": "server:incorporation-mcp",
+        "snippet": "Untrusted content: get_incorporation_guide, submit_incorporation, get_incorporation_status · Private data: request_email_otp, verify_email_otp, submit_incorporation · Public sink: get_incorporation_guide, request_email_otp, verify_email_otp, create_incorporation_draft, update_incorporation_draft, submit_incorporation, get_incorporation_status"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 80,
+  "scoreBreakdown": {
+    "toxic-flow": 20
+  },
+  "errors": []
+}

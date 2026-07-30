@@ -8,8 +8,8 @@
     "kind": "url",
     "ref": "https://free-sign.com/mcp"
   },
-  "scannedAt": "2026-07-17T18:09:26.972Z",
-  "durationMs": 224,
+  "scannedAt": "2026-07-30T06:45:10.614Z",
+  "durationMs": 197,
   "layers": {
     "metadata": true,
     "static": false
@@ -41,8 +41,13 @@
     },
     {
       "name": "get_ots_proof",
-      "descriptionHash": "dd64e95bdbf7797165acb3e12035c2652bd5b557b2a93eb37cdd588e680547e8",
-      "description": "Return the .ots proof (base64) for a given OpenTimestamps anchor on an envelope. Use the official `ots-cli` to verify offline against Bitcoin block headers."
+      "descriptionHash": "cd8f4e177ec877bca842c16fba607a0b11a423deba24f9442a87f11128d23413",
+      "description": "Return the .ots proof (base64) for a given OpenTimestamps anchor on an envelope. Use the official `ots-cli` to verify offline against Bitcoin block headers. Each seal has two anchors: `kind: \"byterange\"` commits to the signed document, `kind: \"signed_attrs\"` commits to SHA-256 of the CMS SignedAttri",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink"
+      ]
     },
     {
       "name": "verify_audit_chain",
@@ -50,8 +55,38 @@
       "description": "Return an envelope's append-only audit-event hash chain together with a server-computed integrity verdict: every event_hash is recomputed from its canonical material, and the prev_event_hash linkage and per-envelope seq contiguity are checked. Evidence only, never PDF bytes. The raw events are inclu"
     }
   ],
-  "findings": [],
-  "score": 100,
-  "scoreBreakdown": {},
+  "findings": [
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: get_ots_proof · Private data: verify_document_hash, get_receipt, get_ots_proof · Public sink: create_signing_envelope, get_ots_proof.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: get_ots_proof · Private data: verify_document_hash, get_receipt, get_ots_proof · Public sink: create_signing_envelope, get_ots_proof"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"get_ots_proof\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:get_ots_proof",
+        "snippet": "before: \"Return the .ots proof (base64) for a given OpenTimestamps anchor on an envelope. Use the official `ots-cli` to verify offline against Bitcoin block headers.\" → after: \"Return the .ots proof (base64) for a given OpenTimestamps anchor on an envelope. Use the official `ots-cli` to verify offline against Bitcoin block headers. Each seal has two anchors: `kind: \"byterange\"` commits to the signed document, `kind: \"signed_attrs\"` commits to SHA-256 of the CMS SignedAttri\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    }
+  ],
+  "score": 60,
+  "scoreBreakdown": {
+    "toxic-flow": 20,
+    "tool-poisoning": 20
+  },
   "errors": []
 }
