@@ -8,8 +8,8 @@
     "kind": "url",
     "ref": "https://mcp.tableall.com/sse"
   },
-  "scannedAt": "2026-07-23T06:42:58.329Z",
-  "durationMs": 2408,
+  "scannedAt": "2026-07-31T07:17:56.955Z",
+  "durationMs": 1891,
   "layers": {
     "metadata": true,
     "static": false
@@ -33,7 +33,61 @@
     {
       "name": "check_availability",
       "descriptionHash": "b12e896a5eee67f15e53411617b212b748d2026980078eaeea193304e148f81b",
-      "description": "Check real-time availability for one specific restaurant within a date range. Returns all openings for that restaurant; it does not contains imperative instructions directed at the AI assistant rather than describing the tool. This is the core tool-poisoning technique.",
+      "description": "Check real-time availability for one specific restaurant within a date range. Returns all openings for that restaurant; it does not filter by time of day.\n\nUse when you already know which restaurant the user wants. If the user is browsing across multiple restaurants in a region or cuisine, use searc"
+    },
+    {
+      "name": "search_available_restaurants",
+      "descriptionHash": "811b3427cb473913aa9acd0f7da48ceaac7927b0a52f16f2b7e4cbcb3428d9b3",
+      "description": "Search across multiple restaurants for availability within a date range. Returns restaurants that have openings, filterable by prefecture, area, genre, and party size.\n\nUse when the user does not yet have a specific restaurant in mind and is browsing or filtering by region or cuisine. If the user al",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "get_cancellation_policies",
+      "descriptionHash": "0cf04f396b3f97f33fbb2d3a59544795b61495e27bd43587cab337f49290bcf0",
+      "description": "Read-only: retrieve a restaurant's cancellation policy. This tool only reads policy data; it does not cancel or modify any reservation. Safe to call repeatedly.\n\nUse when the user asks about the cancellation policy, refund terms, or no-show fee, or before calling create_reservation or create_reserva",
+      "labels": [
+        "untrusted-content",
+        "destructive"
+      ]
+    },
+    {
+      "name": "create_reservation",
+      "descriptionHash": "08f8a95d93dbfb45ddf2ca40f538722098efed6a21bb50ebe4edb56328790160",
+      "description": "Create a direct reservation for a specific available opening (opening_id required).\n\nUse after check_availability has returned an opening and the user has chosen which opening_id to book. If check_availability returned no openings, use create_reservation_request instead.\n\nFlow (summary — see resourc",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "get_reservation_status",
+      "descriptionHash": "97c01d50be1f26844dd94aef786cee34f44c6b3866dd5745f5226345cff06421",
+      "description": "Check the status of a reservation by session ID.\n\nRequires the access_token that was returned in the create_reservation response.\nYou MUST have stored the access_token from the create response to use this tool.\nWithout a valid access_token, the API will return 403 Forbidden.\n\nIMPORTANT - PRICE DISPL"
+    },
+    {
+      "name": "create_reservation_request",
+      "descriptionHash": "2c8969c11bdf5cb39fdca601a669da9301f39ea98b87c5b4bc4d0d192487a655",
+      "description": "Submit a reservation request for a selected restaurant, dates, time range, and party size. Use after check_availability or search_available_restaurants has been run and the user confirms they want to submit a request.\n\nUse this when the user prefers dates or times other than the available openings, ",
+      "labels": [
+        "untrusted-content",
+        "public-sink",
+        "destructive"
+      ]
+    },
+    {
+      "name": "get_reservation_request_status",
+      "descriptionHash": "69633af63a5bbd321deb53448535f54f2e0c6415bf3c7a8be6b530eeb5008806",
+      "description": "Check the status of a reservation request by session ID.\n\nRequires the access_token that was returned in the create_reservation_request response.\nYou MUST have stored the access_token from the create response to use this tool.\nWithout a valid access_token, the API will return 403 Forbidden.\n\nIMPORTA"
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOOL-POISON-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description issues instructions to the model",
+      "detail": "Description of \"get_cancellation_policies\" contains imperative instructions directed at the AI assistant rather than describing the tool. This is the core tool-poisoning technique.",
       "evidence": {
         "source": "tool:get_cancellation_policies",
         "snippet": "Read-only: retrieve a restaurant's cancellation policy. This tool only reads policy data; it does not cancel or modify any reservation. Safe to call repeatedly.…"
@@ -50,78 +104,6 @@
       "evidence": {
         "source": "tool:create_reservation",
         "snippet": "Create a direct reservation for a specific available opening (opening_id required). Use after check_availability has returned an opening and the user has chosen…"
-      },
-      "confidence": 0.7,
-      "remediation": "Treat the server as untrusted; the model may obey embedded instructions."
-    },
-    {
-      "id": "MCP-TOOL-POISON-003",
-      "severity": "high",
-      "category": "tool-poisoning",
-      "title": "Description references secrets/credentials",
-      "detail": "Description of \"create_reservation\" references sensitive artifacts (password, access_token). A tool description has no reason to mention credentials.",
-      "evidence": {
-        "source": "tool:create_reservation",
-        "snippet": "Create a direct reservation for a specific available opening (opening_id required). Use after check_availability has returned an opening and the user has chosen…"
-      },
-      "confidence": 0.65
-    },
-    {
-      "id": "MCP-TOOL-POISON-003",
-      "severity": "high",
-      "category": "tool-poisoning",
-      "title": "Description references secrets/credentials",
-      "detail": "Description of \"get_reservation_status\" references sensitive artifacts (access_token). A tool description has no reason to mention credentials.",
-      "evidence": {
-        "source": "tool:get_reservation_status",
-        "snippet": "Check the status of a reservation by session ID. Requires the access_token that was returned in the create_reservation response. You MUST have stored the access…"
-      },
-      "confidence": 0.65
-    },
-    {
-      "id": "MCP-TOOL-POISON-001",
-      "severity": "high",
-      "category": "tool-poisoning",
-      "title": "Description issues instructions to the model",
-      "detail": "Description of \"create_reservation_request\" contains imperative instructions directed at the AI assistant rather than describing the tool. This is the core tool-poisoning technique.",
-      "evidence": {
-        "source": "tool:create_reservation_request",
-        "snippet": "Submit a reservation request for a selected restaurant, dates, time range, and party size. Use after check_availability or search_available_restaurants has been…"
-      },
-      "confidence": 0.7,
-      "remediation": "Treat the server as untrusted; the model may obey embedded instructions."
-    },
-    {
-      "id": "MCP-TOOL-POISON-003",
-      "severity": "high",
-      "category": "tool-poisoning",
-      "title": "Description references secrets/credentials",
-      "detail": "Description of \"create_reservation_request\" references sensitive artifacts (password, access_token). A tool description has no reason to mention credentials.",
-      "evidence": {
-        "source": "tool:create_reservation_request",
-        "snippet": "Submit a reservation request for a selected restaurant, dates, time range, and party size. Use after check_availability or search_available_restaurants has been…"
-      },
-      "confidence": 0.65
-    },
-    {
-      "id": "MCP-TOOL-POISON-003",
-      "severity": "high",
-      "category": "tool-poisoning",
-      "title": "Description references secrets/credentials",
-      "detail": "Description of \"get_reservation_request_status\" references sensitive artifacts (access_token). A tool description has no reason to mention credentials.",
-      "evidence": {
-        "source": "tool:get_reservation_request_status",
-        "snippet": "Check the status of a reservation request by session ID. Requires the access_token that was returned in the create_reservation_request response. You MUST have s…"
-      },
-      "confidence": 0.65
-    }
-  ],
-  "score": 59,
-  "scoreBreakdown": {
-    "tool-poisoning": 41
-  },
-  "errors": []
-}urned an opening and the user has chosen…"
       },
       "confidence": 0.7,
       "remediation": "Treat the server as untrusted; the model may obey embedded instructions."

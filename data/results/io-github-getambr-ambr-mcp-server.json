@@ -1,15 +1,15 @@
 {
   "schemaVersion": 1,
   "scanner": {
-    "version": "1.0.0",
-    "rules": "19f6a1b4a518"
+    "version": "1.6.0",
+    "rules": "402995650b68"
   },
   "target": {
     "kind": "url",
     "ref": "https://getamber.dev/api/mcp"
   },
-  "scannedAt": "2026-07-16T16:37:09.822Z",
-  "durationMs": 331,
+  "scannedAt": "2026-07-31T07:25:39.934Z",
+  "durationMs": 506,
   "layers": {
     "metadata": true,
     "static": false
@@ -17,31 +17,89 @@
   "tools": [
     {
       "name": "ambr_list_templates",
-      "descriptionHash": "d36a05f429e57571074e6323c5a5107ea9b213a3040f947f1ec6ddcb403770ed"
+      "descriptionHash": "d36a05f429e57571074e6323c5a5107ea9b213a3040f947f1ec6ddcb403770ed",
+      "description": "List available contract templates on Ambr.\n\nReturns all active Ricardian Contract templates with their slugs, names, descriptions,\ncategories, parameter schemas, and pricing. Use this to discover which templates are\navailable before creating a contract with ambr_create_contract.\n\nNo authentication r",
+      "labels": [
+        "destructive"
+      ]
     },
     {
       "name": "ambr_create_contract",
-      "descriptionHash": "1130446bd0cfe9c13a63bf83c1f0b3606a1e5e779e5bf7cc98cc96940e71835b"
+      "descriptionHash": "df9fa65d7a0ddb6b6cf31e6807cb88d526a61cd7ec96b28370dd4fb33595cdc4",
+      "description": "Generate a Ricardian Contract from a template.\n\nCreates a dual-format contract (human-readable legal text + machine-parsable JSON)\nusing AI, linked by SHA-256 hash. The contract is stored on Ambr and accessible\nvia the Reader Portal.\n\nRequires a valid API key (X-API-Key header on the HTTP request) w",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink",
+        "destructive"
+      ]
     },
     {
       "name": "ambr_get_contract",
-      "descriptionHash": "b2347e7664c0beb921081e1693639f00f67453b872fe7050615f9f8fd0b54f4f"
+      "descriptionHash": "b2347e7664c0beb921081e1693639f00f67453b872fe7050615f9f8fd0b54f4f",
+      "description": "Retrieve a contract by ID, SHA-256 hash, or UUID.\n\nWith a valid API key (contract creator): returns the full contract including\nhuman-readable text, machine-readable JSON, status, and principal declaration.\nWithout authentication: returns metadata only (contract_id, status, hash, dates).\n\nSupports t",
+      "labels": [
+        "private-data",
+        "destructive"
+      ]
     },
     {
       "name": "ambr_get_contract_status",
-      "descriptionHash": "8806abdc9a4d5a011bcf21e9614bb14b98c818687a1a1229f22b356c2a31f861"
+      "descriptionHash": "8806abdc9a4d5a011bcf21e9614bb14b98c818687a1a1229f22b356c2a31f861",
+      "description": "Check the status of a contract and its amendment chain.\n\nReturns the current status and any linked amendments (parent or child contracts).\nUseful for verifying if a contract is active, amended, or terminated.\n\nArgs:\n  - id (string, required): Contract ID, SHA-256 hash, or UUID\n\nReturns:\n  - contract",
+      "labels": [
+        "destructive"
+      ]
     },
     {
       "name": "ambr_verify_hash",
-      "descriptionHash": "2f659fc71fb20d9009b0fb1efee50eb2fc6f3c7223348413bf4e11872cb8c117"
+      "descriptionHash": "2f659fc71fb20d9009b0fb1efee50eb2fc6f3c7223348413bf4e11872cb8c117",
+      "description": "Verify a contract's SHA-256 hash to confirm document integrity.\n\nChecks whether the provided hash matches a contract stored on Ambr. Returns\nverification status, contract metadata, and Reader Portal URL if found.\n\nArgs:\n  - hash (string, required): SHA-256 hash (64-character hex string)\n\nReturns:\n  ",
+      "labels": [
+        "private-data"
+      ]
     },
     {
       "name": "ambr_agent_handshake",
-      "descriptionHash": "da8abfba79daf8d888268a12d41dc52e1094fca1f8d20cb9dc2b48945c338dfa"
+      "descriptionHash": "da8abfba79daf8d888268a12d41dc52e1094fca1f8d20cb9dc2b48945c338dfa",
+      "description": "Initiate a handshake on a contract on behalf of your delegating principal.\n\nRequires an API key with an active delegation (principal wallet registered via /api/v1/delegations).\nRecords the agent's intent to accept, reject, or request changes on the contract.\nThe principal must separately approve via",
+      "labels": [
+        "private-data"
+      ]
     }
   ],
-  "findings": [],
-  "score": 100,
-  "scoreBreakdown": {},
+  "findings": [
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: ambr_create_contract · Private data: ambr_create_contract, ambr_get_contract, ambr_verify_hash, ambr_agent_handshake · Public sink: ambr_create_contract · Destructive: ambr_list_templates, ambr_create_contract, ambr_get_contract, ambr_get_contract_status.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: ambr_create_contract · Private data: ambr_create_contract, ambr_get_contract, ambr_verify_hash, ambr_agent_handshake · Public sink: ambr_create_contract · Destructive: ambr_list_templates, ambr_create_contract, ambr_get_contract, ambr_get_contract_status"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"ambr_create_contract\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:ambr_create_contract",
+        "snippet": "before: \"(hash 1130446b)\" → after: \"Generate a Ricardian Contract from a template.\n\nCreates a dual-format contract (human-readable legal text + machine-parsable JSON)\nusing AI, linked by SHA-256 hash. The contract is stored on Ambr and accessible\nvia the Reader Portal.\n\nRequires a valid API key (X-API-Key header on the HTTP request) w\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    }
+  ],
+  "score": 60,
+  "scoreBreakdown": {
+    "toxic-flow": 20,
+    "tool-poisoning": 20
+  },
   "errors": []
 }

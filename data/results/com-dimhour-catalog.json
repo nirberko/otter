@@ -1,0 +1,112 @@
+{
+  "schemaVersion": 1,
+  "scanner": {
+    "version": "1.6.0",
+    "rules": "402995650b68"
+  },
+  "target": {
+    "kind": "url",
+    "ref": "https://dimhour-mcp.jakeoborn.workers.dev/mcp"
+  },
+  "scannedAt": "2026-07-31T07:17:33.203Z",
+  "durationMs": 501,
+  "layers": {
+    "metadata": true,
+    "static": false
+  },
+  "tools": [
+    {
+      "name": "list_cities",
+      "descriptionHash": "b4a5727a085c759d8d9f9292d69228fed70cc0dbe7122e33b6c75ef565d29fa1",
+      "description": "List the 20 cities Dim Hour covers, with the city key to pass to the other tools."
+    },
+    {
+      "name": "search_venues",
+      "descriptionHash": "fb9503be010722430ac48447a7e9d67c833e5920c7052cbcb1e1916081590a02",
+      "description": "Search Dim Hour's curated restaurant/bar/venue catalog. Pass `city` to search one city, or OMIT `city` to search all ~9,500 venues across every city at once (e.g. 'best ramen anywhere', 'michelin spots'). Returns ranked matches with score (0-100 quality), price tier, neighborhood, happy-hour info, a"
+    },
+    {
+      "name": "list_new_venues",
+      "descriptionHash": "df568e25a6cf23302642e18a5ab062810f80742108ab8484f96522211e47d008",
+      "description": "Venues recently added to the Dim Hour catalog — across all 20 cities or one city. Use for 'what's new on Dim Hour' / new-opening alerts / weekly digests. Dates earlier than 2026-06-06 are estimates reconstructed from history."
+    },
+    {
+      "name": "get_venue",
+      "descriptionHash": "915ca79784bed8ff0156bde8550fb4ab4001db01d2735c1b9c77925235a15e79",
+      "description": "Get the full Dim Hour record for one venue: description, signature dishes, address, hours, phone, happy hour, reservation platform, awards, website, Instagram, and (for Iconic 50 venues) the long-form story.",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "list_curated",
+      "descriptionHash": "f5993f38692e574964b96eacc8fa4953def1635e129f4f24df24b7791cc9c217",
+      "description": "Dim Hour's hand-curated themed lists for a city (e.g. 'Unmarked Doors' speakeasies). Without list_id: returns all list titles. With list_id: returns that list's venues with editorial notes."
+    },
+    {
+      "name": "save_venue",
+      "descriptionHash": "874eeb825b5cefcc382eba84db9fa4c618bc2fc96e1d06b2950d2f52f7d74b11",
+      "description": "Save a venue to the user's Dim Hour account: 'fav' (Favorites), 'want' (Want to try), or 'visited' (Been there). Requires the user's Dim Hour API key (generated in the app: Profile → Concierge API key). The save appears in the app after its next sync (app open or sign-in).",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "add_to_trip",
+      "descriptionHash": "f302ec38490fe493d33d7107d13bc7117442a2f5a86d5692aa236d3ec4c11334",
+      "description": "Add a venue to one of the user's Dim Hour trips (creates the trip if needed). Identify the trip by trip_code (from list_my_trips) or trip_name; with neither, a new trip is created for the venue's city. Requires the user's Dim Hour API key. Returns the trip's public share link (dimhour.com/trip.html?",
+      "labels": [
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "list_my_trips",
+      "descriptionHash": "35545cfa432ff8dd613e01235919177c608dad067e8429b5a846a690d4737db7",
+      "description": "List the user's Dim Hour trips (code, name, city, item count, share link). Requires the user's Dim Hour API key. Use the code with add_to_trip.",
+      "labels": [
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "post_to_brain",
+      "descriptionHash": "5930f7b507a444bcb6906ecc1f64e1d4f224dc870bb674342a6e4a6653027930",
+      "description": "Post a message or a proposed state-change into the Dim Hour Triangle brain (the shared room for Poke, Claude, and Clicky). Use this to drop an objective, a status note, or a proposed live_nodes patch. IMPORTANT: every post is recorded as 'asserted' and is NOT treated as true until Claude verifies it",
+      "labels": [
+        "private-data",
+        "public-sink",
+        "destructive"
+      ]
+    },
+    {
+      "name": "read_brain",
+      "descriptionHash": "2403098dbd3e68924edafb1498a80f6ea912e413ecbbd4164eba2621e5a03539",
+      "description": "Read the recent Dim Hour Triangle brain posts (the shared room) so you can see what's been proposed and what Claude has verified. Posts route sender_node -> target_node with a topic + payload; status is 'pending' (unverified), 'processing', 'completed' (confirmed by Claude against the repo/DB), or '",
+      "labels": [
+        "untrusted-content",
+        "private-data"
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: read_brain · Private data: get_venue, save_venue, add_to_trip, list_my_trips, post_to_brain, read_brain · Public sink: add_to_trip, list_my_trips, post_to_brain · Destructive: post_to_brain.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: read_brain · Private data: get_venue, save_venue, add_to_trip, list_my_trips, post_to_brain, read_brain · Public sink: add_to_trip, list_my_trips, post_to_brain · Destructive: post_to_brain"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 80,
+  "scoreBreakdown": {
+    "toxic-flow": 20
+  },
+  "errors": []
+}

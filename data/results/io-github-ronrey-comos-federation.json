@@ -8,8 +8,8 @@
     "kind": "url",
     "ref": "https://mcp.comos-gateway.com/mcp"
   },
-  "scannedAt": "2026-07-27T08:05:24.307Z",
-  "durationMs": 930,
+  "scannedAt": "2026-07-31T07:26:55.110Z",
+  "durationMs": 845,
   "layers": {
     "metadata": true,
     "static": false
@@ -37,13 +37,22 @@
     },
     {
       "name": "federation_update_tenant",
-      "descriptionHash": "a23eecacae9c0113b501dca706fbcc287932178054d2f1175d5a0d069698bfb5",
-      "description": "Update a tenant’s display name and/or description (federation owns the lifecycle, CO 138). CO 222 — the caller must own the tenant, or be root/admin (per-tenant ownership scoping, when enabled)."
+      "descriptionHash": "60b51960c485fc4bb8916a10219fb8bd7af5f1603613e1aa42ec429f4d8f1dad",
+      "description": "Update a tenant’s display name, description, and/or the PLATFORMS it composes (federation owns the lifecycle, CO 138/356). Composing a platform is what makes its tools branch on enter_tenant — a platform the federation serves is unreachable until some tenant composes it. CO 222 — the caller must own"
     },
     {
       "name": "federation_suspend_tenant",
       "descriptionHash": "e36a91d42dba625a357e4ee0303c08d8f7b0ce90f776ff69ed6cae03b928f08f",
       "description": "Suspend or reactivate a tenant (federation owns the lifecycle, CO 138). CO 222 — the caller must own the tenant, or be root/admin (per-tenant ownership scoping, when enabled)."
+    },
+    {
+      "name": "federation_delete_tenant",
+      "descriptionHash": "d646d1a5b011cb6c2d0dc831cbb6308470bd15710e18a1276b984434c2a91f03",
+      "description": "⚠️ IRREVERSIBLY delete a tenant (CO 366): its registry row, its composition and manager-link rows, and its entire per-tenant database. NOT federation_suspend_tenant — suspend flips a status field and every row survives; this destroys the data. Requires managers:admin. `confirm` must exactly equal `h",
+      "labels": [
+        "private-data",
+        "destructive"
+      ]
     },
     {
       "name": "federation_create_manager",
@@ -72,6 +81,16 @@
       "name": "federation_unfreeze_manager",
       "descriptionHash": "0d62cf12b46a78e03b03bf57fc0be1750bee19335c413041e55c365b6e70ec17",
       "description": "Restore a manager root to active standing (CO 259-001): its graph may take privileged actions again. managers:admin."
+    },
+    {
+      "name": "federation_admittance_queue",
+      "descriptionHash": "e805dc7ca3e71917605d66a6a006a3e909c05941091a198b224a03f7a750025d",
+      "description": "Read the applications awaiting an operator decision on a platform (CO 344). Returns oldest-first — the longest wait is decided first. ⚠️ Check `truncated`: a partial queue must never be read as an empty one. managers:admin."
+    },
+    {
+      "name": "federation_admittance_decide",
+      "descriptionHash": "98da738381401759a1a314e4e6b279fbc120ed5e3bd59d06b0e8c6ba75454649",
+      "description": "Render the operator verdict on an under-review admittance application (CO 344): admit or exclude. ⚠️ FEDERATION ROOT MANAGER ONLY — admitting a sender affects every tenant sharing the platform's reputation, so a manager cannot admit itself. The verdict is recorded with attribution (`operator:<id>`) "
     },
     {
       "name": "federation_journal_append",
@@ -266,6 +285,11 @@
       "labels": [
         "private-data"
       ]
+    },
+    {
+      "name": "federation_solvency",
+      "descriptionHash": "fd8e94ef083181e77e007de61a79cf662fb1ccfdf078e7a5a1b0398337be2a88",
+      "description": "Is the Com float actually backed? Returns the dollar ledger's live solvency invariant (CO 192): the dollar `reserve` behind outstanding Coms, the redeemable `outstanding` value in circulation, the `margin` between them, and any `unbalancedEntries` (single-sided ledger rows — a defect even when the m"
     },
     {
       "name": "federation_refresh_tools",
@@ -654,6 +678,18 @@
       "severity": "low",
       "category": "tool-poisoning",
       "title": "Description uses pressure/override language",
+      "detail": "Description of \"federation_solvency\" stacks urgency/override words (always, never). Legitimate tool descriptions rarely pressure the model to act or ignore prior guidance.",
+      "evidence": {
+        "source": "tool:federation_solvency",
+        "snippet": "Is the Com float actually backed? Returns the dollar ledger's live solvency invariant (CO 192): the dollar `reserve` behind outstanding Coms, the redeemable `ou…"
+      },
+      "confidence": 0.3
+    },
+    {
+      "id": "MCP-TOOL-POISON-007",
+      "severity": "low",
+      "category": "tool-poisoning",
+      "title": "Description uses pressure/override language",
       "detail": "Description of \"federation_search\" stacks urgency/override words (always, never). Legitimate tool descriptions rarely pressure the model to act or ignore prior guidance.",
       "evidence": {
         "source": "tool:federation_search",
@@ -690,18 +726,31 @@
       "severity": "high",
       "category": "toxic-flow",
       "title": "Lethal trifecta: untrusted input + private data + external sink",
-      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: moltbook_read, federation_attest, federation_apply, federation_catalog_platforms, autonomy_get_config, tenant_notification_config_get · Private data: federation_journal_append, federation_attest, federation_key_challenge, federation_key_bind, federation_key_status, federation_apply, federation_governance, legal_get, federation_catalog_search_multi, federation_latency, autonomy_set_config, decisions_evaluate, knowledge_add, knowledge_update, workflow_trigger, introspection_system_change_reach · Public sink: federation_create_manager, moltbook_read, moltbook_post, cohort_email_send, federation_bond_post, federation_apply, federation_pricesheet, federation_catalog_platforms, workflow_update · Destructive: federation_journal_append, federation_catalog_search_grouped_multi, federation_catalog_version, federation_catalog_platforms, federation_arena, autonomy_set_enabled, decisions_evaluate, decisions_reject, decisions_execute, products_bulk_import, workflow_list, workflow_get, workflow_delete, workflow_trigger, federation_list_agents, federation_run_agent, federation_get_agent_runs, introspection_system_coverage_gaps.",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: moltbook_read, federation_attest, federation_apply, federation_catalog_platforms, autonomy_get_config, tenant_notification_config_get · Private data: federation_delete_tenant, federation_journal_append, federation_attest, federation_key_challenge, federation_key_bind, federation_key_status, federation_apply, federation_governance, legal_get, federation_catalog_search_multi, federation_latency, autonomy_set_config, decisions_evaluate, knowledge_add, knowledge_update, workflow_trigger, introspection_system_change_reach · Public sink: federation_create_manager, moltbook_read, moltbook_post, cohort_email_send, federation_bond_post, federation_apply, federation_pricesheet, federation_catalog_platforms, workflow_update · Destructive: federation_delete_tenant, federation_journal_append, federation_catalog_search_grouped_multi, federation_catalog_version, federation_catalog_platforms, federation_arena, autonomy_set_enabled, decisions_evaluate, decisions_reject, decisions_execute, products_bulk_import, workflow_list, workflow_get, workflow_delete, workflow_trigger, federation_list_agents, federation_run_agent, federation_get_agent_runs, introspection_system_coverage_gaps.",
       "evidence": {
         "source": "server:mcp",
-        "snippet": "Untrusted content: moltbook_read, federation_attest, federation_apply, federation_catalog_platforms, autonomy_get_config, tenant_notification_config_get · Private data: federation_journal_append, federation_attest, federation_key_challenge, federation_key_bind, federation_key_status, federation_apply, federation_governance, legal_get, federation_catalog_search_multi, federation_latency, autonomy_set_config, decisions_evaluate, knowledge_add, knowledge_update, workflow_trigger, introspection_system_change_reach · Public sink: federation_create_manager, moltbook_read, moltbook_post, cohort_email_send, federation_bond_post, federation_apply, federation_pricesheet, federation_catalog_platforms, workflow_update · Destructive: federation_journal_append, federation_catalog_search_grouped_multi, federation_catalog_version, federation_catalog_platforms, federation_arena, autonomy_set_enabled, decisions_evaluate, decisions_reject, decisions_execute, products_bulk_import, workflow_list, workflow_get, workflow_delete, workflow_trigger, federation_list_agents, federation_run_agent, federation_get_agent_runs, introspection_system_coverage_gaps"
+        "snippet": "Untrusted content: moltbook_read, federation_attest, federation_apply, federation_catalog_platforms, autonomy_get_config, tenant_notification_config_get · Private data: federation_delete_tenant, federation_journal_append, federation_attest, federation_key_challenge, federation_key_bind, federation_key_status, federation_apply, federation_governance, legal_get, federation_catalog_search_multi, federation_latency, autonomy_set_config, decisions_evaluate, knowledge_add, knowledge_update, workflow_trigger, introspection_system_change_reach · Public sink: federation_create_manager, moltbook_read, moltbook_post, cohort_email_send, federation_bond_post, federation_apply, federation_pricesheet, federation_catalog_platforms, workflow_update · Destructive: federation_delete_tenant, federation_journal_append, federation_catalog_search_grouped_multi, federation_catalog_version, federation_catalog_platforms, federation_arena, autonomy_set_enabled, decisions_evaluate, decisions_reject, decisions_execute, products_bulk_import, workflow_list, workflow_get, workflow_delete, workflow_trigger, federation_list_agents, federation_run_agent, federation_get_agent_runs, introspection_system_coverage_gaps"
       },
       "confidence": 0.6,
       "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"federation_update_tenant\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:federation_update_tenant",
+        "snippet": "before: \"Update a tenant’s display name and/or description (federation owns the lifecycle, CO 138). CO 222 — the caller must own the tenant, or be root/admin (per-tenant ownership scoping, when enabled).\" → after: \"Update a tenant’s display name, description, and/or the PLATFORMS it composes (federation owns the lifecycle, CO 138/356). Composing a platform is what makes its tools branch on enter_tenant — a platform the federation serves is unreachable until some tenant composes it. CO 222 — the caller must own\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
     }
   ],
-  "score": 41,
+  "score": 39,
   "scoreBreakdown": {
-    "tool-poisoning": 39,
+    "tool-poisoning": 41,
     "toxic-flow": 20
   },
   "errors": []
