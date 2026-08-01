@@ -8,8 +8,8 @@
     "kind": "url",
     "ref": "https://cronping.cronping-oren.workers.dev/mcp"
   },
-  "scannedAt": "2026-07-31T07:18:10.127Z",
-  "durationMs": 285,
+  "scannedAt": "2026-08-01T06:44:16.042Z",
+  "durationMs": 192,
   "layers": {
     "metadata": true,
     "static": false
@@ -17,17 +17,18 @@
   "tools": [
     {
       "name": "create_heartbeat",
-      "descriptionHash": "25fd4189c690fb43aedc8d17a974fc613612bb64990f8b834564f992a51dba70",
+      "descriptionHash": "fb1ff106fcc424ee90d63dff2106626dee0f3ca473c22b8ff0a4648145727b0a",
       "description": "Create a Cronping heartbeat monitor (dead-man's-switch). Returns a ping_url to call on each successful run of your agent loop, worker, or cron job, plus a claim_token to manage it. If pings stop arriving within period+grace, Cronping raises an alert. No account required. After creating, send one ver",
       "labels": [
+        "untrusted-content",
         "public-sink",
         "destructive"
       ]
     },
     {
       "name": "ping_heartbeat",
-      "descriptionHash": "8cd75102efc9bcd10bad9ff98ced7dd707847b58761b150e241e49e1aff76b59",
-      "description": "Send a heartbeat signal to a Cronping check. signal=\"success\" (default) marks it UP and resets the timer; \"start\" records that a run began (for duration); \"fail\" marks it DOWN immediately and alerts.",
+      "descriptionHash": "ccb7561cde30e6b722b35e58b613b6fb83bfc4c2a344259b9d050c2b7ad986aa",
+      "description": "Send a heartbeat signal to a Cronping check. signal=\"success\" (default) marks it UP and resets the timer; \"start\" records that a run began (for duration); \"fail\" marks it DOWN immediately and alerts. Optionally pass progress_token (a digest of your run's actual output) on success pings: if the same ",
       "labels": [
         "private-data",
         "public-sink",
@@ -40,8 +41,51 @@
       "description": "Get the live status of a Cronping check (up/down/new, last ping time, ping count)."
     }
   ],
-  "findings": [],
-  "score": 100,
-  "scoreBreakdown": {},
+  "findings": [
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: create_heartbeat · Private data: ping_heartbeat · Public sink: create_heartbeat, ping_heartbeat · Destructive: create_heartbeat, ping_heartbeat.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: create_heartbeat · Private data: ping_heartbeat · Public sink: create_heartbeat, ping_heartbeat · Destructive: create_heartbeat, ping_heartbeat"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"create_heartbeat\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:create_heartbeat",
+        "snippet": "before: \"Create a Cronping heartbeat monitor (dead-man's-switch). Returns a ping_url to call on each successful run of your agent loop, worker, or cron job, plus a claim_token to manage it. If pings stop arriving within period+grace, Cronping raises an alert. No account required. After creating, send one ver\" → after: \"Create a Cronping heartbeat monitor (dead-man's-switch). Returns a ping_url to call on each successful run of your agent loop, worker, or cron job, plus a claim_token to manage it. If pings stop arriving within period+grace, Cronping raises an alert. No account required. After creating, send one ver\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"ping_heartbeat\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:ping_heartbeat",
+        "snippet": "before: \"Send a heartbeat signal to a Cronping check. signal=\"success\" (default) marks it UP and resets the timer; \"start\" records that a run began (for duration); \"fail\" marks it DOWN immediately and alerts.\" → after: \"Send a heartbeat signal to a Cronping check. signal=\"success\" (default) marks it UP and resets the timer; \"start\" records that a run began (for duration); \"fail\" marks it DOWN immediately and alerts. Optionally pass progress_token (a digest of your run's actual output) on success pings: if the same \""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    }
+  ],
+  "score": 50,
+  "scoreBreakdown": {
+    "toxic-flow": 20,
+    "tool-poisoning": 30
+  },
   "errors": []
 }

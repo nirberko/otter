@@ -8,42 +8,32 @@
     "kind": "url",
     "ref": "https://mitosislabs.ai/api/mcp"
   },
-  "scannedAt": "2026-07-19T06:45:13.393Z",
-  "durationMs": 991,
+  "scannedAt": "2026-08-01T06:43:21.267Z",
+  "durationMs": 571,
   "layers": {
     "metadata": true,
     "static": false
   },
   "tools": [
     {
-      "name": "get_pricing",
-      "descriptionHash": "8e56f816ad082a514653ca55dc14e2300565a763616ecc1043ede7ad6007c64e",
-      "description": "Get current Mitosis plans, prices, credit allowances, metered rates, and add-ons. Use when comparing costs or recommending a plan."
-    },
-    {
-      "name": "get_platform_status",
-      "descriptionHash": "b6729fa0d1b12b15eb639fabfce5f7c33c5c467ebbb1338cca9920a44cce2916",
-      "description": "Get the operational status of the Mitosis website, API, and MCP server. Use before reporting an outage or debugging connectivity."
-    },
-    {
-      "name": "search_docs",
-      "descriptionHash": "e0b406d63ec7e70d66196b89c02cdd31c37e5de3562148c7a742c2b771a4921a",
-      "description": "Keyword-search Mitosis documentation and product pages. Returns ranked results with URLs. Use to answer any \"how do I…\" question about Mitosis.",
+      "name": "cortex_ask",
+      "descriptionHash": "e2c999973a67990f1ebb38b346f0c96a7e2c4dcb62d3d7ea8ffc171925080bc5",
+      "description": "The user's real, private memory — their email, calendar, files, contacts, and every fact agents have remembered — fused across vector, full-text and graph search with provenance. ALWAYS call this BEFORE answering ANY question about the user, their work, schedule, contacts, projects, documents, decis",
       "labels": [
-        "untrusted-content"
+        "untrusted-content",
+        "private-data",
+        "public-sink"
       ]
     },
     {
-      "name": "list_skills",
-      "descriptionHash": "b140ed36b6180a56092fafef7db7a58fd9bf55359af210d3b95c50a64467ff4a",
-      "description": "List the agent skills Mitosis publishes (backup create/list/restore/health/diff/schedule/subscribe) with links to each SKILL.md manifest."
-    }
-  ],
-  "findings": [],
-  "score": 100,
-  "scoreBreakdown": {},
-  "errors": []
-}}er asks about themselves, to learn what is worth routing to cortex_ask — then",
+      "name": "cortex_recall",
+      "descriptionHash": "24c9e9710bd3053fe26fb35825e41c5fcc41350fc9421ca139a7362977e7a34f",
+      "description": "Semantic-only vector search over the memory, returning source excerpts. Prefer cortex_ask, which also uses full-text and graph expansion; reach for this when you specifically want nearest-neighbour matches on meaning."
+    },
+    {
+      "name": "cortex_manifest",
+      "descriptionHash": "0f8bb5093f3d9e7c76c398c6e46f46e1ff249f0964748320e5627c0c64dadc1a",
+      "description": "A table of contents for this user's memory: which sources are connected (email, calendar, docs, …), how many items each holds, and the top people, topics and projects. Call it ONCE at the start of a session to learn what is in there. It is an INDEX, never an answer: it contains no message bodies, no",
       "labels": [
         "public-sink"
       ]
@@ -57,6 +47,24 @@
       "name": "cortex_remember",
       "descriptionHash": "35d0dc55e8f3620659bfd3806e8401657184521e589a1f8477dc98b3103c2177",
       "description": "Persist a fact, decision or conclusion into the memory, attributed to you. It becomes retrievable via cortex_ask immediately, in this session and every future one, from any agent the user has connected. Provenance: pass source_universal_ids from a previous cortex_ask so the fact links to its evidenc"
+    },
+    {
+      "name": "search",
+      "descriptionHash": "2374a19539b575b5978457725b1f6df2bd98ce9a129c7fefb6a98fbfcb96964e",
+      "description": "Search the user's own private memory — their email, calendar, documents, contacts, chat history and every fact agents have remembered — and return ranked matches with citation ids and links. ALWAYS use this before answering any question about the user, their work, schedule, contacts, projects, docum",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "fetch",
+      "descriptionHash": "dc5c5d72565b356106199d2ef3d1b18489add4a17989cd81ab1d197ccda01477",
+      "description": "Retrieve the full contents of a single item from the user’s memory by its id. Ids come from `search` results. Use this when a search result looks relevant and you need the whole record rather than the excerpt.",
+      "labels": [
+        "private-data"
+      ]
     },
     {
       "name": "get_pricing",
@@ -109,22 +117,60 @@
       "confidence": 0.3
     },
     {
+      "id": "MCP-TOOL-POISON-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description issues instructions to the model",
+      "detail": "Description of \"search\" contains imperative instructions directed at the AI assistant rather than describing the tool. This is the core tool-poisoning technique.",
+      "evidence": {
+        "source": "tool:search",
+        "snippet": "Search the user's own private memory — their email, calendar, documents, contacts, chat history and every fact agents have remembered — and return ranked matche…"
+      },
+      "confidence": 0.7,
+      "remediation": "Treat the server as untrusted; the model may obey embedded instructions."
+    },
+    {
+      "id": "MCP-SHADOW-001",
+      "severity": "medium",
+      "category": "shadowing",
+      "title": "Generic tool name can shadow trusted tools",
+      "detail": "Tool \"search\" uses a generic high-value name. When multiple servers load together, this can intercept calls meant for a trusted server.",
+      "evidence": {
+        "source": "tool:search",
+        "snippet": "search"
+      },
+      "confidence": 0.4
+    },
+    {
+      "id": "MCP-SHADOW-001",
+      "severity": "medium",
+      "category": "shadowing",
+      "title": "Generic tool name can shadow trusted tools",
+      "detail": "Tool \"fetch\" uses a generic high-value name. When multiple servers load together, this can intercept calls meant for a trusted server.",
+      "evidence": {
+        "source": "tool:fetch",
+        "snippet": "fetch"
+      },
+      "confidence": 0.4
+    },
+    {
       "id": "MCP-TOXIC-FLOW-001",
       "severity": "high",
       "category": "toxic-flow",
       "title": "Lethal trifecta: untrusted input + private data + external sink",
-      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: cortex_ask, search_docs · Private data: cortex_ask · Public sink: cortex_ask, cortex_manifest.",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: cortex_ask, search, search_docs · Private data: cortex_ask, search, fetch · Public sink: cortex_ask, cortex_manifest, search.",
       "evidence": {
         "source": "server:mcp",
-        "snippet": "Untrusted content: cortex_ask, search_docs · Private data: cortex_ask · Public sink: cortex_ask, cortex_manifest"
+        "snippet": "Untrusted content: cortex_ask, search, search_docs · Private data: cortex_ask, search, fetch · Public sink: cortex_ask, cortex_manifest, search"
       },
       "confidence": 0.6,
       "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
     }
   ],
-  "score": 59,
+  "score": 37,
   "scoreBreakdown": {
-    "tool-poisoning": 22,
+    "tool-poisoning": 31,
+    "shadowing": 12,
     "toxic-flow": 20
   },
   "errors": []

@@ -8,8 +8,8 @@
     "kind": "url",
     "ref": "https://mcp.crank.ing/mcp"
   },
-  "scannedAt": "2026-07-27T07:57:13.741Z",
-  "durationMs": 1909,
+  "scannedAt": "2026-08-01T06:44:22.124Z",
+  "durationMs": 1911,
   "layers": {
     "metadata": true,
     "static": false
@@ -17,12 +17,22 @@
   "tools": [
     {
       "name": "jupiter_swap",
-      "descriptionHash": "14eac16b8125cf4fb78c1443f4d413f82e67eff2fe838cf5c2f89fdf65210239",
+      "descriptionHash": "ad57a293a7d35cf52516daf5ab2dcc0fa63c680f802a6c628ab5703417ce452b",
       "description": "Execute a token swap via Jupiter (non-custodial).\n\nWithout signed_transaction: returns an UNSIGNED base64 transaction for your\nwallet to sign + broadcast. With signed_transaction: broadcasts the\ncaller-signed tx and returns tx_signature. amount is in base units of\ninput_token. Includes the Crank 0.7",
       "labels": [
         "private-data",
         "public-sink",
         "destructive"
+      ]
+    },
+    {
+      "name": "verify_transaction",
+      "descriptionHash": "f52d942697ed906742655eb7dbdc18e222bfe511745f2451bf56bae7e07e3d58",
+      "description": "Verify any prior transaction signature on demand (FREE read).\n\nPost-trade verification (ENG-df8afe93, harness spec MB#18289 R13): awaits\non-chain confirmation of ``tx_signature`` at ``commitment`` level (up to\n``timeout_s``) and, when a state hint is supplied, re-reads the relevant\nstate to compare ",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink"
       ]
     },
     {
@@ -54,6 +64,20 @@
         "private-data",
         "destructive"
       ]
+    },
+    {
+      "name": "set_ooda_consent",
+      "descriptionHash": "ad21c87e71157417fa0f4ff0648578f4b3cf54d45d141c695ab5ce04547c626c",
+      "description": "Opt in/out of the wake-on-condition worker (ENG-8c57afc3).\n\nDefault OFF. When opted in, a triggered alert may run a metered\nbackground check (Haiku triage, escalating to Sonnet only if worth a\ncloser look) and propose one action. daily_wake_budget (default 10, 1-500)\nhard-caps metered wakes per day.",
+      "labels": [
+        "private-data",
+        "destructive"
+      ]
+    },
+    {
+      "name": "get_ooda_status",
+      "descriptionHash": "aa01e2226dab9d59a1b009ff5a8842901eaffbf9a378e284d8a3142f0e6ee76a",
+      "description": "Wake-on-condition consent + usage status (ENG-8c57afc3).\n\nReturns opted_in, daily_wake_budget, wakes_used_today, skips_today, and\nrecent_wakes -- including SKIPPED_BUDGET / SKIPPED_SPEND_CAP rows, so a\nskipped wake is exactly as visible as a completed one, never silent.\n\nWorkflow: status/observe ste"
     },
     {
       "name": "token_info",
@@ -1051,6 +1075,15 @@
       ]
     },
     {
+      "name": "strategy_modify",
+      "descriptionHash": "35f1233ae2cdac97771303e55946f8b0ef775d3a0cc82e040a4112c323532700",
+      "description": "Edit a running strategy's parameters IN PLACE -- no cancel + recreate.\n\nReact to a fresh signal by retuning the strategy you already own: the\nexecution history, cost-basis ledger and position state all survive, and\nthere is no window where the strategy is gone. The live executor picks the\nnew config",
+      "labels": [
+        "private-data",
+        "destructive"
+      ]
+    },
+    {
       "name": "strategy_cancel",
       "descriptionHash": "f65b2fc27e83ffff5625da5829d7f80a7725be21f98a156fbff066895ea3b30e",
       "description": "Stop a strategy (sets status=stopped; it will not be dispatched again)."
@@ -1132,6 +1165,34 @@
       ]
     },
     {
+      "name": "register_webhook",
+      "descriptionHash": "936d9495fba2a562315e3144e66451dfafa42ac500d241a623d59b7208a1fce6",
+      "description": "Register (or reactivate) a lifecycle-event webhook for a wallet (free control-plane write).\n\nevent_types is a non-empty subset of: pre_trade (advisory only, never\nblocks a trade), post_trade, policy_violation, drawdown_warning,\nstrategy_executed. url is your https(s) receiving endpoint. secret is\nYO",
+      "labels": [
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "list_webhooks",
+      "descriptionHash": "44766a87d778b6b79c9731af02048e5484cf46b454c578a5baa1b3b6c4e1cc41",
+      "description": "List a wallet's webhook subscriptions (free read; secrets are never returned).",
+      "labels": [
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "delete_webhook",
+      "descriptionHash": "a6e3b1e27c82f11983a9a9ec494b55c42b66106d55c254530f6b69d2e24bb72d",
+      "description": "Delete one of a wallet's webhook subscriptions (free control-plane write).",
+      "labels": [
+        "private-data",
+        "public-sink",
+        "destructive"
+      ]
+    },
+    {
       "name": "get_collective_insights",
       "descriptionHash": "bd8ebb6ffb8d1c977f1aab993d9186344721e659970ec679df9ad9b17bca98cc",
       "description": "Fleet-wide collective insights, historical performance data (free read).\n\nFilters: asset (mint/symbol), strategy_type, insight_type (one of\nparam_performance/signal_effectiveness/timing/venue_quality/crowding/\nregime_conditional). Only ACTIVE, non-suppressed/non-expired insights\nare ever returned. E"
@@ -1190,6 +1251,18 @@
     }
   ],
   "findings": [
+    {
+      "id": "MCP-TOOL-POISON-006",
+      "severity": "low",
+      "category": "tool-poisoning",
+      "title": "Anomalously long tool description",
+      "detail": "Description of \"jupiter_swap\" is 2245 chars, far longer than this server's median (433). Overlong descriptions are a common place to bury instructions.",
+      "evidence": {
+        "source": "tool:jupiter_swap",
+        "snippet": "Execute a token swap via Jupiter (non-custodial). Without signed_transaction: returns an UNSIGNED base64 transaction for your wallet to sign + broadcast. With s…"
+      },
+      "confidence": 0.4
+    },
     {
       "id": "MCP-TOOL-POISON-002",
       "severity": "high",
@@ -1347,40 +1420,35 @@
       "confidence": 0.3
     },
     {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"register_webhook\" references sensitive artifacts (secret). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:register_webhook",
+        "snippet": "Register (or reactivate) a lifecycle-event webhook for a wallet (free control-plane write). event_types is a non-empty subset of: pre_trade (advisory only, neve…"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"list_webhooks\" references sensitive artifacts (secret). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:list_webhooks",
+        "snippet": "List a wallet's webhook subscriptions (free read; secrets are never returned)."
+      },
+      "confidence": 0.65
+    },
+    {
       "id": "MCP-TOXIC-FLOW-001",
       "severity": "high",
       "category": "toxic-flow",
       "title": "Lethal trifecta: untrusted input + private data + external sink",
-      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: backtest_strategy, detect_regime, sr_backtest, enable_agent_wallet, request_wallet_policy_loosening, crank_dependency_status, crank_prompt_health, list_support_tickets, get_support_ticket, reply_to_ticket, update_ticket_status, get_support_dashboard, equity_corporate_events, bulk_send_social, get_source_accuracy, get_regulatory_updates, get_technology_updates, get_signals, get_market_regime, list_signal_catalog, get_strategy_suggestions, suggest_parameter_adjustment, get_signal_effectiveness · Private data: jupiter_swap, get_quotes, get_balances, set_alert, token_info, verify_token, get_transaction_history, backtest_strategy, get_ml_signal, detect_regime, get_risk_assessment, get_indicators, sr_detect_levels, sr_backtest, asset_classification, perp_open_long, perp_positions, place_perp_order, perp_positions_all, go_live_status, lend_deposit, lend_borrow, lend_repay, get_lending_rates, flash_loan, liquid_stake, short_open, short_close, short_status, leverage_long, fund_wallet, offramp_to_fiat, create_agent_wallet, enable_agent_wallet, poll_agent_wallet_enable, request_wallet_policy_loosening, poll_wallet_policy_loosening, set_wallet_policy, kill_wallet, wallet_status, set_permission_mode, authorize_session_signer, revoke_session_signer, list_session_signers, register_integrator, register_referrer, list_support_tickets, reply_to_ticket, note_create, get_all_venues_status, venue_risk_comparison, trade_equity, equity_quote, equity_positions, get_token_classification, clone_strategy, send_token_social, bulk_send_social, get_social_sends, get_crank_score, get_score, get_score_leaderboard, get_quests, check_claim_status, get_market_briefing, get_source_accuracy, get_signals, get_token_risk_assessment, get_source_weights, get_strategy_suggestions, get_ilo_adoption_status, strategy_dca_create, strategy_vault_create, strategy_copy_wallet_create, strategy_status, strategy_list, journal_append, journal_query, get_portfolio_charter, set_portfolio_charter, get_strategy_leaderboard, get_signal_effectiveness, strategy_composite_create, create_execution_intent · Public sink: jupiter_swap, get_ml_signal, perp_open_long, perp_close, perp_modify, place_perp_order, close_perp_position, lend_deposit, set_liquidation_alert, short_open, set_integrator_share, get_integrator_stats, list_support_tickets, reply_to_ticket, set_ticket_priority, trade_equity, publish_strategy, clone_strategy, send_token_social, bulk_send_social, get_crank_score, check_claim_status, get_ilo_adoption_status, get_portfolio_charter, get_intent_status · Destructive: jupiter_swap, set_alert, backtest_strategy, get_risk_assessment, perp_modify, place_perp_order, lend_deposit, liquid_stake, get_lst_yields, kill_wallet, set_permission_mode, get_venue_health, trade_equity, get_token_risk_assessment, strategy_dca_create, strategy_momentum_create, strategy_market_make_create, strategy_resume, get_trading_workflow, set_portfolio_charter, strategy_composite_create.",
-      "evidence": {
-        "source": "server:mcp",
-        "snippet": "Untrusted content: backtest_strategy, detect_regime, sr_backtest, enable_agent_wallet, request_wallet_policy_loosening, crank_dependency_status, crank_prompt_health, list_support_tickets, get_support_ticket, reply_to_ticket, update_ticket_status, get_support_dashboard, equity_corporate_events, bulk_send_social, get_source_accuracy, get_regulatory_updates, get_technology_updates, get_signals, get_market_regime, list_signal_catalog, get_strategy_suggestions, suggest_parameter_adjustment, get_signal_effectiveness · Private data: jupiter_swap, get_quotes, get_balances, set_alert, token_info, verify_token, get_transaction_history, backtest_strategy, get_ml_signal, detect_regime, get_risk_assessment, get_indicators, sr_detect_levels, sr_backtest, asset_classification, perp_open_long, perp_positions, place_perp_order, perp_positions_all, go_live_status, lend_deposit, lend_borrow, lend_repay, get_lending_rates, flash_loan, liquid_stake, short_open, short_close, short_status, leverage_long, fund_wallet, offramp_to_fiat, create_agent_wallet, enable_agent_wallet, poll_agent_wallet_enable, request_wallet_policy_loosening, poll_wallet_policy_loosening, set_wallet_policy, kill_wallet, wallet_status, set_permission_mode, authorize_session_signer, revoke_session_signer, list_session_signers, register_integrator, register_referrer, list_support_tickets, reply_to_ticket, note_create, get_all_venues_status, venue_risk_comparison, trade_equity, equity_quote, equity_positions, get_token_classification, clone_strategy, send_token_social, bulk_send_social, get_social_sends, get_crank_score, get_score, get_score_leaderboard, get_quests, check_claim_status, get_market_briefing, get_source_accuracy, get_signals, get_token_risk_assessment, get_source_weights, get_strategy_suggestions, get_ilo_adoption_status, strategy_dca_create, strategy_vault_create, strategy_copy_wallet_create, strategy_status, strategy_list, journal_append, journal_query, get_portfolio_charter, set_portfolio_charter, get_strategy_leaderboard, get_signal_effectiveness, strategy_composite_create, create_execution_intent · Public sink: jupiter_swap, get_ml_signal, perp_open_long, perp_close, perp_modify, place_perp_order, close_perp_position, lend_deposit, set_liquidation_alert, short_open, set_integrator_share, get_integrator_stats, list_support_tickets, reply_to_ticket, set_ticket_priority, trade_equity, publish_strategy, clone_strategy, send_token_social, bulk_send_social, get_crank_score, check_claim_status, get_ilo_adoption_status, get_portfolio_charter, get_intent_status · Destructive: jupiter_swap, set_alert, backtest_strategy, get_risk_assessment, perp_modify, place_perp_order, lend_deposit, liquid_stake, get_lst_yields, kill_wallet, set_permission_mode, get_venue_health, trade_equity, get_token_risk_assessment, strategy_dca_create, strategy_momentum_create, strategy_market_make_create, strategy_resume, get_trading_workflow, set_portfolio_charter, strategy_composite_create"
-      },
-      "confidence": 0.6,
-      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
-    }
-  ],
-  "score": 28,
-  "scoreBreakdown": {
-    "tool-poisoning": 44,
-    "schema-smell": 8,
-    "toxic-flow": 20
-  },
-  "errors": []
-}n_alert, short_open, set_integrator_share, get_integrator_stats, list_support_tickets, reply_to_ticket, set_ticket_priority, trade_equity, publish_strategy, clone_strategy, send_token_social, bulk_send_social, get_crank_score, check_claim_status, get_ilo_adoption_status, get_portfolio_charter, get_intent_status · Destructive: jupiter_swap, set_alert, set_ooda_consent, backtest_strategy, get_risk_assessment, perp_modify, place_perp_order, lend_deposit, liquid_stake, get_lst_yields, kill_wallet, set_permission_mode, get_venue_health, trade_equity, get_token_risk_assessment, strategy_dca_create, strategy_momentum_create, strategy_market_make_create, strategy_resume, get_trading_workflow, set_portfolio_charter, strategy_composite_create"
-      },
-      "confidence": 0.6,
-      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
-    }
-  ],
-  "score": 28,
-  "scoreBreakdown": {
-    "tool-poisoning": 44,
-    "schema-smell": 8,
-    "toxic-flow": 20
-  },
-  "errors": []
-}open, set_integrator_share, get_integrator_stats, list_support_tickets, reply_to_ticket, set_ticket_priority, trade_equity, publish_strategy, clone_strategy, send_token_social, bulk_send_social, get_crank_score, check_claim_status, get_ilo_adoption_status, get_portfolio_charter, register_webhook, list_webhooks, delete_webhook, get_intent_status · Destructive: jupiter_swap, set_alert, set_ooda_consent, backtest_strategy, get_risk_assessment, perp_modify, place_perp_order, lend_deposit, liquid_stake, get_lst_yields, kill_wallet, set_permission_mode, get_venue_health, trade_equity, get_token_risk_assessment, strategy_dca_create, strategy_momentum_create, strategy_market_make_create, strategy_modify, strategy_resume, get_trading_workflow, set_portfolio_charter, delete_webhook, strategy_composite_create.",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: verify_transaction, backtest_strategy, detect_regime, sr_backtest, enable_agent_wallet, request_wallet_policy_loosening, crank_dependency_status, crank_prompt_health, list_support_tickets, get_support_ticket, reply_to_ticket, update_ticket_status, get_support_dashboard, equity_corporate_events, bulk_send_social, get_source_accuracy, get_regulatory_updates, get_technology_updates, get_signals, get_market_regime, list_signal_catalog, get_strategy_suggestions, suggest_parameter_adjustment, get_signal_effectiveness · Private data: jupiter_swap, verify_transaction, get_quotes, get_balances, set_alert, set_ooda_consent, token_info, verify_token, get_transaction_history, backtest_strategy, get_ml_signal, detect_regime, get_risk_assessment, get_indicators, sr_detect_levels, sr_backtest, asset_classification, perp_open_long, perp_positions, place_perp_order, perp_positions_all, go_live_status, lend_deposit, lend_borrow, lend_repay, get_lending_rates, flash_loan, liquid_stake, short_open, short_close, short_status, leverage_long, fund_wallet, offramp_to_fiat, create_agent_wallet, enable_agent_wallet, poll_agent_wallet_enable, request_wallet_policy_loosening, poll_wallet_policy_loosening, set_wallet_policy, kill_wallet, wallet_status, set_permission_mode, authorize_session_signer, revoke_session_signer, list_session_signers, register_integrator, register_referrer, list_support_tickets, reply_to_ticket, note_create, get_all_venues_status, venue_risk_comparison, trade_equity, equity_quote, equity_positions, get_token_classification, clone_strategy, send_token_social, bulk_send_social, get_social_sends, get_crank_score, get_score, get_score_leaderboard, get_quests, check_claim_status, get_market_briefing, get_source_accuracy, get_signals, get_token_risk_assessment, get_source_weights, get_strategy_suggestions, get_ilo_adoption_status, strategy_dca_create, strategy_vault_create, strategy_copy_wallet_create, strategy_status, strategy_modify, strategy_list, journal_append, journal_query, get_portfolio_charter, set_portfolio_charter, register_webhook, list_webhooks, delete_webhook, get_strategy_leaderboard, get_signal_effectiveness, strategy_composite_create, create_execution_intent · Public sink: jupiter_swap, verify_transaction, get_ml_signal, perp_open_long, perp_close, perp_modify, place_perp_order, close_perp_position, lend_deposit, set_liquidation_alert, short_open, set_integrator_share, get_integrator_stats, list_support_tickets, reply_to_ticket, set_ticket_priority, trade_equity, publish_strategy, clone_strategy, send_token_social, bulk_send_social, get_crank_score, check_claim_status, get_ilo_adoption_status, get_portfolio_charter, register_webhook, list_webhooks, delete_webhook, get_intent_status · Destructive: jupiter_swap, set_alert, set_ooda_consent, backtest_strategy, get_risk_assessment, perp_modify, place_perp_order, lend_deposit, liquid_stake, get_lst_yields, kill_wallet, set_permission_mode, get_venue_health, trade_equity, get_token_risk_assessment, strategy_dca_create, strategy_momentum_create, strategy_market_make_create, strategy_modify, strategy_resume, get_trading_workflow, set_portfolio_charter, delete_webhook, strategy_composite_create.",
       "evidence": {
         "source": "server:mcp",
         "snippet": "Untrusted content: verify_transaction, backtest_strategy, detect_regime, sr_backtest, enable_agent_wallet, request_wallet_policy_loosening, crank_dependency_status, crank_prompt_health, list_support_tickets, get_support_ticket, reply_to_ticket, update_ticket_status, get_support_dashboard, equity_corporate_events, bulk_send_social, get_source_accuracy, get_regulatory_updates, get_technology_updates, get_signals, get_market_regime, list_signal_catalog, get_strategy_suggestions, suggest_parameter_adjustment, get_signal_effectiveness · Private data: jupiter_swap, verify_transaction, get_quotes, get_balances, set_alert, set_ooda_consent, token_info, verify_token, get_transaction_history, backtest_strategy, get_ml_signal, detect_regime, get_risk_assessment, get_indicators, sr_detect_levels, sr_backtest, asset_classification, perp_open_long, perp_positions, place_perp_order, perp_positions_all, go_live_status, lend_deposit, lend_borrow, lend_repay, get_lending_rates, flash_loan, liquid_stake, short_open, short_close, short_status, leverage_long, fund_wallet, offramp_to_fiat, create_agent_wallet, enable_agent_wallet, poll_agent_wallet_enable, request_wallet_policy_loosening, poll_wallet_policy_loosening, set_wallet_policy, kill_wallet, wallet_status, set_permission_mode, authorize_session_signer, revoke_session_signer, list_session_signers, register_integrator, register_referrer, list_support_tickets, reply_to_ticket, note_create, get_all_venues_status, venue_risk_comparison, trade_equity, equity_quote, equity_positions, get_token_classification, clone_strategy, send_token_social, bulk_send_social, get_social_sends, get_crank_score, get_score, get_score_leaderboard, get_quests, check_claim_status, get_market_briefing, get_source_accuracy, get_signals, get_token_risk_assessment, get_source_weights, get_strategy_suggestions, get_ilo_adoption_status, strategy_dca_create, strategy_vault_create, strategy_copy_wallet_create, strategy_status, strategy_modify, strategy_list, journal_append, journal_query, get_portfolio_charter, set_portfolio_charter, register_webhook, list_webhooks, delete_webhook, get_strategy_leaderboard, get_signal_effectiveness, strategy_composite_create, create_execution_intent · Public sink: jupiter_swap, verify_transaction, get_ml_signal, perp_open_long, perp_close, perp_modify, place_perp_order, close_perp_position, lend_deposit, set_liquidation_alert, short_open, set_integrator_share, get_integrator_stats, list_support_tickets, reply_to_ticket, set_ticket_priority, trade_equity, publish_strategy, clone_strategy, send_token_social, bulk_send_social, get_crank_score, check_claim_status, get_ilo_adoption_status, get_portfolio_charter, register_webhook, list_webhooks, delete_webhook, get_intent_status · Destructive: jupiter_swap, set_alert, set_ooda_consent, backtest_strategy, get_risk_assessment, perp_modify, place_perp_order, lend_deposit, liquid_stake, get_lst_yields, kill_wallet, set_permission_mode, get_venue_health, trade_equity, get_token_risk_assessment, strategy_dca_create, strategy_momentum_create, strategy_market_make_create, strategy_modify, strategy_resume, get_trading_workflow, set_portfolio_charter, delete_webhook, strategy_composite_create"
