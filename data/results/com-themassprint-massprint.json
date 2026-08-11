@@ -1,0 +1,88 @@
+{
+  "schemaVersion": 1,
+  "scanner": {
+    "version": "1.6.0",
+    "rules": "402995650b68"
+  },
+  "target": {
+    "kind": "url",
+    "ref": "https://themassprint.com/mcp"
+  },
+  "scannedAt": "2026-08-11T05:38:40.071Z",
+  "durationMs": 661,
+  "layers": {
+    "metadata": true,
+    "static": false
+  },
+  "tools": [
+    {
+      "name": "get_catalog",
+      "descriptionHash": "6253d0d2ee2549aa2737c60c440306a8c7a6dcf793f3801c74ddcf503b7e941a",
+      "description": "List what can be printed: SKUs (storybook books, sticker-a3 wall charts, greeting-card-a5 folded cards), formats, supported trim sizes, page-count limits, prices (INR, shipping included), and shipping coverage (India only). Call this first to quote a price or check whether a PDF will be accepted."
+    },
+    {
+      "name": "create_upload",
+      "descriptionHash": "3755dccc65c4c46d75cc0cf7c5206240a7bde9d3b6e5ce817ae13e06dcc1f4cb",
+      "description": "Start a PDF upload. Returns {upload_id, put_url, expires_at, max_bytes}. HTTP PUT the raw PDF bytes to put_url (Content-Type: application/pdf, no auth needed — the URL is signed). The PUT response includes the validation report. Then pass upload_id to create_order. Keyless use is bounded per calling",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "validate_pdf",
+      "descriptionHash": "d0e2b23eafedb3ca69641c524132eab2f8f5d1ebb4738110448863bc2ebd4088",
+      "description": "Get the print-validation report for an uploaded PDF before paying: page count, trim size, hard errors (blocking) and soft warnings (non-blocking). Every error includes a `resolution` explaining how to fix it. Free to call; use it to check printability before create_order."
+    },
+    {
+      "name": "create_order",
+      "descriptionHash": "c3fbf7471688cd498f1b073490702625bb539254a5327b304c27261eb43fa16b",
+      "description": "Create a print order for a validated upload. Validates everything BEFORE any payment link is minted. Returns { order, order_token } — the order object has order_id, status, amount, and payment_url (the Razorpay link, present while awaiting_payment). Give payment_url to the human to pay (UPI/cards/ne",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "get_order",
+      "descriptionHash": "871a7561a4adbaa53765009ad4ddbacdcbca63e0872a34b145cb2650c43272a1",
+      "description": "Check an order: status (awaiting_payment → confirmed → printing → shipped → delivered), tracking number once shipped, and — while unpaid — the payment_url again (so you can always re-answer \"how do I pay\"). Requires the order_token from create_order."
+    },
+    {
+      "name": "cancel_order",
+      "descriptionHash": "cfb84bcc3a601543ab8060215ce49cc597f5795d8e3956f5cf362d36dc8777d6",
+      "description": "Cancel an order. Only possible while status is awaiting_payment (i.e. before payment). Paid orders are handled manually — contact support (see get_catalog).",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "apply_enterprise",
+      "descriptionHash": "fd4d0d6c87f081fe88378ba72bf422e40bba4cb368b16bf63d422ee83764bfc6",
+      "description": "Apply for an enterprise (invoiced) account — for platforms printing at volume behind their own checkout. Enterprise orders auto-confirm with no payment link, are priced at a platform discount off retail (default 25% below), and are settled monthly. Requires a valid India GSTIN for tax invoicing. Thi",
+      "labels": [
+        "private-data"
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: create_upload · Private data: create_upload, cancel_order, apply_enterprise · Public sink: create_upload, create_order.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: create_upload · Private data: create_upload, cancel_order, apply_enterprise · Public sink: create_upload, create_order"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 80,
+  "scoreBreakdown": {
+    "toxic-flow": 20
+  },
+  "errors": []
+}

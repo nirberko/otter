@@ -1,0 +1,104 @@
+{
+  "schemaVersion": 1,
+  "scanner": {
+    "version": "1.6.0",
+    "rules": "402995650b68"
+  },
+  "target": {
+    "kind": "url",
+    "ref": "https://suomiatlas.com/api/mcp"
+  },
+  "scannedAt": "2026-08-11T05:32:28.583Z",
+  "durationMs": 2092,
+  "layers": {
+    "metadata": true,
+    "static": false
+  },
+  "tools": [
+    {
+      "name": "search_places",
+      "descriptionHash": "c0ff06d1e6d052d0bbf08b6c157bf2a3418ec5ce3fc102c2c232067ab0ec481b",
+      "description": "Resolve a Finnish place name to the code every other Suomiatlas tool takes. Handles postal areas (e.g. Toukola, Töölö), municipalities (Espoo, Akaa) and regions (Uusimaa). Diacritics are optional: \"toolo\" finds \"Töölö\". Call this first whenever the user names a place rather than a code. Many Finnish"
+    },
+    {
+      "name": "get_place_stats",
+      "descriptionHash": "3619be279f55245d7da501aa24d9df0da998166b26d2f9cd1a24eee44f912142",
+      "description": "Current statistics for one Finnish postal area or municipality: population, age, income, employment, education, housing sale prices (€/m²) and municipal crime rates, with national/regional percentiles where available. Accepts a name or a code and resolves it automatically; if the name is ambiguous i"
+    },
+    {
+      "name": "get_place_history",
+      "descriptionHash": "3b4128605c041c72608da94a495ce7718ecf3134851d3b4c3541a45334e7199c",
+      "description": "Time series for one Finnish postal area or municipality, with the direction and size of change computed for each metric so the trend does not have to be eyeballed. Answers questions like \"have apartment prices been rising in Espoo?\" and \"is the population growing?\". Defaults to housing sale prices a"
+    },
+    {
+      "name": "get_air_quality",
+      "descriptionHash": "c709c90bd859f28b12b636aed304ac3b8c9feeaabdd1c4649c714813aa839e19",
+      "description": "Measured annual-mean air quality (PM2.5, PM10, NO₂, O₃) for a Finnish postal area or municipality, from Finnish Meteorological Institute and municipal monitoring stations, each compared against the WHO 2021 guideline and the EU limit. Answers \"is the air clean in Vantaa?\" with a verdict rather than "
+    },
+    {
+      "name": "compare_areas",
+      "descriptionHash": "2bb0bbf526b27fbddd4c31906353a0cb95d53be7ec69e39baaf94a073e5428a7",
+      "description": "Side-by-side statistics for several Finnish postal areas, with national benchmarks and percentiles. Accepts names or codes. Free callers are served only the FIRST TWO areas — the API truncates silently, and this tool reports the dropped ones in `locked`. If areas were dropped, say so; do not present"
+    },
+    {
+      "name": "rank_areas",
+      "descriptionHash": "1f3d7ce49175b7e4b3bb480c62e5c2dd09f5975e479f66267316eea5940eecc7",
+      "description": "Rank Finnish postal areas by any metric — highest or lowest income, population, unemployment, education, housing prices — nationally or within one municipality or region. Crime rate metrics (crime_total_rate and friends) rank municipalities instead, since crime is only published at that grain. Get v",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "find_similar_areas",
+      "descriptionHash": "61e60d667ccb7f1ec11a33a346b9789447c43713748700598bf3e8061ca3be08",
+      "description": "Postal areas most like a given one across its whole statistical profile — income, age structure, education, housing and employment together, not one metric. Useful for \"where else in Finland feels like this neighbourhood?\". Similarity is statistical, not geographic: the results are usually spread ac"
+    },
+    {
+      "name": "list_variables",
+      "descriptionHash": "06543d60a7e54d89d6e06a747bbfe967b43e04572a592d0c4a152d43f036ec37",
+      "description": "The catalogue of every metric Suomiatlas publishes — population, income, education, employment, buildings and dwellings, housing sale prices, crime rates, composite scores — grouped by theme, with codes, units and types. Call this to find the right `variableCode` for rank_areas or get_place_stats. P"
+    },
+    {
+      "name": "get_area_report",
+      "descriptionHash": "59e0ad591e72713c880d06d8ded079e9966cb93d0486563bbba3cdd4d990588a",
+      "description": "The download link for one postal area's printable PDF report (composite scores, trends and the full statistics table). Returns a URL and never the file itself — the report renders the same data the other tools return, so offer the link when someone wants the document, and answer questions from get_p",
+      "labels": [
+        "untrusted-content",
+        "private-data"
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOOL-POISON-002",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description tells the model to hide behavior",
+      "detail": "Description of \"compare_areas\" instructs the model to conceal actions from the user.",
+      "evidence": {
+        "source": "tool:compare_areas",
+        "snippet": "Side-by-side statistics for several Finnish postal areas, with national benchmarks and percentiles. Accepts names or codes. Free callers are served only the FIR…"
+      },
+      "confidence": 0.75
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: get_area_report · Private data: get_area_report · Public sink: rank_areas.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: get_area_report · Private data: get_area_report · Public sink: rank_areas"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 60,
+  "scoreBreakdown": {
+    "tool-poisoning": 20,
+    "toxic-flow": 20
+  },
+  "errors": []
+}

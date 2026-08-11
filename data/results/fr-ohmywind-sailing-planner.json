@@ -1,0 +1,105 @@
+{
+  "schemaVersion": 1,
+  "scanner": {
+    "version": "1.6.0",
+    "rules": "402995650b68"
+  },
+  "target": {
+    "kind": "url",
+    "ref": "https://mcp.ohmywind.fr/mcp"
+  },
+  "scannedAt": "2026-08-11T05:39:08.829Z",
+  "durationMs": 1396,
+  "layers": {
+    "metadata": true,
+    "static": false
+  },
+  "tools": [
+    {
+      "name": "read_me",
+      "descriptionHash": "b2742df47bc825d8624ccbaecd38683b9b98ca93293118e4ba971431e10d76bb",
+      "description": "Return OhMyWind's calculation methodology as Markdown.\n\n        Call this when the user asks how passage timing, complexity, or\n        boat speed are computed (e.g. \"comment c'est calculé ?\",\n        \"what assumptions does the model use?\", \"is tacking modelled?\").\n\n        The returned text covers:",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "list_boat_archetypes",
+      "descriptionHash": "658175dc44fc31dc78512055d1e8baf7fd01ec84bca79bee6bd75357a80e9767",
+      "description": "List the 7 boat archetypes with descriptive metadata.\n\n        The LLM (or user) maps a commercial model (e.g. \"Sun Odyssey 32\") to one\n        of these archetypes from the metadata — there is no server-side mapping."
+    },
+    {
+      "name": "get_marine_forecast",
+      "descriptionHash": "50afe52ff01f2f4c448e251740fcccf3e9c098cd4a77d36d31f6aef39bd3961d",
+      "description": "Fetch wind (and sea, when available) for a point and time window.\n\n        Args:\n            lat: latitude in degrees.\n            lon: longitude in degrees.\n            start: ISO-8601 datetime, timezone-aware (e.g. \"2026-05-01T06:00:00+00:00\").\n            end: ISO-8601 datetime, timezone-aware.\n "
+    },
+    {
+      "name": "plan_passage",
+      "descriptionHash": "e1ceae6a8d60df2329c4e22f395bdeaf891f9a4146c93574b1c88ac9101a2aed",
+      "description": "Plan an A→B passage. Compare departure windows by default; pin a\n        single departure only when the user gives an explicit time.\n\n        ## Tool routing: read this first\n\n        Before calling, classify the user's question:\n\n        1. **Pure weather lookup at a point** (\"y aura-t-il du vent à",
+      "labels": [
+        "untrusted-content",
+        "public-sink",
+        "destructive"
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOOL-POISON-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description issues instructions to the model",
+      "detail": "Description of \"plan_passage\" contains imperative instructions directed at the AI assistant rather than describing the tool. This is the core tool-poisoning technique.",
+      "evidence": {
+        "source": "tool:plan_passage",
+        "snippet": "Plan an A→B passage. Compare departure windows by default; pin a single departure only when the user gives an explicit time. ## Tool routing: read this first Be…"
+      },
+      "confidence": 0.7,
+      "remediation": "Treat the server as untrusted; the model may obey embedded instructions."
+    },
+    {
+      "id": "MCP-TOOL-POISON-006",
+      "severity": "low",
+      "category": "tool-poisoning",
+      "title": "Anomalously long tool description",
+      "detail": "Description of \"plan_passage\" is 7747 chars, far longer than this server's median (513). Overlong descriptions are a common place to bury instructions.",
+      "evidence": {
+        "source": "tool:plan_passage",
+        "snippet": "Plan an A→B passage. Compare departure windows by default; pin a single departure only when the user gives an explicit time. ## Tool routing: read this first Be…"
+      },
+      "confidence": 0.4
+    },
+    {
+      "id": "MCP-TOOL-POISON-007",
+      "severity": "low",
+      "category": "tool-poisoning",
+      "title": "Description uses pressure/override language",
+      "detail": "Description of \"plan_passage\" stacks urgency/override words (always, never, bypass). Legitimate tool descriptions rarely pressure the model to act or ignore prior guidance.",
+      "evidence": {
+        "source": "tool:plan_passage",
+        "snippet": "Plan an A→B passage. Compare departure windows by default; pin a single departure only when the user gives an explicit time. ## Tool routing: read this first Be…"
+      },
+      "confidence": 0.3
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "medium",
+      "category": "toxic-flow",
+      "title": "Toxic flow: untrusted input can reach an external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: read_me, plan_passage · Public sink: plan_passage · Destructive: plan_passage.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: read_me, plan_passage · Public sink: plan_passage · Destructive: plan_passage"
+      },
+      "confidence": 0.45,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 70,
+  "scoreBreakdown": {
+    "tool-poisoning": 22,
+    "toxic-flow": 8
+  },
+  "errors": []
+}

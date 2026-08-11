@@ -1,0 +1,95 @@
+{
+  "schemaVersion": 1,
+  "scanner": {
+    "version": "1.6.0",
+    "rules": "402995650b68"
+  },
+  "target": {
+    "kind": "url",
+    "ref": "https://artyfile.com/api/mcp"
+  },
+  "scannedAt": "2026-08-11T05:31:36.066Z",
+  "durationMs": 2941,
+  "layers": {
+    "metadata": true,
+    "static": false
+  },
+  "tools": [
+    {
+      "name": "search_tracks",
+      "descriptionHash": "762ac103da2bd0fb40527de36c1e4d6224901237bfe5856040d9c4666ae07521",
+      "description": "Search the Artyfile catalog of licensable music — real recordings by real orchestras and musicians (never AI-generated). Returns ranked tracks with prices; each result id is the productId create_checkout accepts. Results with licenseScope \"master_only\" are Cover Editions with NO sync licence — do no"
+    },
+    {
+      "name": "get_track",
+      "descriptionHash": "c122fe229841f9302e0e43bdc67806a4f20a498bedb5da5b95814d2f238a89e0",
+      "description": "Full details for one track by productId or slug: metadata, prices, licence scope, preview URL, human product page.",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "get_license_terms",
+      "descriptionHash": "a3de1429458fb62f980ba3286e52b99d896e2285bad3a4d3ab063f3e3d9aff65",
+      "description": "Machine-readable summary of the Artyfile licence tiers: Basic (€29.90 one-time, worldwide perpetual sync licence) and Limited Edition (€69.90 per 1% numbered master share incl. revenue participation). Includes the Cover-Edition (master_only) restrictions and links to the binding Terms & Conditions.",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "create_checkout",
+      "descriptionHash": "edb642b7a38be7c478563466c2c7ecd3784c3133e8c0fee9c89ff8b7a277cd29",
+      "description": "Create a checkout for one track. Returns a Stripe hosted-payment URL that the USER must open and approve in a browser (EU PSD2 — payment is never completed by the agent) plus the order publicId for polling. The session and its price reservation expire after 1 hour.",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "get_order_status",
+      "descriptionHash": "ee22dfd4fe368519979aa7fd53498a0dc2c1bd0be87ab9b4e50d5a07e3af19b9",
+      "description": "Poll an order by publicId. Once status is \"paid\" the payload carries downloadUrl (44.1 kHz WAV), invoiceUrl and certificateUrl (PDFs). Poll roughly every 15 seconds; a pending order older than 1 hour has expired."
+    },
+    {
+      "name": "get_download_link",
+      "descriptionHash": "3f4515f4e1adbf0caa27d3ea9bca6b455f600242ba6e50f3fb97143d2705bc89",
+      "description": "Download + document URLs for a PAID order: the WAV download (link re-issuable anytime, no cookies needed), the PDF invoice and the PDF licence/ownership certificate.",
+      "labels": [
+        "untrusted-content",
+        "private-data"
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"get_download_link\" references sensitive artifacts (cookie). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:get_download_link",
+        "snippet": "Download + document URLs for a PAID order: the WAV download (link re-issuable anytime, no cookies needed), the PDF invoice and the PDF licence/ownership certifi…"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: get_track, create_checkout, get_download_link · Private data: get_download_link · Public sink: get_license_terms.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: get_track, create_checkout, get_download_link · Private data: get_download_link · Public sink: get_license_terms"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 60,
+  "scoreBreakdown": {
+    "tool-poisoning": 20,
+    "toxic-flow": 20
+  },
+  "errors": []
+}

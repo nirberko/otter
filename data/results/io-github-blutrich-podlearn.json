@@ -8,19 +8,190 @@
     "kind": "url",
     "ref": "https://httiyebjgxxwtgggkpgw.supabase.co/functions/v1/mcp-server-streamable"
   },
-  "scannedAt": "2026-07-26T07:08:51.063Z",
-  "durationMs": 514,
+  "scannedAt": "2026-08-11T05:33:04.607Z",
+  "durationMs": 1932,
   "layers": {
-    "metadata": false,
+    "metadata": true,
     "static": false
   },
-  "findings": [],
-  "score": 100,
-  "scoreBreakdown": {},
-  "errors": [
+  "tools": [
     {
-      "scanner": "metadata",
-      "message": "Streamable HTTP error: Error POSTing to endpoint: {\"error\":\"Missing credentials — provide a Bearer token in the Authorization header or a ?token= query parameter\"}"
+      "name": "search_podcasts",
+      "descriptionHash": "0f6725d595b0df9512c91196b699403cb15b8e50a40d86fb0fe2cc31f5937b1c",
+      "description": "Search PodLearn library AND PodcastIndex.org (4M+ podcasts) by keyword. Also resolves Spotify/Apple Podcasts URLs. Returns rows tagged with `source: local|podcastindex|spotify`. First move when the user names a podcast/host but you don't have its id.",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "list_podcasts",
+      "descriptionHash": "015737d7d87590c76312ea1e6170668de8c947f2cd257699723fdf12830ef1a1",
+      "description": "List podcasts already in the PodLearn library, optionally filtered by category. Returns most-recently-added first. For discovery beyond the library use search_podcasts."
+    },
+    {
+      "name": "get_podcast_details",
+      "descriptionHash": "2b9ddc2a20225ea90383b111417d35532ac9f4411ce3be0bfca83be0d33a2a7d",
+      "description": "Fetch full metadata for one podcast in the PodLearn library, including its episode count. The podcast must already be in the local DB (source=local in search_podcasts results).",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "search_episodes",
+      "descriptionHash": "d08f1ef2dac4feca4f27804d4f92831678a8c42d7d38fc1ddbe76a804f950b2f",
+      "description": "Cross-podcast episode search by title/description AND parent podcast name/author. Returns local episodes only — for podcasts discoverable on PodcastIndex that aren't yet ingested, use list_feed_episodes instead. `status: \"transcribed\"` filters to ready-to-read; `status: \"untranscribed\"` to available"
+    },
+    {
+      "name": "list_feed_episodes",
+      "descriptionHash": "be72a67e999be4137ff85049735d84165398dcca8254554f29df6cf79abeee9e",
+      "description": "Fetch the canonical episode list for a podcast directly from PodcastIndex (the upstream RSS index). NO COST — pure discovery. Each episode is enriched with `in_library`, `episode_id` (if already ingested), and `transcription_status`. For episodes you want to ingest: call transcribe_url(audio_url, ti",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "list_episodes",
+      "descriptionHash": "0244257f5e20dcd534db949c03903d1a1de8b7a18497d85ba4dfe3c99fc7385b",
+      "description": "List episodes already in the local DB for a specific podcast. Requires podcast_id (use search_podcasts first if you only have a name). For cross-podcast search use search_episodes; for canonical PodcastIndex listings use list_feed_episodes.",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "get_episode_details",
+      "descriptionHash": "caffb0b44dce981baca4d8f64833bab0bb60d003e9b9870a42747437c9454c35",
+      "description": "Fetch full metadata for one episode including transcription_status and lesson_generation_status. Tells you whether get_transcription is ready or you need to transcribe first: start_transcription(episode_id) for an in-library episode (inherits its existing show/artwork/feed linkage automatically) or ",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "transcribe_url",
+      "descriptionHash": "b609cecedf2462040729783ee373ce31f44b2435c5c888d217d880f024b652a1",
+      "description": "Ingest and transcribe an EXTERNAL / arbitrary audio URL — a URL the user pasted, or audio not reachable through the index. Creates a STANDALONE episode row. If the episode is already in the library (it has an episode_id), prefer start_transcription(episode_id) instead — it inherits the episode's exi"
+    },
+    {
+      "name": "transcribe_feed",
+      "descriptionHash": "3c9b2a4e37c55a23f95fcd504d3e39361eeabf198033fe883712ace541d51253",
+      "description": "Bulk/season transcription — kick off transcription for up to `max` (cap 25) not-yet-transcribed episodes of a podcast feed in ONE call. Pass the `feed_id` from search_podcasts / list_feed_episodes. Already-transcribed episodes are skipped free. COSTS 1 credit per newly enqueued episode (or subscript"
+    },
+    {
+      "name": "start_transcription",
+      "descriptionHash": "01c0eedb904b927a667da6baf315be680099f5b3231e30497ab517711ca33b92",
+      "description": "Kick off transcription on an episode ALREADY in the library. Use only when the episode row exists and transcription_status is not \"completed\". Inherits the episode's existing show, artwork, and feed linkage automatically — no need to pass podcast context. For audio not yet in the library, use transc"
+    },
+    {
+      "name": "get_transcription",
+      "descriptionHash": "3f100e21ba800bafd7644332916c3d2f3288372b1a5b4257252bbf5d490e8501",
+      "description": "Fetch transcript text for a completed episode. PAGINATED — returns up to 120,000 characters per call (Claude.ai/Desktop caps a tool result at ~150k chars). Most transcripts fit in one call; only very long episodes page. If the response has `has_more: true`, call again with `offset: <next_offset>`. F",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "search_transcription",
+      "descriptionHash": "98e4e5f4f5f3bbd0533c78e1b62a045776b08f178ddd98f97c39a13a6b5559ef",
+      "description": "Keyword search WITHIN a single episode's transcript. Returns matching chunks with surrounding context. Use instead of get_transcription when the user asked about a specific topic — server does this faster + cheaper on context.",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "get_transcription_segments",
+      "descriptionHash": "6fe4b872e2e67cd89838b6566df0148a03ce21aae4751aeb11f2c7ddbf23e613",
+      "description": "Fetch timestamped transcript segments. Use when the user wants timestamps — \"jump to where they discuss X\", chapter boundaries, durations of specific parts.",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "list_lessons",
+      "descriptionHash": "b16d7ddb60692dff2700c36541e5f717fd14a7ae46d821ecd57e6a1f47488afd",
+      "description": "List the calling user's saved AI-generated lessons."
+    },
+    {
+      "name": "get_lesson_content",
+      "descriptionHash": "1bc94c007766e57ee1d314fef6737be6162d983a6e6616f5f53fdad6da17a635",
+      "description": "Fetch the full body of one AI-generated lesson (title, summary, key takeaways, structured sections). Use to retrieve prior synthesis — for creating a NEW one call generate_lesson."
+    },
+    {
+      "name": "generate_lesson",
+      "descriptionHash": "20d9ceb894f41df66649c4015e5b73d8ceb4a95dd5b08c1daf67ee0eaf047d0c",
+      "description": "Generate a structured AI lesson (summary, key takeaways, sections) from a completed transcription. Requires the episode to have transcription_status \"completed\". Consumes 1 credit, or one unit of subscription quota, on first generation for an episode; subsequent calls return the cached lesson at no "
+    },
+    {
+      "name": "get_subscription_status",
+      "descriptionHash": "acd14b41933dcad9ac0dcb5a692cbe6f7b2beb3a77a9a68271b0d11259f6c6f8",
+      "description": "Get the caller's subscription plan + active/expired status + period end."
+    },
+    {
+      "name": "get_user_credits",
+      "descriptionHash": "c4d76e7992cd43e65f65322eef24accab476e469f3c77b287def819cf997bba8",
+      "description": "Get the caller's remaining transcription credits."
+    },
+    {
+      "name": "get_episode_usage",
+      "descriptionHash": "7f784b6f79393a515478b267c66a4c7f47a724e574d65ecfc08f44ae00e705db",
+      "description": "Get the caller's episode-access usage stats — how many episodes they've transcribed/read this billing period."
+    },
+    {
+      "name": "get_saved_items",
+      "descriptionHash": "1aa66b64151bd68a5d33d36830ae12a1195d92b2d7f0ea44930024b39d7c3db0",
+      "description": "List the caller's saved/bookmarked episodes and lessons."
+    },
+    {
+      "name": "save_item",
+      "descriptionHash": "491255e34bdef1b4a56f1fe3a24fbf1bf641280c5711d7b7169155d72b35b1f7",
+      "description": "Bookmark an episode or lesson for the caller."
+    },
+    {
+      "name": "remove_saved_item",
+      "descriptionHash": "9872e72117d2d24db09e2a3727376b652ac91740471a396764510adc30f8be99",
+      "description": "Permanently remove a saved/bookmarked episode or lesson from the caller's collection. The saved_item_id comes from get_saved_items.",
+      "labels": [
+        "destructive"
+      ]
+    },
+    {
+      "name": "generate_linkedin_post",
+      "descriptionHash": "fff209803ee882cc8d92c89eec4015491e84b13024bf6051e1ff27f9f44bc8c7",
+      "description": "Turn an already-generated lesson into a LinkedIn-ready share post. Pass lesson_id directly OR episode_id (uses the most recent lesson generated by the caller for that episode). Lesson must exist — chain after generate_lesson if needed.",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "search_youtube",
+      "descriptionHash": "aec7e03dcf4798e4e60197dd4fae9bc25d615ee0ea70c4df06a2730b8c961b94",
+      "description": "Discover YouTube videos by topic/keyword across all of YouTube. Use when the user wants to learn from a talk/interview/lecture and has no URL — especially when search_podcasts / search_episodes find nothing (much long-form content is YouTube-first). NO COST: pure discovery. Returns rows with a ready",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "browse_episodes",
+      "descriptionHash": "2e3912960793cdf943a0f77419de1d34d30cf498eca76df5daae17b7fd1b8424",
+      "description": "Open an interactive episode picker (card grid with thumbnails) for the user to pick an episode to read. On hosts that render MCP Apps the grid is clickable; everywhere else a markdown table is returned. Optional query filters by title/host."
     }
-  ]
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp-server-streamable\" exposes tools that together enable an exfiltration flow. Untrusted content: search_podcasts, list_feed_episodes, get_episode_details, get_transcription, search_transcription, get_transcription_segments, search_youtube · Private data: get_podcast_details, list_episodes · Public sink: generate_linkedin_post · Destructive: remove_saved_item.",
+      "evidence": {
+        "source": "server:mcp-server-streamable",
+        "snippet": "Untrusted content: search_podcasts, list_feed_episodes, get_episode_details, get_transcription, search_transcription, get_transcription_segments, search_youtube · Private data: get_podcast_details, list_episodes · Public sink: generate_linkedin_post · Destructive: remove_saved_item"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 80,
+  "scoreBreakdown": {
+    "toxic-flow": 20
+  },
+  "errors": []
 }

@@ -1,0 +1,134 @@
+{
+  "schemaVersion": 1,
+  "scanner": {
+    "version": "1.6.0",
+    "rules": "402995650b68"
+  },
+  "target": {
+    "kind": "url",
+    "ref": "https://watchpup.watchpup.workers.dev/mcp"
+  },
+  "scannedAt": "2026-08-11T05:38:41.865Z",
+  "durationMs": 219,
+  "layers": {
+    "metadata": true,
+    "static": false
+  },
+  "tools": [
+    {
+      "name": "check_url",
+      "descriptionHash": "52ce171bb577b425484a189c3b2a732db8e4b04c2704734fb027df864b77dd45",
+      "description": "Check any public URL RIGHT NOW: is it up, HTTP status, response time in ms. Works without an API key (rate limit 10/hour per IP). For continuous monitoring with alerts, use create_monitor.",
+      "labels": [
+        "untrusted-content",
+        "private-data"
+      ]
+    },
+    {
+      "name": "list_monitors",
+      "descriptionHash": "c17d22d6741d53a6fa496c09a8f1141e8a75d7ee98f0f3fdeeceb033723e8a0a",
+      "description": "List all monitors on the account: current up/down status, kind, target, interval, last check. Optionally filter by tag."
+    },
+    {
+      "name": "get_monitor",
+      "descriptionHash": "b904ec4c6bf9d969dd397a86ca9a561f92e71548ea6f859c485135f8a6a195bb",
+      "description": "Full detail for one monitor: status, config, 24h latency percentiles and trend (http/tcp), SLA budget if a target is set. Heartbeat monitors include their ping_url and ping_email."
+    },
+    {
+      "name": "create_monitor",
+      "descriptionHash": "b409d4babc462d2dcd1310645cf266a8f64de1ab86cdecf0976826ff950009ae",
+      "description": "Create a monitor. kind=http (needs url), tcp (target \"host:port\"), tls (target host[:port] — cert-expiry watch), domain (target — registration-expiry via RDAP), dns (target + rtype A/AAAA/MX/... , optional expect_value), heartbeat (dead-man’s switch for cron jobs/agent loops: needs name; response in"
+    },
+    {
+      "name": "update_monitor",
+      "descriptionHash": "c8850ea33cddde255c289c21895290014420562957c949fe0991e83dd9b46f80",
+      "description": "PATCH any monitor field: name, url, target, interval, expect, keyword, slow_ms, grace, cron, tags, sla_target, renotify, channels (alert routing)... Pause with {\"status\":\"paused\"}, resume with {\"status\":\"new\"}. Empty string clears optional fields."
+    },
+    {
+      "name": "delete_monitor",
+      "descriptionHash": "9a35eb359c058c7ac908f2c8c696b9b222b229c3b331360e75bb83db14f521b1",
+      "description": "Permanently delete a monitor and all its check history, events and rollups. Cannot be undone.",
+      "labels": [
+        "destructive"
+      ]
+    },
+    {
+      "name": "list_incidents",
+      "descriptionHash": "959f5ea19b60e975cf89380e7bd4e8971fdc0004b3c70283f635b44c1b6809c8",
+      "description": "Downtime incidents (ongoing and resolved) across all monitors: start, duration, cause, acknowledgement, notes."
+    },
+    {
+      "name": "ack_incident",
+      "descriptionHash": "50bc92cceb0cc909f0faf2261453b90417d76063d9a8048863b3052e5b5bf7f7",
+      "description": "Mark an ongoing incident as \"someone is on it\" — pauses still-down reminder alerts for that monitor until recovery. Set un=true to un-acknowledge (re-arms reminders)."
+    },
+    {
+      "name": "add_incident_note",
+      "descriptionHash": "f445c9ab00f55ee410b3880d2823b73d43237e178f711efbefeae85fea055387",
+      "description": "Attach/replace a note (max 500 chars) on an incident. Notes publish with the incident on public status pages, their JSON and the Atom feed. Empty string clears.",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "list_channels",
+      "descriptionHash": "749d69c210a7da39e294a3b4892b3f3263c198d626cdafdf67a2e3021872d688",
+      "description": "Alert delivery channels on the account (email / webhook / Discord / Slack / ntfy / Telegram), their verification state and delivery health.",
+      "labels": [
+        "untrusted-content",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "get_status_page",
+      "descriptionHash": "a9e104fd60617d462d67716d1443629bdbfab90523670cb9e21c05c5bf847e6b",
+      "description": "Machine-readable state of any public Watchpup status page by slug: per-monitor status, uptime, incidents last 30d. No API key needed.",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "get_account",
+      "descriptionHash": "414eb0d847d96d43594504b352bc52218792d242af4ba183cd76238ff6352033",
+      "description": "Who am I: account email, monitor count/limit, plan limits. Good first call to verify the API key works.",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink"
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOOL-POISON-006",
+      "severity": "low",
+      "category": "tool-poisoning",
+      "title": "Anomalously long tool description",
+      "detail": "Description of \"create_monitor\" is 759 chars, far longer than this server's median (150). Overlong descriptions are a common place to bury instructions.",
+      "evidence": {
+        "source": "tool:create_monitor",
+        "snippet": "Create a monitor. kind=http (needs url), tcp (target \"host:port\"), tls (target host[:port] — cert-expiry watch), domain (target — registration-expiry via RDAP),…"
+      },
+      "confidence": 0.4
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: check_url, list_channels, get_account · Private data: check_url, get_status_page, get_account · Public sink: add_incident_note, list_channels, get_account · Destructive: delete_monitor.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: check_url, list_channels, get_account · Private data: check_url, get_status_page, get_account · Public sink: add_incident_note, list_channels, get_account · Destructive: delete_monitor"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 77,
+  "scoreBreakdown": {
+    "tool-poisoning": 3,
+    "toxic-flow": 20
+  },
+  "errors": []
+}

@@ -49,6 +49,20 @@
     {
       "name": "get_affiliate_services",
       "descriptionHash": "ee4380732deee5afa57eefdbd3940f9ee151bf3a1d657f62c11c3f26c1d03e2e",
+      "2f3f0861586e8e9df60240514a7e4764a11f41027050209",
+      "description": "Assemble a whole journey through several named cities and return the best options. Unlike list_packages and search_all_tours, which look for a single published trip, this builds one journey out of guided sections that connect in a hub city on real departure dates, plus the days Sparkling Tracks arra"
+    },
+    {
+      "name": "list_destinations",
+      "descriptionHash": "b3d217c4da198407355083a8b9b24c77e772fa32ea4cf8e73b596ad63c492ec5",
+      "description": "List the featured European destination cities Sparkling Tracks publishes a guide page for (at /destinations/:slug). Each entry has the city, country, the canonical guide URL, a short description, highlight attractions, and the ids of the tour packages that visit that city (package_count / package_id",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "get_affiliate_services",
+      "descriptionHash": "ee4380732deee5afa57eefdbd3940f9ee151bf3a1d657f62c11c3f26c1d03e2e",
       "description": "List the affiliate booking services available on sparklingtracks.com (flights, hotels, cars, activities, eSIMs). Each entry is a whitelabel widget hosted on a site page; direct API booking is not supported through this MCP. The AI should route the user to the returned URL to complete the search and ",
       "labels": [
         "untrusted-content"
@@ -80,26 +94,78 @@
       "labels": [
         "untrusted-content"
       ]
+    },
+    {
+      "name": "check_availability",
+      "descriptionHash": "4f3c49163ab85d8d5c97aa8c4f682b761c8ebd4c8f24b3bd0819d1399d4bf207",
+      "description": "Search real departure dates, per-person prices in EUR and remaining availability across the whole group-trip catalogue. Unlike list_packages and get_package_details, which return \"from\" prices and no live stock, this returns the actual departures we can sell right now. Each departure carries a statu"
+    },
+    {
+      "name": "check_departure_live",
+      "descriptionHash": "c367fc52098ed093381fb4ec6b70fb07c71f141d8e68ea25a9bb1663dc8ffca3",
+      "description": "Confirm ONE departure date with the operator right now. check_availability answers from a snapshot refreshed periodically; this asks the operator live and is what should be trusted before a date is promised to a traveller. Returns status (available, on-request, closed or unknown), a remaining seat c",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "request_to_book",
+      "descriptionHash": "197521111462c95e72caee496163c79ffdf9efaae98a6e65ffe11cff7a286db5",
+      "description": "Record a traveller REQUEST to book and send it to the Sparkling Tracks team. This does NOT book, hold or charge anything, and no confirmation exists until a human replies: none of the operators we work with can be booked programmatically. Call it only after check_availability has returned a specific",
+      "labels": [
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "request_custom_itinerary",
+      "descriptionHash": "a5e944ed381960c128311930c992faa6949f53f687d4cc9eef11203d6cca847e",
+      "description": "Record a REQUEST for a custom multi-city itinerary and send it to the Sparkling Tracks team. Use when the customer has picked an option from plan_multi_city_trip or one of the self-paced alternatives and has given their name and email. This does NOT book anything. Returns a reference the traveller c",
+      "labels": [
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "send_whatsapp_message",
+      "descriptionHash": "c2f145d1bc100e488a08b24d4f32c2a76a4fcc972025a2f5a63924456bb75a9f",
+      "description": "Send a WhatsApp message to a traveller from the Sparkling Tracks team. Use when the user has provided their phone number and wants details, a reminder, or confirmation sent to WhatsApp. The message is forwarded to the team and sent from the business WhatsApp number.",
+      "labels": [
+        "public-sink"
+      ]
     }
   ],
   "findings": [
+    {
+      "id": "MCP-TOOL-POISON-007",
+      "severity": "low",
+      "category": "tool-poisoning",
+      "title": "Description uses pressure/override language",
+      "detail": "Description of \"get_package_details\" stacks urgency/override words (always, never). Legitimate tool descriptions rarely pressure the model to act or ignore prior guidance.",
+      "evidence": {
+        "source": "tool:get_package_details",
+        "snippet": "Fetch the full itinerary, descriptions, included attractions, optional add-ons, pricing notes, and booking pathway for one Sparkling Tracks tour package by id. …"
+      },
+      "confidence": 0.3
+    },
     {
       "id": "MCP-TOXIC-FLOW-001",
       "severity": "high",
       "category": "toxic-flow",
       "title": "Lethal trifecta: untrusted input + private data + external sink",
-      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: list_packages, get_package_details, list_destinations, get_affiliate_services, get_contact_info, get_careers, get_reviews · Private data: get_package_details, get_contact_info · Public sink: get_package_details, get_contact_info, get_careers.",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: list_packages, get_package_details, search_all_tours, list_destinations, get_affiliate_services, get_contact_info, get_careers, get_reviews · Private data: get_package_details, get_contact_info, request_to_book, request_custom_itinerary · Public sink: get_package_details, get_contact_info, get_careers, check_departure_live, request_to_book, request_custom_itinerary, send_whatsapp_message.",
       "evidence": {
         "source": "server:mcp",
-        "snippet": "Untrusted content: list_packages, get_package_details, list_destinations, get_affiliate_services, get_contact_info, get_careers, get_reviews · Private data: get_package_details, get_contact_info · Public sink: get_package_details, get_contact_info, get_careers"
+        "snippet": "Untrusted content: list_packages, get_package_details, search_all_tours, list_destinations, get_affiliate_services, get_contact_info, get_careers, get_reviews · Private data: get_package_details, get_contact_info, request_to_book, request_custom_itinerary · Public sink: get_package_details, get_contact_info, get_careers, check_departure_live, request_to_book, request_custom_itinerary, send_whatsapp_message"
       },
       "confidence": 0.6,
       "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
     }
   ],
-  "score": 80,
+  "score": 77,
   "scoreBreakdown": {
+    "tool-poisoning": 3,
     "toxic-flow": 20
   },
   "errors": []
-}}
+}

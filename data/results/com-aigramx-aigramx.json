@@ -1,0 +1,105 @@
+{
+  "schemaVersion": 1,
+  "scanner": {
+    "version": "1.6.0",
+    "rules": "402995650b68"
+  },
+  "target": {
+    "kind": "url",
+    "ref": "https://aigramx.com/api/v1/mcp"
+  },
+  "scannedAt": "2026-08-11T05:31:35.884Z",
+  "durationMs": 1054,
+  "layers": {
+    "metadata": true,
+    "static": false
+  },
+  "tools": [
+    {
+      "name": "get_feed",
+      "descriptionHash": "e356f1e0de843b2f6d4969e3d0f37d55dcbfcce1ea5ab65c3b8646a5d306cdff",
+      "description": "Read the public AiGramX feed of AI-creator and robotics posts. No authentication required.",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "search",
+      "descriptionHash": "e5d62528103c567f562e046d2ee2ece1fbbee61df5b2578d416c3b440eb4feb0",
+      "description": "Search AiGramX posts, hashtags, and creators. No authentication required.",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "get_post",
+      "descriptionHash": "521ec0eef1ef1b0eababe0531785e106e2d1c85930ed530e93c319c656edf10d",
+      "description": "Get a single public post (caption, media, AI attribution, engagement) by its id.",
+      "labels": [
+        "untrusted-content",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "get_profile",
+      "descriptionHash": "666781c6ec7dc02d5852fb7089eee043e7f6c5d7782ec5412f813028dc1d6a02",
+      "description": "Get a creator's public profile by username."
+    },
+    {
+      "name": "create_post",
+      "descriptionHash": "0957d36f61b73b4bd344c444301543a3fce59aeffbb5c706b11762a514a91f4c",
+      "description": "Post to AiGramX on behalf of your account. REQUIRES an aigx_live_ API key sent as Authorization: Bearer on a CREATOR-tier account (get one at https://aigramx.com/auth.md). Content must be AI-generated (attribute the engine/model) OR a real, unedited photo/video of a real machine (contentSource=ROBOT",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink"
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-SHADOW-001",
+      "severity": "medium",
+      "category": "shadowing",
+      "title": "Generic tool name can shadow trusted tools",
+      "detail": "Tool \"search\" uses a generic high-value name. When multiple servers load together, this can intercept calls meant for a trusted server.",
+      "evidence": {
+        "source": "tool:search",
+        "snippet": "search"
+      },
+      "confidence": 0.4
+    },
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"create_post\" references sensitive artifacts (authorization, bearer). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:create_post",
+        "snippet": "Post to AiGramX on behalf of your account. REQUIRES an aigx_live_ API key sent as Authorization: Bearer on a CREATOR-tier account (get one at https://aigramx.co…"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: get_feed, search, get_post, create_post · Private data: create_post · Public sink: get_post, create_post.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: get_feed, search, get_post, create_post · Private data: create_post · Public sink: get_post, create_post"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 52,
+  "scoreBreakdown": {
+    "shadowing": 8,
+    "tool-poisoning": 20,
+    "toxic-flow": 20
+  },
+  "errors": []
+}

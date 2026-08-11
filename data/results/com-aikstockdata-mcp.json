@@ -70,3 +70,123 @@
   },
   "errors": []
 }
+      "descriptionHash": "b8d2389bb9e8e531769669379447d1d31a8715435391efc3041fd7d479a335d8",
+      "description": "Answers \"is this stock near its high or deep in a drawdown, and is volume unusual?\" — 250 trading days of daily CLOSES, plus period high/low, drawdown from the high, and volume vs the 60-day average. Close-based (the upstream feed has no intraday high/low), so it will differ from an HTS 52-week rang",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "get_disclosure_impact",
+      "descriptionHash": "695543d4a1495a05d967a9b51df573ead44a49dcb4bf42c792d22ec5143b8c4d",
+      "description": "Answers \"what usually happened after this kind of filing?\" — median MARKET-ADJUSTED return at +1/+5 trading days per DART filing type, with 95% intervals, sample window and n. A historical record, not a forecast. Not available from other free Korean sources. Coverage: top-1,500-by-market-cap univers",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "get_earnings_calendar",
+      "descriptionHash": "d2d69b9d7794ba09820d226438af9674c20945eab3b95568541f811f70ae5f88",
+      "description": "Answers \"who has filed this quarter's results, who hasn't, and what came in since last time?\" — filed / not-yet lists against the statutory deadline, plus a diff of filings new since the previous publish. Built for stateless agents: polling this replaces a webhook. | \"누가 냈고 누가 아직인가 · 지난번 이후 새로 뜬 건 뭔",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "get_disclosures",
+      "descriptionHash": "bd731d1b0f84b104393159511eedaa1ee1ccffb7481f7f7709fe05d03fe722e7",
+      "description": "Answers \"what was filed, and when exactly?\" — DART filings with RECEIPT TIME (HH:MM) and session (pre-open / intraday / after-close), filterable by date, type and importance. The receipt time is not exposed by any public Korean API. | \"무슨 공시가 몇 시에 났나\"에 답합니다 — 접수 시각(HH:MM)과 장 구분까지. 공개 API 어디에도 없는 값입니"
+    },
+    {
+      "name": "list_stocks",
+      "descriptionHash": "3fbb950e4e28621f58a256207f4a6376bbedfd2d6e1dbb7b7d77feb027542fe2",
+      "description": "Return the LIST of stocks matching a condition — turnaround to profit, 52-week high/low, growth or quiet-performer rankings — with optional market-cap range and a cap-to-operating-income multiple ceiling. Other tools give counts; this one gives the names. | 조건에 맞는 종목 목록을 돌려줍니다 — 흑자전환·52주 신고저·성장/조용한 "
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-SCHEMA-SMELL-001",
+      "severity": "medium",
+      "category": "schema-smell",
+      "title": "Read-only tool requests dangerous parameters",
+      "detail": "Tool \"get_stock\" appears informational but accepts parameters (code) that enable code/file/secret access.",
+      "evidence": {
+        "source": "tool:get_stock",
+        "snippet": "code"
+      },
+      "confidence": 0.55
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: get_data_urls, get_history · Private data: get_data_urls, get_disclosure_impact · Public sink: get_earnings_calendar.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: get_data_urls, get_history · Private data: get_data_urls, get_disclosure_impact · Public sink: get_earnings_calendar"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"get_today\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:get_today",
+        "snippet": "before: \"One-shot daily digest of the Korean market: up/down breadth & tone, top-3 disclosures, growth top-3, recent earnings, and aggregate stats (disclosure-type counts, earnings-improvement rate). Best for 'how was the market today?'. | 오늘의 시장 다이제스트 — 등락 폭·주요 공시 TOP3·성장 랭킹·실적·집계 통계를 한 번에. '오늘 시장 어땠어?'에 딱.\" → after: \"Start here for \"how was the Korean market today?\" — index levels, breadth, 52-week high/low counts, top-3 disclosures, growth top-3, movers and disclosure-type counts in one call. Then drill down with get_stock / list_stocks / get_disclosures. Coverage: top-1,500-by-market-cap universe, not the full\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"search_stock\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:search_stock",
+        "snippet": "before: \"Search Korean stocks (KOSPI/KOSDAQ) by name or 6-digit ticker with partial match. Returns up to 10 matches sorted by market cap: code, name, market, market cap. | 종목명·종목코드 부분일치 검색 — 시가총액순 상위 10개(코드·이름·시장·시총).\" → after: \"Find a ticker when you only know (part of) the Korean name. Substring match on the KOREAN name only — no English, no aliases — within the top-1,500-by-market-cap universe (ETFs included). Up to 10 matches, market-cap sorted. 'samsung' returns nothing; '삼성' works. | 한글명 부분일치 전용입니다 — 영문·별칭은 안 됩니다('sam\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"get_rankings\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:get_rankings",
+        "snippet": "before: \"Machine-computed rankings from public DART financials. kind='growth' = 성장 TOP8 (measured revenue/operating-profit growth); kind='quiet' = 조용한 실적주 (good results but low trading interest). Mechanical, not stock picks. | 공개 재무 기반 기계 랭킹 — growth=성장 TOP8, quiet=조용한 실적주. 추천 아님.\" → after: \"Answers \"which stocks scored highest on measured DART financials?\" — kind='growth' is 성장 TOP8 (max 8 rows), kind='quiet' is 조용한 실적주. Scores come from a published formula over ACTUAL filed financials only — no prices, no analyst estimates. Mechanical, not stock picks. For 52-week high/low or turnarou\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"get_market_summary\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:get_market_summary",
+        "snippet": "before: \"Snapshot summary of the Korean market from T+1 data: up/down breadth, 52-week high/low counts, and earnings-turnaround count (prior-year loss → current profit, from DART). | 시장 요약 — 상승/하락 폭(breadth), 52주 신고가·신저가 수, 실측 흑자전환 종목 수.\" → after: \"Index levels (KOSPI/KOSDAQ close, change, %) and up/down breadth — nothing else. For the full daily digest (disclosures, rankings, movers) use get_today(). | 지수와 등락 폭만 봅니다. 하루 전체 요약은 get_today(), 조건별 종목 목록은 list_stocks().\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    }
+  ],
+  "score": 35,
+  "scoreBreakdown": {
+    "schema-smell": 8,
+    "toxic-flow": 20,
+    "tool-poisoning": 38
+  },
+  "errors": []
+}
