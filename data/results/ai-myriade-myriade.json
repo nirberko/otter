@@ -8,8 +8,8 @@
     "kind": "url",
     "ref": "https://app.myriade.ai/mcp/"
   },
-  "scannedAt": "2026-07-20T07:38:29.554Z",
-  "durationMs": 1860,
+  "scannedAt": "2026-08-12T05:55:18.933Z",
+  "durationMs": 2349,
   "layers": {
     "metadata": true,
     "static": false
@@ -46,10 +46,18 @@
     },
     {
       "name": "myriade_query",
-      "descriptionHash": "57546e0b750c95c8b0691d71f8d584381e364cf573cf4c33dc26153a3cea3291",
-      "description": "Execute a read-only SQL query against a database.\n\nWrite operations (INSERT, UPDATE, DELETE, DROP, etc.) are blocked.\nReturns up to 50 rows of results with column metadata.",
+      "descriptionHash": "e0f120fe176757405e5eda27e716aeb261cfb8a71050eb0587b6fac4423f2e5b",
+      "description": "Execute a read-only SQL query against a database.\n\nWrite operations (INSERT, UPDATE, DELETE, DROP, etc.) are blocked.\nReturns up to 50 rows of results with column metadata. Successful\nqueries are saved in Myriade; the response's `query_id` can be\nreplayed later with myriade_get_query_results without",
       "labels": [
         "private-data",
+        "destructive"
+      ]
+    },
+    {
+      "name": "myriade_get_query_results",
+      "descriptionHash": "3c29653e2ec13d07097ead500c8ce15fd1c467a96d479843270d987be92f7ad9",
+      "description": "Re-execute a saved Myriade query and return fresh results.\n\nThe query's SQL always re-runs under the caller's governance policies\n(table permissions, column masking) — results are never served from\nMyriade's cached snapshot.\n\nPrefer this over myriade_query for recurring metrics (dashboards,\ncockpits",
+      "labels": [
         "destructive"
       ]
     },
@@ -65,10 +73,11 @@
     },
     {
       "name": "myriade_read_asset",
-      "descriptionHash": "d39f2e8e6baa483c04f9c724b0a2aab977ed83a7b3c4bc79bea837113f351665",
-      "description": "Get detailed information about a catalog asset (table, column, schema).\n\nReturns the asset's description, tags, status, columns (for tables),\nsample data, parent hierarchy, and activity feed.",
+      "descriptionHash": "2fe4340784a3434c8b3bf9a5ec2b31379bcd06059054df917da377957bdd6458",
+      "description": "Get detailed information about a catalog object (table, column, schema,\nor glossary term — assets and terms share one id space).\n\nReturns the asset's description, tags, status, columns (for tables),\nsample data, parent hierarchy, and activity feed; for a glossary term,\nits definition, synonyms, rela",
       "labels": [
-        "untrusted-content"
+        "untrusted-content",
+        "public-sink"
       ]
     },
     {
@@ -93,6 +102,18 @@
   ],
   "findings": [
     {
+      "id": "MCP-TOOL-POISON-007",
+      "severity": "low",
+      "category": "tool-poisoning",
+      "title": "Description uses pressure/override language",
+      "detail": "Description of \"myriade_get_query_results\" stacks urgency/override words (always, never). Legitimate tool descriptions rarely pressure the model to act or ignore prior guidance.",
+      "evidence": {
+        "source": "tool:myriade_get_query_results",
+        "snippet": "Re-execute a saved Myriade query and return fresh results. The query's SQL always re-runs under the caller's governance policies (table permissions, column mask…"
+      },
+      "confidence": 0.3
+    },
+    {
       "id": "MCP-TOOL-POISON-003",
       "severity": "high",
       "category": "tool-poisoning",
@@ -103,11 +124,51 @@
         "snippet": "Ask a natural language question about a database using Myriade's data analyst agent. The agent will explore the database schema, search the catalog, run SQL que…"
       },
       "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: myriade_read_asset · Private data: myriade_list_databases, myriade_get_database_info, myriade_list_tables, myriade_query, myriade_ask · Public sink: myriade_read_asset · Destructive: myriade_query, myriade_get_query_results, myriade_ask.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: myriade_read_asset · Private data: myriade_list_databases, myriade_get_database_info, myriade_list_tables, myriade_query, myriade_ask · Public sink: myriade_read_asset · Destructive: myriade_query, myriade_get_query_results, myriade_ask"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"myriade_query\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:myriade_query",
+        "snippet": "before: \"Execute a read-only SQL query against a database.\n\nWrite operations (INSERT, UPDATE, DELETE, DROP, etc.) are blocked.\nReturns up to 50 rows of results with column metadata.\" → after: \"Execute a read-only SQL query against a database.\n\nWrite operations (INSERT, UPDATE, DELETE, DROP, etc.) are blocked.\nReturns up to 50 rows of results with column metadata. Successful\nqueries are saved in Myriade; the response's `query_id` can be\nreplayed later with myriade_get_query_results without\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"myriade_read_asset\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:myriade_read_asset",
+        "snippet": "before: \"Get detailed information about a catalog asset (table, column, schema).\n\nReturns the asset's description, tags, status, columns (for tables),\nsample data, parent hierarchy, and activity feed.\" → after: \"Get detailed information about a catalog object (table, column, schema,\nor glossary term — assets and terms share one id space).\n\nReturns the asset's description, tags, status, columns (for tables),\nsample data, parent hierarchy, and activity feed; for a glossary term,\nits definition, synonyms, rela\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
     }
   ],
-  "score": 80,
+  "score": 45,
   "scoreBreakdown": {
-    "tool-poisoning": 20
+    "tool-poisoning": 35,
+    "toxic-flow": 20
   },
   "errors": []
 }

@@ -8,8 +8,8 @@
     "kind": "url",
     "ref": "https://api.meni.ge/llm/mcp"
   },
-  "scannedAt": "2026-07-27T07:57:10.861Z",
-  "durationMs": 1328,
+  "scannedAt": "2026-08-12T05:50:30.044Z",
+  "durationMs": 1396,
   "layers": {
     "metadata": true,
     "static": false
@@ -25,13 +25,45 @@
     },
     {
       "name": "get_item",
-      "descriptionHash": "1dc81a80541950936ce39174f20c9c3731c0785510d33fdcc680266fb74a36fa",
-      "description": "Get one menu item with its variant groups and addons."
+      "descriptionHash": "0cda905e81e09b15ad389049fff5d9c05e876a5c4fcf4ac7a6bae46c0975b897",
+      "description": "Get one menu item with its variant groups and addons, or several at once: pass itemIds (up to 10) instead of itemId to look items up in bulk — the bulk answer is {items, notFound}."
+    },
+    {
+      "name": "search_products",
+      "descriptionHash": "9778fcc8940c09640aa659b1257993dda78003d61200d24f3f2be3a4fdb2fad0",
+      "description": "Semantic search over the location's catalog: product/dish names, descriptions, specifications, brand, SKU/barcodes and attached docs. Use for \"do you have…\" / \"recommend…\" / \"how much is…\" questions instead of paging through get_menu. Returns matching items with prices and a relevance score; falls b"
+    },
+    {
+      "name": "update_cart",
+      "descriptionHash": "c252b3c15693402b76b7d2406e8834d6448dc81a72cddaafcb084a75cc011f1c",
+      "description": "Build the guest order step by step in a server-side cart, the way a human uses the web cart. Without cartId a new cart is created (keep the returned cartId — it is the access token). Each entry of updates: {itemId, quantity, variants?, addons?, comment?} adds a line; {lineId, quantity} changes one; ",
+      "labels": [
+        "untrusted-content",
+        "private-data"
+      ]
+    },
+    {
+      "name": "get_cart",
+      "descriptionHash": "0f5c61faf9578bd00eaee4bd5047d5352053a9323eb0c9524b072f4fd95595b1",
+      "description": "Read a cart created with update_cart: lines with live unit prices, subtotal, item count, the checkoutUrl for a human hand-off and the expiry date (carts live 7 days). Lines whose item left the menu are flagged unavailable and excluded from the subtotal."
+    },
+    {
+      "name": "get_store_info",
+      "descriptionHash": "7656feb5724984e510d39bdb509f7307e478ff6266281fdf4462b706876ded04",
+      "description": "Facts about the location that are not on the menu: address, contacts, coordinates, working hours with openNow computed in the venue timezone, delivery and pickup terms (fees, minimum order, zones, ETA), accepted payment methods and currency, shipping/return terms and links to the published legal doc",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "search_policies_and_faqs",
+      "descriptionHash": "7b3bbfa561fb1e965e8af1f7d888f41e1b04503dcdadc689953378a7f04ae734",
+      "description": "Search the location's own published policies, FAQ entries and info pages (privacy, terms, returns, delivery, cookies, help articles) plus, when the owner allows it, their internal knowledge base. Returns short snippets with a link to the source. Use it for policy/help questions instead of guessing; "
     },
     {
       "name": "create_order",
-      "descriptionHash": "18330cf2e9275357f79ee7d7884c9fe84d6d85370eb8a9af590a59ad061fbf72",
-      "description": "Validate and place an order at a meni.ge location. Returns orderId (keep it — it is the access token for status checks) and the computed total. customer.name/phone are required for pickup and delivery; delivery.address is required for delivery.",
+      "descriptionHash": "e1d9690ac4d7b561940f457b2ae6d58776430f4cb9a5407f6e9dccee35e6278b",
+      "description": "Validate and place an order at a meni.ge location. Returns orderId (keep it — it is the access token for status checks) and the computed total. customer.name/phone are required for pickup and delivery; delivery.address is required for delivery. Pass either items (inline) or cartId (the cart built wi",
       "labels": [
         "private-data"
       ]
@@ -65,8 +97,62 @@
       "description": "Cancel a reservation previously created with create_reservation."
     }
   ],
-  "findings": [],
-  "score": 100,
-  "scoreBreakdown": {},
+  "findings": [
+    {
+      "id": "MCP-TOOL-POISON-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description issues instructions to the model",
+      "detail": "Description of \"get_store_info\" contains imperative instructions directed at the AI assistant rather than describing the tool. This is the core tool-poisoning technique.",
+      "evidence": {
+        "source": "tool:get_store_info",
+        "snippet": "Facts about the location that are not on the menu: address, contacts, coordinates, working hours with openNow computed in the venue timezone, delivery and picku…"
+      },
+      "confidence": 0.7,
+      "remediation": "Treat the server as untrusted; the model may obey embedded instructions."
+    },
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"search_policies_and_faqs\" references sensitive artifacts (cookie). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:search_policies_and_faqs",
+        "snippet": "Search the location's own published policies, FAQ entries and info pages (privacy, terms, returns, delivery, cookies, help articles) plus, when the owner allows…"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"get_item\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:get_item",
+        "snippet": "before: \"Get one menu item with its variant groups and addons.\" → after: \"Get one menu item with its variant groups and addons, or several at once: pass itemIds (up to 10) instead of itemId to look items up in bulk — the bulk answer is {items, notFound}.\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"create_order\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:create_order",
+        "snippet": "before: \"Validate and place an order at a meni.ge location. Returns orderId (keep it — it is the access token for status checks) and the computed total. customer.name/phone are required for pickup and delivery; delivery.address is required for delivery.\" → after: \"Validate and place an order at a meni.ge location. Returns orderId (keep it — it is the access token for status checks) and the computed total. customer.name/phone are required for pickup and delivery; delivery.address is required for delivery. Pass either items (inline) or cartId (the cart built wi\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    }
+  ],
+  "score": 63,
+  "scoreBreakdown": {
+    "tool-poisoning": 38
+  },
   "errors": []
 }

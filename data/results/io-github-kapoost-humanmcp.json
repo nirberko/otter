@@ -8,8 +8,8 @@
     "kind": "url",
     "ref": "https://kapoost.humanmcp.net/mcp"
   },
-  "scannedAt": "2026-07-29T06:50:51.613Z",
-  "durationMs": 1307,
+  "scannedAt": "2026-08-12T05:53:04.833Z",
+  "durationMs": 1368,
   "layers": {
     "metadata": true,
     "static": false
@@ -248,6 +248,38 @@
       "name": "synthesise_persona_patterns",
       "descriptionHash": "fc4b4d157c9ecbeec72fa2ec1263aa76e04e4a5105922312619e770904f7be51",
       "description": "Force a synthesis pass over one persona's journal — Sonnet reads the raw entries plus previous patterns and writes a fresh set of 3-5 durable behavioural patterns. Owner-only. The narada worker uses these compressed patterns (not the raw journal) when building the Haiku recap that primes each person"
+    },
+    {
+      "name": "mysloodsiewnia_status",
+      "descriptionHash": "86ca066970523d2e9fb7a32f2a331ef4d748c5d27589073551dc9a44e990f1f5",
+      "description": "Read-only liveness probe on kapoost's local vault (mysłoodsiewnia). Returns {status: online|degraded|offline, last_seen, commit_sha, personas_updated_at, skills_updated_at}. Offline is a stable state — retry later, don't escalate. Owner-only via Authorization: Bearer.",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "mysloodsiewnia_search",
+      "descriptionHash": "0f3deda9a571590ffc8448b7bcb82813d551caba5980dd55d1951136a56e80a7",
+      "description": "Full-text search (BM25 over SQLite FTS5) on kapoost's local vault corpus. Owner-only. Returns {status, results:[{source, type, body, doc_slug, title, page, citation}], summary}. Vault offline ⇒ {status:offline} — do not retry immediately.",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "mysloodsiewnia_get",
+      "descriptionHash": "5632b87e52a83da977c15aac33fe8a7a2f65d72afe54891c96704040364d0a19",
+      "description": "Fetch one document from kapoost's vault by slug. Owner-only. Returns the full body + metadata; vault offline ⇒ {status:offline}.",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "mysloodsiewnia_list",
+      "descriptionHash": "c37cbb5f110b45e1b54c886922531f5080d3661056b0fc39010e55a604940b4c",
+      "description": "Enumerate vault documents without FTS — for browsing by type or paginating. Owner-only. Args: {doc_type?: string filter (note/pdf/literatura/calendar_event/...), limit?: int 1-200 default 50, offset?: int default 0}. Returns [{slug, title, doc_type, created_at, chunk_count}]. Vault offline ⇒ {status",
+      "labels": [
+        "private-data"
+      ]
     }
   ],
   "findings": [
@@ -300,22 +332,34 @@
       "confidence": 0.65
     },
     {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"mysloodsiewnia_status\" references sensitive artifacts (authorization, bearer). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:mysloodsiewnia_status",
+        "snippet": "Read-only liveness probe on kapoost's local vault (mysłoodsiewnia). Returns {status: online|degraded|offline, last_seen, commit_sha, personas_updated_at, skills…"
+      },
+      "confidence": 0.65
+    },
+    {
       "id": "MCP-TOXIC-FLOW-001",
       "severity": "high",
       "category": "toxic-flow",
       "title": "Lethal trifecta: untrusted input + private data + external sink",
-      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: read_provenance · Private data: list_blobs, read_blob, verify_content, leave_message, ask_human, list_provenance, read_provenance, read_collection_item, about_humanmcp, suggest_skills, upsert_skill, delete_skill, get_persona_journal, record_persona_reflection · Public sink: read_content, submit_answer, leave_message · Destructive: delete_skill, run_narada.",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: read_provenance · Private data: list_blobs, read_blob, verify_content, leave_message, ask_human, list_provenance, read_provenance, read_collection_item, about_humanmcp, suggest_skills, upsert_skill, delete_skill, get_persona_journal, record_persona_reflection, mysloodsiewnia_status, mysloodsiewnia_search, mysloodsiewnia_get, mysloodsiewnia_list · Public sink: read_content, submit_answer, leave_message · Destructive: delete_skill, run_narada.",
       "evidence": {
         "source": "server:mcp",
-        "snippet": "Untrusted content: read_provenance · Private data: list_blobs, read_blob, verify_content, leave_message, ask_human, list_provenance, read_provenance, read_collection_item, about_humanmcp, suggest_skills, upsert_skill, delete_skill, get_persona_journal, record_persona_reflection · Public sink: read_content, submit_answer, leave_message · Destructive: delete_skill, run_narada"
+        "snippet": "Untrusted content: read_provenance · Private data: list_blobs, read_blob, verify_content, leave_message, ask_human, list_provenance, read_provenance, read_collection_item, about_humanmcp, suggest_skills, upsert_skill, delete_skill, get_persona_journal, record_persona_reflection, mysloodsiewnia_status, mysloodsiewnia_search, mysloodsiewnia_get, mysloodsiewnia_list · Public sink: read_content, submit_answer, leave_message · Destructive: delete_skill, run_narada"
       },
       "confidence": 0.6,
       "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
     }
   ],
-  "score": 43,
+  "score": 41,
   "scoreBreakdown": {
-    "tool-poisoning": 38,
+    "tool-poisoning": 39,
     "toxic-flow": 20
   },
   "errors": []

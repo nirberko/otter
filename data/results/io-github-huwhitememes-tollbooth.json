@@ -8,8 +8,8 @@
     "kind": "url",
     "ref": "https://agenttoll.dev/mcp"
   },
-  "scannedAt": "2026-07-29T06:50:37.432Z",
-  "durationMs": 3786,
+  "scannedAt": "2026-08-12T05:52:49.136Z",
+  "durationMs": 7349,
   "layers": {
     "metadata": true,
     "static": false
@@ -81,6 +81,30 @@
       "name": "x402_rank_audit",
       "descriptionHash": "76ef64a6c5331e4f292f152544900bd0bcdcdf032164423572f6e272d4a46d3f",
       "description": "Audit one x402 resource across buyer keywords. Returns Bazaar rank, competitors above it, metadata defects, and fixes that can improve discovery."
+    },
+    {
+      "name": "mcp_safety_brief",
+      "descriptionHash": "eb3138bf13ad02b84fcdf6b687c7f2a6318121a12b7cfe31d98fd91d16ea8755",
+      "description": "Static risk brief for an MCP server, OpenAPI spec, or tool manifest before an agent connects it. Returns tool risk, PII and credential hints, allowlist advice, approval policy, and a user-facing safety line.",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "x402_seller_readiness_audit",
+      "descriptionHash": "946198c31c66adcb0104780c1bd7a57fc180f73d0f44f41ee8675263e79c2550",
+      "description": "Audit whether a paid x402 route is ready for agent buyers. Checks discovery metadata, price visibility, Base USDC terms, seller wallet, receipt language, tool descriptions, and approval copy.",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "mcp_approval_pack",
+      "descriptionHash": "be8ef5368dd1c38dc365fba1bca04dc4e8b19da72cb3e44ddede6d02f3d2073f",
+      "description": "Generate the approval prompt and spend policy an agent should show before using a paid or risky tool. Returns maxPayment, seller checks, risk reasons, allowed fields, and what not to send.",
+      "labels": [
+        "public-sink"
+      ]
     },
     {
       "name": "insider_cluster_brief",
@@ -562,6 +586,19 @@
   ],
   "findings": [
     {
+      "id": "MCP-TOOL-POISON-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description issues instructions to the model",
+      "detail": "Description of \"mcp_approval_pack\" contains imperative instructions directed at the AI assistant rather than describing the tool. This is the core tool-poisoning technique.",
+      "evidence": {
+        "source": "tool:mcp_approval_pack",
+        "snippet": "Generate the approval prompt and spend policy an agent should show before using a paid or risky tool. Returns maxPayment, seller checks, risk reasons, allowed f…"
+      },
+      "confidence": 0.7,
+      "remediation": "Treat the server as untrusted; the model may obey embedded instructions."
+    },
+    {
       "id": "MCP-SCHEMA-SMELL-001",
       "severity": "medium",
       "category": "schema-smell",
@@ -578,46 +615,20 @@
       "severity": "high",
       "category": "toxic-flow",
       "title": "Lethal trifecta: untrusted input + private data + external sink",
-      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: scrape, lobbying_records · Private data: extract_contacts, score_lead, enrich_lead, mcp_supply_chain_iocs, agent_trifecta_score, regulations_search, lobbying_records, cve_search, dns_records_lookup · Public sink: mcp_supply_chain_iocs, sec_8k_velocity · Destructive: agent_security_policies, flight_intel, nonprofit_filings.",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: scrape, lobbying_records · Private data: extract_contacts, score_lead, enrich_lead, mcp_safety_brief, x402_seller_readiness_audit, mcp_supply_chain_iocs, agent_trifecta_score, regulations_search, lobbying_records, cve_search, dns_records_lookup · Public sink: mcp_approval_pack, mcp_supply_chain_iocs, sec_8k_velocity · Destructive: agent_security_policies, flight_intel, nonprofit_filings.",
       "evidence": {
         "source": "server:mcp",
-        "snippet": "Untrusted content: scrape, lobbying_records · Private data: extract_contacts, score_lead, enrich_lead, mcp_supply_chain_iocs, agent_trifecta_score, regulations_search, lobbying_records, cve_search, dns_records_lookup · Public sink: mcp_supply_chain_iocs, sec_8k_velocity · Destructive: agent_security_policies, flight_intel, nonprofit_filings"
+        "snippet": "Untrusted content: scrape, lobbying_records · Private data: extract_contacts, score_lead, enrich_lead, mcp_safety_brief, x402_seller_readiness_audit, mcp_supply_chain_iocs, agent_trifecta_score, regulations_search, lobbying_records, cve_search, dns_records_lookup · Public sink: mcp_approval_pack, mcp_supply_chain_iocs, sec_8k_velocity · Destructive: agent_security_policies, flight_intel, nonprofit_filings"
       },
       "confidence": 0.6,
       "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
-    },
-    {
-      "id": "MCP-RUGPULL-001",
-      "severity": "high",
-      "category": "tool-poisoning",
-      "title": "Tool description changed since last scan",
-      "detail": "Tool \"gen_video_intel\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
-      "evidence": {
-        "source": "tool:gen_video_intel",
-        "snippet": "before: \"Generative video model intelligence.\" → after: \"Live Banodoco practitioner-feed intelligence for generative video and image workflows: Wan, VACE, LTX, ComfyUI, FLUX 3, Seedance, Kling, Hunyuan, Qwen Image, settings, comparisons, and gotchas. Intelligence only; no direct model API resale.\""
-      },
-      "confidence": 0.8,
-      "remediation": "Re-review the tool before continuing to trust it."
-    },
-    {
-      "id": "MCP-RUGPULL-001",
-      "severity": "high",
-      "category": "tool-poisoning",
-      "title": "Tool description changed since last scan",
-      "detail": "Tool \"model_settings_lookup\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
-      "evidence": {
-        "source": "tool:model_settings_lookup",
-        "snippet": "before: \"AI model recommended settings.\" → after: \"Community-tested settings for generative video and image models: CFG, steps, denoise, fps, resolution, sampler, LoRA, ComfyUI, fp8/quantization, and training notes.\""
-      },
-      "confidence": 0.8,
-      "remediation": "Re-review the tool before continuing to trust it."
     }
   ],
-  "score": 42,
+  "score": 52,
   "scoreBreakdown": {
+    "tool-poisoning": 20,
     "schema-smell": 8,
-    "toxic-flow": 20,
-    "tool-poisoning": 30
+    "toxic-flow": 20
   },
   "errors": []
 }
