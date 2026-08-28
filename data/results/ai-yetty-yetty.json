@@ -1,0 +1,167 @@
+{
+  "schemaVersion": 1,
+  "scanner": {
+    "version": "1.6.0",
+    "rules": "402995650b68"
+  },
+  "target": {
+    "kind": "url",
+    "ref": "https://mcp.yetty.ai/mcp"
+  },
+  "scannedAt": "2026-08-28T16:42:53.862Z",
+  "durationMs": 1209,
+  "layers": {
+    "metadata": true,
+    "static": false
+  },
+  "tools": [
+    {
+      "name": "yetty_status",
+      "descriptionHash": "99f744e3a4c13b87489fa651877692ae4cf05a8d8229854ad6a50ef8e2e77c68",
+      "description": "Connection + authentication status. Call this FIRST. Unauthenticated sessions can still park a website (batch tools) and start email sign-up — the response tells you exactly how.",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "yetty_authoring_guide",
+      "descriptionHash": "fca0f5e98f72f14855131bef47b86848e8be636ed61e08b1860d4b776131ba60",
+      "description": "READ THIS BEFORE WRITING OR SENDING ANY HTML (no account needed, free, instant, no arguments). Returns yetty's exact structure rules — repeated items sharing one class, semantic class names for field labels, headings before sections, no JS-rendered content — that decide whether the site converts int",
+      "labels": [
+        "untrusted-content",
+        "destructive"
+      ]
+    },
+    {
+      "name": "yetty_pull_template",
+      "descriptionHash": "04d8a4bad1a780135f6d82df58ed669058b7607dd795db4a7640ab9a76ea3af6",
+      "description": "Pull a ready-made Yetty template file WITH its usage contract (no account needed, free, instant). Four boilerplates, one per store surface: template:\"checkout-skeleton\" (cart / checkout / thank-you markup with every data-yetty-component and data-yetty-slot mark), \"account-skeleton\" (the buyer's /acc",
+      "labels": [
+        "private-data",
+        "public-sink",
+        "destructive"
+      ]
+    },
+    {
+      "name": "yetty_batch_start",
+      "descriptionHash": "301aa857cac985fcf6a9cae5d38a186db820c7044842e7b562357532d50fdbd2",
+      "description": "No account needed: start a PARKED file batch — send the site now, authenticate after. Returns park_ref (use it as batch_ref). Files are stored safely but NOT processed until the owner approves by email. EXAMPLE: yetty_batch_start {} -> {park_ref:\"pk_...\"} -> yetty_batch_file {batch_ref:\"pk_...\", pat",
+      "labels": [
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "yetty_batch_file",
+      "descriptionHash": "8415cf45ba15966e3da18db51b352103108da3b66eba01c76aa6710474e135ff",
+      "description": "Add ONE file to the parked batch. Args: batch_ref (the pk_... park_ref); path (relative, folders allowed); content (text) OR content_base64 (binary). Returns {received_bytes, sha256} — verify against your local copy; mismatch = resend THIS file. Send EXACT bytes, never retype.",
+      "labels": [
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "yetty_batch_end",
+      "descriptionHash": "3fce93bce27751dbc4c452c325fdc69ea45c12d6313e6574d2ec2f7d57fd461d",
+      "description": "Close the parked batch. Nothing is processed yet — next call yetty_signup {email, park_ref} so the owner can approve by email.",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "yetty_signup",
+      "descriptionHash": "f5d1488c60e23816186f4b4bff556896974c08ef1bbc78f7c0777e2a134988a9",
+      "description": "Link a parked upload to the owner's email: sends them an approval email. The site is processed ONLY after they click it. Args: email (the owner's), park_ref. Then poll yetty_claim_status every ~30s. Ask the owner to check their inbox.",
+      "labels": [
+        "untrusted-content",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "yetty_claim_status",
+      "descriptionHash": "973746930f3b3fa20a0d34e65e6a06890d3897c0a8810c596e13ff0638256c19",
+      "description": "Check a parked upload. States: parked (send yetty_signup) -> awaiting-approval (owner must click the email) -> approved (returns your api_key ONCE + waiting_url — reconnect with Authorization: Bearer <api_key> for the full toolset).",
+      "labels": [
+        "untrusted-content",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "yetty_login",
+      "descriptionHash": "7f2c42f6a4f3d4054c29db623bec06b6be95a1e91e3ef6fbfa912fa57d866a83",
+      "description": "Sign the OWNER in by email — no dashboard, no key copying. Works for existing accounts AND (when signups are open) new ones. FLOW: yetty_login {email:\"owner@x.com\"} -> {login_ref} -> the owner clicks the emailed link -> poll yetty_login_status {login_ref} every ~20s -> it returns an api_key ONCE + t",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "yetty_login_status",
+      "descriptionHash": "237f2fca662634008d8e9e93f047c8aaadd346f46663a6d5c9d1b0769aa94b65",
+      "description": "Check an email sign-in: pending (owner has not clicked yet) -> approved (returns api_key ONCE + reconnect instructions). EXAMPLE reconnect for Claude Code: claude mcp remove yetty; claude mcp add --transport http yetty https://mcp.yetty.ai/ --header \"Authorization: Bearer <api_key>\" -s user",
+      "labels": [
+        "untrusted-content",
+        "public-sink",
+        "destructive"
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"yetty_claim_status\" references sensitive artifacts (api_key, authorization, bearer). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:yetty_claim_status",
+        "snippet": "Check a parked upload. States: parked (send yetty_signup) -> awaiting-approval (owner must click the email) -> approved (returns your api_key ONCE + waiting_url…"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"yetty_login\" references sensitive artifacts (api_key). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:yetty_login",
+        "snippet": "Sign the OWNER in by email — no dashboard, no key copying. Works for existing accounts AND (when signups are open) new ones. FLOW: yetty_login {email:\"owner@x.c…"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"yetty_login_status\" references sensitive artifacts (api_key, authorization, bearer). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:yetty_login_status",
+        "snippet": "Check an email sign-in: pending (owner has not clicked yet) -> approved (returns api_key ONCE + reconnect instructions). EXAMPLE reconnect for Claude Code: clau…"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: yetty_authoring_guide, yetty_signup, yetty_claim_status, yetty_login, yetty_login_status · Private data: yetty_pull_template, yetty_batch_start, yetty_batch_file, yetty_login · Public sink: yetty_status, yetty_pull_template, yetty_batch_start, yetty_batch_file, yetty_batch_end, yetty_signup, yetty_claim_status, yetty_login, yetty_login_status · Destructive: yetty_authoring_guide, yetty_pull_template, yetty_login_status.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: yetty_authoring_guide, yetty_signup, yetty_claim_status, yetty_login, yetty_login_status · Private data: yetty_pull_template, yetty_batch_start, yetty_batch_file, yetty_login · Public sink: yetty_status, yetty_pull_template, yetty_batch_start, yetty_batch_file, yetty_batch_end, yetty_signup, yetty_claim_status, yetty_login, yetty_login_status · Destructive: yetty_authoring_guide, yetty_pull_template, yetty_login_status"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 45,
+  "scoreBreakdown": {
+    "tool-poisoning": 35,
+    "toxic-flow": 20
+  },
+  "errors": []
+}

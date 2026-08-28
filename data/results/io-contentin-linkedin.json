@@ -1,0 +1,120 @@
+{
+  "schemaVersion": 1,
+  "scanner": {
+    "version": "1.6.0",
+    "rules": "402995650b68"
+  },
+  "target": {
+    "kind": "url",
+    "ref": "https://mcp.contentin.io/mcp-server"
+  },
+  "scannedAt": "2026-08-28T16:56:18.672Z",
+  "durationMs": 314,
+  "layers": {
+    "metadata": true,
+    "static": false
+  },
+  "tools": [
+    {
+      "name": "list_posts",
+      "descriptionHash": "0039e34deef19b69870420c9e3b15c92797c470157d477999b37801fe6bd6afd",
+      "description": "List the posts on this ContentIn profile — drafts, scheduled, published and ideas. Use this to find a post's id before scheduling, publishing, repurposing or pulling analytics for it, and to answer questions about what the user has written or has queued up. Returns a 280-character excerpt of each po",
+      "labels": [
+        "untrusted-content",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "get_post_analytics",
+      "descriptionHash": "20106bd88e02828185b0e1b7c77bc555aa194009279fd22671992782bffa6d03",
+      "description": "Get LinkedIn performance for one published ContentIn post: impressions, members reached, likes, comments, shares, and a derived engagement rate. IMPORTANT: metrics are fetched on a schedule and only for posts published through a connected LinkedIn account, so a post can legitimately have no numbers ",
+      "labels": [
+        "untrusted-content",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "write_post_in_my_voice",
+      "descriptionHash": "3f6919ec5d5ff75f59ea6468cbea84a0bde6502a96c3f16d8d934d0712b3bc61",
+      "description": "THE MAIN TOOL. Write a LinkedIn post in this user's own voice, from their own material. Use it whenever the user describes something they want to post about — a story, an opinion, a result, a lesson, a rough brief. It runs ContentIn's voice pipeline: their VoiceDNA, their real past posts as style ex",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "repurpose_post",
+      "descriptionHash": "f04c506f74266f3a15c476a4303ce28a68bd0860810e60ae2d60a168ed8bbe9c",
+      "description": "Rewrite an existing post from a new angle, in the user's voice. Pass post_id (a ContentIn post id from list_posts) to repurpose one of their own posts — the current text is read from ContentIn, so you do not need to have seen it. Pass original_post instead to repurpose text you already have that is ",
+      "labels": [
+        "untrusted-content",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "generate_ideas",
+      "descriptionHash": "4f5b584877f14bbdc5cb9dc44eb5e1d05c15c065b1072ee727367f51aff2b125",
+      "description": "Generate fresh LinkedIn post ideas for a COLD request — the user wants options but has NOT given you material of their own ('what should I post about this week?', 'ideas for [topic]'). Ideas are grounded in the user's content pillars and their substance bank, so they are theirs rather than generic. ",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "capture_substance",
+      "descriptionHash": "295c065e78fe1fd830b5135c7a0395f42fb9377568fe0bae1daa0522258c4a6e",
+      "description": "Save a piece of the user's first-party substance — a story, an opinion, a data point, or a framework — into their ContentIn content bank, filed under one of their content pillars. This is the highest-leverage thing you can do for them: everything ContentIn writes later is grounded in this bank, so c"
+    },
+    {
+      "name": "schedule_post",
+      "descriptionHash": "17a4fa126819fade733191b2548af31b4864295da0e7e77821f72f5186668103",
+      "description": "Queue a post for automatic publishing to LinkedIn at a given time. TWO-STEP AND DELIBERATELY SO: call it first WITHOUT confirm_token to get back the exact text and a confirm_token; show that exact text to the user, get their explicit go-ahead, then call again with the same arguments plus the confirm",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "publish_post",
+      "descriptionHash": "a31a41a6034246e8fbc71555eb39a14d79cbe49650ae0cb1b3099efc78e65160",
+      "description": "Publish a post to the user's LinkedIn immediately. THIS IS IRREVERSIBLE — it is public the moment it succeeds. TWO-STEP AND MANDATORY: call it first WITHOUT confirm_token to get back the exact text that would go out and a confirm_token; show that exact text to the user in full, ask them to confirm i",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink"
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOOL-POISON-007",
+      "severity": "low",
+      "category": "tool-poisoning",
+      "title": "Description uses pressure/override language",
+      "detail": "Description of \"publish_post\" stacks urgency/override words (immediately, never, mandatory). Legitimate tool descriptions rarely pressure the model to act or ignore prior guidance.",
+      "evidence": {
+        "source": "tool:publish_post",
+        "snippet": "Publish a post to the user's LinkedIn immediately. THIS IS IRREVERSIBLE — it is public the moment it succeeds. TWO-STEP AND MANDATORY: call it first WITHOUT con…"
+      },
+      "confidence": 0.3
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp-server\" exposes tools that together enable an exfiltration flow. Untrusted content: list_posts, get_post_analytics, repurpose_post, schedule_post, publish_post · Private data: schedule_post, publish_post · Public sink: list_posts, get_post_analytics, write_post_in_my_voice, repurpose_post, generate_ideas, schedule_post, publish_post.",
+      "evidence": {
+        "source": "server:mcp-server",
+        "snippet": "Untrusted content: list_posts, get_post_analytics, repurpose_post, schedule_post, publish_post · Private data: schedule_post, publish_post · Public sink: list_posts, get_post_analytics, write_post_in_my_voice, repurpose_post, generate_ideas, schedule_post, publish_post"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 77,
+  "scoreBreakdown": {
+    "tool-poisoning": 3,
+    "toxic-flow": 20
+  },
+  "errors": []
+}

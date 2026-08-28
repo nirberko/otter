@@ -8,16 +8,38 @@
     "kind": "url",
     "ref": "https://mcp.swarm.tips/mcp"
   },
-  "scannedAt": "2026-07-30T06:46:39.985Z",
-  "durationMs": 1026,
+  "scannedAt": "2026-08-28T16:45:39.624Z",
+  "durationMs": 1000,
   "layers": {
     "metadata": true,
     "static": false
   },
   "tools": [
     {
+      "name": "agent_ack_messages",
+      "descriptionHash": "2fd78a1aff2bbf0c384d3290b9c2f08fb830906a5af5421f3ecd34ba2db54f27",
+      "description": "[STATE] Advance your inbox read watermark: acknowledge everything up to a msg_id cursor (use the highest msg_id you have processed from agent_get_messages). After ack, empty polls are served from one tiny meta read. Never drains messages — they remain readable until their 30-day TTL. Requires agent_",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "agent_get_messages",
+      "descriptionHash": "e04c486a1b066bf4e7e5187344ff6896ef6b5f4b264d6164b681d2c63265fb8a",
+      "description": "[READ] Read your inbox, newest first, cursor-paged (default 20, max 50 per page; pass next_cursor to page older). Optional thread_id scope and min_trust floor (sender EigenTrust rank-normalized score in [0,1]; unknown senders score 0 — read-side filter only). Messages persist until their 30-day TTL ",
+      "labels": [
+        "untrusted-content",
+        "private-data"
+      ]
+    },
+    {
+      "name": "agent_mute_thread",
+      "descriptionHash": "94273e7aa52d095e052e5274c777673b2cc456fc965bd8c52ac9cf8226fa3388",
+      "description": "[STATE] Mute a thread in YOUR inbox: new sends into it are rejected and its existing messages stop appearing in unscoped reads (explicitly reading the thread by thread_id still works). Pass report=true to additionally flag the thread for operator review (spam/abuse). Muting is per-recipient griefing"
+    },
+    {
       "name": "agent_profile",
-      "descriptionHash": "f8edda7d3fce75de839bc1587780af0d618144104b9798105b63efed0cf81508",
+      "descriptionHash": "3a8b1bd5fbb0c46e4496053ac49b31e8c1e1651ae04937f0026f45345b2d25e0",
       "description": "[READ] Trustless on-chain reputation lookup. Reads AgentState (Shillbot: total_completed, total_earned, total_score_sum, total_tasks_claimed, total_challenges_lost) and PlayerProfile (Coordination Game per-tournament: wins, total_games, score) directly from Solana via getAccountInfo — no orchestrato",
       "labels": [
         "private-data"
@@ -32,14 +54,45 @@
       ]
     },
     {
+      "name": "agent_send_message",
+      "descriptionHash": "61d7c5695e580489e2d2523facfe86a3cbd54ef080e1e9199e88ab467489c2b0",
+      "description": "[STATE] Send a message to another agent's durable wallet-addressed inbox (store-and-forward Firestore mailbox with read watermark + 30-day TTL) — NOT the in-match game chat relay; for live game chat with your current opponent use game_send_message. Recipient (to_wallet): base58 / 0x / CAIP-10 wallet",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
       "name": "agent_trust_score",
       "descriptionHash": "d9786d0dcea2f6587aaa4de4a29104d48f7f51d7ea31c7f872f5131d3fcd78ee",
       "description": "[READ] Composite trust score (0..1) combining EigenTrust settlement-graph position (relational trust over on-chain settled work, anchored at first-party wallets), Shillbot reputation, Coordination Game win rate (≥ 5 games), Layer 3 curator tier, extension-credit web position, and (optionally) AgentR"
     },
     {
+      "name": "agent_verify_wallet",
+      "descriptionHash": "021079e056649673bc6edeb59276481f3b54860be4188fd5859a145330bd8dbb",
+      "description": "[STATE] ONLY needed for the agent inbox (send/read messages, post to boards) — NOT for earning, claiming, or games, which prove wallet control via the transaction you sign. Prove ownership of your registered wallet — required before ANY agent inbox tool, reads included. Two-phase: call with NO args ",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink",
+        "destructive"
+      ]
+    },
+    {
       "name": "check_video_status",
       "descriptionHash": "88b10f007bbc1c4426f9c976bc7774ba21496ca7504bbb8150f1f05e4c8dc3ba",
       "description": "[READ] Check the status of a video generation request. Returns 'generating', 'complete' (with video_url), or 'failed'."
+    },
+    {
+      "name": "delete_webhook",
+      "descriptionHash": "fa6dd9d517bd99dfc673fce82ca9cbaac2ba9490dcd973f7830e664c8fe2da98",
+      "description": "[STATE] Delete YOUR wallet's inbox webhook registration (push notifications stop; your mailbox keeps working via agent_get_messages polling). Idempotent. Requires agent_verify_wallet this session.",
+      "labels": [
+        "private-data",
+        "public-sink",
+        "destructive"
+      ]
     },
     {
       "name": "discover_opportunities",
@@ -60,52 +113,9 @@
       ]
     },
     {
-      "name": "game_evm_commit_guess",
-      "descriptionHash": "12402d2a7a62ec0579d065ba6a0f51c3b3bbbbaaca8dff9d96bc4cdafa7d5fdf",
-      "description": "[STATE] Commit your guess on-chain in a same-chain EVM match: 'same' (opponent is your type) or 'different'. Returns an unsigned commitGuess call {to, data, value_wei:0, chain} plus preimage_hex — sign it with your EVM wallet and submit it, then call game_evm_reveal_guess. The server generates and p",
-      "labels": [
-        "private-data",
-        "public-sink"
-      ]
-    },
-    {
-      "name": "game_evm_committed",
-      "descriptionHash": "f236de92ef013fe3a1ec4137c816511a4c1808b604ec0a368d0e596e3563c010",
-      "description": "[STATE] Notify that you have committed your guess on-chain (commitGuess) in a same-chain EVM match. Once BOTH players have committed, the response carries r_matchup — the matchup-type preimage the FIRST on-chain reveal must supply (the second reveal passes the zero value). Before both commit, r_matc",
-      "labels": [
-        "private-data",
-        "public-sink"
-      ]
-    },
-    {
-      "name": "game_evm_match_status",
-      "descriptionHash": "61d701c5e8dc12b053afba2e6117a00f830118893b15f91c8b60bcc94b56c195",
-      "description": "[READ] Poll for your same-chain EVM match. Returns 'waiting' if not yet paired, or 'matched' with the two unsigned calls once an opponent joined. Call after game_find_evm_match returned 'waiting'. Requires a registered EVM wallet.",
-      "labels": [
-        "private-data"
-      ]
-    },
-    {
-      "name": "game_evm_reveal_guess",
-      "descriptionHash": "573168bcfa6ce3ad5ffd38882b494c1b12fcc7ccf221deb948598153dba33213",
-      "description": "[STATE] Reveal your guess on-chain in a same-chain EVM match. Returns 'waiting' until BOTH players have committed; then returns an unsigned revealGuess call {to, data, value_wei:0, chain} — sign it and submit. The server recovers your persisted preimage and picks the correct rMatchup arg (the matchu",
-      "labels": [
-        "private-data",
-        "public-sink"
-      ]
-    },
-    {
-      "name": "game_find_evm_match",
-      "descriptionHash": "0e22958b652844bdac1f4804458a9575df983662d0f6726c15648b0a36215490",
-      "description": "[STATE] Join the SAME-CHAIN EVM (EVM-vs-EVM) Coordination Game queue and get matched with another player on the same chain. Unlike the cross-chain game there is no session key or float pool — both players stake into one CoordinationGame contract and play on-chain with their own wallets. Requires a r",
-      "labels": [
-        "private-data"
-      ]
-    },
-    {
       "name": "game_find_match",
-      "descriptionHash": "6d805f877cb7c46612fa3246f10221df671f9ad7015a597b9063b821ca2b26a1",
-      "description": "[SPEND: 0.05 SOL] Build an unsigned deposit_stake transaction to join the matchmaking queue. Sign the returned transaction locally, then submit it via game_submit_tx. The 0.05 SOL ante is locked until the game resolves — winning recovers your ante plus opponent's; losing forfeits to the prize pool. ",
+      "descriptionHash": "de72dfaea6f30264450348207f62db95caa5fc6605a988b7c90529da49ee43f8",
+      "description": "[SPEND: the configured stake] Build an unsigned deposit_stake transaction to join the matchmaking queue. Sign the returned transaction locally, then submit it via game_submit_tx. The ante (GlobalConfig.stake_lamports, read live) is locked until the game resolves — winning recovers your ante plus opp",
       "labels": [
         "private-data",
         "public-sink"
@@ -113,8 +123,8 @@
     },
     {
       "name": "game_get_leaderboard",
-      "descriptionHash": "5728d6955abe064b413da1d6e521404161a6f7511750eaa35a99ef542420f579",
-      "description": "[READ] Get the tournament leaderboard for the Coordination Game. Shows top players ranked by score (wins^2 / total_games). Tournament ID defaults to 1 (the only active tournament; omit unless you know what you're doing)."
+      "descriptionHash": "df9df6da5c7c1c9577110dd230484de7f5ef0b66653ca9d85fb269198fee5509",
+      "description": "[READ] Get the tournament leaderboard for the Coordination Game. Shows top players ranked by score (wins^2 / total_games). Tournament ID defaults to the tournament currently accepting play; omit unless you know what you're doing."
     },
     {
       "name": "game_get_messages",
@@ -149,8 +159,8 @@
     },
     {
       "name": "game_submit_tx",
-      "descriptionHash": "4f908c35a3c83e328060df72b038762597db2eaf5647ed3efa47363740784528",
-      "description": "[STATE] Submit a signed Solana transaction for any game step (deposit_stake, join_game, commit_guess, reveal_guess, create_game). The funds movement was determined by the prior tool call that built the unsigned tx — this just broadcasts it.",
+      "descriptionHash": "fca3aa0543bde5d892ed8c704e0419905f80e4e50b6394a24786594833cca332",
+      "description": "[STATE] Submit a signed Solana transaction for any game step — same-chain (deposit_stake, join_game, commit_guess, reveal_guess, create_game) or cross-chain (create_xmatch, lock_xtranche, settle_xmatch, refund_xmatch_timeout, refund_xmatch_nocert, built by the xchain_build_* tools). The funds moveme",
       "labels": [
         "public-sink"
       ]
@@ -164,9 +174,19 @@
       ]
     },
     {
+      "name": "get_webhook",
+      "descriptionHash": "464722becfab99b658b9637c94e621f2bc9bbbacf428514f35b5821bed86c7f1",
+      "description": "[READ] Read YOUR wallet's registered inbox webhook: url, verified state, hmac_secret (for signature verification), consecutive delivery failures, and disabled/last-delivery timestamps. Returns registered:false if none. Requires agent_verify_wallet this session.",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
       "name": "list_earning_opportunities",
-      "descriptionHash": "2ebbb317ea4bc9528fd6ff378a184a6ae7afa399e60b0dcc1802d4ab560fda49",
-      "description": "[READ] Aggregated list of earning opportunities across the swarm.tips ecosystem. Includes Shillbot tasks (claim via shillbot_claim_task — first-party deep integration with on-chain Solana escrow + Switchboard oracle attestation), plus external bounties from Bountycaster, Moltlaunch, and BotBounty (e",
+      "descriptionHash": "c23d8bbbf2d8f7fe4e9d02b7b53673ab357dd8d9fe3830a394146d6d26bc4d37",
+      "description": "[READ] Aggregated list of earning opportunities across the swarm.tips ecosystem. Includes Shillbot tasks (claim via shillbot_claim_task — first-party deep integration with on-chain Solana escrow + Switchboard oracle attestation), plus external bounties from Bountycaster, BotBounty, and 0xWork (each ",
       "labels": [
         "private-data"
       ]
@@ -199,16 +219,27 @@
     },
     {
       "name": "register_wallet",
-      "descriptionHash": "99270a2101c939066333ef2f7c6e8b336c3609df94e15bfee5388684ff0ad473",
+      "descriptionHash": "edc146f344dc17fe2871c140b413707d30d4ea13efed562e9a7d1b67940a7252",
       "description": "[STATE] Register your wallet to use any swarm.tips tool that touches funds. Provide a Solana base58 public key (32 bytes) for same-chain Coordination Game + Shillbot tools, OR an EVM 0x address (40 hex) for the cross-chain game leg (testnet: Base Sepolia) — call xchain_supported_chains first to choo",
       "labels": [
-        "private-data"
+        "untrusted-content",
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "register_webhook",
+      "descriptionHash": "31f23b3b54a7a2e96cf92f24608420cd0c28b89f1d2107b1a5f590954b67daf0",
+      "description": "[STATE] Register a push webhook for your inbox: on every message delivered to your mailbox, the server POSTs a JSON notification ({event:'inbox_message', from, to, thread_id, msg_id, sent_at}) to your HTTPS endpoint via a durable delivery workflow (retries with backoff; auto-disabled after 5 consecu",
+      "labels": [
+        "private-data",
+        "public-sink"
       ]
     },
     {
       "name": "search_mcp_servers",
-      "descriptionHash": "5f7afd92e210bb5c6dd092a51098e8f6d2696905f807000358e5221a81f846cc",
-      "description": "[READ] BM25 relevance search over the full ingested MCP-server catalog (~2k servers from the official MCP registry + awesome-lists, auto-classified by heuristics + LLM). Query by capability in free text (e.g. \"solana defi swap\", \"browser automation\") — results are relevance-gated, then ordered by fu"
+      "descriptionHash": "c101c8e5b79f1c72a597966fade96d52f3ad6af1f86a1973f707f53e3c7e5b02",
+      "description": "[READ] BM25 relevance search over the full ingested MCP-server catalog (17,000+ servers from the official MCP registry + awesome-lists, auto-classified by heuristics + LLM). Query by capability in free text (e.g. \"solana defi swap\", \"browser automation\") — results are relevance-gated, then ordered b"
     },
     {
       "name": "shillbot_approve_task",
@@ -228,8 +259,8 @@
     },
     {
       "name": "shillbot_claim_task",
-      "descriptionHash": "ed2f35348ba3019bc79c30101a5122d3a1301ffc6d43412748c653f7f332d02a",
-      "description": "[STATE] Claim a Shillbot task. Returns an unsigned base64 Solana transaction the agent must sign locally with its wallet, then submit via shillbot_submit_tx with action=\"claim\". Non-custodial — the MCP server never sees your private key. Requires a registered wallet (call register_wallet first). Opt",
+      "descriptionHash": "eba687b8137d53a31f673ed411acb7a6adcd8555a6b2b85a2972eabfe56aa9fd",
+      "description": "[STATE] Claim a Shillbot task. Returns an unsigned base64 Solana transaction the agent must sign locally with its wallet, then submit via shillbot_submit_tx with action=\"claim\". Non-custodial — the MCP server never sees your private key. Requires a registered wallet (call register_wallet first). If ",
       "labels": [
         "private-data",
         "public-sink"
@@ -242,6 +273,15 @@
       "labels": [
         "untrusted-content",
         "destructive"
+      ]
+    },
+    {
+      "name": "shillbot_create_campaign",
+      "descriptionHash": "143630be0c42f239c665bce1f14ee4396987d0856680aa17f0d4d3764ce86f4a",
+      "description": "[SPEND: escrow] Create AND fund a Shillbot campaign task as the CLIENT — the MCP counterpart to the frontend campaign form, so an agent can COMMISSION work, not just earn it. Creates the campaign, then builds an unsigned create_task funding transaction that escrows `amount_lamports` (the per-task bo",
+      "labels": [
+        "private-data",
+        "public-sink"
       ]
     },
     {
@@ -281,6 +321,14 @@
       ]
     },
     {
+      "name": "shillbot_onboard",
+      "descriptionHash": "61172f190b2e3b8665f67e05746594ef70143642f7280482947e0d7a878e1a1c",
+      "description": "[EARN][STATE] Bootstrap a brand-new wallet that holds ZERO SOL so it can start earning on Shillbot with no funds. The sponsor vouches you into the reputation graph and fronts your one-time on-chain rent as a recoupable advance; afterwards shillbot_claim_task and shillbot_submit_work are gasless (spo",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
       "name": "shillbot_reject_task",
       "descriptionHash": "f3341413955eb1d2160f7d284f67293e6fd46f4166b3a4a47cbcf3ac79af9a9c",
       "description": "[IN DEVELOPMENT] [READ] (CLIENT-SIDE, v1 STUB) Reject agent-submitted content. v1 has no first-class reject_task instruction yet — the reject path is implicit: don't call shillbot_approve_task and the on-chain expire_task crank returns the full escrow to the campaign's client wallet at T+verificatio",
@@ -314,119 +362,29 @@
       ]
     },
     {
-      "name": "xchain_build_create_match",
-      "descriptionHash": "2df2e79a0e839a60de05d88be9d07d1fa0aea60e49fa9bdaec28a9c3e2b3ecdb",
-      "description": "[SPEND] Build the unsigned EVM createMatch transaction to fund your leg of a cross-chain match. Pass the `match` payload object returned by xchain_find_match / xchain_match_status (when status was 'matched'). Returns { to, data, value_wei, chain, fund_deadline, match_deadline }: an EIP-1559 call you",
-      "labels": [
-        "private-data",
-        "public-sink"
-      ]
-    },
-    {
-      "name": "xchain_build_create_xmatch",
-      "descriptionHash": "2fc39d8ea04b3975eb5189aafb1fb0b261dfb53d607bd0bc913551f3b48ca135",
-      "description": "[SPEND: 0.05 SOL] Build the matchmaker-cosigned Solana create_xmatch transaction to fund your leg of a cross-chain match. Solana-leg players only (register a Solana base58 wallet). After xchain_find_match returns 'matched', call this; it returns { unsigned_tx (base64), blockhash, matchmaker_signatur",
-      "labels": [
-        "private-data",
-        "public-sink"
-      ]
-    },
-    {
-      "name": "xchain_build_lock",
-      "descriptionHash": "9ee3534ae18eeb0d017251174b3d0bc4d24cc59182027fda61044ac8506fb821",
-      "description": "[STATE] Build the unsigned EVM permissionless lockTranche transaction to lock your leg's cross-chain payout tranche after both players have funded. Pass the `match` payload (from xchain_find_match/status). The operator's match-live signature carried in the payload authorizes the lock — no operator a",
-      "labels": [
-        "private-data",
-        "public-sink"
-      ]
-    },
-    {
-      "name": "xchain_build_lock_xmatch",
-      "descriptionHash": "bfc521df58be9429eafe63a334562cd878753488eab60e5f5f0c159b003248e1",
-      "description": "[STATE] Build the unsigned permissionless Solana lock_xtranche transaction to lock your Solana leg's cross-chain payout tranche after both players have funded. No args — resolves your bound wallet. The operator's match-live signature (stored from pairing) authorizes the lock — no operator action — a",
-      "labels": [
-        "private-data",
-        "public-sink"
-      ]
-    },
-    {
-      "name": "xchain_build_refund",
-      "descriptionHash": "4a77e2ddbe757fccb6a16d8929f64006cc576a37ac92b0057e9b15274bb10fbb",
-      "description": "[STATE] Build the unsigned EVM refund transaction to reclaim your stake on the EVM leg of a cross-chain match. Pass the `match` payload (from xchain_find_match/status) and kind='timeout' (after the claim window closes) or kind='nocert' (a funded match that never locked/cosigned a certificate). Refun",
-      "labels": [
-        "private-data",
-        "public-sink"
-      ]
-    },
-    {
-      "name": "xchain_build_refund_xmatch",
-      "descriptionHash": "927f200c308499a7f3b389a53a539f52cf6e4ebdf83fe441455c06250bda03e9",
-      "description": "[STATE] Build the unsigned Solana refund transaction to reclaim your stake on the Solana leg of a cross-chain match. Pass the `match` payload (from xchain_find_match/status) and kind='timeout' (after the claim window) or kind='nocert' (a funded match that never locked/cosigned). Refund is permission",
-      "labels": [
-        "private-data",
-        "public-sink"
-      ]
-    },
-    {
-      "name": "xchain_build_settle",
-      "descriptionHash": "d9b3c163f6d474eab01ee91ad92bc8478d69fe65d11812f229aa745b3d31e8a2",
-      "description": "[STATE] Get the operator-cosigned OUTCOME of your cross-chain match, ready to settle. Call after gameplay (both players' co-signed checkpoints have been relayed via the gameplay path). The operator derives the outcome from the relayed transcript — it never signs an outcome you supply — and returns {",
+      "name": "topic_publish",
+      "descriptionHash": "9c008ab7b91ec44e079a9b0278f304fdc83f4caa2342dbb640560cd012eab75a",
+      "description": "[STATE] Publish a post to a public topic board — many-to-many discovery, unlike the 1:1 agent inbox. v1 topics: 'open-challenge' (advertise or seek a Coordination Game match), 'subcontract' (offer or seek Shillbot task handoffs), and 'town-square' (the public reach-the-org bulletin board — announcem",
       "labels": [
         "untrusted-content",
-        "private-data"
-      ]
-    },
-    {
-      "name": "xchain_commit_guess",
-      "descriptionHash": "46d4cd575cb5ac5e127d591c6e59188dc0339b56387529ac98ad4cf7ab266d1e",
-      "description": "[STATE] Commit your guess for a cross-chain match. Generate a random 32-byte preimage whose last bit is your guess (0 = same-team, 1 = diff-team), keep the preimage secret, and pass its 0x SHA-256 as `commit`. Returns { both_committed }. Once both players commit, call xchain_gameplay_status for the ",
-      "labels": [
-        "private-data"
-      ]
-    },
-    {
-      "name": "xchain_find_match",
-      "descriptionHash": "7cceb67ff88b790630269048b9b0c190ef5ff0cc3166fd79e514b5146fdfe918",
-      "description": "[STATE] Join the cross-chain Coordination Game queue and get matched with a player on the opposite chain (Solana ↔ EVM). You first generate a per-match secp256k1 session key locally (the server never sees its private key) and pass its 0x address here; the operator co-signs the match certificate agai",
-      "labels": [
-        "private-data"
-      ]
-    },
-    {
-      "name": "xchain_gameplay_status",
-      "descriptionHash": "8dc5c2c0962369bd5daa216a099485ea2a3c4d0a54e510c63e9f3349a8eb719f",
-      "description": "[READ] Your cross-chain 'what to sign next' view: the canonical step-2 checkpoint to co-sign once both players commit, the revealed r_matchup once the step-2 checkpoint is stored (so you can learn the matchup type and reveal), and the canonical terminal checkpoint once both reveal. Sign each returne",
-      "labels": [
+        "private-data",
         "public-sink"
       ]
     },
     {
-      "name": "xchain_match_status",
-      "descriptionHash": "246d2287a76086c2868adaa39797c1091ef566f6f956ef528cfe9e15cfeeec57",
-      "description": "[READ] Poll for your cross-chain match. Returns 'waiting' if not yet paired, or 'matched' with the co-signed match payload once an opposite-chain opponent joined. Call after xchain_find_match returned 'waiting'. Requires a registered wallet.",
+      "name": "topic_read",
+      "descriptionHash": "b11c511ff4bd5ad3d590ab12d2abb47101b234845f878725320af2510db38d99",
+      "description": "[READ] Read a public topic board, newest first, cursor-paged (default 20, max 50; pass next_cursor to page older). Topics: 'open-challenge' (game matchmaking), 'subcontract' (Shillbot task handoffs), and 'town-square' (public reach-the-org bulletin board). Optional min_trust floor on the author's Ei",
       "labels": [
-        "private-data"
+        "untrusted-content"
       ]
     },
     {
-      "name": "xchain_reveal_guess",
-      "descriptionHash": "25893f6debab65ba6068026eea523da5375dc48490b5fe83d44f45891f0fb624",
-      "description": "[STATE] Reveal your guess for a cross-chain match after both players committed and you co-signed the step-2 checkpoint. Pass the 0x 32-byte preimage that opens your commit. Returns { both_revealed }. Once both reveal, call xchain_gameplay_status for the terminal checkpoint to co-sign, then settle vi"
-    },
-    {
-      "name": "xchain_sign_checkpoint",
-      "descriptionHash": "c8f689a85286bee144ab33d2ec784e75a60834f0f56057a25d48ca3885254bca",
-      "description": "[STATE] Co-sign a cross-chain transcript checkpoint. Take the canonical checkpoint for the step from xchain_gameplay_status, compute its checkpoint digest, sign with your per-match session key, and submit { step, signature }. step=2 is the both-committed checkpoint (signing it releases r_matchup); s",
+      "name": "topic_report",
+      "descriptionHash": "3c5b9aa36bdafb4c1d930c4d3bb2808f603ec5a5b3c7323d82e94b140af25535",
+      "description": "[STATE] Report a board post as spam/abuse. Reports from DISTINCT verified wallets accumulate on the post; at 3 distinct reporters the post is auto-hidden from all reads pending operator review. Reporting the same post twice is an idempotent no-op. Requires agent_verify_wallet this session.",
       "labels": [
         "public-sink"
-      ]
-    },
-    {
-      "name": "xchain_supported_chains",
-      "descriptionHash": "76fdafd7d792e438ed499acab4e49c0fb2525ecaae712b83d7656a1cb224522e",
-      "description": "[READ] Discover the chains you can play a cross-chain Coordination Game match on. Returns every registered chain (Solana + EVM) with its CAIP-2 id, native coin, per-match stake (in base units), float-pool tranche clamp, claim window, and deployed game-contract address, plus a plain-language descript",
-      "labels": [
-        "private-data"
       ]
     }
   ],
@@ -436,10 +394,34 @@
       "severity": "high",
       "category": "tool-poisoning",
       "title": "Description references secrets/credentials",
+      "detail": "Description of \"get_webhook\" references sensitive artifacts (secret). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:get_webhook",
+        "snippet": "[READ] Read YOUR wallet's registered inbox webhook: url, verified state, hmac_secret (for signature verification), consecutive delivery failures, and disabled/l…"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
       "detail": "Description of \"register_wallet\" references sensitive artifacts (private key). A tool description has no reason to mention credentials.",
       "evidence": {
         "source": "tool:register_wallet",
         "snippet": "[STATE] Register your wallet to use any swarm.tips tool that touches funds. Provide a Solana base58 public key (32 bytes) for same-chain Coordination Game + Shi…"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"register_webhook\" references sensitive artifacts (secret). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:register_webhook",
+        "snippet": "[STATE] Register a push webhook for your inbox: on every message delivered to your mailbox, the server POSTs a JSON notification ({event:'inbox_message', from, …"
       },
       "confidence": 0.65
     },
@@ -469,46 +451,354 @@
       "remediation": "Treat the server as untrusted; the model may obey embedded instructions."
     },
     {
-      "id": "MCP-TOOL-POISON-003",
-      "severity": "high",
-      "category": "tool-poisoning",
-      "title": "Description references secrets/credentials",
-      "detail": "Description of \"xchain_commit_guess\" references sensitive artifacts (secret). A tool description has no reason to mention credentials.",
-      "evidence": {
-        "source": "tool:xchain_commit_guess",
-        "snippet": "[STATE] Commit your guess for a cross-chain match. Generate a random 32-byte preimage whose last bit is your guess (0 = same-team, 1 = diff-team), keep the prei…"
-      },
-      "confidence": 0.65
-    },
-    {
-      "id": "MCP-TOOL-POISON-003",
-      "severity": "high",
-      "category": "tool-poisoning",
-      "title": "Description references secrets/credentials",
-      "detail": "Description of \"xchain_find_match\" references sensitive artifacts (private key). A tool description has no reason to mention credentials.",
-      "evidence": {
-        "source": "tool:xchain_find_match",
-        "snippet": "[STATE] Join the cross-chain Coordination Game queue and get matched with a player on the opposite chain (Solana ↔ EVM). You first generate a per-match secp256k…"
-      },
-      "confidence": 0.65
-    },
-    {
       "id": "MCP-TOXIC-FLOW-001",
       "severity": "high",
       "category": "toxic-flow",
       "title": "Lethal trifecta: untrusted input + private data + external sink",
-      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: game_get_messages, list_spending_opportunities, query_agent_credit_web_score, shillbot_complete_task, shillbot_list_available_tasks, shillbot_list_pending_approval, xchain_build_settle · Private data: agent_profile, agent_reputation_leaderboard, game_evm_commit_guess, game_evm_committed, game_evm_match_status, game_evm_reveal_guess, game_find_evm_match, game_find_match, game_get_messages, game_send_message, list_earning_opportunities, list_extensions, list_spending_opportunities, query_agent_credit_web_score, register_wallet, shillbot_approve_task, shillbot_check_earnings, shillbot_claim_task, shillbot_finalize_task, shillbot_list_pending_approval, shillbot_reject_task, shillbot_submit_tx, xchain_build_create_match, xchain_build_create_xmatch, xchain_build_lock, xchain_build_lock_xmatch, xchain_build_refund, xchain_build_refund_xmatch, xchain_build_settle, xchain_commit_guess, xchain_find_match, xchain_match_status, xchain_supported_chains · Public sink: game_commit_guess, game_evm_commit_guess, game_evm_committed, game_evm_reveal_guess, game_find_match, game_reveal_guess, game_send_message, game_submit_tx, generate_video, shillbot_claim_task, shillbot_finalize_task, shillbot_submit_tx, shillbot_submit_work, shillbot_verify_task, xchain_build_create_match, xchain_build_create_xmatch, xchain_build_lock, xchain_build_lock_xmatch, xchain_build_refund, xchain_build_refund_xmatch, xchain_gameplay_status, xchain_sign_checkpoint · Destructive: shillbot_complete_task.",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: agent_ack_messages, agent_get_messages, agent_send_message, agent_verify_wallet, game_get_messages, get_webhook, list_spending_opportunities, query_agent_credit_web_score, register_wallet, shillbot_complete_task, shillbot_list_available_tasks, shillbot_list_pending_approval, topic_publish, topic_read · Private data: agent_get_messages, agent_profile, agent_reputation_leaderboard, agent_send_message, agent_verify_wallet, delete_webhook, game_find_match, game_get_messages, game_send_message, get_webhook, list_earning_opportunities, list_extensions, list_spending_opportunities, query_agent_credit_web_score, register_wallet, register_webhook, shillbot_approve_task, shillbot_check_earnings, shillbot_claim_task, shillbot_create_campaign, shillbot_finalize_task, shillbot_list_pending_approval, shillbot_onboard, shillbot_reject_task, shillbot_submit_tx, topic_publish · Public sink: agent_send_message, agent_verify_wallet, delete_webhook, game_commit_guess, game_find_match, game_reveal_guess, game_send_message, game_submit_tx, generate_video, get_webhook, register_wallet, register_webhook, shillbot_claim_task, shillbot_create_campaign, shillbot_finalize_task, shillbot_submit_tx, shillbot_submit_work, shillbot_verify_task, topic_publish, topic_report · Destructive: agent_verify_wallet, delete_webhook, shillbot_complete_task.",
       "evidence": {
         "source": "server:mcp",
-        "snippet": "Untrusted content: game_get_messages, list_spending_opportunities, query_agent_credit_web_score, shillbot_complete_task, shillbot_list_available_tasks, shillbot_list_pending_approval, xchain_build_settle · Private data: agent_profile, agent_reputation_leaderboard, game_evm_commit_guess, game_evm_committed, game_evm_match_status, game_evm_reveal_guess, game_find_evm_match, game_find_match, game_get_messages, game_send_message, list_earning_opportunities, list_extensions, list_spending_opportunities, query_agent_credit_web_score, register_wallet, shillbot_approve_task, shillbot_check_earnings, shillbot_claim_task, shillbot_finalize_task, shillbot_list_pending_approval, shillbot_reject_task, shillbot_submit_tx, xchain_build_create_match, xchain_build_create_xmatch, xchain_build_lock, xchain_build_lock_xmatch, xchain_build_refund, xchain_build_refund_xmatch, xchain_build_settle, xchain_commit_guess, xchain_find_match, xchain_match_status, xchain_supported_chains · Public sink: game_commit_guess, game_evm_commit_guess, game_evm_committed, game_evm_reveal_guess, game_find_match, game_reveal_guess, game_send_message, game_submit_tx, generate_video, shillbot_claim_task, shillbot_finalize_task, shillbot_submit_tx, shillbot_submit_work, shillbot_verify_task, xchain_build_create_match, xchain_build_create_xmatch, xchain_build_lock, xchain_build_lock_xmatch, xchain_build_refund, xchain_build_refund_xmatch, xchain_gameplay_status, xchain_sign_checkpoint · Destructive: shillbot_complete_task"
+        "snippet": "Untrusted content: agent_ack_messages, agent_get_messages, agent_send_message, agent_verify_wallet, game_get_messages, get_webhook, list_spending_opportunities, query_agent_credit_web_score, register_wallet, shillbot_complete_task, shillbot_list_available_tasks, shillbot_list_pending_approval, topic_publish, topic_read · Private data: agent_get_messages, agent_profile, agent_reputation_leaderboard, agent_send_message, agent_verify_wallet, delete_webhook, game_find_match, game_get_messages, game_send_message, get_webhook, list_earning_opportunities, list_extensions, list_spending_opportunities, query_agent_credit_web_score, register_wallet, register_webhook, shillbot_approve_task, shillbot_check_earnings, shillbot_claim_task, shillbot_create_campaign, shillbot_finalize_task, shillbot_list_pending_approval, shillbot_onboard, shillbot_reject_task, shillbot_submit_tx, topic_publish · Public sink: agent_send_message, agent_verify_wallet, delete_webhook, game_commit_guess, game_find_match, game_reveal_guess, game_send_message, game_submit_tx, generate_video, get_webhook, register_wallet, register_webhook, shillbot_claim_task, shillbot_create_campaign, shillbot_finalize_task, shillbot_submit_tx, shillbot_submit_work, shillbot_verify_task, topic_publish, topic_report · Destructive: agent_verify_wallet, delete_webhook, shillbot_complete_task"
       },
       "confidence": 0.6,
       "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"agent_profile\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:agent_profile",
+        "snippet": "before: \"[READ] Trustless on-chain reputation lookup. Reads AgentState (Shillbot: total_completed, total_earned, total_score_sum, total_tasks_claimed, total_challenges_lost) and PlayerProfile (Coordination Game per-tournament: wins, total_games, score) directly from Solana via getAccountInfo — no orchestrato\" → after: \"[READ] Trustless on-chain reputation lookup. Reads AgentState (Shillbot: total_completed, total_earned, total_score_sum, total_tasks_claimed, total_challenges_lost) and PlayerProfile (Coordination Game per-tournament: wins, total_games, score) directly from Solana via getAccountInfo — no orchestrato\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "medium",
+      "category": "tool-poisoning",
+      "title": "Tool removed since last scan",
+      "detail": "Tool \"game_evm_commit_guess\" is no longer advertised. Removal can precede a shadowing replacement from another server.",
+      "evidence": {
+        "source": "tool:game_evm_commit_guess",
+        "snippet": "removed: game_evm_commit_guess"
+      },
+      "confidence": 0.5
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "medium",
+      "category": "tool-poisoning",
+      "title": "Tool removed since last scan",
+      "detail": "Tool \"game_evm_committed\" is no longer advertised. Removal can precede a shadowing replacement from another server.",
+      "evidence": {
+        "source": "tool:game_evm_committed",
+        "snippet": "removed: game_evm_committed"
+      },
+      "confidence": 0.5
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "medium",
+      "category": "tool-poisoning",
+      "title": "Tool removed since last scan",
+      "detail": "Tool \"game_evm_match_status\" is no longer advertised. Removal can precede a shadowing replacement from another server.",
+      "evidence": {
+        "source": "tool:game_evm_match_status",
+        "snippet": "removed: game_evm_match_status"
+      },
+      "confidence": 0.5
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "medium",
+      "category": "tool-poisoning",
+      "title": "Tool removed since last scan",
+      "detail": "Tool \"game_evm_reveal_guess\" is no longer advertised. Removal can precede a shadowing replacement from another server.",
+      "evidence": {
+        "source": "tool:game_evm_reveal_guess",
+        "snippet": "removed: game_evm_reveal_guess"
+      },
+      "confidence": 0.5
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "medium",
+      "category": "tool-poisoning",
+      "title": "Tool removed since last scan",
+      "detail": "Tool \"game_find_evm_match\" is no longer advertised. Removal can precede a shadowing replacement from another server.",
+      "evidence": {
+        "source": "tool:game_find_evm_match",
+        "snippet": "removed: game_find_evm_match"
+      },
+      "confidence": 0.5
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"game_find_match\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:game_find_match",
+        "snippet": "before: \"[SPEND: 0.05 SOL] Build an unsigned deposit_stake transaction to join the matchmaking queue. Sign the returned transaction locally, then submit it via game_submit_tx. The 0.05 SOL ante is locked until the game resolves — winning recovers your ante plus opponent's; losing forfeits to the prize pool. \" → after: \"[SPEND: the configured stake] Build an unsigned deposit_stake transaction to join the matchmaking queue. Sign the returned transaction locally, then submit it via game_submit_tx. The ante (GlobalConfig.stake_lamports, read live) is locked until the game resolves — winning recovers your ante plus opp\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"game_get_leaderboard\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:game_get_leaderboard",
+        "snippet": "before: \"[READ] Get the tournament leaderboard for the Coordination Game. Shows top players ranked by score (wins^2 / total_games). Tournament ID defaults to 1 (the only active tournament; omit unless you know what you're doing).\" → after: \"[READ] Get the tournament leaderboard for the Coordination Game. Shows top players ranked by score (wins^2 / total_games). Tournament ID defaults to the tournament currently accepting play; omit unless you know what you're doing.\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"game_submit_tx\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:game_submit_tx",
+        "snippet": "before: \"[STATE] Submit a signed Solana transaction for any game step (deposit_stake, join_game, commit_guess, reveal_guess, create_game). The funds movement was determined by the prior tool call that built the unsigned tx — this just broadcasts it.\" → after: \"[STATE] Submit a signed Solana transaction for any game step — same-chain (deposit_stake, join_game, commit_guess, reveal_guess, create_game) or cross-chain (create_xmatch, lock_xtranche, settle_xmatch, refund_xmatch_timeout, refund_xmatch_nocert, built by the xchain_build_* tools). The funds moveme\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"list_earning_opportunities\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:list_earning_opportunities",
+        "snippet": "before: \"[READ] Aggregated list of earning opportunities across the swarm.tips ecosystem. Includes Shillbot tasks (claim via shillbot_claim_task — first-party deep integration with on-chain Solana escrow + Switchboard oracle attestation), plus external bounties from Bountycaster, Moltlaunch, and BotBounty (e\" → after: \"[READ] Aggregated list of earning opportunities across the swarm.tips ecosystem. Includes Shillbot tasks (claim via shillbot_claim_task — first-party deep integration with on-chain Solana escrow + Switchboard oracle attestation), plus external bounties from Bountycaster, BotBounty, and 0xWork (each \""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"register_wallet\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:register_wallet",
+        "snippet": "before: \"[STATE] Register your wallet to use any swarm.tips tool that touches funds. Provide a Solana base58 public key (32 bytes) for same-chain Coordination Game + Shillbot tools, OR an EVM 0x address (40 hex) for the cross-chain game leg (testnet: Base Sepolia) — call xchain_supported_chains first to choo\" → after: \"[STATE] Register your wallet to use any swarm.tips tool that touches funds. Provide a Solana base58 public key (32 bytes) for same-chain Coordination Game + Shillbot tools, OR an EVM 0x address (40 hex) for the cross-chain game leg (testnet: Base Sepolia) — call xchain_supported_chains first to choo\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"search_mcp_servers\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:search_mcp_servers",
+        "snippet": "before: \"[READ] BM25 relevance search over the full ingested MCP-server catalog (~2k servers from the official MCP registry + awesome-lists, auto-classified by heuristics + LLM). Query by capability in free text (e.g. \"solana defi swap\", \"browser automation\") — results are relevance-gated, then ordered by fu\" → after: \"[READ] BM25 relevance search over the full ingested MCP-server catalog (17,000+ servers from the official MCP registry + awesome-lists, auto-classified by heuristics + LLM). Query by capability in free text (e.g. \"solana defi swap\", \"browser automation\") — results are relevance-gated, then ordered b\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"shillbot_claim_task\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:shillbot_claim_task",
+        "snippet": "before: \"[STATE] Claim a Shillbot task. Returns an unsigned base64 Solana transaction the agent must sign locally with its wallet, then submit via shillbot_submit_tx with action=\"claim\". Non-custodial — the MCP server never sees your private key. Requires a registered wallet (call register_wallet first). Opt\" → after: \"[STATE] Claim a Shillbot task. Returns an unsigned base64 Solana transaction the agent must sign locally with its wallet, then submit via shillbot_submit_tx with action=\"claim\". Non-custodial — the MCP server never sees your private key. Requires a registered wallet (call register_wallet first). If \""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "medium",
+      "category": "tool-poisoning",
+      "title": "Tool removed since last scan",
+      "detail": "Tool \"xchain_build_create_match\" is no longer advertised. Removal can precede a shadowing replacement from another server.",
+      "evidence": {
+        "source": "tool:xchain_build_create_match",
+        "snippet": "removed: xchain_build_create_match"
+      },
+      "confidence": 0.5
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "medium",
+      "category": "tool-poisoning",
+      "title": "Tool removed since last scan",
+      "detail": "Tool \"xchain_build_create_xmatch\" is no longer advertised. Removal can precede a shadowing replacement from another server.",
+      "evidence": {
+        "source": "tool:xchain_build_create_xmatch",
+        "snippet": "removed: xchain_build_create_xmatch"
+      },
+      "confidence": 0.5
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "medium",
+      "category": "tool-poisoning",
+      "title": "Tool removed since last scan",
+      "detail": "Tool \"xchain_build_lock\" is no longer advertised. Removal can precede a shadowing replacement from another server.",
+      "evidence": {
+        "source": "tool:xchain_build_lock",
+        "snippet": "removed: xchain_build_lock"
+      },
+      "confidence": 0.5
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "medium",
+      "category": "tool-poisoning",
+      "title": "Tool removed since last scan",
+      "detail": "Tool \"xchain_build_lock_xmatch\" is no longer advertised. Removal can precede a shadowing replacement from another server.",
+      "evidence": {
+        "source": "tool:xchain_build_lock_xmatch",
+        "snippet": "removed: xchain_build_lock_xmatch"
+      },
+      "confidence": 0.5
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "medium",
+      "category": "tool-poisoning",
+      "title": "Tool removed since last scan",
+      "detail": "Tool \"xchain_build_refund\" is no longer advertised. Removal can precede a shadowing replacement from another server.",
+      "evidence": {
+        "source": "tool:xchain_build_refund",
+        "snippet": "removed: xchain_build_refund"
+      },
+      "confidence": 0.5
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "medium",
+      "category": "tool-poisoning",
+      "title": "Tool removed since last scan",
+      "detail": "Tool \"xchain_build_refund_xmatch\" is no longer advertised. Removal can precede a shadowing replacement from another server.",
+      "evidence": {
+        "source": "tool:xchain_build_refund_xmatch",
+        "snippet": "removed: xchain_build_refund_xmatch"
+      },
+      "confidence": 0.5
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "medium",
+      "category": "tool-poisoning",
+      "title": "Tool removed since last scan",
+      "detail": "Tool \"xchain_build_settle\" is no longer advertised. Removal can precede a shadowing replacement from another server.",
+      "evidence": {
+        "source": "tool:xchain_build_settle",
+        "snippet": "removed: xchain_build_settle"
+      },
+      "confidence": 0.5
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "medium",
+      "category": "tool-poisoning",
+      "title": "Tool removed since last scan",
+      "detail": "Tool \"xchain_commit_guess\" is no longer advertised. Removal can precede a shadowing replacement from another server.",
+      "evidence": {
+        "source": "tool:xchain_commit_guess",
+        "snippet": "removed: xchain_commit_guess"
+      },
+      "confidence": 0.5
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "medium",
+      "category": "tool-poisoning",
+      "title": "Tool removed since last scan",
+      "detail": "Tool \"xchain_find_match\" is no longer advertised. Removal can precede a shadowing replacement from another server.",
+      "evidence": {
+        "source": "tool:xchain_find_match",
+        "snippet": "removed: xchain_find_match"
+      },
+      "confidence": 0.5
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "medium",
+      "category": "tool-poisoning",
+      "title": "Tool removed since last scan",
+      "detail": "Tool \"xchain_gameplay_status\" is no longer advertised. Removal can precede a shadowing replacement from another server.",
+      "evidence": {
+        "source": "tool:xchain_gameplay_status",
+        "snippet": "removed: xchain_gameplay_status"
+      },
+      "confidence": 0.5
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "medium",
+      "category": "tool-poisoning",
+      "title": "Tool removed since last scan",
+      "detail": "Tool \"xchain_match_status\" is no longer advertised. Removal can precede a shadowing replacement from another server.",
+      "evidence": {
+        "source": "tool:xchain_match_status",
+        "snippet": "removed: xchain_match_status"
+      },
+      "confidence": 0.5
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "medium",
+      "category": "tool-poisoning",
+      "title": "Tool removed since last scan",
+      "detail": "Tool \"xchain_reveal_guess\" is no longer advertised. Removal can precede a shadowing replacement from another server.",
+      "evidence": {
+        "source": "tool:xchain_reveal_guess",
+        "snippet": "removed: xchain_reveal_guess"
+      },
+      "confidence": 0.5
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "medium",
+      "category": "tool-poisoning",
+      "title": "Tool removed since last scan",
+      "detail": "Tool \"xchain_sign_checkpoint\" is no longer advertised. Removal can precede a shadowing replacement from another server.",
+      "evidence": {
+        "source": "tool:xchain_sign_checkpoint",
+        "snippet": "removed: xchain_sign_checkpoint"
+      },
+      "confidence": 0.5
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "medium",
+      "category": "tool-poisoning",
+      "title": "Tool removed since last scan",
+      "detail": "Tool \"xchain_supported_chains\" is no longer advertised. Removal can precede a shadowing replacement from another server.",
+      "evidence": {
+        "source": "tool:xchain_supported_chains",
+        "snippet": "removed: xchain_supported_chains"
+      },
+      "confidence": 0.5
     }
   ],
-  "score": 41,
+  "score": 22,
   "scoreBreakdown": {
-    "tool-poisoning": 39,
+    "tool-poisoning": 58,
     "toxic-flow": 20
   },
   "errors": []

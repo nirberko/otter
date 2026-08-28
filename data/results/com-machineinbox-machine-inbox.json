@@ -1,0 +1,151 @@
+{
+  "schemaVersion": 1,
+  "scanner": {
+    "version": "1.6.0",
+    "rules": "402995650b68"
+  },
+  "target": {
+    "kind": "url",
+    "ref": "https://machineinbox.com/mcp"
+  },
+  "scannedAt": "2026-08-28T16:43:39.250Z",
+  "durationMs": 1118,
+  "layers": {
+    "metadata": true,
+    "static": false
+  },
+  "tools": [
+    {
+      "name": "get_service_info",
+      "descriptionHash": "5cdef58f0f37e23aa4c1b4aeeafc066828280e0efb6b6820138828896a5fad14",
+      "description": "Read the Machine Inbox service instructions: pricing, payment rails, endpoints, and limits.",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "create_inbox",
+      "descriptionHash": "0881777d3d31ad9ae24205fa5e1d3b2e09b997e03ef8e59be552487829dde0cc",
+      "description": "Request a new paid inbox. Buying requires an out-of-band payment (Stripe MPP or x402 USDC on Base); this tool returns the live HTTP 402 payment challenge plus exact instructions to complete the purchase. Standard inbox: $2.00."
+    },
+    {
+      "name": "get_inbox",
+      "descriptionHash": "7b7de39a8d18d316d7426abb10810d7ca65de95b03bc92ec9e4fb34e91d1a585",
+      "description": "Read an inbox: address, status, expiry, limits, and usage.",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "list_messages",
+      "descriptionHash": "6b7c2d92e3d60328b618b371fae8b2aa664023b0ff0c92e8432d7859f2a28ec4",
+      "description": "List messages in an inbox, newest first. Pass after=<newest createdAt seen> to poll for only new mail.",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "get_message",
+      "descriptionHash": "b36f200c90cb13fe6e62ae33df481f9d6c6342c8ea0c189233042fd9b72629b6",
+      "description": "Fetch one message with parsed text, HTML, and attachment download URLs.",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "get_verification_code",
+      "descriptionHash": "661b0ab55eceabfd61beb5214e0d47a9795612c31097d0e3f3864690e6317deb",
+      "description": "Extract the newest one-time verification code or confirmation link from inbound mail. Ideal for signup and login flows."
+    },
+    {
+      "name": "reply_to_message",
+      "descriptionHash": "801606547de87d05ae64f8538d61df8be951be9a6c6773a7a72c66f6c91bca33",
+      "description": "Send an included plain-text reply to the authenticated sender of an inbound message.",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "set_webhook",
+      "descriptionHash": "0a3d9c4d1ecf6348f5314cc5e2b2c1222a40571739cd64786db9b50374b91a59",
+      "description": "Register or replace the inbox webhook: an HMAC-signed POST fires on every inbound message with metadata, extracted verification codes, and injection risk (never the body). Returns the signing secret.",
+      "labels": [
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "get_webhook",
+      "descriptionHash": "be30adcd139f65ab0e84d3768df44600c3fd0de6eaa3b3e42d4d87dd96202835",
+      "description": "Read the inbox webhook state: URL, delivery counters, and whether it is disabled. The secret is only returned by set_webhook.",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "delete_webhook",
+      "descriptionHash": "7013c7455f9dd3fb58e60f35b03b43e2d3e8ca412f938726cd8886108de31315",
+      "description": "Remove the inbox webhook.",
+      "labels": [
+        "public-sink",
+        "destructive"
+      ]
+    },
+    {
+      "name": "delete_inbox",
+      "descriptionHash": "2c8c301a782f22a5c4ae6ac33c3feceef4a0dde33a86d2359660069b64c9da5c",
+      "description": "Delete an inbox: revokes the token and erases stored mail.",
+      "labels": [
+        "private-data",
+        "destructive"
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"set_webhook\" references sensitive artifacts (secret). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:set_webhook",
+        "snippet": "Register or replace the inbox webhook: an HMAC-signed POST fires on every inbound message with metadata, extracted verification codes, and injection risk (never…"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"get_webhook\" references sensitive artifacts (secret). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:get_webhook",
+        "snippet": "Read the inbox webhook state: URL, delivery counters, and whether it is disabled. The secret is only returned by set_webhook."
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: get_service_info, get_inbox, list_messages, get_message, get_webhook · Private data: set_webhook, get_webhook, delete_inbox · Public sink: reply_to_message, set_webhook, get_webhook, delete_webhook · Destructive: delete_webhook, delete_inbox.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: get_service_info, get_inbox, list_messages, get_message, get_webhook · Private data: set_webhook, get_webhook, delete_inbox · Public sink: reply_to_message, set_webhook, get_webhook, delete_webhook · Destructive: delete_webhook, delete_inbox"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 50,
+  "scoreBreakdown": {
+    "tool-poisoning": 30,
+    "toxic-flow": 20
+  },
+  "errors": []
+}

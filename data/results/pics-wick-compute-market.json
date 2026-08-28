@@ -1,0 +1,298 @@
+{
+  "schemaVersion": 1,
+  "scanner": {
+    "version": "1.6.0",
+    "rules": "402995650b68"
+  },
+  "target": {
+    "kind": "url",
+    "ref": "https://compute.wick.pics/mcp/"
+  },
+  "scannedAt": "2026-08-28T16:54:10.291Z",
+  "durationMs": 4030,
+  "layers": {
+    "metadata": true,
+    "static": false
+  },
+  "tools": [
+    {
+      "name": "search_offers",
+      "descriptionHash": "d9e797cc15a2c8f0adf859ec4e265654a776f9baba5874a74fba318616f58f16",
+      "description": "Search live GPU offers. gpu matches the model name (e.g. '4090', 'H100').\n    offer_class: on_demand | interruptible | reserved. country: ISO-2 (e.g. US),\n    a comma list ('DE,NL'), or 'EU' for the 27 member states. min_gpu_count\n    filters to multi-GPU configs (8 = full 8x nodes). region substrin"
+    },
+    {
+      "name": "get_offer",
+      "descriptionHash": "a36c65fdbee4919bc33f580b335b9402ab998143b40deb6193b171b80e065f85",
+      "description": "Fetch one offer by its id (from search_offers)."
+    },
+    {
+      "name": "market_stats",
+      "descriptionHash": "e94b4a514bd647c69a558afd9c51ecb71e1c67542e30410c1c361b59cc84fb69",
+      "description": "Live market snapshot: total offers, GPU models, idle-capacity share,\n    per-provider freshness/health, cheapest price per model, current fee_bps.",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "price_history",
+      "descriptionHash": "07b1010712fb4a4a52c77d34e8bb8b7df68236e646837ee924196c3e5b84f480",
+      "description": "Price history for one GPU model (exact name from search_offers/market_stats,\n    e.g. 'RTX 4090'). offer_class: on_demand | interruptible. Returns per-provider\n    series of [ts, min_price_per_gpu_hr, median_price_per_gpu_hr, offer_count];\n    ranges past 3 days are bucketed (hourly, then 6-hourly p"
+    },
+    {
+      "name": "idle_history",
+      "descriptionHash": "e23e262e6bea9a1300481a37ab4fd2b851ce57ed90899c6da21f0df456f30b86",
+      "description": "The idle-capacity index over time: share of listed GPU capacity that is\n    interruptible (spot/bid) — idle hardware looking for work. Points are\n    [ts, idle_share, idle_offers, total_offers].",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "best_value",
+      "descriptionHash": "0568d0295414f871d04552437fa8be8b7e522a49b4d672d4a47e670edf73a1da",
+      "description": "Perf-per-dollar board: for each GPU model, best live price vs its FP16\n    tensor throughput (dense, vendor spec sheets) -> TFLOPS per dollar-hour.\n    The answer to 'most compute for my budget' rather than 'cheapest card'.\n    Models without a defensible public spec figure are listed as unrated."
+    },
+    {
+      "name": "provider_reliability",
+      "descriptionHash": "c89eae2403989bdb81551f5a86a41a622c7604506bea028e15d3da57dc11fae3",
+      "description": "How dependable each provider's data feed has been for this station\n    (poll success over the trailing window), plus the provider's own average\n    machine reliability where reported. feed_score is about the DATA, not\n    their hardware."
+    },
+    {
+      "name": "price_position",
+      "descriptionHash": "0cea024538fe680bc20bb19f8a8a6c93916ac7d76d12895ac01214f5d9538f0a",
+      "description": "Rent-now-or-wait context: where the current best price for one GPU\n    model sits inside its own trailing 7/30-day range (percentile, 24h trend,\n    verdict). Descriptive, not a forecast."
+    },
+    {
+      "name": "spot_spread",
+      "descriptionHash": "1d9319f98790580fd12e487f36be48da4d0b26db54bcf59ead4b2031081ef45c",
+      "description": "On-demand vs interruptible spread: the live discount for idle capacity\n    per model; pass gpu_model for its history too."
+    },
+    {
+      "name": "will_it_fit",
+      "descriptionHash": "08bf8dca8239b9d893555da783a3d6ecc47fcc449d579ffdd2f81e006c18069f",
+      "description": "Will this model fit, and what does a fitting machine cost right now?\n    Deterministic VRAM arithmetic — weights (params x bytes/precision) + KV\n    cache (2 x layers x kv_heads x head_dim x context x batch) + stated\n    overhead — checked against the live book, cheapest fitting offers first.\n    Pa"
+    },
+    {
+      "name": "true_cost_notes",
+      "descriptionHash": "47b59e16c5628a5e430a105874f182493185d50c6fdc4ec2b0ef85d5f87b1838",
+      "description": "The billing fine print behind the $/hr, verified per provider from\n    their own published pages (source URL + date on every claim): billing\n    granularity (per-second vs per-minute), whether storage bills while\n    stopped, bandwidth/egress fees, and the commonly-missed gotchas (e.g.\n    Vast band"
+    },
+    {
+      "name": "register_account",
+      "descriptionHash": "6e9c57345de752fbebe20ac11a6d55c0f3107b510c3e1143bbca3b9dc01dc50d",
+      "description": "Create a metering account: returns a bearer token (shown once, we keep\n    only a hash). Pass it as account_token on rent calls to build a usage\n    ledger you can read back with account_usage. Optional — renting works\n    without one.",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "account_usage",
+      "descriptionHash": "145a12eec1cbeb4fbea5945b84e3df6bbf014d2e4bd2a0cd6c528738f2d85658",
+      "description": "Your metered usage ledger: placements, destroys, estimated hours and USD,\n    and the platform fee (2.5%, $0.01 min, $5.00 cap per lease per UTC day) priced\n    at the rate live at event time. Distinct from fee_bps, the display markup."
+    },
+    {
+      "name": "create_watch",
+      "descriptionHash": "2add52cb5143ad39eec9158cc827bbb9ce88432c1e3ead9bf8b32ea5cab32600",
+      "description": "Create a price watch (tripwire): fires when the best live fee-adjusted\n    price per GPU-hour matching gpu (and optional offer_class) drops to or\n    under max_price_per_gpu_hr. Checked every poll (~5 min). Returns the watch\n    with its id — the id is the only key; poll it with watch_status, or giv"
+    },
+    {
+      "name": "watch_status",
+      "descriptionHash": "b3cc4c6c8aee02066a7427705d94c4a92f74b01f785f634bc1c3b5cabc10f761",
+      "description": "Current state of a watch: armed/tripped, last price seen, recent\n    events, and the best matching offer right now."
+    },
+    {
+      "name": "delete_watch",
+      "descriptionHash": "3fb5dbd62d851223ab07d5c0e10f94338c7b8036103b3a8ae89f6d8eb5adc785",
+      "description": "Delete a watch by id.",
+      "labels": [
+        "destructive"
+      ]
+    },
+    {
+      "name": "create_limit_order",
+      "descriptionHash": "8d885ddb2a419fb56dbf3fa2e0f7ffbaebdc47b6a19d97bb98677a4f4a7e7cb1",
+      "description": "Place a standing LIMIT ORDER: when the best live fee-adjusted price for\n    gpu (and optional offer_class) trades at or under max_price_per_gpu_hr,\n    the station cuts a signed FILL TICKET naming the exact offer. The station\n    never holds your provider key — the ticket is executed by whoever does",
+      "labels": [
+        "untrusted-content",
+        "public-sink",
+        "destructive"
+      ]
+    },
+    {
+      "name": "limit_order_status",
+      "descriptionHash": "2f0b46666ac816e484d34740e6413c2964edf705d53cfbc6f3c3143963491551",
+      "description": "State of a limit order (armed/ticketed/filled/cancelled/expired), last\n    price seen, recent events. Pass order_secret to also read the live fill\n    ticket when one is cut.",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "cancel_limit_order",
+      "descriptionHash": "c762bb515f5b8e49bd44433fb6b6be52df0b6f86b30600c1373b2e7db82223ca",
+      "description": "Cancel a limit order. Requires the order_secret from create_limit_order."
+    },
+    {
+      "name": "rent_x402",
+      "descriptionHash": "c883a655c2c9f50144409b0b3d41839ae4320bded2621f18949453fc31ce4469",
+      "description": "Rent a prepaid block of GPU time with a wallet and NO account, NO API key\n    and no human, over x402 (HTTP 402 micropayments, USDC on Base).\n\n    Call it with no arguments and you get the payment challenge: an x402\n    PaymentRequirementsResponse whose accepts[0].extra.x402_fee states the block\n   ",
+      "labels": [
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "rent_offer",
+      "descriptionHash": "7ab7e5a6f05f4aa0422d95e81c03f121f100097d78888007dfa358eb863261ce",
+      "description": "Place a rental on YOUR provider account (BYO key — it is used for this\n    one call and never stored). Default is a DRY RUN returning exactly what\n    would be executed; a live placement needs dry_run=false AND confirm=true.\n    The offer is re-quoted live first and refused if its price exceeds\n    ",
+      "labels": [
+        "destructive"
+      ]
+    },
+    {
+      "name": "rent_best",
+      "descriptionHash": "7485003422f05df1d35c3ff174137aca6b71209f9020dd1e54d2ea12f8e765ac",
+      "description": "One-shot rent: search the live book with these filters and place on the\n    best (cheapest) matching offer — 'cheapest H100 under $2/hr, go'. Same\n    guarantees as rent_offer (dry-run default, live re-quote, your\n    max_price_per_gpu_hr is absolute). If the best offer is already gone it\n    walks ",
+      "labels": [
+        "destructive"
+      ]
+    },
+    {
+      "name": "rental_status",
+      "descriptionHash": "d7c019862f0d542f16bae9b1c8b4dd4336839611c7e2a1da203956bf61f13c0e",
+      "description": "Live state of an instance on your account: running/starting/stopped/\n    gone, uptime, price, estimated spend so far, and the budget guard's state\n    if one is armed. Read-only; your key passes through and is never stored."
+    },
+    {
+      "name": "destroy_rental",
+      "descriptionHash": "5e178e051b88d5122a51e237c2e7dd759578a9bc47b7dabf868bb2b7d7af5ede",
+      "description": "Destroy an instance previously placed on your account (vast or runpod).\n    Your key passes through and is never stored.",
+      "labels": [
+        "destructive"
+      ]
+    },
+    {
+      "name": "fill_limit_order",
+      "descriptionHash": "b6a6fa7324fa0b200c1434419460e5fab96c3c99bb83f6cf33b94e7a87874276",
+      "description": "Execute a limit order's live fill ticket on YOUR provider key (used for\n    this one call, never stored). Only works while the order is ticketed; the\n    offer is re-quoted live and refused above the order's line. Idempotent per\n    order — a retry returns the first receipt rather than renting a sec",
+      "labels": [
+        "destructive"
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-SCHEMA-SMELL-001",
+      "severity": "medium",
+      "category": "schema-smell",
+      "title": "Read-only tool requests dangerous parameters",
+      "detail": "Tool \"will_it_fit\" appears informational but accepts parameters (context) that enable code/file/secret access.",
+      "evidence": {
+        "source": "tool:will_it_fit",
+        "snippet": "model, params_b, precision, context, batch, offer_class, tokens_per_s, limit"
+      },
+      "confidence": 0.55
+    },
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"register_account\" references sensitive artifacts (bearer). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:register_account",
+        "snippet": "Create a metering account: returns a bearer token (shown once, we keep only a hash). Pass it as account_token on rent calls to build a usage ledger you can read…"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"create_limit_order\" references sensitive artifacts (secret). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:create_limit_order",
+        "snippet": "Place a standing LIMIT ORDER: when the best live fee-adjusted price for gpu (and optional offer_class) trades at or under max_price_per_gpu_hr, the station cuts…"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOOL-POISON-006",
+      "severity": "low",
+      "category": "tool-poisoning",
+      "title": "Anomalously long tool description",
+      "detail": "Description of \"create_limit_order\" is 1623 chars, far longer than this server's median (235). Overlong descriptions are a common place to bury instructions.",
+      "evidence": {
+        "source": "tool:create_limit_order",
+        "snippet": "Place a standing LIMIT ORDER: when the best live fee-adjusted price for gpu (and optional offer_class) trades at or under max_price_per_gpu_hr, the station cuts…"
+      },
+      "confidence": 0.4
+    },
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"limit_order_status\" references sensitive artifacts (secret). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:limit_order_status",
+        "snippet": "State of a limit order (armed/ticketed/filled/cancelled/expired), last price seen, recent events. Pass order_secret to also read the live fill ticket when one i…"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"cancel_limit_order\" references sensitive artifacts (secret). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:cancel_limit_order",
+        "snippet": "Cancel a limit order. Requires the order_secret from create_limit_order."
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"rent_x402\" references sensitive artifacts (id_ed25519, ssh key, authorization). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:rent_x402",
+        "snippet": "Rent a prepaid block of GPU time with a wallet and NO account, NO API key and no human, over x402 (HTTP 402 micropayments, USDC on Base). Call it with no argume…"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOOL-POISON-006",
+      "severity": "low",
+      "category": "tool-poisoning",
+      "title": "Anomalously long tool description",
+      "detail": "Description of \"rent_x402\" is 1988 chars, far longer than this server's median (235). Overlong descriptions are a common place to bury instructions.",
+      "evidence": {
+        "source": "tool:rent_x402",
+        "snippet": "Rent a prepaid block of GPU time with a wallet and NO account, NO API key and no human, over x402 (HTTP 402 micropayments, USDC on Base). Call it with no argume…"
+      },
+      "confidence": 0.4
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: create_limit_order, limit_order_status · Private data: register_account, rent_x402 · Public sink: market_stats, idle_history, create_limit_order, rent_x402 · Destructive: delete_watch, create_limit_order, rent_offer, rent_best, destroy_rental, fill_limit_order.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: create_limit_order, limit_order_status · Private data: register_account, rent_x402 · Public sink: market_stats, idle_history, create_limit_order, rent_x402 · Destructive: delete_watch, create_limit_order, rent_offer, rent_best, destroy_rental, fill_limit_order"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 33,
+  "scoreBreakdown": {
+    "schema-smell": 8,
+    "tool-poisoning": 39,
+    "toxic-flow": 20
+  },
+  "errors": []
+}

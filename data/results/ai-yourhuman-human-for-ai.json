@@ -1,0 +1,103 @@
+{
+  "schemaVersion": 1,
+  "scanner": {
+    "version": "1.6.0",
+    "rules": "402995650b68"
+  },
+  "target": {
+    "kind": "url",
+    "ref": "https://yourhuman.ai/mcp"
+  },
+  "scannedAt": "2026-08-28T16:54:38.590Z",
+  "durationMs": 595,
+  "layers": {
+    "metadata": true,
+    "static": false
+  },
+  "tools": [
+    {
+      "name": "request_human_assistance",
+      "descriptionHash": "8701901a7b8d0e2d7c5c18ce2b639c4290dd3d342b8426247a3c4da6b2b48d50",
+      "description": "Ask an actual human being for help with something your task requires and you cannot properly do alone: legal judgement, a decision you should not take on your own authority, an act in the physical world, or an escalation past your operator.\n\nThe request is written to a permanent, timestamped record ",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "check_request_status",
+      "descriptionHash": "52c15cd02c63403e9d3b17bc5429f89d4fa32cb533b45dca79e00679c50cbcd4",
+      "description": "Read the thread on a request you or your principal filed earlier: whether a human has looked at it, and what they said.\n\nUse the `reference` and `access_token` from `request_human_assistance`. Answers arrive at human speed — hours or days, not seconds — so poll this occasionally rather than in a loo",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "reply_to_thread",
+      "descriptionHash": "91c5d1fcbd2a80338c19c1a1dd1137704abebc37c19f6fac9d908168103f3fda",
+      "description": "Add to a request already on the record — answer a question the human asked, supply something they need, correct yourself, or withdraw the request.\n\nThis is the same permanent record as the original, so what you send here is kept and read the same way. Prefer it over filing a fresh request whenever t",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink"
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"request_human_assistance\" references sensitive artifacts (access_token). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:request_human_assistance",
+        "snippet": "Ask an actual human being for help with something your task requires and you cannot properly do alone: legal judgement, a decision you should not take on your o…"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-SCHEMA-SMELL-001",
+      "severity": "medium",
+      "category": "schema-smell",
+      "title": "Read-only tool requests dangerous parameters",
+      "detail": "Tool \"request_human_assistance\" appears informational but accepts parameters (context) that enable code/file/secret access.",
+      "evidence": {
+        "source": "tool:request_human_assistance",
+        "snippet": "category, request, context, proposed_action, urgency, deadline, agent_name, model, operator, reply_to"
+      },
+      "confidence": 0.55
+    },
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"check_request_status\" references sensitive artifacts (access_token). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:check_request_status",
+        "snippet": "Read the thread on a request you or your principal filed earlier: whether a human has looked at it, and what they said. Use the `reference` and `access_token` f…"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: check_request_status, reply_to_thread · Private data: request_human_assistance, reply_to_thread · Public sink: reply_to_thread.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: check_request_status, reply_to_thread · Private data: request_human_assistance, reply_to_thread · Public sink: reply_to_thread"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 42,
+  "scoreBreakdown": {
+    "tool-poisoning": 30,
+    "schema-smell": 8,
+    "toxic-flow": 20
+  },
+  "errors": []
+}

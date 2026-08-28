@@ -1,0 +1,130 @@
+{
+  "schemaVersion": 1,
+  "scanner": {
+    "version": "1.6.0",
+    "rules": "402995650b68"
+  },
+  "target": {
+    "kind": "url",
+    "ref": "https://mcp.carrierscore.io/mcp"
+  },
+  "scannedAt": "2026-08-28T16:44:55.572Z",
+  "durationMs": 794,
+  "layers": {
+    "metadata": true,
+    "static": false
+  },
+  "tools": [
+    {
+      "name": "carrier_lookup",
+      "descriptionHash": "d3ef72eb6a15d1a869936bb09a9ca77bab3a7832ad3f09017eec83499ddad48f",
+      "description": "Look up an FMCSA-registered motor carrier's identity by US DOT number: legal name, DBA, operating status, FMCSA safety rating, fleet size (power units, drivers), physical address, and registration dates.\n\nUse this first when a booking/dispatch agent needs to confirm WHO a carrier is — that a DOT num"
+    },
+    {
+      "name": "carrier_score",
+      "descriptionHash": "7a46161a57a45e75abde97781ee59dedd27872f4054eda249c4b8220a3a8e06e",
+      "description": "Get the CarrierScore risk indices for a carrier by US DOT number: two first-class, separately validated indices (0-100, HIGHER = RISKIER), each with a full component breakdown.\n\nThis is the core \"is this carrier safe to book?\" signal for AI booking agents. Served methodology v0.5 returns TWO indices",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "montgomery_file",
+      "descriptionHash": "1718316759df66506d54a761ad81dcea0ee690649eb59acc32e60d12677c13b3",
+      "description": "Generate a timestamped Montgomery file — a carrier-selection evidence report — for a carrier by US DOT number.\n\nSince Montgomery v. Caribe Transport II (SCOTUS, May 2026), freight brokers are exposed to state-law negligent-selection claims and need documented, timestamped, safety-data-based carrier ",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "destructive"
+      ]
+    },
+    {
+      "name": "monitor_carriers",
+      "descriptionHash": "2b6d1dd456853d9dd7a70c1686d4c56aed88f0467e8a24296dc2ed09baed9e77",
+      "description": "Batch risk check for a list of carriers by US DOT number (max 100 per call): score summary and hard flags for each.\n\nUse when an agent is screening multiple candidate carriers for a load, or re-checking a broker's active carrier roster (\"did any of my carriers pick up an out-of-service order or drop",
+      "labels": [
+        "destructive"
+      ]
+    },
+    {
+      "name": "save_carrier_list",
+      "descriptionHash": "9824eaf8fababb0e77f53caf22548056b56bf14b49c83dd1ac6423a864dd016f",
+      "description": "Save a named list of carriers (by US DOT number) for continuous monitoring. Requires a paid CarrierScore API key (Monitor or Compliance tier) — connect with your key via OAuth (or set CARRIERSCORE_API_KEY on a self-hosted server); the free tier gets a 403 with an upgrade link.\n\nOnce saved, CarrierSc",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink",
+        "destructive"
+      ]
+    },
+    {
+      "name": "list_alerts",
+      "descriptionHash": "45b46c7d09c064b277097997f78f803feb12718388b028de444d8151848b7553",
+      "description": "Retrieve the alert history for a saved carrier list (see save_carrier_list), newest first. Requires the same paid API key that saved the list.\n\nEach alert records one change detected between consecutive daily scoring runs for one carrier: type (oos_order_activated, authority_lost, insurance_lapsed, ",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "audit_entries",
+      "descriptionHash": "c80c83160853ec7e338b28420d36b39319dc3ba8943920aa6e7e529a8a2baa37",
+      "description": "List the immutable audit-archive entries for the caller's API key: every Montgomery evidence report the key generated (text or json), newest first, each with its entry id, generation timestamp, DOT number, scoring date, methodology version and the SHA-256 of the archived report text. Requires a paid",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "verify_evidence",
+      "descriptionHash": "867057cbb94cb71cad5e576de0907318d95ef4e12d4c4ba5f2fc983a88229300",
+      "description": "Verify an archived Montgomery evidence report by its audit entry id: CarrierScore re-reads the immutable stored copy, recomputes its SHA-256 and reports whether it matches the hash recorded at generation time (and, optionally, a hash the caller supplies — e.g. the sha256 printed on a broker's filed ",
+      "labels": [
+        "private-data"
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOOL-POISON-007",
+      "severity": "low",
+      "category": "tool-poisoning",
+      "title": "Description uses pressure/override language",
+      "detail": "Description of \"carrier_score\" stacks urgency/override words (always, never). Legitimate tool descriptions rarely pressure the model to act or ignore prior guidance.",
+      "evidence": {
+        "source": "tool:carrier_score",
+        "snippet": "Get the CarrierScore risk indices for a carrier by US DOT number: two first-class, separately validated indices (0-100, HIGHER = RISKIER), each with a full comp…"
+      },
+      "confidence": 0.3
+    },
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"save_carrier_list\" references sensitive artifacts (secret, api_key). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:save_carrier_list",
+        "snippet": "Save a named list of carriers (by US DOT number) for continuous monitoring. Requires a paid CarrierScore API key (Monitor or Compliance tier) — connect with you…"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: montgomery_file, save_carrier_list · Private data: montgomery_file, save_carrier_list, list_alerts, audit_entries, verify_evidence · Public sink: carrier_score, save_carrier_list · Destructive: montgomery_file, monitor_carriers, save_carrier_list.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: montgomery_file, save_carrier_list · Private data: montgomery_file, save_carrier_list, list_alerts, audit_entries, verify_evidence · Public sink: carrier_score, save_carrier_list · Destructive: montgomery_file, monitor_carriers, save_carrier_list"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 59,
+  "scoreBreakdown": {
+    "tool-poisoning": 22,
+    "toxic-flow": 20
+  },
+  "errors": []
+}

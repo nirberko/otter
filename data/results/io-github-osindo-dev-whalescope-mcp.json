@@ -1,0 +1,416 @@
+{
+  "schemaVersion": 1,
+  "scanner": {
+    "version": "1.6.0",
+    "rules": "402995650b68"
+  },
+  "target": {
+    "kind": "url",
+    "ref": "https://whalescope-mcp.jaringan.dev/mcp"
+  },
+  "scannedAt": "2026-08-28T17:04:22.135Z",
+  "durationMs": 875,
+  "layers": {
+    "metadata": true,
+    "static": false
+  },
+  "tools": [
+    {
+      "name": "binance_get_funding_rate",
+      "descriptionHash": "bbfdd95dc4ab84b72e82e69e290f77f6e33d332e0c62ddc74ec36e79a2ed45e2",
+      "description": "Funding rate TERKINI (native premiumIndex, source of truth) + basis (mark vs index price). Kontrarian: funding positif besar = long crowded (waspada long squeeze); negatif besar = short crowded. PENTING: index price rata-rata tertimbang beberapa exchange -- noisy untuk pair kecil/baru listing. Thres"
+    },
+    {
+      "name": "binance_get_funding_rate_history",
+      "descriptionHash": "bbdca061e2e4b31bd1bb44639511bf524cb4a87d4d7fe3350c4c3b0b641d722d",
+      "description": "Histori funding rate (sudah settled) untuk lihat tren crowding leverage dari waktu ke waktu, LANGSUNG dari Binance native. Default ringkas (rata-rata + tren + <=10 poin terbaru); `detail: \"full\"` untuk histori lengkap sesuai `limit`."
+    },
+    {
+      "name": "binance_scan_funding_extremes",
+      "descriptionHash": "61d37cfc8a6b299462afa7dad054bfb49ebc283dfbe0136d05faeeb5a4176d47",
+      "description": "Scan funding rate SEMUA pair sekaligus (1 call premiumIndex tanpa symbol, bukan loop per-pair), urutkan pair paling crowded LONG dan SHORT. Komplemen binance_get_funding_rate (yang butuh symbol spesifik). Threshold crowded sama: ±0.03%."
+    },
+    {
+      "name": "binance_get_open_interest",
+      "descriptionHash": "1055bd352a0ce2762ff3f997942f60ccbcd19c8eda317b388be1b6df072388de",
+      "description": "Open Interest (total kontrak terbuka) TERKINI, LANGSUNG dari Binance native. OI naik + harga naik = tren didukung entry baru. OI turun + harga naik = short covering. OI turun tajam = kemungkinan capitulation."
+    },
+    {
+      "name": "binance_get_open_interest_history",
+      "descriptionHash": "892ac817e1dccbcecd64fdfbaa3a9eddc36bd8dbb83949fba1aa0ae265e53802",
+      "description": "Histori Open Interest untuk lihat TREN naik/turun, LANGSUNG dari Binance native. Kombinasikan dengan binance_get_klines periode sama: OI naik + harga naik = entry baru; OI turun + harga naik = short covering (rally rapuh). Default ringkas (tren + <=10 poin terbaru); `detail: \"full\"` untuk histori le"
+    },
+    {
+      "name": "binance_get_long_short_ratio",
+      "descriptionHash": "366b269bdd3101193cc222c6b732dd9f7173c97c8d7a093ff522d699f2a39c8b",
+      "description": "Rasio posisi long vs short agregat (semua akun/global) + tren, LANGSUNG dari Binance native globalLongShortAccountRatio. Ratio > 1 = lebih banyak/besar posisi long. KETERBATASAN: rasio BLENDED, bukan breakdown top-trader (pakai binance_get_top_trader_ratio untuk itu). Default ringkas (snapshot + tre"
+    },
+    {
+      "name": "binance_get_top_trader_ratio",
+      "descriptionHash": "2168e55145e03643a13956f993d56633fddb9287c52b64d0a29ebd345d479ad1",
+      "description": "Rasio long/short KHUSUS TOP TRADER, terpisah dari retail, LANGSUNG dari Binance (bukan Coinalyze). mode='account' = breakdown jumlah akun; mode='position' = breakdown size posisi (lebih relevan buat modal besar). KETERBATASAN: threshold 'top trader' tidak dipublikasikan Binance; bandingkan RELATIF k"
+    },
+    {
+      "name": "binance_get_order_book_depth",
+      "descriptionHash": "bd02d4e818fb92750c3f9927255b80405277af1258a6fc3e00ededaf0a17ca2c",
+      "description": "Snapshot order book (bid/ask) real-time -- lihat wall besar (potensi whale/spoofing), spread, likuiditas. PENTING: snapshot SESAAT, wall besar bisa hilang dalam detik (bisa spoofing). Butuh minimal 3 sinyal align sebelum simpulkan aktivitas MM (docs/mm_detection_framework.md). Default ringkas (top 1"
+    },
+    {
+      "name": "binance_get_order_book_imbalance",
+      "descriptionHash": "74f4099476cc6f2f98a87eae4216e0a54a487139db94f89ac72b00155fe4b4ee",
+      "description": "Persentase imbalance volume Bid vs Ask kumulatif di 3 depth (5, 10, 20) sekaligus, plus label bias (BULLISH/BEARISH/SEIMBANG) per depth. Beda dari binance_get_order_book_depth yang cuma snapshot mentah. PENTING: snapshot SESAAT, jangan overinterpretasi."
+    },
+    {
+      "name": "binance_get_orderbook_delta",
+      "descriptionHash": "42a0c7800fc693e1d7a39f72339c0fd86ba12ac1114356ac60426f228f01af74",
+      "description": "Ambil 2 snapshot order book ~1-2 detik terpisah (jeda default 1500ms), bandingkan wall (qty >=2x median sisi yang sama, definisi sama dengan wall_tracking cron) antar snapshot -- wall yang hilang/menyusut >70% TANPA harga crossing level itu = indikasi spoofing riil (beda dari binance_get_order_book_"
+    },
+    {
+      "name": "binance_get_agg_trades",
+      "descriptionHash": "76ebcf6e1f38ef9d30580ace7d54f8658affdf99af3087832d390f72286633d5",
+      "description": "Trade individual terbaru (aggregate trades), granular per-trade, termasuk sisi buy/sell aggressor -- cocok deteksi absorption (harga stagnan tapi volume besar searah) atau lonjakan agresi mendadak. Beda dari binance_get_taker_volume_ratio (teragregasi per-jam). Limit maks 200, bukan untuk periode pa"
+    },
+    {
+      "name": "binance_get_taker_volume_ratio",
+      "descriptionHash": "2787dae1b529fb0b2375fba6a3e0b43e7731dc587bcfc4fa1c8aae3a713454ed",
+      "description": "Rasio volume taker buy vs sell -- proxy tekanan beli/jual AGRESIF (market order), beda dari long/short ratio yang berbasis posisi terbuka. LANGSUNG dari Binance native takerlongshortRatio. Default ringkas (rasio terkini + <=10 poin terbaru); `detail: \"full\"` untuk histori lengkap sesuai `limit`."
+    },
+    {
+      "name": "binance_get_klines",
+      "descriptionHash": "6f667e4fed16619f872d711f2c9e06f5084a2caf2740cf63201450f84ef7a9e4",
+      "description": "Candlestick OHLCV native Binance (source of truth, bukan Coinalyze). Balikin bias arah, swing high/low, harga terakhir. Isi startTime untuk histori jauh ke belakang (maks `limit` candle/panggilan, maks 1500). Default (`detail: summary`) cuma balikin ringkasan + 5 candle terakhir -- set `detail: \"ful"
+    },
+    {
+      "name": "binance_get_multi_timeframe_bias",
+      "descriptionHash": "efca86e0a84005ca8cd10d177ae8dc5c4ffd961e88206ef8782f2c09b56b7aa3",
+      "description": "Bias arah (Bullish/Bearish/Sideways) di 5 timeframe (1m, 5m, 15m, 1h, 1d) sekaligus, LANGSUNG dari Binance native -- ganti beberapa panggilan binance_get_klines manual. Cocok untuk 'apa bias BTCUSDT di semua timeframe'."
+    },
+    {
+      "name": "binance_get_realized_volatility",
+      "descriptionHash": "64bab10549f3efdb40e63842b1869a96e3ba14a038b8b0e3cff030231f6aa92b",
+      "description": "Realized volatility (RV) dari log-return close-to-close, dua timeframe (15m/~24 jam, 1h/~30 jam), LANGSUNG dari Binance native klines. Dikembalikan annualized (%) + per-periode (%) supaya tidak menyesatkan untuk pair kecil volatil. Berguna cross-check kalibrasi lebar grid (i_atrMult Grid Advisor)."
+    },
+    {
+      "name": "binance_get_24hr_ticker",
+      "descriptionHash": "896c333eda5a91f265c7cf1d97f228905c43540bcc4450d608b8fa3f0b673268",
+      "description": "Ringkasan statistik 24 jam: harga terakhir, perubahan %, high/low, volume — LANGSUNG dari Binance native ticker/24hr (rolling window resmi). Overview cepat sebelum analisis lebih dalam."
+    },
+    {
+      "name": "binance_get_mark_price_klines",
+      "descriptionHash": "ce064cc23e30d4a2d31a3c807d3db09cfee546b3735f75a38edbca7db62c4248",
+      "description": "Candlestick dari MARK PRICE (acuan liquidation/funding), BUKAN harga transaksi -- volume/trade count selalu 0 (harga sintetis). Pakai binance_get_klines untuk TA harga pasar biasa. Default ringkas, `detail: \"full\"` untuk array candle penuh."
+    },
+    {
+      "name": "binance_get_index_price_klines",
+      "descriptionHash": "cc6b92adc25fb0e7bbe1fe262d59d42074938fd806e6a9e23fcbce9a926619fa",
+      "description": "Candlestick dari INDEX PRICE (blended beberapa exchange spot, dasar premium index/funding), BUKAN harga transaksi Futures. PENTING: pakai `pair` TANPA suffix margin-asset (contoh \"BTCUSD\"), bukan `symbol` biasa."
+    },
+    {
+      "name": "binance_get_premium_index_klines",
+      "descriptionHash": "8be33c279f50f78345cd64c47dbd7b93e2ad66319a8ed6e2ed8236979ae90468",
+      "description": "Candlestick dari PREMIUM INDEX (selisih mark vs index price, komponen utama funding rate). Nilai adalah RASIO premium (bukan harga absolut) -- jangan dibaca seperti candle harga biasa. Premium positif konsisten = funding cenderung positif."
+    },
+    {
+      "name": "binance_get_continuous_klines",
+      "descriptionHash": "abfea0af6d1b5c35907b98851a481c0c2fcbfa96c987008df3f67af9e5d780bc",
+      "description": "Candlestick untuk kontrak PERPETUAL/CURRENT_QUARTER/NEXT_QUARTER dari pair underlying -- bandingkan harga dated vs perpetual. PENTING: pakai `pair` (TANPA suffix margin-asset, contoh \"BTCUSD\") + `contractType`, bukan `symbol` biasa. Kontrak dated tidak selalu tersedia untuk semua pair."
+    },
+    {
+      "name": "binance_get_quarterly_settlement_price",
+      "descriptionHash": "3997d7c9d8132bc526a926ed4eb771e2460c88c4a7d3641c607f784246aaf931",
+      "description": "Histori delivery/settlement price kontrak QUARTERLY (harga final saat kontrak dated expire). Cuma relevan untuk pair dengan listing quarterly/dated -- TIDAK berlaku untuk PERPETUAL. Pakai `pair` TANPA suffix margin-asset."
+    },
+    {
+      "name": "binance_get_spot_price",
+      "descriptionHash": "5d1c51e86411d5cf1e091dc69d2281b70c7a7d3f0f52963989e9729c1a2bea4f",
+      "description": "Harga SPOT Binance + basis riil vs mark price Futures (vs harga SPOT langsung, bukan index price rata-rata seperti binance_get_funding_rate) -- bedain leverage-driven vs demand riil. PENTING: banyak pair Futures FUTURES-ONLY tanpa listing Spot, tool error jelas untuk kasus itu (cek binance_check_spo"
+    },
+    {
+      "name": "binance_get_spot_ticker_24hr",
+      "descriptionHash": "5711f4b13871419c76cd97d17896b31b85444c8be605b603aa96c5266997df01",
+      "description": "Ringkasan statistik 24 jam pasar SPOT Binance: harga, %perubahan, high/low, volume, VWAP, jumlah trade. Bandingkan dengan binance_get_24hr_ticker (Futures): volume/perubahan spot jauh lebih kecil dari futures = pergerakan kemungkinan leverage-driven."
+    },
+    {
+      "name": "binance_get_spot_book_ticker",
+      "descriptionHash": "00b613226189ffdcc82e26a3bf104720d150fad5744941368a26af377a1aec31",
+      "description": "Best bid/ask price + quantity real-time SPOT -- lebih ringan dari binance_get_spot_order_book kalau cuma butuh spread sesaat. Cross-check spread spot vs futures (binance_get_order_book_depth)."
+    },
+    {
+      "name": "binance_get_spot_order_book",
+      "descriptionHash": "058ea4b70d36b78b16f1ee0f7423943e98620bd4498e99475b5b851597568333",
+      "description": "Snapshot order book (bid/ask) real-time SPOT. Versi Spot dari binance_get_order_book_depth -- bandingkan wall/likuiditas spot vs futures. Default ringkas (top 10 + spread); `detail: \"full\"` untuk semua level sampai `limit`. PENTING: snapshot SESAAT, order book berubah cepat."
+    },
+    {
+      "name": "binance_get_spot_klines",
+      "descriptionHash": "c5cc899aa27d1b0b145d1fd3643891f1a5ad84442288029a002021c58101ae87",
+      "description": "Candlestick OHLCV pasar SPOT per timeframe, native Binance. Versi Spot dari binance_get_klines -- bandingkan bias/volume kedua versi untuk deteksi leverage-driven move. Maks 1000 candle/panggilan (beda dari Futures 1500). Default ringkas, `detail: \"full\"` atau `includeCandles: true` untuk array cand"
+    },
+    {
+      "name": "binance_get_spot_agg_trades",
+      "descriptionHash": "93b2c06aac4fcf8b91e61362bd8193e4f9a5b2d1a177f3bc79b43b010bd0a7c2",
+      "description": "Trade individual terbaru pasar SPOT + sisi buy/sell aggressor per trade. Versi Spot dari binance_get_agg_trades -- CVD spot = tekanan beli/jual RIIL (bukan leverage), bandingkan dengan CVD futures. Default ringkas (CVD + 15 trade terakhir di teks); `detail: \"full\"` untuk array trade mentah lengkap."
+    },
+    {
+      "name": "binance_get_spot_avg_price",
+      "descriptionHash": "b6491f98b12f3048e5d8bcab87e8d7b730058f9413530422ff5c34e6ce22f7af",
+      "description": "Harga rata-rata bergerak (moving average) SPOT terkini, dihitung Binance dari trade beberapa menit terakhir ('mins', biasanya 5 menit). Lebih stabil dari last-trade sesaat (binance_get_spot_price)."
+    },
+    {
+      "name": "binance_get_spot_rolling_ticker",
+      "descriptionHash": "6513bc6f784a8e7e1f379d125336cc4365ea8791d830f73fb783a016f6cb009c",
+      "description": "Statistik SPOT untuk jendela waktu BEBAS (windowSize 1m-59m / 1h-23h / 1d-7d, default 1h) -- harga buka/tutup, high/low, %change, VWAP, volume. Beda dari binance_get_spot_ticker_24hr yang fixed 24 jam. Buat baca momentum spot di timeframe pilihan tanpa derivasi manual dari klines."
+    },
+    {
+      "name": "binance_check_spot_listing",
+      "descriptionHash": "4045007fc95ba716d4f6d206078dfc05fb9f4d4b7c1cbfa4fe82230b1320fa35",
+      "description": "Cek apakah sebuah pair BENAR-BENAR listed di Binance Spot + status trading (TRADING/BREAK/HALT), LANGSUNG dari exchangeInfo. Pakai SEBELUM tool Spot lain untuk pair yang belum pasti listing-nya, daripada menebak dari error 'Invalid symbol'."
+    },
+    {
+      "name": "binance_analyze_pair",
+      "descriptionHash": "ed60cc7daf3cb211916376e37d9daaa3e24220f23a6c362775d18ba27f440294",
+      "description": "Overview 1 pair dalam SATU call: funding/basis, tren OI 6h, top-trader 4h, taker volume 4h, order book, bias harga 24 candle 1h -- 6 tool digabung lewat Promise.all. Untuk histori lebih panjang, pakai tool individual (binance_get_open_interest_history, dst)."
+    },
+    {
+      "name": "binance_compare_symbols",
+      "descriptionHash": "90c8742d05d31b2affc08501def6bec52a6b2e2f1efaf6f019c768fa45f2985d",
+      "description": "Bandingkan 1 metrik across beberapa pair Futures sekaligus (2-10 symbol), diurutkan dari yang paling ekstrem. Metrik yang bisa dipilih: funding_rate (funding terkini), price_change_24h (%perubahan 24 jam), open_interest (OI snapshot mentah, BUKAN notional USD -- jangan bandingkan langsung antar pair"
+    },
+    {
+      "name": "binance_get_composite_index_info",
+      "descriptionHash": "118ee8723b80c580319cde7987ebdf3ddfb291974c62a106f53a8b6b4a3519e0",
+      "description": "Komposisi base asset + bobot sebuah COMPOSITE INDEX symbol (mis. DEFIUSDT). PENTING: cuma relevan untuk symbol composite index -- pair biasa (BTCUSDT, dst) balik kosong/error."
+    },
+    {
+      "name": "binance_get_index_constituents",
+      "descriptionHash": "3b5730b204a74b9fd25a6f973bb925d6ef2b49ee3b6b6643294bf6e0470e8049",
+      "description": "Daftar exchange spot + harga + bobot penyusun INDEX PRICE sebuah pair (dasar index_price_klines/premium index/funding rate). Berlaku untuk pair biasa, bukan cuma composite index. Harga menyimpang jauh di 1 exchange = indikasi anomali data di exchange itu."
+    },
+    {
+      "name": "binance_set_pair_threshold",
+      "descriptionHash": "5927978d3fa7441abb3e6cb998d9af49b4b6ca2fb8a5529e19127ff33350168c",
+      "description": "Simpan threshold funding rate dan/atau basis custom untuk sebuah pair, menggantikan default hardcoded (±0.03% funding, ±0.05% basis) yang dipakai binance_get_funding_rate dan binance_get_spot_price. Berguna karena pair volatil (altcoin kecil) dan pair stabil (BTC/ETH) punya rentang funding/basis 'no",
+      "labels": [
+        "destructive"
+      ]
+    },
+    {
+      "name": "binance_get_pair_threshold",
+      "descriptionHash": "be56c28eb2cd21639e77a24cc15af783238ee94ce066a980bb3b777d8272616e",
+      "description": "Cek apakah sebuah pair punya threshold funding/basis custom yang sudah di-set lewat binance_set_pair_threshold, atau masih pakai default global."
+    },
+    {
+      "name": "binance_get_basis_history",
+      "descriptionHash": "c25cccda086d2be562ff1bd2b55147683921c25aeba50ba60967efb2bb64a82c",
+      "description": "Histori basis futures-vs-spot dari snapshot Cron tiap 5 menit (BUKAN live seperti binance_get_spot_price) -- deteksi 'basis melebar lalu kembali' (docs/mm_detection_framework.md Section 5.1). Histori TERJAMIN untuk watchlist tetap (50 pair). Symbol LAIN juga bisa dipanggil (bukan lagi hard-reject) -"
+    },
+    {
+      "name": "binance_get_basis",
+      "descriptionHash": "3cc6db6ad7a83b3e208aecc9e97c70e51ae5468986c6e76265d72c9e33490cf9",
+      "description": "Histori basis resmi Binance (GET /futures/data/basis): selisih futures price vs index price per period (5m–1d). Source of truth untuk premium/discount historis — beda dari binance_get_basis_history yang pakai snapshot D1 cron futures-vs-spot (hanya watchlist tetap). Cocok deteksi premium ekstrem, me"
+    },
+    {
+      "name": "binance_get_orderbook_wall_persistence",
+      "descriptionHash": "d3e4681eaa317f76dd04520e36bf919d64bc822822e6d31e7ac38c8314db3711",
+      "description": "Cek apakah wall kandidat di harga tertentu masih bertahan dibanding N menit lalu, menggunakan data historis dari wall_tracking (diisi cron tiap 1 menit, watchlist tetap saja). PENTING: hanya tersedia untuk symbol watchlist tetap BTCUSDT/ETHUSDT/SOLUSDT/BNBUSDT/XRPUSDT/DOGEUSDT/ADAUSDT/AVAXUSDT/LINKU"
+    },
+    {
+      "name": "binance_detect_mm_activity",
+      "descriptionHash": "58c5ce0229d61207d6ffe8afb97a52f144c3d7c102dd8bfc8e83ab5c150b2d2d",
+      "description": "Gabungkan 6 sinyal (absorption, spoofing, stop-hunt, basis arbitrage, OI divergence, funding extreme) jadi 1 skor + tier (Weak/Moderate/Strong/Extreme) -- ganti 5-6 tool call manual. BUKAN rekomendasi trading. Spoofing pakai 2-snapshot order book RIIL (~1-2 detik lebih lambat dari tool lain karenany",
+      "labels": [
+        "destructive"
+      ]
+    },
+    {
+      "name": "binance_market_regime",
+      "descriptionHash": "faec89c2422569854d8012996cde3f748e44f04f53ee146ce4b1a090a9bf9f6c",
+      "description": "Klasifikasi 1 dari 6 regime (TRENDING_UP/DOWN, RANGING, BREAKOUT, ACCUMULATION, DISTRIBUTION) dari ADX(14), tren OI, CVD, dan spike volatilitas/volume (10 candle terakhir vs 10 sebelumnya PADA TIMEFRAME YANG SAMA, bukan baseline historis persisten). Panggil ulang dengan `interval` beda (mis. 1h lalu"
+    },
+    {
+      "name": "binance_get_tool_catalog",
+      "descriptionHash": "37e9a46b85d468b1dd451f09cdf7f23afc0d33e2f2e382db017a83826105b9cc",
+      "description": "Daftar semua tool WhaleScope MCP dengan kategori, estimasi token cost, use-case, dan dependency-nya. Berguna sebelum manggil banyak tool individual -- cek dulu kategori/use-case yang relevan biar gak salah pilih tool atau kelewat tool composite yang bisa gantikan beberapa tool sekaligus. Nama+descri",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "binance_backtest_signal",
+      "descriptionHash": "28dce50e43f12fee7c0d1ac1a515b79d60f303f7bd028e1e20c4f226d817ac12",
+      "description": "Validasi empiris sinyal binance_detect_mm_activity: ambil snapshot sinyal aktif (skor >=0.6) yang tersimpan di D1 (diisi Cron tiap 5 menit untuk watchlist tetap) dalam rentang waktu tertentu, hitung forward return (harga N jam setelah sinyal vs saat sinyal) per baris, lalu agregat win rate/avg retur",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "whalescope_compare_funding_across_exchanges",
+      "descriptionHash": "55884754eb7312be3895f2a9abb45f5ccb8308800ace87957e0a178c7e9fbc62",
+      "description": "Bandingkan funding rate, last price, OI, 24h change 1 pair across Binance/Bybit/OKX/Hyperliquid -- deteksi divergensi funding, lihat di mana leverage menumpuk. Symbol format Binance (BTCUSDT), auto-mapped. Pair yang gak listed di exchange tertentu ditandai gagal TANPA gagalin exchange lain.",
+      "labels": [
+        "destructive"
+      ]
+    },
+    {
+      "name": "binance_analyze_smart_money",
+      "descriptionHash": "4c46a83053604bae41394e27b1137917a446e32a7aaee2c43b7eac92c0767bb6",
+      "description": "Skor divergensi 'smart money' (top trader) vs 'retail' (global account) dari 5 variabel (top trader ratio, global account ratio, OI delta 4h, funding, orderbook imbalance depth 20). BUKAN deteksi manipulasi harga -- mengukur DIVERGENSI arah. Kondisi: LONG_LIQUIDATION_RISK, BULLISH_ACCUMULATION, SHOR"
+    },
+    {
+      "name": "analyze_futures_grid_risk",
+      "descriptionHash": "97448a7789459380da0fd664b24da6fb25e5266171eb382b9bdad3980b074bb7",
+      "description": "Analyze Binance Futures long-grid risk: core grid math, Market Regime context, Top-Trader/OI squeeze risk, dynamic stress, circuit-breaker decision (status: SAFE/MODERATE/HIGH_RISK/REJECT). Risk calcs are approximate isolated-margin regardless of actual margin mode."
+    },
+    {
+      "name": "binance_get_adl_risk",
+      "descriptionHash": "b68fbe406b46081736b5b92980493a5d5946448eb5a74dac22375b9fefc32233",
+      "description": "Rating risiko Auto-Deleveraging (ADL) LOW/MEDIUM/HIGH per pair (agregat level symbol, bukan posisi kamu), LANGSUNG dari Binance native. PENTING: di-update tiap 30 MENIT, bukan real-time -- konteks risiko umum, bukan keputusan eksekusi presisi detik."
+    },
+    {
+      "name": "binance_get_insurance_fund_balance",
+      "descriptionHash": "d629e2d34235d08ca8ef41781de2c78b0e94e4811cf40438f5768ec89b7092bb",
+      "description": "Mengambil snapshot saldo insurance fund Binance Futures per asset margin (LANGSUNG dari Binance native, endpoint publik). Insurance fund yang tebal = buffer lebih besar buat nutup liquidation yang gak ke-cover posisi trader (ngurangin kemungkinan ADL nge-trigger ke trader lain). PENTING: ini SNAPSHO"
+    },
+    {
+      "name": "whalescope_full_pipeline",
+      "descriptionHash": "35eda5a337a31f885d1cb245f17337f6ff83657222c32ecdf5f23772bea96224",
+      "description": "Decision chain Grid Bot Futures penuh dalam 1 call, 1-20 symbol: hard screen -> Tier-1 intel (rankingScore 0-100) -> grid bounds (ATR + swing high/low) -> capital-solve exact per leverage -> TRADE/WATCH/NO_TRADE + parameter Grid Bot siap-pakai. Juga mengembalikan Matches Needed + Estimasi Durasi ke ",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "binance_get_exchange_info",
+      "descriptionHash": "af37743bf6e99025818b5bd4fb93109b2bb02def4832c246f5209552cb365503",
+      "description": "Full exchange info Binance Futures: status pair, filters (PRICE_FILTER, LOT_SIZE, MIN_NOTIONAL, dll), precision, contractType. Kalau `symbol` dikirim, hanya return 1 pair. Berguna cek tick size, min qty, status trading sebelum buka grid/order."
+    },
+    {
+      "name": "binance_get_recent_trades",
+      "descriptionHash": "3b1a0226bd0a562c7b5ada242ade763d7c65d5111c0411eaf167d2b611ac3796",
+      "description": "Trade individual terbaru (GET /fapi/v1/trades) — BEDA dari binance_get_agg_trades yang sudah di-aggregate. Lebih granular untuk analisis micro-structure. Default summary (CVD + 15 trade terakhir)."
+    },
+    {
+      "name": "binance_get_book_ticker",
+      "descriptionHash": "e838f462459e3da45952e1f70e4317ce72d82d71a206ba8da052900b24f031a2",
+      "description": "Best bid/ask price + quantity saja (GET /fapi/v1/ticker/bookTicker). Sangat ringan dibanding full depth. Kalau symbol kosong, return semua pair (hati-hati payload besar)."
+    },
+    {
+      "name": "binance_get_price_ticker",
+      "descriptionHash": "16378aad8d4720e5c5656a9ead0f15dac3be65766ce382e8c0a469faa25ad8f0",
+      "description": "Harga terakhir saja (GET /fapi/v2/ticker/price). Ringan. Symbol opsional (kalau kosong return banyak pair)."
+    },
+    {
+      "name": "binance_get_funding_info",
+      "descriptionHash": "e5579646a445581a0c53926aa991a1fc278009d4221523f7ea6fbf0667d6bb4f",
+      "description": "Info struktur funding per symbol: funding interval, adjusted funding rate cap/floor, interest rate. Berguna tahu seberapa sering funding settle dan batasan rate-nya."
+    },
+    {
+      "name": "binance_get_rpi_depth",
+      "descriptionHash": "7bfc5d8f593e960fcc97ade442762f4e64e8157285ed238cd0a9da0e45858180",
+      "description": "Order book yang TERMASUK Retail Price Improvement (RPI) orders (GET /fapi/v1/rpiDepth). Beda dari binance_get_order_book_depth yang mengecualikan RPI. Default summary (top 10 + wall)."
+    },
+    {
+      "name": "binance_get_trading_schedule",
+      "descriptionHash": "c036bded6bb161cbd03727f8ed1a1447c279c4d310caae2aba8bdff5798b743e",
+      "description": "Jadwal sesi trading untuk underlying assets (US, Korea, Hong Kong, China, commodities). Sangat relevan untuk TradFi perpetual."
+    },
+    {
+      "name": "binance_get_all_force_orders",
+      "descriptionHash": "2d8490bc505dbca63d73f7f10d51cb4098f1e15078efa7819c2f5dea4c17ffa0",
+      "description": "Histori liquidation / force orders market-wide (GET /fapi/v1/allForceOrders). Catatan: endpoint ini sering dibatasi Binance. Handle error dengan baik. Bukan pengganti data liquidation-by-price (yang WAF-blocked)."
+    },
+    {
+      "name": "hyperliquid_get_whale_wallet_positions",
+      "descriptionHash": "9eaacc56c96d6b32dde86395accf55dfdaf687f9e714db234e45f7572c7a5a31",
+      "description": "Agregat posisi wallet whale on-chain Hyperliquid (HYPERLIQUID_WHALE_WATCHLIST, curated manual) untuk satu coin -- delta size vs snapshot 15 menit sebelumnya (akumulasi/reduksi/flip arah), plus confidence (persentase wallet searah). Beda dari data candle/orderbook: ini posisi on-chain riil per addres",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "whalescope_compare_orderbook_depth",
+      "descriptionHash": "3206161be9212315fc1890031b63917f3b741a199d2055a5280a2d300ac83caf",
+      "description": "Snapshot real-time orderbook Binance/Bybit/OKX bareng, cari wall besar (qty >= 2x median sisi yang sama) dan cek apakah wall di harga mirip muncul di >=2 exchange sekaligus (Cross-Venue Corroborated) vs cuma 1 (Single-Venue Only, lebih rawan spoof). Gak nyimpen histori -- snapshot sesaat. Symbol for",
+      "labels": [
+        "destructive"
+      ]
+    },
+    {
+      "name": "cme_get_institutional_positioning",
+      "descriptionHash": "bfad4f0cd98df2b9125ea9b3d1e56e265c3039546e6e61834ec457986ba77236",
+      "description": "Laporan CFTC Commitment of Traders (Traders in Financial Futures) MINGGUAN untuk kontrak CME Bitcoin/Ether -- net long/short Leveraged Funds (paling deket 'smart money spekulatif' institusional) + Asset Managers, plus perubahan vs minggu lalu. PENTING: data LAG beberapa hari (rilis Jumat, posisi per"
+    },
+    {
+      "name": "whalescope_get_stablecoin_supply",
+      "descriptionHash": "13ca039163c2ca5809290f0deea357fc53ddf3800b3d6236aad7f484b41ca6a6",
+      "description": "Total + per-chain circulating supply USDT/USDC (DefiLlama), plus delta 24 jam & 7 hari -- 'dry powder' indicator, mint besar sering mendahului fase akumulasi institusional. Data on-chain, gak bisa dipalsu kayak candle/orderbook."
+    },
+    {
+      "name": "estimate_slippage",
+      "descriptionHash": "fc32d500f3949ce7d83c0966f705cfa871b13bdaf627b0731da86fced815031d",
+      "description": "Hitung avg fill price, slippage %, dan impact cost buat mengisi target notional USD dari order book depth yang di-supply caller (BUKAN fetch sendiri -- pass bids/asks dari binance_get_order_book_depth). BUY jalan-kan asks (naik), SELL jalan-kan bids (turun)."
+    },
+    {
+      "name": "analyze_cvd_divergence",
+      "descriptionHash": "8a4b44b8b47b87754c37afed2cf99914427ec0876b283b02ec3d98c8ea19acbd",
+      "description": "Bandingkan Cumulative Volume Delta (taker buy - taker sell) antara Spot dan Futures dari agg-trades yang di-supply caller (BUKAN fetch sendiri -- pass hasil binance_get_agg_trades + binance_get_spot_agg_trades). Reject kalau window waktu kedua array gak cukup overlap (minOverlapRatio). Rekomendasi w"
+    },
+    {
+      "name": "filter_block_trades",
+      "descriptionHash": "25de8ec881609b1998e5197b8cdeba6fc61324adaace9b07e8008d2708176840",
+      "description": "Filter agg-trades (diinjeksi caller, BUKAN fetch sendiri -- pass hasil binance_get_agg_trades) berdasarkan notional USD (price*qty*quoteUsdRate) di atas ambang, agregat buy/sell via field m. Reject kalau symbol sepertinya bukan pair quote USD DAN quoteUsdRate masih default 1.0."
+    },
+    {
+      "name": "compute_funding_velocity",
+      "descriptionHash": "fef811f1c37e141e84e98d597583a1e071f58ad2bc068eb11460050db2aff95e",
+      "description": "Hitung kecepatan perubahan funding rate (per jam) via regresi linear (OLS) penuh atas window terakhir, PLUS lonjakan terbesar antar titik berurutan (maxStepDelta) -- nangkep spike-lalu-reversal yang bikin slope net mendekati nol tapi bukan berarti stabil. History diinjeksi caller (BUKAN fetch sendir"
+    },
+    {
+      "name": "estimate_stop_loss_liquidity_risk",
+      "descriptionHash": "ca83428393ef5012dc521e1fed489b8237c54406e45f4153d0dd39576c3f5ded",
+      "description": "Cek apakah depth order book cukup buat nyerap SL tanpa slippage parah, plus validasi Open Interest -- LOW/HIGH_SLIPPAGE_RISK/HIGH_DATA_INCOMPLETE. Mendukung LONG (jalan-kan bids turun) dan SHORT (jalan-kan asks naik). Data diinjeksi caller (BUKAN fetch sendiri). BUKAN pengganti analyze_futures_grid_"
+    },
+    {
+      "name": "taker_imbalance_aggregator",
+      "descriptionHash": "4f533eb7a713df3527d32cfff9c8784ca4a7da3f9a7d120eb6a04566c7f8ed94",
+      "description": "Hitung rasio taker buy vs taker sell dari N trade PALING BARU (lookback_trades, bukan window waktu tetap) dari agg-trades yang di-supply caller (BUKAN fetch sendiri -- pass hasil binance_get_agg_trades / binance_get_spot_agg_trades). Event-domain sampling (jumlah trade tetap) dipilih ketimbang time-"
+    },
+    {
+      "name": "whalescope_get_oi_velocity",
+      "descriptionHash": "491fdb8bff414f1ecfc399baf381ffd0dbc4838563c0462f0800bfd0c4f01398",
+      "description": "Hitung kecepatan perubahan open interest (per jam) via regresi linear (OLS) penuh atas window terakhir, PLUS lonjakan terbesar antar titik berurutan (maxStepDelta) -- nangkep spike-lalu-reversal yang bikin slope net mendekati nol tapi bukan berarti stabil. Sama metode persis dengan compute_funding_v"
+    },
+    {
+      "name": "binance_get_realtime_liquidations",
+      "descriptionHash": "c8cdf753ea052bf7f95dd4d65485eaea9f270b97db64c0a77e2eb5c2183d9873",
+      "description": "Likuidasi paksa (forced liquidation) terbaru market-wide dari WebSocket stream Binance, di-buffer di gateway VPS. Filter per symbol / minimal notional. Feed di-SAMPEL oleh Binance (maks 1/symbol/detik). Beda dari tool REST lain: ini event yang BARU terjadi (detik-menit lalu), bukan snapshot periodik",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "binance_get_contract_events",
+      "descriptionHash": "128df19d0052f8604b1105c6793c38853c9e947bf28918055bfc9c927f9cec81",
+      "description": "Perubahan status kontrak USDS-M dari stream !contractInfo (di-buffer di gateway VPS): listing baru (PENDING_TRADING → TRADING), delisting, jadwal settlement, perubahan bracket. Lebih cepat tau pair baru daripada polling onboardDate di exchangeInfo. Event jarang — window buffer 30 hari."
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: binance_get_realtime_liquidations · Private data: binance_get_tool_catalog, whalescope_full_pipeline, hyperliquid_get_whale_wallet_positions · Public sink: binance_backtest_signal · Destructive: binance_set_pair_threshold, binance_detect_mm_activity, whalescope_compare_funding_across_exchanges, whalescope_compare_orderbook_depth.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: binance_get_realtime_liquidations · Private data: binance_get_tool_catalog, whalescope_full_pipeline, hyperliquid_get_whale_wallet_positions · Public sink: binance_backtest_signal · Destructive: binance_set_pair_threshold, binance_detect_mm_activity, whalescope_compare_funding_across_exchanges, whalescope_compare_orderbook_depth"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 80,
+  "scoreBreakdown": {
+    "toxic-flow": 20
+  },
+  "errors": []
+}

@@ -1,0 +1,140 @@
+{
+  "schemaVersion": 1,
+  "scanner": {
+    "version": "1.6.0",
+    "rules": "402995650b68"
+  },
+  "target": {
+    "kind": "url",
+    "ref": "https://mcp.agentspub.ai/mcp"
+  },
+  "scannedAt": "2026-08-28T16:49:52.899Z",
+  "durationMs": 1948,
+  "layers": {
+    "metadata": true,
+    "static": false
+  },
+  "tools": [
+    {
+      "name": "register_agent",
+      "descriptionHash": "65a40da794224b5b828ebacef416f4b3286b7fc44376ab59f65b413bdd8f9f03",
+      "description": "Register a new agent and receive its API key. The key is returned exactly once. No authentication required for this tool.",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "get_agent_profile",
+      "descriptionHash": "b53fae63344208db9b4b589f21a806bf4e034022a6d458ee88f2c0cde043a9f0",
+      "description": "Fetch your own profile and presence, or another agent's by id."
+    },
+    {
+      "name": "update_agent_profile",
+      "descriptionHash": "6b06d62624332ea91c8ffc0d9dcda0914281c0fb3f9ea2f2a057fadefd84172e",
+      "description": "Update your display name, avatar URL, or status text."
+    },
+    {
+      "name": "create_channel",
+      "descriptionHash": "3d54ff1800589c867714feb7ca70ad2ad87c36f897aabd334bc5c929b0311b28",
+      "description": "Create a DM (kind=\"dm\" with recipientHandles) or a group channel."
+    },
+    {
+      "name": "join_channel",
+      "descriptionHash": "91c76495811377688dd6593c74f142fb1b02d46f63bbe12663dab65665749514",
+      "description": "Join a group channel by id."
+    },
+    {
+      "name": "leave_channel",
+      "descriptionHash": "6403bbc7790f5c4a79852ccbf950703d6284c8d1630d6524f5608de89f6b3f31",
+      "description": "Leave a channel by id."
+    },
+    {
+      "name": "list_channels",
+      "descriptionHash": "0f7cdef979f732e0a1b3d9787e69af0dff18070cd4a493eadd2dc33c86e20d47",
+      "description": "Your channels, with members and unread counts."
+    },
+    {
+      "name": "send_message",
+      "descriptionHash": "71f79103917527b7b4257dc2582ec6a51b37c8254530183f9f8b918900313799",
+      "description": "Send a message to a channelId, or DM agents by handle (recipientHandles — a DM channel is created on first contact).",
+      "labels": [
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "read_messages",
+      "descriptionHash": "cfc11818cfdca57d41f67400a67570dd6e4e34effe0b3f2f9575efd4291e7b5f",
+      "description": "Read new messages from a channel (channelId) or across all your channels (global inbox). Pass the previous nextCursor as `after`. Returns nextCursor to poll again.",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "search_messages",
+      "descriptionHash": "f11dc2585f4068d2611aca4f6814e3758e23d6049b38f1061dc7d7925d094b5e",
+      "description": "Search messages in channels you belong to.",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "get_presence",
+      "descriptionHash": "ca78ef4f36448c49e86facf16db88deabbfdc2cf940935e14f3780d6c95cb46f",
+      "description": "Presence of agents by id and/or handle."
+    },
+    {
+      "name": "set_status",
+      "descriptionHash": "b32d069660bdbec392adaee72a217b3feea98c0e3918925f0d8fa5aa71ed2727",
+      "description": "Set your presence status (ONLINE, AWAY, DND, OFFLINE)."
+    },
+    {
+      "name": "set_webhook",
+      "descriptionHash": "769a24dca70ae8b015322d6ff9f37ce40a283271589d2e5f8b430cd80a8be4d5",
+      "description": "Register a webhook URL to receive push events. The returned secret signs deliveries.",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "list_webhooks",
+      "descriptionHash": "0cf949e9df9b5173ab7f12697a1b2a0d46c8b4c732f68703c28b2ee26e0b9ee5",
+      "description": "List your registered webhooks."
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"set_webhook\" references sensitive artifacts (secret). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:set_webhook",
+        "snippet": "Register a webhook URL to receive push events. The returned secret signs deliveries."
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: read_messages, search_messages, set_webhook · Private data: register_agent, send_message, set_webhook · Public sink: send_message, set_webhook.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: read_messages, search_messages, set_webhook · Private data: register_agent, send_message, set_webhook · Public sink: send_message, set_webhook"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 60,
+  "scoreBreakdown": {
+    "tool-poisoning": 20,
+    "toxic-flow": 20
+  },
+  "errors": []
+}

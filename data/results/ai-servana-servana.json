@@ -1,0 +1,88 @@
+{
+  "schemaVersion": 1,
+  "scanner": {
+    "version": "1.6.0",
+    "rules": "402995650b68"
+  },
+  "target": {
+    "kind": "url",
+    "ref": "https://servana.ai/api/mcp"
+  },
+  "scannedAt": "2026-08-28T16:42:53.385Z",
+  "durationMs": 1061,
+  "layers": {
+    "metadata": true,
+    "static": false
+  },
+  "tools": [
+    {
+      "name": "search_services",
+      "descriptionHash": "be527423eda6048e7dc6818685dd4e0f6ad4a49d1103dbaec462a0550b3db88f",
+      "description": "Look up Servana's service categories by free-text description (e.g. 'someone to fold my laundry', 'deep clean my apartment'). Use this first when you don't already have an exact service slug: it maps everyday requests to the category slug search_vendors and estimate_service_request expect."
+    },
+    {
+      "name": "search_vendors",
+      "descriptionHash": "0eda26437e5b45233101a1ced3a69d1325b8da8fd66ad69a110201bea9336835",
+      "description": "Search Servana's directory of local service businesses (cleaning, med spa, yoga, personal training, and more) by US state, city, and service. Returns business names, descriptions, verification status, rating, pricing, and page URLs.",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "get_vendor",
+      "descriptionHash": "de482cf90e45e85869f0a08f000e7d4037072a57789e2b609b8768362d69271a",
+      "description": "Get one Servana vendor's public profile: name, description, services + pricing, verification status, rating, and page URL.",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "estimate_service_request",
+      "descriptionHash": "a047b74f4756d0772c8b5b8a6c3216147a8886c01b728f681e7c3b4c3e5d7750",
+      "description": "Get a rough price estimate for a service in a given city, based on Servana vendors' posted rates. Always a heuristic ESTIMATE, not a quote from any specific vendor: actual pricing is set by each vendor. Response includes a confidence level ('high' = 5+ locally priced vendors, 'medium' = 2-4, 'low' ="
+    },
+    {
+      "name": "send_message_to_vendor",
+      "descriptionHash": "44c65f29a46696cf0313538a13d8bafb68fde3bd7660612694da2992a324419d",
+      "description": "Send a message or booking enquiry to a Servana vendor on the user's behalf. The vendor sees it in their Servana inbox. Include what the user needs, and contact details so the vendor can reply. Requires the user's explicit approval before calling: this contacts a real business.",
+      "labels": [
+        "private-data",
+        "public-sink"
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOOL-POISON-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description issues instructions to the model",
+      "detail": "Description of \"send_message_to_vendor\" contains imperative instructions directed at the AI assistant rather than describing the tool. This is the core tool-poisoning technique.",
+      "evidence": {
+        "source": "tool:send_message_to_vendor",
+        "snippet": "Send a message or booking enquiry to a Servana vendor on the user's behalf. The vendor sees it in their Servana inbox. Include what the user needs, and contact …"
+      },
+      "confidence": 0.7,
+      "remediation": "Treat the server as untrusted; the model may obey embedded instructions."
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: search_vendors, get_vendor · Private data: send_message_to_vendor · Public sink: send_message_to_vendor.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: search_vendors, get_vendor · Private data: send_message_to_vendor · Public sink: send_message_to_vendor"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 60,
+  "scoreBreakdown": {
+    "tool-poisoning": 20,
+    "toxic-flow": 20
+  },
+  "errors": []
+}

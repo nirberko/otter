@@ -8,8 +8,8 @@
     "kind": "url",
     "ref": "https://roomcomm.xyz/mcp"
   },
-  "scannedAt": "2026-07-30T06:47:42.012Z",
-  "durationMs": 1764,
+  "scannedAt": "2026-08-28T16:49:50.356Z",
+  "durationMs": 2767,
   "layers": {
     "metadata": true,
     "static": false
@@ -47,6 +47,40 @@
       ]
     },
     {
+      "name": "check_inbox",
+      "descriptionHash": "55d72f0681c52389426ef9393496a6a6e047c425ee74548444d61b4e16a3a0cc",
+      "description": "\"Did anyone look for me?\" — one call instead of polling every room.\n\n    Requires a Bearer key (Authorization: Bearer rk_… on the MCP connection).\n    Returns, for every room this key participates in, how many messages\n    appeared past your read watermark, plus fresh messages anywhere that\n    ment",
+      "labels": [
+        "untrusted-content",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "share_file",
+      "descriptionHash": "31d49d5a81b0af3e737968e235a3e449aba056c9bc50a14749c075054bd9f3b8",
+      "description": "Share a Markdown document into a room — the file channel for content\n    too big or too durable for the message stream (briefs, drafts, contracts).\n\n    Requires a **Telegram-verified** key (Authorization: Bearer rk_… on the\n    MCP connection; verify via @RoomComm_bot). Downloading is verified-only",
+      "labels": [
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "list_files",
+      "descriptionHash": "b506b342dd793d1a7e83a4bad0f67457904250735ee77dfe5db8bf56937011b9",
+      "description": "List the Markdown files shared into a room (verified keys only).\n\n    Returns {files: [{id, name, description, sha256, size_bytes, agent_id,\n    uploaded_at}], total}. Fetch content with fetch_file(uuid, id).",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "fetch_file",
+      "descriptionHash": "98a5664af0abf87e26e26624f40930d6fc59cac7f080d8241da2f5f533be5b71",
+      "description": "Fetch the Markdown content of a file shared into a room (verified keys\n    only). Verify integrity by hashing the content: sha256 must match.",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
       "name": "create_room",
       "descriptionHash": "9b87da80847957a10d4e86a711ae52716e7dfee0870e354844fb31dae85c8129",
       "description": "Create a new Roomcomm chat room.\n\n    Use this **only** when the owner explicitly asks you to create a room, or when\n    a fresh dedicated room is clearly needed. Do NOT auto-spawn rooms.\n\n    Returns {uuid, url, description, is_public, protocol_mode, created_at}.\n    The `uuid` is what you pass to "
@@ -79,22 +113,71 @@
       "confidence": 0.65
     },
     {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"check_inbox\" references sensitive artifacts (authorization, bearer). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:check_inbox",
+        "snippet": "\"Did anyone look for me?\" — one call instead of polling every room. Requires a Bearer key (Authorization: Bearer rk_… on the MCP connection). Returns, for every…"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOOL-POISON-007",
+      "severity": "low",
+      "category": "tool-poisoning",
+      "title": "Description uses pressure/override language",
+      "detail": "Description of \"check_inbox\" stacks urgency/override words (always, never). Legitimate tool descriptions rarely pressure the model to act or ignore prior guidance.",
+      "evidence": {
+        "source": "tool:check_inbox",
+        "snippet": "\"Did anyone look for me?\" — one call instead of polling every room. Requires a Bearer key (Authorization: Bearer rk_… on the MCP connection). Returns, for every…"
+      },
+      "confidence": 0.3
+    },
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"share_file\" references sensitive artifacts (authorization, bearer). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:share_file",
+        "snippet": "Share a Markdown document into a room — the file channel for content too big or too durable for the message stream (briefs, drafts, contracts). Requires a **Tel…"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-SHADOW-001",
+      "severity": "medium",
+      "category": "shadowing",
+      "title": "Generic tool name can shadow trusted tools",
+      "detail": "Tool \"list_files\" uses a generic high-value name. When multiple servers load together, this can intercept calls meant for a trusted server.",
+      "evidence": {
+        "source": "tool:list_files",
+        "snippet": "list_files"
+      },
+      "confidence": 0.4
+    },
+    {
       "id": "MCP-TOXIC-FLOW-001",
       "severity": "high",
       "category": "toxic-flow",
       "title": "Lethal trifecta: untrusted input + private data + external sink",
-      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: get_room, read_messages, send_message, get_context · Private data: send_message · Public sink: send_message.",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: get_room, read_messages, send_message, check_inbox, get_context · Private data: send_message, share_file, list_files, fetch_file · Public sink: send_message, check_inbox, share_file.",
       "evidence": {
         "source": "server:mcp",
-        "snippet": "Untrusted content: get_room, read_messages, send_message, get_context · Private data: send_message · Public sink: send_message"
+        "snippet": "Untrusted content: get_room, read_messages, send_message, check_inbox, get_context · Private data: send_message, share_file, list_files, fetch_file · Public sink: send_message, check_inbox, share_file"
       },
       "confidence": 0.6,
       "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
     }
   ],
-  "score": 60,
+  "score": 37,
   "scoreBreakdown": {
-    "tool-poisoning": 20,
+    "tool-poisoning": 35,
+    "shadowing": 8,
     "toxic-flow": 20
   },
   "errors": []

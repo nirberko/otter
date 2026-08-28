@@ -1,0 +1,878 @@
+{
+  "schemaVersion": 1,
+  "scanner": {
+    "version": "1.6.0",
+    "rules": "402995650b68"
+  },
+  "target": {
+    "kind": "url",
+    "ref": "https://mcpfax-continuity.bowling-anthony.workers.dev/mcp"
+  },
+  "scannedAt": "2026-08-28T16:43:57.343Z",
+  "durationMs": 242,
+  "layers": {
+    "metadata": true,
+    "static": false
+  },
+  "tools": [
+    {
+      "name": "register",
+      "descriptionHash": "9ede630323b9ac54a954e20f36f4c71fcec78ec8b68c2d5e2b1a8814db09a46d",
+      "description": "Create a durable identity for an agent. Returns an agent_secret (the only credential; store it in the agent's configuration the way you would an API key — an amnesiac agent cannot remember it for you), the public agent address other agents mail work to, and the namespace id. FREE. The secret is neve",
+      "labels": [
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "whoami",
+      "descriptionHash": "b5b9a27cc4e76d3a4c0e6776b9505b619e723d32c7765b4ab299f68d240a3df9",
+      "description": "Report this namespace's public address, registration time, and mailbox counts: how many items exist, how many are due right now, when the next one falls due, and how many are dead-lettered. FREE, deliberately: knowing THAT work exists must never cost money — only the envelope itself is billable. Pol",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "claim",
+      "descriptionHash": "6c09772a38624c8dd17127d2e0a73a76678afac65786b346594007fe37afe33b",
+      "description": "Exactly-once guard for work that costs money or has side effects. The first call for a key returns granted:true and is FREE. Every later call for that key returns granted:false with first_claimed_at and, if complete() was called, the stored result — so a retrying agent gets the answer instead of pay",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "complete",
+      "descriptionHash": "62540a2f87d18b666497205c6e1211f6b69165d996396748e6b7bad9bb2bca8a",
+      "description": "Attach the outcome to an idempotency CLAIM you hold — NOT for finishing a mailbox task (use inbox_ack) or a queue item (use work_done). A later duplicate attempt then receives your stored result from claim() instead of redoing the work. FREE — this is a write, and we never bill for storing. If the c",
+      "labels": [
+        "untrusted-content",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "lease",
+      "descriptionHash": "87b1d3edecb8cd63862339c571d2190a28b80bb85c61e9f217e5f4bdede373d6",
+      "description": "Mutual exclusion so two instances of the same agent do not both process one item. Returns acquired:true with a fence token (FREE), or acquired:false naming the current holder and when the lease expires. ACQUIRED:FALSE MEANS YOU DO NOT HOLD THE LOCK — you must NOT proceed, and must not treat the refu",
+      "labels": [
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "lease_renew",
+      "descriptionHash": "d1dddcf49a455c9694299ffcaf54f2f2eb4950fcab8b98bd4dca19afed34e69d",
+      "description": "Extend a lease you still hold, using the fence token you were given. FREE. Fails (renewed:false) if the lease expired or was taken by someone else — treat that as having lost the lock and stop work. A renewal keeps both of your numbers: the same fence and the same generation, because it is the same ",
+      "labels": [
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "lease_release",
+      "descriptionHash": "86fea654f01b7492f589306d76aa80b599fb36b9c7ab37da5ae940f87e212591",
+      "description": "Release a lease you hold so the next worker can take it immediately instead of waiting for the TTL. FREE. If you no longer hold it we REFUSE rather than free someone else's lock: a stale fence returns released:false, reason 'not_holder', naming the current holder — treat that as having lost the lock",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "resume_packet",
+      "descriptionHash": "5d5f9f340ac35d3d8f0628dba5cf055d8381900e20bdca1715302840b3f36714",
+      "description": "THE HEADLINE TOOL. Returns a briefing, not an archive: objective, last verified state, what arrived while you were gone, the single next action, files, risks, open questions, tools already used and budget remaining. Composed from your last checkpoint PLUS server-observed facts we hold ourselves — th",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "checkpoint_put",
+      "descriptionHash": "84aa5a773835f68ea3bde9610b9884049120640a64871eab42e72b6705f8dc34",
+      "description": "Save where the work got to, in a STRUCTURED shape so the next invocation can actually act on it. FREE. `objective` and `next_action` are REQUIRED and a checkpoint without them is refused — a vague checkpoint produces a vague briefing, so the schema is the guardrail. Work state is small: aim for a fe",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "checkpoint_get",
+      "descriptionHash": "b31bf4fda8c18c2d51a3b3ccd9ccda28d1a0f2af2bc7f77f6dfa7f4ea7a281ec",
+      "description": "Fetch the last checkpoint verbatim — what was stored, with no briefing composed around it. Most callers want resume_packet instead, which folds in what arrived while you were gone and what we observed you doing. $0.002 ONLY when a checkpoint exists AND its version has changed since you last paid for",
+      "labels": [
+        "untrusted-content",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "watermark_set",
+      "descriptionHash": "66629689a0973cd90669f5fb59d74441a13d62850367a027bf18f9adab944cdf",
+      "description": "Record how far you got through a stream, feed or table so the next invocation knows where to start. FREE. The position is an opaque string we store verbatim and never interpret. FREE — this tool never charges. Authenticate with Authorization: Bearer <agent_secret>, or pass agent_key as an argument i",
+      "labels": [
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "watermark_get",
+      "descriptionHash": "43b221b16d82db558b491883a2a65f53fc3aec2b7bbda1fc264de700b9619769",
+      "description": "Fetch the position you last recorded for a stream, so you can ask an upstream only for what is new. $0.002 ONLY when a watermark exists AND its position has moved since you last paid for it — re-reading an unchanged position is free. Never set one? Then we tell you so and charge nothing. Costs $0.00",
+      "labels": [
+        "untrusted-content",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "seen_add",
+      "descriptionHash": "b2f8d24f6ab4468f97b3ba8fe40df5dc2881d1d535c1cb06bcf034772354806a",
+      "description": "Record items you have already processed. FREE. Items are stored ONLY as salted SHA-256 digests — we can test membership but cannot read, list or reconstruct what you deduped. A set holds up to 10000 entries; when full, adds are refused (never silently forgotten) and you should rotate to a new set na",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "seen_check",
+      "descriptionHash": "a1e6828d13747d7d9e30d1eb573f6fb865a63ad004885a93c8194a0266cf3df8",
+      "description": "Given a batch of items, return only the ones not already in the set — the work you actually still have to do. $0.002 ONLY when we filter at least one item out, because that is the call where we saved you work, AND only when that answer has changed since you last paid for it — asking the same questio",
+      "labels": [
+        "untrusted-content",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "retry_state",
+      "descriptionHash": "221afc31b416453ae2ae704b69da5805597915f5af300a5cf13b1ca3a5adce34",
+      "description": "Durable retry bookkeeping, so backoff survives the session that died. Returns the attempt count, first and last attempt times, and a deterministic suggested backoff. Pass record:true to count this attempt. $0.002 ONLY when we return remembered history from an earlier session (attempts>0 before this ",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "send",
+      "descriptionHash": "6c6ab677055f0ff5bfd55933fa2cd0a6966622a7acae2457a53ceb5ff5cf1e8d",
+      "description": "Agent-to-agent mail. Queue a rich task envelope addressed to any registered agent so it finds the work waiting whenever it next starts. Nobody waits and nobody polls. FREE. You may SEND to an address but never READ another agent's mailbox — reading requires that agent's secret. The envelope carries ",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "inbox_schedule",
+      "descriptionHash": "60486016b096351863431e6e9994e70c8c48bf9e7538e0bac10788e5e664b066",
+      "description": "Leave work for your own next invocation — the same as send() addressed to yourself. FREE. No callback URL is required or accepted: agents are not web services and mostly have no endpoint, so the model is a future inbox, not a webhook. Whenever your next invocation starts, inbox_poll finds this waiti",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "inbox_poll",
+      "descriptionHash": "c499d84966f339bd3a89a39849bf5926f6d5c036c50cf5e0c382449174f538b9",
+      "description": "Collect the next due task envelope from your mailbox. One envelope per call. The item is claimed with a visibility timeout: ack it when done, or it returns to the queue for another attempt, so work is never lost if this invocation dies. $0.002 charged the FIRST time a given task_id is delivered; eve",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "inbox_ack",
+      "descriptionHash": "31700c854dfb7d0af6b27e86220499329b60bd7cca3acacb38317a94ca38af31",
+      "description": "Acknowledge a task you finished. FREE and idempotent — acking twice is not an error. If the task was a repeating schedule, the next occurrence is queued now. An optional opaque result is stored on the tombstone so a later duplicate can see what happened. If your visibility timeout already lapsed and",
+      "labels": [
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "inbox_nack",
+      "descriptionHash": "153fd52af51050d0c4ed30a23c65dec60a6d4e1a2564fd0a470950092b5e7367",
+      "description": "Explicitly return a claimed task to the queue instead of waiting for its visibility timeout, optionally deferring it. FREE. Redelivery of the same task_id is always free, so handing work back costs nothing. FREE — this tool never charges. Authenticate with Authorization: Bearer <agent_secret>, or pa",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "heartbeat",
+      "descriptionHash": "c093fbcc7aae3ba346c6cb46b0cac7d8be3e5f234cef9d7f7122d6e932d444eb",
+      "description": "AN AGENT CANNOT DETECT ITS OWN DEATH — from the inside, 'I stopped' and 'I am about to do the next step' are the same thing. Only something outside the process can tell them apart. Each call records a beat and arms a durable alarm for expect_within_seconds. Beat again in time and the alarm simply re",
+      "labels": [
+        "private-data",
+        "public-sink",
+        "destructive"
+      ]
+    },
+    {
+      "name": "budget_record",
+      "descriptionHash": "7c30912409297a353ecb877a96e2b7ec574842449b6bebb13b4e0d3b027ffdc7",
+      "description": "An agent cannot see its own spend across sessions, so runaway cost is invisible until the bill arrives. Append one amount to this scope's ledger. FREE and APPEND-ONLY — nothing is overwritten and nothing is silently dropped; when the ledger is full, adds are REFUSED. The amount is an OPAQUE DECIMAL ",
+      "labels": [
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "budget_check",
+      "descriptionHash": "19710cbf1b416d7eddc8d81443186e775aeb40e45bebad20a018e62d32e18d18",
+      "description": "What this unit of work has actually cost across every session, with a per-label breakdown and a lifetime total. If a limit is set (or you pass one here) we report over_limit — WE REPORT, WE NEVER BLOCK: enforcement is the caller's decision and we will not pretend to an authority we do not have. Amou",
+      "labels": [
+        "untrusted-content",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "barrier_create",
+      "descriptionHash": "7fd7c58f81ae150c421cb557f79401c4a67cf52a4e7bb20f95c8bf1975881e72",
+      "description": "Fan work out to N agents and have the LAST one to finish wake the joiner. FREE. A BARRIER THAT WAITS FOR ALL N IS A HANG WAITING TO HAPPEN, so stragglers are the normal case here, not an edge case: set min_count and/or deadline_seconds and we fire on whichever comes first, ALWAYS naming the particip",
+      "labels": [
+        "untrusted-content",
+        "public-sink",
+        "destructive"
+      ]
+    },
+    {
+      "name": "barrier_signal",
+      "descriptionHash": "df2eaeb88c66391be2e41221bc25fb9f84d9fa6002baeab6421486002d9cd94a",
+      "description": "Report that one participant finished, optionally attaching a payload the joiner will receive. FREE and IDEMPOTENT PER PARTICIPANT — the same participant_id signalling twice counts once and never double-fires the join. The barrier is a single Durable Object, so N simultaneous signals produce exactly ",
+      "labels": [
+        "untrusted-content",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "barrier_status",
+      "descriptionHash": "60feed36627d0e7d621e7c6ce8621c6e20004b195d7654b788f64be2bdb8d4a3",
+      "description": "Progress on a join point: how many of the expected participants have signalled, which ones, who is still outstanding, and whether the completion or timeout envelope has been queued. $0.002 ONLY when there is real progress to report (at least one signal) AND the answer has changed since you last paid",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "work_push",
+      "descriptionHash": "ffc964a6babe9c9444c709e813849904d4ea77e504685ba05c725bf10f304f19",
+      "description": "THE ALTERNATIVE TO THIS IS WRITING DISTRIBUTED WORK-DISTRIBUTION CODE YOURSELF — assignment, collision avoidance, lease expiry, retry, dead-worker recovery, straggler policy. Push 100 items in one go and exit, and keep pushing until the queue holds your whole batch; workers pull independently, with ",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "work_take",
+      "descriptionHash": "3e97d59315b02c89584dd469afc9b5cd0291649b5c2e87a533627190161fbb32",
+      "description": "Take up to n items, LEASED not deleted — the same lease semantics as lease()/renew()/release(): a holder, a fence token, an expiry. Two workers can never be handed the same item, because one single-threaded Durable Object owns the queue. IF YOUR PROCESS DIES THE LEASE SIMPLY EXPIRES AND THE ITEMS RE",
+      "labels": [
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "work_done",
+      "descriptionHash": "38df2104c11e11b2b05e3ce3a4974d675198ac735d3ec26468c553355f0feb0a",
+      "description": "Complete an item you hold. FREE. If your lease already expired and the item went back to the queue we REFUSE with lease_lost rather than accepting a result from a worker that no longer owns the work — that is what the fence token is for. A fence-less call on an item that has been handed out more tha",
+      "labels": [
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "work_fail",
+      "descriptionHash": "e0d516018177d994769d43761dedad428317f1029840565be318f96afed3de5b",
+      "description": "Report that an item did not work out. FREE. THIS IS ALSO THE CORRECT WAY TO HAND AN ITEM BACK WHEN NOTHING WENT WRONG — there is no work_release; retry:true (the default) returns it immediately for another worker instead of waiting out the lease. When its attempts are exhausted it is DEAD-LETTERED a",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "work_status",
+      "descriptionHash": "29b5351031aef0f6743c893f9ce7775797730d9299780ca9cf6024a487dc6139",
+      "description": "Turn a fan-out from a black box into something you can act on: how many items are pending, leased, done, failed and dead-lettered, the results collected so far, and every dead letter with the error that exhausted it. THIS IS WHAT LETS A PARENT PROCEED WITH 4 OF 5 instead of blocking on a straggler. ",
+      "labels": [
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "job_cancel",
+      "descriptionHash": "b00e7e446e35fb075aff70f8ee136ac137676b251213ae91fd686c9d220095d9",
+      "description": "There is otherwise NO WAY TO TELL FIVE RUNNING AGENTS TO STOP — they finish and bill you for work you no longer want. This sets a durable stop flag on the job. FREE and idempotent. work_take on a cancelled job hands out nothing (and charges nothing), and should_continue answers 'no'. We do not kill ",
+      "labels": [
+        "public-sink",
+        "destructive"
+      ]
+    },
+    {
+      "name": "should_continue",
+      "descriptionHash": "52dec95281d27b6d16f33e4133fc6fd5298c2640bb12e57b33ae21a40887d363",
+      "description": "The check a worker makes between items. $0.002 ONLY WHEN THE ANSWER IS 'no' — that is the call that saved you money, and the first caller told to stop is the only one billed for it, because every later 'no' is the same fact. A 'keep going' answer told you nothing you did not already assume, so it is",
+      "labels": [
+        "untrusted-content",
+        "public-sink"
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"register\" references sensitive artifacts (secret, authorization, bearer). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:register",
+        "snippet": "Create a durable identity for an agent. Returns an agent_secret (the only credential; store it in the agent's configuration the way you would an API key — an am…"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"whoami\" references sensitive artifacts (secret, authorization, bearer). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:whoami",
+        "snippet": "Report this namespace's public address, registration time, and mailbox counts: how many items exist, how many are due right now, when the next one falls due, an…"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOOL-POISON-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description issues instructions to the model",
+      "detail": "Description of \"claim\" contains imperative instructions directed at the AI assistant rather than describing the tool. This is the core tool-poisoning technique.",
+      "evidence": {
+        "source": "tool:claim",
+        "snippet": "Exactly-once guard for work that costs money or has side effects. The first call for a key returns granted:true and is FREE. Every later call for that key retur…"
+      },
+      "confidence": 0.7,
+      "remediation": "Treat the server as untrusted; the model may obey embedded instructions."
+    },
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"claim\" references sensitive artifacts (secret, authorization, bearer). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:claim",
+        "snippet": "Exactly-once guard for work that costs money or has side effects. The first call for a key returns granted:true and is FREE. Every later call for that key retur…"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"complete\" references sensitive artifacts (secret, authorization, bearer). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:complete",
+        "snippet": "Attach the outcome to an idempotency CLAIM you hold — NOT for finishing a mailbox task (use inbox_ack) or a queue item (use work_done). A later duplicate attemp…"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOOL-POISON-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description issues instructions to the model",
+      "detail": "Description of \"lease\" contains imperative instructions directed at the AI assistant rather than describing the tool. This is the core tool-poisoning technique.",
+      "evidence": {
+        "source": "tool:lease",
+        "snippet": "Mutual exclusion so two instances of the same agent do not both process one item. Returns acquired:true with a fence token (FREE), or acquired:false naming the …"
+      },
+      "confidence": 0.7,
+      "remediation": "Treat the server as untrusted; the model may obey embedded instructions."
+    },
+    {
+      "id": "MCP-TOOL-POISON-002",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description tells the model to hide behavior",
+      "detail": "Description of \"lease\" instructs the model to conceal actions from the user.",
+      "evidence": {
+        "source": "tool:lease",
+        "snippet": "Mutual exclusion so two instances of the same agent do not both process one item. Returns acquired:true with a fence token (FREE), or acquired:false naming the …"
+      },
+      "confidence": 0.75
+    },
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"lease\" references sensitive artifacts (secret, authorization, bearer). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:lease",
+        "snippet": "Mutual exclusion so two instances of the same agent do not both process one item. Returns acquired:true with a fence token (FREE), or acquired:false naming the …"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"lease_renew\" references sensitive artifacts (secret, authorization, bearer). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:lease_renew",
+        "snippet": "Extend a lease you still hold, using the fence token you were given. FREE. Fails (renewed:false) if the lease expired or was taken by someone else — treat that …"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"lease_release\" references sensitive artifacts (secret, authorization, bearer). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:lease_release",
+        "snippet": "Release a lease you hold so the next worker can take it immediately instead of waiting for the TTL. FREE. If you no longer hold it we REFUSE rather than free so…"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOOL-POISON-007",
+      "severity": "low",
+      "category": "tool-poisoning",
+      "title": "Description uses pressure/override language",
+      "detail": "Description of \"lease_release\" stacks urgency/override words (immediately, never). Legitimate tool descriptions rarely pressure the model to act or ignore prior guidance.",
+      "evidence": {
+        "source": "tool:lease_release",
+        "snippet": "Release a lease you hold so the next worker can take it immediately instead of waiting for the TTL. FREE. If you no longer hold it we REFUSE rather than free so…"
+      },
+      "confidence": 0.3
+    },
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"resume_packet\" references sensitive artifacts (secret, authorization, bearer). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:resume_packet",
+        "snippet": "THE HEADLINE TOOL. Returns a briefing, not an archive: objective, last verified state, what arrived while you were gone, the single next action, files, risks, o…"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"checkpoint_put\" references sensitive artifacts (secret, authorization, bearer). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:checkpoint_put",
+        "snippet": "Save where the work got to, in a STRUCTURED shape so the next invocation can actually act on it. FREE. `objective` and `next_action` are REQUIRED and a checkpoi…"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"checkpoint_get\" references sensitive artifacts (secret, authorization, bearer). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:checkpoint_get",
+        "snippet": "Fetch the last checkpoint verbatim — what was stored, with no briefing composed around it. Most callers want resume_packet instead, which folds in what arrived …"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"watermark_set\" references sensitive artifacts (secret, authorization, bearer). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:watermark_set",
+        "snippet": "Record how far you got through a stream, feed or table so the next invocation knows where to start. FREE. The position is an opaque string we store verbatim and…"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"watermark_get\" references sensitive artifacts (secret, authorization, bearer). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:watermark_get",
+        "snippet": "Fetch the position you last recorded for a stream, so you can ask an upstream only for what is new. $0.002 ONLY when a watermark exists AND its position has mov…"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOOL-POISON-002",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description tells the model to hide behavior",
+      "detail": "Description of \"seen_add\" instructs the model to conceal actions from the user.",
+      "evidence": {
+        "source": "tool:seen_add",
+        "snippet": "Record items you have already processed. FREE. Items are stored ONLY as salted SHA-256 digests — we can test membership but cannot read, list or reconstruct wha…"
+      },
+      "confidence": 0.75
+    },
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"seen_add\" references sensitive artifacts (secret, authorization, bearer). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:seen_add",
+        "snippet": "Record items you have already processed. FREE. Items are stored ONLY as salted SHA-256 digests — we can test membership but cannot read, list or reconstruct wha…"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"seen_check\" references sensitive artifacts (secret, authorization, bearer). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:seen_check",
+        "snippet": "Given a batch of items, return only the ones not already in the set — the work you actually still have to do. $0.002 ONLY when we filter at least one item out, …"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"retry_state\" references sensitive artifacts (secret, authorization, bearer). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:retry_state",
+        "snippet": "Durable retry bookkeeping, so backoff survives the session that died. Returns the attempt count, first and last attempt times, and a deterministic suggested bac…"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"send\" references sensitive artifacts (secret, authorization, bearer). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:send",
+        "snippet": "Agent-to-agent mail. Queue a rich task envelope addressed to any registered agent so it finds the work waiting whenever it next starts. Nobody waits and nobody …"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-SCHEMA-SMELL-001",
+      "severity": "medium",
+      "category": "schema-smell",
+      "title": "Read-only tool requests dangerous parameters",
+      "detail": "Tool \"send\" appears informational but accepts parameters (context, history) that enable code/file/secret access.",
+      "evidence": {
+        "source": "tool:send",
+        "snippet": "to, objective, context, attachments, history, priority, due_at, in_seconds, dedupe_key, max_deliveries, every_seconds, repeat_count, scope, provider_extras, agent_key"
+      },
+      "confidence": 0.55
+    },
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"inbox_schedule\" references sensitive artifacts (secret, authorization, bearer). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:inbox_schedule",
+        "snippet": "Leave work for your own next invocation — the same as send() addressed to yourself. FREE. No callback URL is required or accepted: agents are not web services a…"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"inbox_poll\" references sensitive artifacts (secret, authorization, bearer). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:inbox_poll",
+        "snippet": "Collect the next due task envelope from your mailbox. One envelope per call. The item is claimed with a visibility timeout: ack it when done, or it returns to t…"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"inbox_ack\" references sensitive artifacts (secret, authorization, bearer). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:inbox_ack",
+        "snippet": "Acknowledge a task you finished. FREE and idempotent — acking twice is not an error. If the task was a repeating schedule, the next occurrence is queued now. An…"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"inbox_nack\" references sensitive artifacts (secret, authorization, bearer). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:inbox_nack",
+        "snippet": "Explicitly return a claimed task to the queue instead of waiting for its visibility timeout, optionally deferring it. FREE. Redelivery of the same task_id is al…"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOOL-POISON-007",
+      "severity": "low",
+      "category": "tool-poisoning",
+      "title": "Description uses pressure/override language",
+      "detail": "Description of \"inbox_nack\" stacks urgency/override words (always, never). Legitimate tool descriptions rarely pressure the model to act or ignore prior guidance.",
+      "evidence": {
+        "source": "tool:inbox_nack",
+        "snippet": "Explicitly return a claimed task to the queue instead of waiting for its visibility timeout, optionally deferring it. FREE. Redelivery of the same task_id is al…"
+      },
+      "confidence": 0.3
+    },
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"heartbeat\" references sensitive artifacts (secret, authorization, bearer). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:heartbeat",
+        "snippet": "AN AGENT CANNOT DETECT ITS OWN DEATH — from the inside, 'I stopped' and 'I am about to do the next step' are the same thing. Only something outside the process …"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOOL-POISON-002",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description tells the model to hide behavior",
+      "detail": "Description of \"budget_record\" instructs the model to conceal actions from the user.",
+      "evidence": {
+        "source": "tool:budget_record",
+        "snippet": "An agent cannot see its own spend across sessions, so runaway cost is invisible until the bill arrives. Append one amount to this scope's ledger. FREE and APPEN…"
+      },
+      "confidence": 0.75
+    },
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"budget_record\" references sensitive artifacts (secret, authorization, bearer). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:budget_record",
+        "snippet": "An agent cannot see its own spend across sessions, so runaway cost is invisible until the bill arrives. Append one amount to this scope's ledger. FREE and APPEN…"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"budget_check\" references sensitive artifacts (secret, authorization, bearer). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:budget_check",
+        "snippet": "What this unit of work has actually cost across every session, with a per-label breakdown and a lifetime total. If a limit is set (or you pass one here) we repo…"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOOL-POISON-002",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description tells the model to hide behavior",
+      "detail": "Description of \"barrier_create\" instructs the model to conceal actions from the user.",
+      "evidence": {
+        "source": "tool:barrier_create",
+        "snippet": "Fan work out to N agents and have the LAST one to finish wake the joiner. FREE. A BARRIER THAT WAITS FOR ALL N IS A HANG WAITING TO HAPPEN, so stragglers are th…"
+      },
+      "confidence": 0.75
+    },
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"barrier_create\" references sensitive artifacts (secret, authorization, bearer). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:barrier_create",
+        "snippet": "Fan work out to N agents and have the LAST one to finish wake the joiner. FREE. A BARRIER THAT WAITS FOR ALL N IS A HANG WAITING TO HAPPEN, so stragglers are th…"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOOL-POISON-007",
+      "severity": "low",
+      "category": "tool-poisoning",
+      "title": "Description uses pressure/override language",
+      "detail": "Description of \"barrier_create\" stacks urgency/override words (always, never). Legitimate tool descriptions rarely pressure the model to act or ignore prior guidance.",
+      "evidence": {
+        "source": "tool:barrier_create",
+        "snippet": "Fan work out to N agents and have the LAST one to finish wake the joiner. FREE. A BARRIER THAT WAITS FOR ALL N IS A HANG WAITING TO HAPPEN, so stragglers are th…"
+      },
+      "confidence": 0.3
+    },
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"barrier_signal\" references sensitive artifacts (secret, authorization, bearer). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:barrier_signal",
+        "snippet": "Report that one participant finished, optionally attaching a payload the joiner will receive. FREE and IDEMPOTENT PER PARTICIPANT — the same participant_id sign…"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"barrier_status\" references sensitive artifacts (secret, authorization, bearer). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:barrier_status",
+        "snippet": "Progress on a join point: how many of the expected participants have signalled, which ones, who is still outstanding, and whether the completion or timeout enve…"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"work_push\" references sensitive artifacts (secret, authorization, bearer). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:work_push",
+        "snippet": "THE ALTERNATIVE TO THIS IS WRITING DISTRIBUTED WORK-DISTRIBUTION CODE YOURSELF — assignment, collision avoidance, lease expiry, retry, dead-worker recovery, str…"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"work_take\" references sensitive artifacts (secret, authorization, bearer). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:work_take",
+        "snippet": "Take up to n items, LEASED not deleted — the same lease semantics as lease()/renew()/release(): a holder, a fence token, an expiry. Two workers can never be han…"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"work_done\" references sensitive artifacts (secret, authorization, bearer). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:work_done",
+        "snippet": "Complete an item you hold. FREE. If your lease already expired and the item went back to the queue we REFUSE with lease_lost rather than accepting a result from…"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOOL-POISON-002",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description tells the model to hide behavior",
+      "detail": "Description of \"work_fail\" instructs the model to conceal actions from the user.",
+      "evidence": {
+        "source": "tool:work_fail",
+        "snippet": "Report that an item did not work out. FREE. THIS IS ALSO THE CORRECT WAY TO HAND AN ITEM BACK WHEN NOTHING WENT WRONG — there is no work_release; retry:true (th…"
+      },
+      "confidence": 0.75
+    },
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"work_fail\" references sensitive artifacts (secret, authorization, bearer). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:work_fail",
+        "snippet": "Report that an item did not work out. FREE. THIS IS ALSO THE CORRECT WAY TO HAND AN ITEM BACK WHEN NOTHING WENT WRONG — there is no work_release; retry:true (th…"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOOL-POISON-007",
+      "severity": "low",
+      "category": "tool-poisoning",
+      "title": "Description uses pressure/override language",
+      "detail": "Description of \"work_fail\" stacks urgency/override words (immediately, never). Legitimate tool descriptions rarely pressure the model to act or ignore prior guidance.",
+      "evidence": {
+        "source": "tool:work_fail",
+        "snippet": "Report that an item did not work out. FREE. THIS IS ALSO THE CORRECT WAY TO HAND AN ITEM BACK WHEN NOTHING WENT WRONG — there is no work_release; retry:true (th…"
+      },
+      "confidence": 0.3
+    },
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"work_status\" references sensitive artifacts (secret, authorization, bearer). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:work_status",
+        "snippet": "Turn a fan-out from a black box into something you can act on: how many items are pending, leased, done, failed and dead-lettered, the results collected so far,…"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"job_cancel\" references sensitive artifacts (secret, authorization, bearer). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:job_cancel",
+        "snippet": "There is otherwise NO WAY TO TELL FIVE RUNNING AGENTS TO STOP — they finish and bill you for work you no longer want. This sets a durable stop flag on the job. …"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"should_continue\" references sensitive artifacts (secret, authorization, bearer). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:should_continue",
+        "snippet": "The check a worker makes between items. $0.002 ONLY WHEN THE ANSWER IS 'no' — that is the call that saved you money, and the first caller told to stop is the on…"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: complete, resume_packet, checkpoint_put, checkpoint_get, watermark_get, seen_add, seen_check, retry_state, send, budget_check, barrier_create, barrier_signal, should_continue · Private data: register, lease, lease_renew, resume_packet, checkpoint_put, watermark_set, seen_add, retry_state, send, inbox_ack, heartbeat, budget_record, work_take, work_done, work_status · Public sink: register, whoami, claim, complete, lease, lease_renew, lease_release, resume_packet, checkpoint_put, checkpoint_get, watermark_set, watermark_get, seen_add, seen_check, retry_state, send, inbox_schedule, inbox_poll, inbox_ack, inbox_nack, heartbeat, budget_record, budget_check, barrier_create, barrier_signal, barrier_status, work_push, work_take, work_done, work_fail, work_status, job_cancel, should_continue · Destructive: heartbeat, barrier_create, job_cancel.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: complete, resume_packet, checkpoint_put, checkpoint_get, watermark_get, seen_add, seen_check, retry_state, send, budget_check, barrier_create, barrier_signal, should_continue · Private data: register, lease, lease_renew, resume_packet, checkpoint_put, watermark_set, seen_add, retry_state, send, inbox_ack, heartbeat, budget_record, work_take, work_done, work_status · Public sink: register, whoami, claim, complete, lease, lease_renew, lease_release, resume_packet, checkpoint_put, checkpoint_get, watermark_set, watermark_get, seen_add, seen_check, retry_state, send, inbox_schedule, inbox_poll, inbox_ack, inbox_nack, heartbeat, budget_record, budget_check, barrier_create, barrier_signal, barrier_status, work_push, work_take, work_done, work_fail, work_status, job_cancel, should_continue · Destructive: heartbeat, barrier_create, job_cancel"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 0,
+  "scoreBreakdown": {
+    "tool-poisoning": 83,
+    "schema-smell": 8,
+    "toxic-flow": 20
+  },
+  "errors": []
+}

@@ -1,0 +1,107 @@
+{
+  "schemaVersion": 1,
+  "scanner": {
+    "version": "1.6.0",
+    "rules": "402995650b68"
+  },
+  "target": {
+    "kind": "url",
+    "ref": "https://eutenders.duckdns.org/mcp"
+  },
+  "scannedAt": "2026-08-28T16:51:31.492Z",
+  "durationMs": 1669,
+  "layers": {
+    "metadata": true,
+    "static": false
+  },
+  "tools": [
+    {
+      "name": "search_tenders",
+      "descriptionHash": "72c868249fbc534373f090db657bb57220f178aaf7015bb944a8038a8f21dffa",
+      "description": "[GET /v1/search — $0.02] Search Spanish public-sector IT/software/cyber procurement: awards, tenders and contracts. Filters: q (full-text), cpv (prefix), buyer, company, region (NUTS), from/to (YYYY-MM-DD), type=award|tender|contract. Returns compact rows with ids for the other tools."
+    },
+    {
+      "name": "get_tender",
+      "descriptionHash": "716968996b3a8ec061a015edc753f17a0cac56775155d9f7acd9f04d2114900f",
+      "description": "[GET /v1/tenders/:id — $0.02] Full tender detail by id: buyer, CPVs, deadline, estimated value, all awards/lots with winners, plus provenance (source + TED url).",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "get_company",
+      "descriptionHash": "aa8e645ef972bf1c1db4d050a3c984e8f1909d105c335fe6641e4d3b0c930067",
+      "description": "[GET /v1/companies/:id — $0.05] Company profile by id: name, country, NIF, aliases and source identifiers (cross-source identity), plus aggregate stats (wins, total awarded value, top CPVs, top buyers)."
+    },
+    {
+      "name": "get_company_awards",
+      "descriptionHash": "1d66bcff0cfbb95d830265d043b2362eb25630c0f0494fe9353b890661c4cc90",
+      "description": "[GET /v1/companies/:id/awards — $0.05] Paginated award history for a company: dates, lots, values, tender + buyer context."
+    },
+    {
+      "name": "get_company_opportunities",
+      "descriptionHash": "bb8d57d4730b2ff0d66e808cfd04e4c4feb74005403489f575a2a7e837ebeecf",
+      "description": "[GET /v1/companies/:id/opportunities — $0.10] Active/recent tenders matching a company's historical CPV/buyer profile, with a deterministic similarity score (explained in score_explanation)."
+    },
+    {
+      "name": "get_buyer_history",
+      "descriptionHash": "4aadf5dbbb570e99627b8c1d89b5fed058f18a6cf1952e456ef4e93e31387fb8",
+      "description": "[GET /v1/buyers/:id/history — $0.05] Buyer profile by id: award history, supplier concentration (top-supplier share) and per-CPV-division recurrence (median months between awards).",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "get_renewals",
+      "descriptionHash": "8ea8ee86f1969f2832e4e274b39c41821c27704566f09f92fce5d05ff96fbf05",
+      "description": "[GET /v1/renewals — $0.25] Forecast signals for likely re-tenders: contracts/frameworks approaching renewal. Filters: cpv (prefix), buyer, window_months (default 12, max 36), min_confidence=low|medium|high."
+    },
+    {
+      "name": "get_pricing",
+      "descriptionHash": "b93697a7c663d0f8e3768c19e9268e597ca07ec5d977ee37dfc25e612ba9afc9",
+      "description": "[GET /v1/pricing — $0.00] Machine-readable price ladder for all endpoints/tools plus the payment flow. Always free."
+    },
+    {
+      "name": "research",
+      "descriptionHash": "e826eed8e71b175f8c9be7ac87df94044236b3c63cf34ff15d30d4dd07cb5fc5",
+      "description": "[POST /v1/research — $0.50] High-level EU public procurement intelligence for a topic: recent tenders, relevant renewal signals, company opportunities and active buyers, each with evidence and an evidence-strength confidence label. Deterministic over the licita database (no LLM). Costs $0.50 USDC pe",
+      "labels": [
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "billing_get_balance",
+      "descriptionHash": "e76f62e3917f10f92f7b259db10c82c4e0ab42b57b705d5875a01712fefa6d11",
+      "description": "[GET /v1/billing — $0.00] Check the prepaid credit balance for a client key (in cents and USD). Always free. Returns not_found when no account exists yet — buy credits via billing_purchase_credits to create one."
+    },
+    {
+      "name": "billing_purchase_credits",
+      "descriptionHash": "da2b5a2268f797fd53a8228450127b15e362b04c669bfae35fda3c79fb00f0d9",
+      "description": "[POST /v1/billing/credits/5 — $5.00] Buy a prepaid credit bundle (5, 10 or 25 USD) paid per-endpoint via x402 (mirrors REST POST /v1/billing/credits/:amount). Set amount to the bundle you pay for with payment_token; the proof is verified against that exact bundle, then the account is credited and th",
+      "labels": [
+        "public-sink"
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: get_tender · Private data: research · Public sink: get_buyer_history, research, billing_purchase_credits.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: get_tender · Private data: research · Public sink: get_buyer_history, research, billing_purchase_credits"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 80,
+  "scoreBreakdown": {
+    "toxic-flow": 20
+  },
+  "errors": []
+}

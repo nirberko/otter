@@ -1,0 +1,676 @@
+{
+  "schemaVersion": 1,
+  "scanner": {
+    "version": "1.6.0",
+    "rules": "402995650b68"
+  },
+  "target": {
+    "kind": "url",
+    "ref": "https://teamshared.com/mcp"
+  },
+  "scannedAt": "2026-08-28T17:05:27.806Z",
+  "durationMs": 1071,
+  "layers": {
+    "metadata": true,
+    "static": false
+  },
+  "tools": [
+    {
+      "name": "mcp_auth",
+      "descriptionHash": "182dfea7c9a374a0bedb34a95d363137252d822bc4d687a2a02a233f0d24a6c5",
+      "description": "Last-resort email + OTP bind for this MCP session (headless only).\n\nPrefer account-level Cursor Connect (Cloud / Grok Bot inherit it) or a\n``tsk_`` header. Do not call this as the first hop. When the host has\nno token:\n\n1. ``mcp_auth(email=\"you@example.com\")`` — we email a 6-digit code.\n2. Ask the h",
+      "labels": [
+        "private-data",
+        "public-sink",
+        "destructive"
+      ]
+    },
+    {
+      "name": "health",
+      "descriptionHash": "a8cde93fe83b7f3fda8dd78f78b5fe77ab4487993b959912ba74e6af11118195",
+      "description": "Liveness + dependency probe.\n\nReturns ``{\"status\", \"version\", \"components\": {server, redis, postgres,\nsemantic, distiller, graph, ollama}}``. ``semantic`` is the pgvector +\nembedder store. Optional deps report ``\"disabled\"`` when off\nand do not degrade overall status. Always cheap; safe\nto poll on a"
+    },
+    {
+      "name": "version",
+      "descriptionHash": "e57c8d40ef0877caa21721f5a4e34615793cdc1086bb3285ab6f4d18df8ad408",
+      "description": "Report server + memory-rule version and whether the rule needs updating.\n\nReturns ``{server_version, rule_version, installed_rule_version,\nrule_path, update_available}``. When ``update_available`` is true (the\ninstalled rule is missing or behind the canonical one), the response also\nincludes ``rule_",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "context_compress",
+      "descriptionHash": "9fa2117a5abd4337f2f40733deb087a635d1c7e18ab16cc1fcc9c1c0f76f9544",
+      "description": "Compress a prompt payload before it reaches an LLM.\n\nShrinks JSON tool outputs, logs, and long text using SmartCrusher-lite\nsampling. Originals are stored in CCR (Redis) with ``ref=`` markers for\n``context_retrieve``. Always runs; tune thresholds via ``TEAMSHARED_COMPRESS_*``."
+    },
+    {
+      "name": "context_retrieve",
+      "descriptionHash": "a8353690684473d93c7a0867b9865d3dbbe738eec251d60a4058c94f49bc4eeb",
+      "description": "Retrieve the original content for a compressed block via CCR ref."
+    },
+    {
+      "name": "context_prepare",
+      "descriptionHash": "cbce2f30bf1331fa0f33588084c431ff2620c4979344d22e89629daf5bc33111",
+      "description": "Pre-LLM pipeline: session append → compress incoming history → enrich.\n\nReturns compressed ``messages``, optional ``additional_context`` (org memory),\n``session_id``, and ``stats``. Use before sending a turn to your LLM when you\nwant teamshared to shrink tool bloat and inject recall. Server-side MCP"
+    },
+    {
+      "name": "context_commit",
+      "descriptionHash": "1998bbd988d05cc0ba6133c55c88eca113677a660dd21ad030ff7bf09346e95a",
+      "description": "Turn-end batch: assistant summary + durable writes + optional close.\n\nOne call replaces the end-of-turn memory_session_append +\nmemory_remember (+ memory_session_close + memory_state_set) sequence.\nThe append self-heals expired sessions; the response's ``session_id``\nis authoritative. Returns ``{ses"
+    },
+    {
+      "name": "context_normalize",
+      "descriptionHash": "938ed3a797fcf3d341ca90036e1d1298135e300de48f8b030d6eb1bbc0470944",
+      "description": "Strip, clean, and compress a non-teamshared tool output for agent context.\n\nTrims recall-style payloads, shrinks large JSON/logs, and stores originals\nin CCR when compressed. Prefer letting MCP middleware handle teamshared\ntools automatically; call this for Shell, Grep, or other harness tools."
+    },
+    {
+      "name": "memory_tools_catalog",
+      "descriptionHash": "9895f8094ab51e4829088b6c2e34501d2c826a30e72c1aa16e857d43ee5d0275",
+      "description": "Discover teamshared MCP tools for the current turn.\n\nReturns ``protocol`` (every-turn loop), ``chooser`` (need → tool),\n``never`` (hard constraints), and grouped tools with ``when`` /\n``avoid`` / copy-paste ``example``. Pass ``need=`` when choosing a\ntool mid-conversation. Also returns ``tool_recipe"
+    },
+    {
+      "name": "memory_remember",
+      "descriptionHash": "827967aa21f7802f656f7715a737baf65c66751c9c450434040b1e9543f275ba",
+      "description": "Write a durable memory into the caller's org.\n\n``fact`` / ``preference`` / ``note`` -> semantic pillar. ``event`` ->\nepisodic. ``procedure`` / ``skill`` -> rejected; use ``memory_procedure_set`` /\n``memory_skill_set``.\nRouted through the guarded ingestion pipeline (PII, injection\nscreening, near-dup"
+    },
+    {
+      "name": "memory_soul_get",
+      "descriptionHash": "10bc18089e1e34c5d8fed5179d9d6da49e74d041bbf2054d16ff0c48df16c491",
+      "description": "Return this person's private soul for the current org.\n\nThe soul is a tiny compressed identity block (who they are, style,\nlikes/dislikes, dos/don'ts). Empty when none yet or the API key is not\nlinked to a human account (mint keys from the console while signed in).\nAlso returned on ``memory_session_",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "memory_soul_set",
+      "descriptionHash": "bf511fe77105972bd594650eee7e7e128c602e7b25eea484dce997285f5e76d7",
+      "description": "Replace this person's private soul for the current org.\n\nPrefer compact structured markdown. Preferences written via\n``memory_remember(kind=preference)`` also absorb into the soul.",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "memory_recall",
+      "descriptionHash": "fa25e1889cb1d6196369fa122ef330e78c10d285924be754d0d131f521c9d98e",
+      "description": "Hybrid recall across memory pillars within the caller's org.\n\nDefault scope searches durable pillars only (semantic, episodic,\nprocedural, skill, strategic, work). Pass ``scope=[\"working\"]`` to\ninclude this chat's open session turns. Shared brain on durable\npillars: pass ``agent=\"cursor\"`` only to n",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "memory_think",
+      "descriptionHash": "1bce03eca39b12add913231e353e5df3dde537f21e1a920a71af2e7a910b0bc2",
+      "description": "Synthesized answer with citations and gap analysis (GBrain ``think`` parity).\n\nRuns durable recall (default scope excludes working), then composes a\ncited prose answer plus explicit gaps. For named-entity or competitor\nquestions, call ``memory_recall`` with a short keyword anchor first —\nsynthesis q"
+    },
+    {
+      "name": "memory_assemble_context",
+      "descriptionHash": "cd0ea32cd5285937a2aeb5d32625855268ab99501b3f08c9ef53204a8d8f3a4f",
+      "description": "Assemble one token-budgeted, cited context pack for a task.\n\nFans recall across semantic, episodic, procedural, skill, strategic,\nwork, working pillars and the optional graph in parallel through the\nsecure retrieval path, then ranks and packs the result into a single\nsectioned markdown bundle. Use t",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "memory_session_open",
+      "descriptionHash": "4bfa130c6f7417dd736836956944f16adbf1ba24bf7bed4c1d6002dccbc0e048",
+      "description": "Open a working-memory session and return a ``session_id``."
+    },
+    {
+      "name": "memory_session_ensure",
+      "descriptionHash": "b1c8042f5dabec81a29ccf90a1bff1973f49bebedabb5abd772a775bb54b7427",
+      "description": "One-call session bootstrap: recover the active session or open one.\n\nReplaces the memory_state_get → memory_session_close →\nmemory_session_open → memory_state_set ritual. Reuses the session in\nthe ``conversation/active-session`` state pointer when it is still\nopen and owned by the caller; otherwise ",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "memory_session_append",
+      "descriptionHash": "c5364211297b07a698cf0e3f91d107c2d41762fdc26d337e85a5db16ec0f285c",
+      "description": "Append a turn to a working-memory session (self-healing).\n\nWhen ``session_id`` has expired or was closed, a fresh session is\nopened automatically and the turn lands there; the response then\ncarries the replacement ``session_id`` and ``reopened: true``. Pass\n``repo`` (and optionally ``github`` / ``to"
+    },
+    {
+      "name": "memory_session_close",
+      "descriptionHash": "4b58bc79c2bdd62d609a7cc981a3c9056426b73c0fd04df3a30d32252800795c",
+      "description": "Close a working-memory session.\n\nIf ``distill`` is true (default), the transcript is queued for the\nbackground worker to summarize into durable org-scoped memories."
+    },
+    {
+      "name": "memory_session_get",
+      "descriptionHash": "95fd389830c7bc766ac4b63fabb383dbbd2b0b203cc9032c28ed7b8ffff487ca",
+      "description": "Read session metadata and turns (debug, handoff, append failure recovery)."
+    },
+    {
+      "name": "memory_dream_status",
+      "descriptionHash": "45054a84495a6b0851de2bfdcbbf4875d924c466f6ad983607e0a0ed1cbf287a",
+      "description": "Latest nightly dream report for this org (what changed overnight).\n\nReturns the most recent leftover-distill + curator report, or\n``found=false`` when last night wrote nothing. The same note is a\nnormal semantic memory / wiki page ``memory_recall`` can find."
+    },
+    {
+      "name": "memory_episodes_list",
+      "descriptionHash": "705dab764d254ccdadb6e559eadf3a5e1ed92c2fe6d91f312e4311482c8dd7e2",
+      "description": "Browse the episodic timeline (shared within the org by default)."
+    },
+    {
+      "name": "memory_procedure_get",
+      "descriptionHash": "551e0b7b271d734dbdbcbc02363f22347ad9eeba01f95916bf2e39b33c05ab2f",
+      "description": "Fetch a stored playbook by name (and optionally version).\n\nSet ``expand_skills=true`` to resolve ``tool_recipe.skills`` into the\nreturned ``steps_md`` / ``content_md`` (same as the background runner)."
+    },
+    {
+      "name": "memory_playbook_get",
+      "descriptionHash": "16e3c935ef02073aeac5d80b7bb7024b80102cd8a0012cc7e28c49cb28f095ed",
+      "description": "Alias for ``memory_procedure_get``."
+    },
+    {
+      "name": "memory_procedure_set",
+      "descriptionHash": "1324dd60c4685ec50428d7feae94c8dec0055abd3a0fa5fecd178375db0e2912",
+      "description": "Insert a new version of a procedure. Each call creates a new version.\n\nPlaybooks are ordered skill collections: set ``tool_recipe.skills`` and\noptional ``steps_md`` intro. Routed through the guarded ingestion pipeline.\nReturns ``status`` (``active`` or ``duplicate``)."
+    },
+    {
+      "name": "memory_playbook_set",
+      "descriptionHash": "ffed65ccf6936201f7a225eb2ff760bb038bbe7a0f7cfb05f70a3bf625030b3e",
+      "description": "Alias for ``memory_procedure_set``."
+    },
+    {
+      "name": "memory_procedures_list",
+      "descriptionHash": "876a421ce3cf560eabde46bbb72169281b4d8b8b4aa3dce35d19264079a6b0a8",
+      "description": "List playbooks (latest version of each) in the caller's org."
+    },
+    {
+      "name": "memory_playbooks_list",
+      "descriptionHash": "d9d04a2ecc1e8e1539c344ab18f248f10276e9cc710101f2e76a8361b23a7bd4",
+      "description": "Alias for ``memory_procedures_list``."
+    },
+    {
+      "name": "memory_forget_procedure",
+      "descriptionHash": "b06ca5f96cc92161dcbdc19e3ba456ee0a9179ddba4477f6b6a75abde945e17a",
+      "description": "Soft-delete all active versions of a playbook by name.",
+      "labels": [
+        "destructive"
+      ]
+    },
+    {
+      "name": "memory_skill_get",
+      "descriptionHash": "1b999625630c4e03aa8af745dda146ac6c214a2f62f83bcc61064953aa697452",
+      "description": "Fetch a stored skill by name (and optionally version)."
+    },
+    {
+      "name": "memory_skill_set",
+      "descriptionHash": "22fa1ff6eef800f0363d563a73a295be8791974986652ae7497bd45c41b5633e",
+      "description": "Insert a new version of a skill. Each call creates a new version.\n\nSkills are atomic instruction building blocks. Playbooks compose them via\n``tool_recipe.skills`` on ``memory_procedure_set``. Routed through the\nguarded ingestion pipeline; only ``active`` skills are visible to recall\nand ``memory_sk"
+    },
+    {
+      "name": "memory_skills_list",
+      "descriptionHash": "1065a2c89d3bc1954a6d31a7fc88789b03ed86810175a510a2b76db3c7b820ee",
+      "description": "List all skills (latest version of each) in the caller's org."
+    },
+    {
+      "name": "memory_skill_resolve",
+      "descriptionHash": "ee28af12d5e8772a4fcdef674cf51124160d1b23594ca8efd53aa9c8eb2edf69",
+      "description": "Resolve a playbook's ``tool_recipe.skills`` refs to full skill records.",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "memory_forget_skill",
+      "descriptionHash": "fe899758e26d299a3b8d73a5fdbb632b99be098fce22a9862b5bc24c6f8ad26c",
+      "description": "Soft-delete all active versions of a skill by name.",
+      "labels": [
+        "destructive"
+      ]
+    },
+    {
+      "name": "memory_skill_feedback",
+      "descriptionHash": "078a2c0c512751abbe574a53c520d9bbd392605197b36dcdb93869377ff321e1",
+      "description": "Propose a skill/playbook rewrite from a human-approved draft vs kept.\n\nStores the pair as a pending rewrite. The live skill does not change.\nA human accepts or rejects the proposed diff in the console; accept\nwrites vN+1 through the existing setter. Never auto-overwrites."
+    },
+    {
+      "name": "memory_strategic_statement_get",
+      "descriptionHash": "ab6119145a314db158407930f7ca291ed7ae0e01694ffaa7baa90dbedd133774",
+      "description": "Fetch the active org statement for vision, mission, or purpose."
+    },
+    {
+      "name": "memory_strategic_statement_set",
+      "descriptionHash": "8f18f31cff5fc7d07c55256f10e839925ab7191faae606e98accfb32e3068e9a",
+      "description": "Propose a new version of vision, mission, or purpose."
+    },
+    {
+      "name": "memory_strategic_plan_list",
+      "descriptionHash": "ab3b9db5c510c5724c6c7e5e09bbbf228820e4573d77107afb39b3c6163e1042",
+      "description": "List OKR cycles (strategic plans) for the org."
+    },
+    {
+      "name": "memory_strategic_plan_get",
+      "descriptionHash": "b0336b1fc0882c43b22162bdf40a368806f640ee6d40dd0a05b3343ba5a4395b",
+      "description": "Fetch one strategic plan, optionally with the full OKR tree."
+    },
+    {
+      "name": "memory_strategic_plan_set",
+      "descriptionHash": "6c2c2d9791f26d49a35f5599feaeedaf2fd4e54c41d8883e568bd3a1c5d8efe7",
+      "description": "Propose a new OKR cycle."
+    },
+    {
+      "name": "memory_strategic_objective_set",
+      "descriptionHash": "3ee5509124ab7c79b462950dcc5f56c4ecf1e7cb476b711eb8256d311764545b",
+      "description": "Propose an objective under a plan."
+    },
+    {
+      "name": "memory_strategic_key_result_set",
+      "descriptionHash": "2dad3683a527a76f2ec583e9b7f2d593103aa2589e26875e785097d2736064cd",
+      "description": "Propose a key result under an objective."
+    },
+    {
+      "name": "memory_strategic_initiative_set",
+      "descriptionHash": "ba7bbe5c916ab412177232f77e23088662a149bb003e7a03e5723482850f04e6",
+      "description": "Propose a strategic initiative."
+    },
+    {
+      "name": "memory_strategic_entity_get",
+      "descriptionHash": "71469ec630bb547d512778db1c01b17921f23ba42690074ce860161de017c928",
+      "description": "Fetch one strategic entity by type and id."
+    },
+    {
+      "name": "work_list",
+      "descriptionHash": "e8d8372fe109f3596c2f02056a96a38bf7c75a3aa65a9733fe80a22da11d9a89",
+      "description": "List org work items (shared task queue for humans and agents)."
+    },
+    {
+      "name": "work_get",
+      "descriptionHash": "5df8d530877f321289b7bd29d8bee6658bb089983777acb0ff45b74d93c90719",
+      "description": "Fetch one work item by id."
+    },
+    {
+      "name": "work_create",
+      "descriptionHash": "853fa353ff9eea73c8955e480d9581d6f465770db588f17ac370bf83f5e2b1ce",
+      "description": "Create a work item. Created active immediately for humans and agents (no approval queue)."
+    },
+    {
+      "name": "work_update",
+      "descriptionHash": "496f5021d95dd1c560faa615d4121be2e35c5cc7913b8022b3c036fc25ad802c",
+      "description": "Update a work item (status, assignee, priority, parent, etc.)."
+    },
+    {
+      "name": "work_close",
+      "descriptionHash": "f857d9fc81a7d5d4e5862817acccb4ac367252fc7f60f650c5488e0741421003",
+      "description": "Mark a work item done or cancelled."
+    },
+    {
+      "name": "work_comment_add",
+      "descriptionHash": "ac1317cb2217b5ef84cc200e328d68efed202c9ab58243c7e557d5c31684e12c",
+      "description": "Add a comment to a work item."
+    },
+    {
+      "name": "work_comment_list",
+      "descriptionHash": "ef287a9ea9e23e8ab2fad5dbea3f7866a210e533b88b54786175c2fefe80b4cb",
+      "description": "List comments on a work item (oldest first).",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "project_create",
+      "descriptionHash": "c57f59b5b520831fcdef3743a879817178be53db5c22d5d14e0dcb8e56d3db4c",
+      "description": "Create a project (Asana-style task container)."
+    },
+    {
+      "name": "project_list",
+      "descriptionHash": "0ef8122f6a9a1f593f9e27df8f1fcbd70b204b07344354c60c096ae6d677334b",
+      "description": "List projects in the org."
+    },
+    {
+      "name": "project_get",
+      "descriptionHash": "b5c2c18c8361fea05281de410a9b763688305ae2f88047f18442815133f7df24",
+      "description": "Fetch a project with its sections, latest status, and optionally its tasks."
+    },
+    {
+      "name": "project_update",
+      "descriptionHash": "8f1dbe7e96dbf1f0c8fc082beb381681cd36ee5a782e2257946ad21bbdc4cc46",
+      "description": "Update project metadata."
+    },
+    {
+      "name": "project_archive",
+      "descriptionHash": "1413578edcb362e804c3062a0716c2851bedff299e53f413be86343023498696",
+      "description": "Archive or restore a project."
+    },
+    {
+      "name": "project_section_add",
+      "descriptionHash": "a0fcfb81baabe0e5a32e59b3b0555a5bda008184fc51d04b299531cb6dd6f343",
+      "description": "Add an ordered section to a project."
+    },
+    {
+      "name": "project_section_list",
+      "descriptionHash": "83f7eed5177038b624e6492f18d66a1e1564546aa85b4ece322a379855817644",
+      "description": "List a project's sections in order."
+    },
+    {
+      "name": "project_status_post",
+      "descriptionHash": "13b3c807321ed35a10a510886f96cef30eaaa47b64b3684c5a7ed464e9f10d93",
+      "description": "Post a project status update (on-track / at-risk / off-track banner).",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "work_add_to_project",
+      "descriptionHash": "17a8f9cd56ce0659feefedabd1628c9a30f47ba8c0c3494202cf75113520b3a8",
+      "description": "Add a task to a project (tasks can belong to multiple projects)."
+    },
+    {
+      "name": "work_remove_from_project",
+      "descriptionHash": "1984100a5006bcb286c8e5d4152003704238894c29e6214b5da048ab73e7258a",
+      "description": "Remove a task from a project.",
+      "labels": [
+        "destructive"
+      ]
+    },
+    {
+      "name": "work_move",
+      "descriptionHash": "29b991f535180e1daab53dbf807b1e397b7c068fe0340002438e9a703aa51915",
+      "description": "Move a task to a section and/or reorder it within a project."
+    },
+    {
+      "name": "work_subtasks_list",
+      "descriptionHash": "646a40af64958e3c57826f0a513fb7cb280861ce334696cba985cd0d1299959e",
+      "description": "List subtasks of a work item. Create subtasks via work_create with parent_id."
+    },
+    {
+      "name": "work_dependency_add",
+      "descriptionHash": "5d3d9065d054b4b6669094048ef8e57f22a4761f08f2479e244f6d6d6fdd5c08",
+      "description": "Add a dependency: blocker must finish before blocked can proceed.\n\nPass ``blocker_id`` + ``blocked_id``, or equivalently\n``work_id`` (blocked) + ``depends_on_id`` (blocker)."
+    },
+    {
+      "name": "work_dependency_remove",
+      "descriptionHash": "c5b6501df8c27855418be8131997e1681f5a492d9caa63c5b1acc504f56a5666",
+      "description": "Remove a task dependency.",
+      "labels": [
+        "destructive"
+      ]
+    },
+    {
+      "name": "work_dependencies_list",
+      "descriptionHash": "65f2ee4bb23fbf9158b472c0d12282d25f0e1b4e2dcd4afee9685a28eeab64c4",
+      "description": "List what a task is blocked by and what it blocks."
+    },
+    {
+      "name": "work_follower_add",
+      "descriptionHash": "1f444892699706faeccb4763571df932f53e03506ee4dead905af91e5e920273",
+      "description": "Add a follower/collaborator to a task by member email.",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "work_follower_remove",
+      "descriptionHash": "f07b3d8ce200da9ae509f58af1b18a8180ed66b2b73a1463b95b1f7309dd1882",
+      "description": "Remove a follower from a task by member email.",
+      "labels": [
+        "public-sink",
+        "destructive"
+      ]
+    },
+    {
+      "name": "work_followers_list",
+      "descriptionHash": "d8ab7616ba42f49d1d52f45cc3973c6859360a35b06cf5f35f39caeca4bc1ca8",
+      "description": "List followers/collaborators on a task."
+    },
+    {
+      "name": "memory_graph_relate",
+      "descriptionHash": "924df8b9cfb0ccd59cc3c582ae04731a2d0b6da32df34da3e39c644c5797e3e5",
+      "description": "Record an explicit relationship in the optional org-scoped graph store.\n\nNo-op (with a reason) when the graph isn't enabled. Use this when you\nlearn a structured fact like \"alice -> works_on -> teamshared\" that\nvector recall would obscure. ``predicate`` must be a registered link\ntype (see ``memory_o",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "memory_graph_related",
+      "descriptionHash": "95347ca9e6a10781e1f75f2751cdabfdaa85bfd1dafdf6e0c019389ca7a31f1e",
+      "description": "Return entities related to ``name`` via the graph store, up to ``depth`` hops."
+    },
+    {
+      "name": "memory_entity_view",
+      "descriptionHash": "3b7e5d7f765e142ee2853334119a5e65a23bc923e83b1e0051c2f45b5e0a399a",
+      "description": "Roll up wiki, memories, graph neighbors, and work for one entity."
+    },
+    {
+      "name": "memory_ontology_list",
+      "descriptionHash": "fd0580ccdcc04880029b3eb3fca6211a40346c4e90579464adf9f8cbba9c1e3c",
+      "description": "List org ontology schema: link types, object kinds, interfaces, action types."
+    },
+    {
+      "name": "memory_ontology_propose_entity",
+      "descriptionHash": "004d0a1c25bbad90106bd942cab80a6992d3a6e87b2e7c5001ba10815b663813",
+      "description": "Propose a typed ontology entity (active immediately)."
+    },
+    {
+      "name": "memory_ontology_link_type_set",
+      "descriptionHash": "ef8c270db2fd30c246fa5d4cb0789e1bca9491f4480d3b8e81cdf7ce95435d80",
+      "description": "Register or update a custom org link type."
+    },
+    {
+      "name": "memory_ontology_object_kind_set",
+      "descriptionHash": "3248c6b2e5f5d133319b6e407130b3814a9c2111c79e901431fd9fbd425b107b",
+      "description": "Register or update a custom org object kind."
+    },
+    {
+      "name": "memory_ontology_rekind_entity",
+      "descriptionHash": "450c38930db25c6608a005f310a42796f432838fb17bbdb02d8d5dc58c8b62b8",
+      "description": "Change the object kind of an existing ontology entity."
+    },
+    {
+      "name": "memory_ontology_merge_entities",
+      "descriptionHash": "7fe04a8cce9d7a9468f7396c5a06b7a80c6953a1b9dde9bfc1080705e1260f5d",
+      "description": "Merge ``drop_slug`` into ``keep_slug`` (remap FKs, delete duplicate).",
+      "labels": [
+        "destructive"
+      ]
+    },
+    {
+      "name": "memory_action_apply",
+      "descriptionHash": "3cf605fdace40678a58c46bcfb89702a9c0c6dade8b2bc99e56d5329c8137235",
+      "description": "Execute a governed ontology action and write an audit log entry.",
+      "labels": [
+        "destructive"
+      ]
+    },
+    {
+      "name": "memory_action_log_list",
+      "descriptionHash": "d5916960ca3bb9584ac6724513fb889ab34b2526057113553fe2cc7196635c8e",
+      "description": "List recent governed action executions for the org."
+    },
+    {
+      "name": "memory_forget",
+      "descriptionHash": "1615b20d2e105c381023e2ad06c08754f2b64f65cf5be134a441b5cade81543f",
+      "description": "Soft-delete a semantic/episodic memory by id (requires memory:delete).\n\n``memory_id`` is the ``memory_items`` UUID returned by ``memory_recall``.\nProcedural deletes are not supported via this tool.",
+      "labels": [
+        "destructive"
+      ]
+    },
+    {
+      "name": "memory_state_get",
+      "descriptionHash": "8223e43177fb72284a921ecbdd0ef9c77fae14dab66d13d1a2e2293662080a5e",
+      "description": "Fetch JSON state scoped to the caller's org, bearer token, and ``repo``.",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "memory_state_set",
+      "descriptionHash": "68a6b2044c88096ab34150a68269b751c0b7f87e8436602969b4bfcbfc08981a",
+      "description": "Persist JSON state scoped to the caller's org, bearer token, and ``repo``.",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "file_create",
+      "descriptionHash": "e12707263d9ddd2740bf0a007374a48cc9c09d349f8d5c202b14344fd2fd71fb",
+      "description": "Create a new versioned shared file in the caller's org.\n\nShared files default to private. Call ``file_publish`` to generate the\npublic share URL (``/s/{share_token}``). Each ``file_update`` creates a\nnew immutable version row.",
+      "labels": [
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "file_upload_request",
+      "descriptionHash": "36e6b13dd66dcf1677db6c5ce0dd173ed648bbc379d017ff8669b0d16f58d7a5",
+      "description": "Get a one-time uploader script to push a local file into a shared file.\n\nFor large local HTML/Markdown files that don't fit inline in\n``file_create``/``file_update``. Returns ``upload_url``, ``upload_token``, an\n``expires_in_seconds`` TTL, and a self-deleting Python ``script``.\nSave the script to di",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink",
+        "destructive"
+      ]
+    },
+    {
+      "name": "file_update",
+      "descriptionHash": "53de3e302453fd32af3ebb8ce1c5b10c2d4ba3a3b2c0dc3c3bbe1ceb03a44b36",
+      "description": "Append a new version to an existing shared file (version = prior max + 1).\n\nIf the file is published, the new version is eagerly mirrored to the\nRailway bucket. Old versions are never mutated.",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "file_get",
+      "descriptionHash": "4a55cbde7dd46a8e6a1c226cf556b67dab2f2fa6d8ca8e52727e079809eefdda",
+      "description": "Fetch a shared file with its latest version content.\n\nIncludes ``public_url`` (the ``/s/{slug}`` link) when the file is published.",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "file_list",
+      "descriptionHash": "9671e1913ac8303f9597f241b276b8c588276667701c8e56e5d2b175a5089cca",
+      "description": "List active shared files in the caller's org, newest update first.\n\nEach file includes ``public_url`` (the ``/s/{slug}`` link, or ``/s/{share_token}``\nif no slug) when published, plus ``slug`` and ``share_token``. Use ``query`` to\nfind a file by title without listing everything — e.g. ``file_list(qu",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "file_publish",
+      "descriptionHash": "c35f7f17b592f62f0f23dec173fbcdff206dbdf95cbf272892809ea40aee24b9",
+      "description": "Publish a shared file: generate the public share token + slug and URL.\n\nIdempotent: returns the existing token/slug if already published. The latest\nrendered HTML is eagerly pushed to the Railway bucket. The public URL is\n``/s/{slug}`` (human-readable, from the title) with ``/s/{share_token}`` as a\n",
+      "labels": [
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "file_unpublish",
+      "descriptionHash": "1ac66c60a2bdb32bafd1c5cfd5b53210ce57715818dcadd426be1e811d538221",
+      "description": "Revoke public access to a shared file (visibility back to private).\n\nThe share token is retained for audit; the public route returns 404. Best-effort\nremoves the mirrored objects from the Railway bucket.",
+      "labels": [
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "file_archive",
+      "descriptionHash": "58bc46ac7e048c8013c98e27931d4b3ade7c06cacb5900382bddec5d6362b713",
+      "description": "Archive a shared file (excluded from active lists) and clean up its bucket mirror (if published).\n\nArchived files are retained with full version history for audit; the public\n``/s/{share_token}`` route returns 404 for an archived file.",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "file_version_delete",
+      "descriptionHash": "53ed8a0ec079cf1f1953b92ffdc959c9d83305c899ed0907e9f6978216b2e279",
+      "description": "Delete a single version of a shared file (destructive, irreversible).\n\nRefuses to delete the only remaining version. If the deleted version was\nthe current (latest) one, ``current_version`` is bumped back to the new\nmax and -- when the file is published -- the bucket mirror is re-published\nto that n",
+      "labels": [
+        "private-data",
+        "destructive"
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-SCHEMA-SMELL-001",
+      "severity": "medium",
+      "category": "schema-smell",
+      "title": "Read-only tool requests dangerous parameters",
+      "detail": "Tool \"mcp_auth\" appears informational but accepts parameters (code) that enable code/file/secret access.",
+      "evidence": {
+        "source": "tool:mcp_auth",
+        "snippet": "email, code, org_id"
+      },
+      "confidence": 0.55
+    },
+    {
+      "id": "MCP-TOOL-POISON-006",
+      "severity": "low",
+      "category": "tool-poisoning",
+      "title": "Anomalously long tool description",
+      "detail": "Description of \"memory_recall\" is 641 chars, far longer than this server's median (65). Overlong descriptions are a common place to bury instructions.",
+      "evidence": {
+        "source": "tool:memory_recall",
+        "snippet": "Hybrid recall across memory pillars within the caller's org. Default scope searches durable pillars only (semantic, episodic, procedural, skill, strategic, work…"
+      },
+      "confidence": 0.4
+    },
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"memory_session_ensure\" references sensitive artifacts (bearer). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:memory_session_ensure",
+        "snippet": "One-call session bootstrap: recover the active session or open one. Replaces the memory_state_get → memory_session_close → memory_session_open → memory_state_se…"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"memory_state_get\" references sensitive artifacts (bearer). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:memory_state_get",
+        "snippet": "Fetch JSON state scoped to the caller's org, bearer token, and ``repo``."
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"memory_state_set\" references sensitive artifacts (bearer). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:memory_state_set",
+        "snippet": "Persist JSON state scoped to the caller's org, bearer token, and ``repo``."
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOOL-POISON-006",
+      "severity": "low",
+      "category": "tool-poisoning",
+      "title": "Anomalously long tool description",
+      "detail": "Description of \"file_upload_request\" is 907 chars, far longer than this server's median (65). Overlong descriptions are a common place to bury instructions.",
+      "evidence": {
+        "source": "tool:file_upload_request",
+        "snippet": "Get a one-time uploader script to push a local file into a shared file. For large local HTML/Markdown files that don't fit inline in ``file_create``/``file_upda…"
+      },
+      "confidence": 0.4
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: memory_recall, work_comment_list, file_upload_request · Private data: mcp_auth, version, memory_soul_get, memory_soul_set, memory_assemble_context, memory_session_ensure, memory_skill_resolve, memory_graph_relate, memory_state_get, memory_state_set, file_create, file_upload_request, file_update, file_get, file_list, file_publish, file_unpublish, file_archive, file_version_delete · Public sink: mcp_auth, project_status_post, work_follower_add, work_follower_remove, file_create, file_upload_request, file_publish, file_unpublish · Destructive: mcp_auth, memory_forget_procedure, memory_forget_skill, work_remove_from_project, work_dependency_remove, work_follower_remove, memory_ontology_merge_entities, memory_action_apply, memory_forget, file_upload_request, file_version_delete.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: memory_recall, work_comment_list, file_upload_request · Private data: mcp_auth, version, memory_soul_get, memory_soul_set, memory_assemble_context, memory_session_ensure, memory_skill_resolve, memory_graph_relate, memory_state_get, memory_state_set, file_create, file_upload_request, file_update, file_get, file_list, file_publish, file_unpublish, file_archive, file_version_delete · Public sink: mcp_auth, project_status_post, work_follower_add, work_follower_remove, file_create, file_upload_request, file_publish, file_unpublish · Destructive: mcp_auth, memory_forget_procedure, memory_forget_skill, work_remove_from_project, work_dependency_remove, work_follower_remove, memory_ontology_merge_entities, memory_action_apply, memory_forget, file_upload_request, file_version_delete"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 36,
+  "scoreBreakdown": {
+    "schema-smell": 8,
+    "tool-poisoning": 36,
+    "toxic-flow": 20
+  },
+  "errors": []
+}

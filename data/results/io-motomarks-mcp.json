@@ -8,19 +8,114 @@
     "kind": "url",
     "ref": "https://motomarks.io/api/mcp"
   },
-  "scannedAt": "2026-07-24T06:45:56.187Z",
-  "durationMs": 856,
+  "scannedAt": "2026-08-28T16:52:03.063Z",
+  "durationMs": 4119,
   "layers": {
-    "metadata": false,
+    "metadata": true,
     "static": false
   },
-  "findings": [],
-  "score": 100,
-  "scoreBreakdown": {},
-  "errors": [
+  "tools": [
     {
-      "scanner": "metadata",
-      "message": "Streamable HTTP error: Error POSTing to endpoint: {\"jsonrpc\":\"2.0\",\"error\":{\"code\":-32000,\"message\":\"Unauthorized: Authentication required\",\"www-authenticate\":\"Bearer resource_metadata=\\\"https://motomarks.io/api/auth/.well-known/oauth-protected-resource\\\"\"},\"id\":null}"
+      "name": "sign_up",
+      "descriptionHash": "2e1b294dcd4166f8c8f033122b100a831bfbcdd4cd9539d552ac3ad5eb75f0f8",
+      "description": "Create a free Motomarks account or start sign-in for an existing email. Sends a six-digit verification code. No password or credit card. After the user reads the code, call complete_sign_up.",
+      "labels": [
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "complete_sign_up",
+      "descriptionHash": "5d6e69283943c876e2e32e0d6bc6322ab0a45cf07246d6a2e295114bc2328ce7",
+      "description": "Verify the six-digit email code from sign_up. Creates the account when the email is new, then returns API keys so the client can reconnect as that user.",
+      "labels": [
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "search_brands",
+      "descriptionHash": "34903032340fb6b5a1c58d74e90c7dac90813787a9cf294db21f05a5916e95e7",
+      "description": "Search published Motomarks brands by name, company, or slug, and optionally include ready-to-use CDN image URLs.",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "get_brand",
+      "descriptionHash": "a40e8fb8a54a397dcfcd18c9b376c54d57b599c590e638d7881818b12c1d51b3",
+      "description": "Get full details for a published Motomarks brand by slug: description, colors, palette, social links, company facts, FAQs, and optionally its assets."
+    },
+    {
+      "name": "list_brand_assets",
+      "descriptionHash": "426ef713a5ae99e759658ccf7af319c77eb05a1ee6db785d8571599999ecc04a",
+      "description": "List available Motomarks logo assets for a brand and optionally include generated CDN image URLs.",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "build_image_url",
+      "descriptionHash": "d1fb9948e78ac6250355109905651918100a952076c99bbbd54daa7e0c6390df",
+      "description": "Build a deterministic Motomarks image CDN URL authenticated with the caller's publishable key."
+    },
+    {
+      "name": "describe_api_endpoint",
+      "descriptionHash": "6f008bb1252794e7882980ca921e63f29f26c8107394fb99222971f0f155214c",
+      "description": "Return the HTTP endpoint, auth mode, params, and example for a Motomarks REST operation."
+    },
+    {
+      "name": "get_account",
+      "descriptionHash": "1c18fd97648b496cc7d45767c8491f62de4ffc4b231c8825207f0036bc6859c6",
+      "description": "Get the authenticated caller's Motomarks account: plan, attribution status, today's API usage against the daily limit, and active API keys (secret keys masked).",
+      "labels": [
+        "private-data"
+      ]
     }
-  ]
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"sign_up\" references sensitive artifacts (password). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:sign_up",
+        "snippet": "Create a free Motomarks account or start sign-in for an existing email. Sends a six-digit verification code. No password or credit card. After the user reads th…"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"get_account\" references sensitive artifacts (secret). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:get_account",
+        "snippet": "Get the authenticated caller's Motomarks account: plan, attribution status, today's API usage against the daily limit, and active API keys (secret keys masked)."
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: search_brands, list_brand_assets · Private data: sign_up, complete_sign_up, get_account · Public sink: sign_up, complete_sign_up.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: search_brands, list_brand_assets · Private data: sign_up, complete_sign_up, get_account · Public sink: sign_up, complete_sign_up"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 50,
+  "scoreBreakdown": {
+    "tool-poisoning": 30,
+    "toxic-flow": 20
+  },
+  "errors": []
 }

@@ -1,0 +1,95 @@
+{
+  "schemaVersion": 1,
+  "scanner": {
+    "version": "1.6.0",
+    "rules": "402995650b68"
+  },
+  "target": {
+    "kind": "url",
+    "ref": "https://smartwebchat.de/api/mcp"
+  },
+  "scannedAt": "2026-08-28T16:44:27.489Z",
+  "durationMs": 1721,
+  "layers": {
+    "metadata": true,
+    "static": false
+  },
+  "tools": [
+    {
+      "name": "smartwebchat_service_info",
+      "descriptionHash": "35485384331415632bfafa2315b05a90186d0fa0f0caaf35f3de3b2b018783b7",
+      "description": "Get factual information about the Smartwebchat service itself: what it does, plans and prices, interface languages, where data is processed, and how to obtain an API key. Works without authentication — use it to answer questions about Smartwebchat before the user has an account.",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "smartwebchat_list_chatbots",
+      "descriptionHash": "ea3fa313be2f5d325d3cc56bfe21d43f57ffbd1fcc1201641a8fb09f1db8c518",
+      "description": "List the website chatbots in this account, with their IDs, names and the site each one runs on. Call this first — every other tool needs a botId from here."
+    },
+    {
+      "name": "smartwebchat_create_chatbot",
+      "descriptionHash": "476cf02177a8ff2d4c9274a2869629201838a60cae53ff7fdbf3741dfe435dc3",
+      "description": "Create a new website chatbot for a business, including its greeting, personality and initial FAQ knowledge. Writes to the account: confirm the business details with the user before calling. Needs a key with full access; a read-only key gets 401 here."
+    },
+    {
+      "name": "smartwebchat_chat",
+      "descriptionHash": "2ab71a6bc44d76cfe43abc050a24a7868cfd93f1a8cb424e3aeff5bd3c64b770",
+      "description": "Send a visitor message to a chatbot and get its reply, exactly as a website visitor would see it. Use this to test how the chatbot answers, or to check whether its knowledge base covers a topic. Records a conversation and uses the account's message quota, so it needs a key with full access; a read-o",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "smartwebchat_get_leads",
+      "descriptionHash": "25403108dea129ebf3844599d3781ddead6320c028f08926e97b25361f143835",
+      "description": "Retrieve the leads a website chatbot captured from visitors — contact requests, appointment bookings and callback requests, with the visitor's message and contact details. Without botId, returns the leads of every chatbot in the account.",
+      "labels": [
+        "untrusted-content",
+        "private-data"
+      ]
+    },
+    {
+      "name": "smartwebchat_update_lead",
+      "descriptionHash": "e139cabbb3da15d94c731f96b91b643e5f5a97b252035d8ef99f7f6b66e0fc8c",
+      "description": "Change the status of a captured lead, for example to mark it as contacted or closed. Writes to the account. Needs a key with full access; a read-only key gets 401 here."
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOOL-POISON-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description issues instructions to the model",
+      "detail": "Description of \"smartwebchat_create_chatbot\" contains imperative instructions directed at the AI assistant rather than describing the tool. This is the core tool-poisoning technique.",
+      "evidence": {
+        "source": "tool:smartwebchat_create_chatbot",
+        "snippet": "Create a new website chatbot for a business, including its greeting, personality and initial FAQ knowledge. Writes to the account: confirm the business details …"
+      },
+      "confidence": 0.7,
+      "remediation": "Treat the server as untrusted; the model may obey embedded instructions."
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: smartwebchat_chat, smartwebchat_get_leads · Private data: smartwebchat_service_info, smartwebchat_chat, smartwebchat_get_leads · Public sink: smartwebchat_chat.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: smartwebchat_chat, smartwebchat_get_leads · Private data: smartwebchat_service_info, smartwebchat_chat, smartwebchat_get_leads · Public sink: smartwebchat_chat"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 60,
+  "scoreBreakdown": {
+    "tool-poisoning": 20,
+    "toxic-flow": 20
+  },
+  "errors": []
+}

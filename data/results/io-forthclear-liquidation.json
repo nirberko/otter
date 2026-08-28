@@ -1,0 +1,125 @@
+{
+  "schemaVersion": 1,
+  "scanner": {
+    "version": "1.6.0",
+    "rules": "402995650b68"
+  },
+  "target": {
+    "kind": "url",
+    "ref": "https://app.forthclear.io/mcp"
+  },
+  "scannedAt": "2026-08-28T16:44:14.258Z",
+  "durationMs": 388,
+  "layers": {
+    "metadata": true,
+    "static": false
+  },
+  "tools": [
+    {
+      "name": "search_inventory",
+      "descriptionHash": "dc17455ea1bea061e4074b89e7b4f40988beab4ccb67b66351074e88477df290",
+      "description": "Search available liquidation inventory with filters"
+    },
+    {
+      "name": "get_product_details",
+      "descriptionHash": "358b1730e97473f8c2d5e6a1a1b3d7537c2ba47b188c6aff7c1b1938a4d87cd7",
+      "description": "Get detailed information about a specific product"
+    },
+    {
+      "name": "request_quote",
+      "descriptionHash": "a9f137bda7153215e76e1529ab95e2fbfd311a93c7d5958bdf29418d1c55d77f",
+      "description": "Request a bulk quote for a product (buyer tool)"
+    },
+    {
+      "name": "create_listing",
+      "descriptionHash": "6b2c991df7d9bc61921eecf75c7150d4800e51f1268642ba5ca0cb63f2be2992",
+      "description": "Create a new product listing (seller tool)"
+    },
+    {
+      "name": "get_pricing_recommendation",
+      "descriptionHash": "a74c6f4ba041cb2a87a5b3a0b92dc6b413d9aed83601c458191e5a436d9e3dbe",
+      "description": "Get AI-powered pricing recommendation for inventory (seller tool)"
+    },
+    {
+      "name": "get_quote_requests",
+      "descriptionHash": "77fd085084b2889871a4b0c3f1d23a4d158b130adf31e9668296807df1f22784",
+      "description": "Get pending quote requests for seller's products (seller tool)"
+    },
+    {
+      "name": "respond_to_quote",
+      "descriptionHash": "214f0f5eedc2e3153e3d7d4e7b5af9fd1cbdb579fcfa6195c3eafbea5a86f1cd",
+      "description": "Respond to a buyer's quote request (seller tool)"
+    },
+    {
+      "name": "bulk_update_listings",
+      "descriptionHash": "a06509bbb452d5f2bc1ff3c88e7c7e9c1d4f4b1d8a85ac1d7c475226c89a842f",
+      "description": "Bulk update prices or minimum order quantities across up to 200 of the calling seller's product listings. Thin adapter over POST /api/products/bulk-update-price and /bulk-update-moq — same seller-ownership filter and per-product validation. Choose mode='price_set' (value=USD), 'price_percent_increas",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "bulk_mark_shipped",
+      "descriptionHash": "d88a1b82512b71e848c18215420dc8a538ecd668bcff62030b65355fa86d755b",
+      "description": "Mark up to 200 of the calling seller's orders as shipped, optionally writing a shared tracking number / URL / carrier to every order. Thin adapter over POST /api/seller/orders/bulk-mark-shipped — same per-order ownership filter, idempotent re-runs, auto-detected carrier when only a tracking number i",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "bulk_export_orders",
+      "descriptionHash": "6fe8bf60a8754feb5b805aee24d83510caa92e43fb0fce87c06b908d09599b89",
+      "description": "Export the calling seller's orders as CSV (Order ID, Product, Buyer, Quantity, Total, Status, Date). Thin adapter over POST /api/seller/orders/bulk-export — orders not owned by the caller are silently skipped. Returns the CSV body as a string plus the suggested filename.",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "seller_inbox_summarise",
+      "descriptionHash": "64e35a6cf4008c0a2fc5dbd0aea2726dc7e57f5c06a803f1dbf8c8d5d9c30746",
+      "description": "Read-only digest of the calling seller's inbox: pending quote requests, orders at risk of missing their ship-by deadline, and orders with reported issues. Useful for a daily standup or cron-driven agent that decides which bulk action to run next.",
+      "labels": [
+        "untrusted-content",
+        "destructive"
+      ]
+    },
+    {
+      "name": "quick_buy",
+      "descriptionHash": "67ff379739563482b0a484cf590a6f8664abca606028bac281f57dc3fd73a4af",
+      "description": "One-step purchase for products with instant checkout enabled (seller opt-in) and orders under bulk threshold. For products without instant checkout or larger orders, use request_quote instead."
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOOL-POISON-002",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description tells the model to hide behavior",
+      "detail": "Description of \"bulk_export_orders\" instructs the model to conceal actions from the user.",
+      "evidence": {
+        "source": "tool:bulk_export_orders",
+        "snippet": "Export the calling seller's orders as CSV (Order ID, Product, Buyer, Quantity, Total, Status, Date). Thin adapter over POST /api/seller/orders/bulk-export — ord…"
+      },
+      "confidence": 0.75
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "medium",
+      "category": "toxic-flow",
+      "title": "Toxic flow: untrusted input can reach an external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: seller_inbox_summarise · Public sink: bulk_update_listings, bulk_mark_shipped, bulk_export_orders · Destructive: seller_inbox_summarise.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: seller_inbox_summarise · Public sink: bulk_update_listings, bulk_mark_shipped, bulk_export_orders · Destructive: seller_inbox_summarise"
+      },
+      "confidence": 0.45,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 72,
+  "scoreBreakdown": {
+    "tool-poisoning": 20,
+    "toxic-flow": 8
+  },
+  "errors": []
+}

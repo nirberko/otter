@@ -8,8 +8,8 @@
     "kind": "url",
     "ref": "https://www.primitive.dev/mcp"
   },
-  "scannedAt": "2026-07-30T06:45:43.133Z",
-  "durationMs": 772,
+  "scannedAt": "2026-08-28T16:44:36.231Z",
+  "durationMs": 735,
   "layers": {
     "metadata": true,
     "static": false
@@ -51,10 +51,9 @@
     },
     {
       "name": "getAccount",
-      "descriptionHash": "04c5a41d72280323116a92f723b4d63b218860c78956e917902275352225cd25",
-      "description": "Use this when you need the authenticated Primitive account summary, including email, plan, onboarding state, and webhook secret rotation time.",
+      "descriptionHash": "05be59664546d4d6e1a38ffe5bf105ba2b6935d921dedf960f6c585607a7c50d",
+      "description": "Use this when you need the authenticated Primitive account summary, including plan, onboarding state, and managed inbox domain. managed_inbox_address is a domain, not a complete mailbox. When it is non-null, this MCP result also includes sender_address, such as agent@pink-ram.primitive.email, for us",
       "labels": [
-        "private-data",
         "public-sink"
       ]
     },
@@ -106,18 +105,17 @@
     },
     {
       "name": "sendEmail",
-      "descriptionHash": "a5b5d9942bde37ca00b9ce8f595c045d9ef444851b4bbaebde355bd6d6c3dd95",
-      "description": "Use this when the user has confirmed a new outbound email. Sends real email through Primitive's relay and can wait for the first SMTP delivery outcome, or schedule the send for a future time with scheduled_at.",
+      "descriptionHash": "3e45e522c6fae3d90a55745c277ecc9d2ca701743ed5e4b1c7eb6a658fb8309e",
+      "description": "Use this when the user has confirmed a new outbound email. Sends real email through Primitive's relay and can wait for the first SMTP delivery outcome, or schedule the send for a future time with scheduled_at. IMPORTANT: `from` is YOUR OWN complete mailbox address, never the recipient's. Use sender_",
       "labels": [
         "public-sink"
       ]
     },
     {
       "name": "sendEmailDemo",
-      "descriptionHash": "30f731ec54bc2cbb2eacc539250a66427bf5d95a76ed18530d8c8877e8758ec6",
-      "description": "Send a SIMULATED email with no account required. Validates the body against the exact same schema as sendEmail (including cc/bcc, reply_to, tags, attachments, and scheduled_at), then returns a realistic synthetic success envelope (demo: true); it never actually sends, queues, or stores anything. Dem",
+      "descriptionHash": "6481e63b013ab0639d843ebce487dde8d590d83c1bf715e5bea8312a871d599e",
+      "description": "SIMULATION ONLY: nothing is delivered. NEVER call this when the user actually wants an email to arrive, and never describe its result as a sent email: no message is sent, queued, or stored, and the recipient receives nothing. To really send with no account, call createEmailAddress (instant, no signu",
       "labels": [
-        "private-data",
         "public-sink"
       ]
     },
@@ -149,8 +147,8 @@
     },
     {
       "name": "awaitReply",
-      "descriptionHash": "67b37d7ff37a0cc23e90e2872a99bd694ec31c63cc2a3ae678868d485af5b763",
-      "description": "Get the threaded reply to a sent email — the canonical 'did they reply yet?' call. Pass the sent email's id (from a sendEmail response). With wait=true it long-polls up to wait_timeout_ms for the reply to arrive (synchronous agent-to-agent chat); with wait=false (default) it returns immediately with",
+      "descriptionHash": "92b9716a6f2d20a29c601f3203300d46346403c934be6b5a7580d16909ca5f57",
+      "description": "Wait for the threaded reply to a sent email. Call this immediately after sendEmail or replyToEmail when you expect an answer. With only the sent email's id it long-polls for up to 30 seconds by default. Do not report that nobody replied or ask the user to check later until this call returns with no ",
       "labels": [
         "untrusted-content",
         "public-sink"
@@ -253,18 +251,52 @@
       "labels": [
         "public-sink"
       ]
+    },
+    {
+      "name": "createEmailAddress",
+      "descriptionHash": "f624cba06064c29ed2ce1767846dfda627d711e5e3e658a93c1d82531c9a1541",
+      "description": "Get this user's Primitive managed inbox domain, creating the account on first use: no signup form, no password, no email verification, no browser. CALL THIS FIRST whenever you do not already have a Primitive API key and the user wants to send or receive email, instead of telling them to sign up or v",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink"
+      ]
     }
   ],
   "findings": [
+    {
+      "id": "MCP-TOOL-POISON-007",
+      "severity": "low",
+      "category": "tool-poisoning",
+      "title": "Description uses pressure/override language",
+      "detail": "Description of \"sendEmail\" stacks urgency/override words (important, immediately, never). Legitimate tool descriptions rarely pressure the model to act or ignore prior guidance.",
+      "evidence": {
+        "source": "tool:sendEmail",
+        "snippet": "Use this when the user has confirmed a new outbound email. Sends real email through Primitive's relay and can wait for the first SMTP delivery outcome, or sched…"
+      },
+      "confidence": 0.3
+    },
     {
       "id": "MCP-TOOL-POISON-003",
       "severity": "high",
       "category": "tool-poisoning",
       "title": "Description references secrets/credentials",
-      "detail": "Description of \"getAccount\" references sensitive artifacts (secret). A tool description has no reason to mention credentials.",
+      "detail": "Description of \"sendEmailDemo\" references sensitive artifacts (api_key). A tool description has no reason to mention credentials.",
       "evidence": {
-        "source": "tool:getAccount",
-        "snippet": "Use this when you need the authenticated Primitive account summary, including email, plan, onboarding state, and webhook secret rotation time."
+        "source": "tool:sendEmailDemo",
+        "snippet": "SIMULATION ONLY: nothing is delivered. NEVER call this when the user actually wants an email to arrive, and never describe its result as a sent email: no messag…"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"createEmailAddress\" references sensitive artifacts (password, api_key). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:createEmailAddress",
+        "snippet": "Get this user's Primitive managed inbox domain, creating the account on first use: no signup form, no password, no email verification, no browser. CALL THIS FIR…"
       },
       "confidence": 0.65
     },
@@ -273,18 +305,70 @@
       "severity": "high",
       "category": "toxic-flow",
       "title": "Lethal trifecta: untrusted input + private data + external sink",
-      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: getOutboundStatus, listEmails, listSentEmails, getSentEmail, awaitReply, getConversation, getThread, downloadEmailAttachments, listEndpoints, createEndpoint, listWebhookDeliveries · Private data: listDomains, addDomain, verifyDomain, downloadDomainZoneFile, getAccount, sendEmailDemo, getSentEmail, getThread · Public sink: addDomain, getAccount, getInboxStatus, getOutboundStatus, getEmail, replyToEmail, sendEmail, sendEmailDemo, getSentEmail, cancelScheduledSend, awaitReply, getConversation, getThread, downloadEmailAttachments, listEndpoints, createEndpoint, deleteEndpoint, testEndpoint, listWebhookDeliveries, replayWebhookDelivery · Destructive: downloadDomainZoneFile, deleteEndpoint, deleteFilter.",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: getOutboundStatus, listEmails, listSentEmails, getSentEmail, awaitReply, getConversation, getThread, downloadEmailAttachments, listEndpoints, createEndpoint, listWebhookDeliveries, createEmailAddress · Private data: listDomains, addDomain, verifyDomain, downloadDomainZoneFile, getSentEmail, getThread, createEmailAddress · Public sink: addDomain, getAccount, getInboxStatus, getOutboundStatus, getEmail, replyToEmail, sendEmail, sendEmailDemo, getSentEmail, cancelScheduledSend, awaitReply, getConversation, getThread, downloadEmailAttachments, listEndpoints, createEndpoint, deleteEndpoint, testEndpoint, listWebhookDeliveries, replayWebhookDelivery, createEmailAddress · Destructive: downloadDomainZoneFile, deleteEndpoint, deleteFilter.",
       "evidence": {
         "source": "server:mcp",
-        "snippet": "Untrusted content: getOutboundStatus, listEmails, listSentEmails, getSentEmail, awaitReply, getConversation, getThread, downloadEmailAttachments, listEndpoints, createEndpoint, listWebhookDeliveries · Private data: listDomains, addDomain, verifyDomain, downloadDomainZoneFile, getAccount, sendEmailDemo, getSentEmail, getThread · Public sink: addDomain, getAccount, getInboxStatus, getOutboundStatus, getEmail, replyToEmail, sendEmail, sendEmailDemo, getSentEmail, cancelScheduledSend, awaitReply, getConversation, getThread, downloadEmailAttachments, listEndpoints, createEndpoint, deleteEndpoint, testEndpoint, listWebhookDeliveries, replayWebhookDelivery · Destructive: downloadDomainZoneFile, deleteEndpoint, deleteFilter"
+        "snippet": "Untrusted content: getOutboundStatus, listEmails, listSentEmails, getSentEmail, awaitReply, getConversation, getThread, downloadEmailAttachments, listEndpoints, createEndpoint, listWebhookDeliveries, createEmailAddress · Private data: listDomains, addDomain, verifyDomain, downloadDomainZoneFile, getSentEmail, getThread, createEmailAddress · Public sink: addDomain, getAccount, getInboxStatus, getOutboundStatus, getEmail, replyToEmail, sendEmail, sendEmailDemo, getSentEmail, cancelScheduledSend, awaitReply, getConversation, getThread, downloadEmailAttachments, listEndpoints, createEndpoint, deleteEndpoint, testEndpoint, listWebhookDeliveries, replayWebhookDelivery, createEmailAddress · Destructive: downloadDomainZoneFile, deleteEndpoint, deleteFilter"
       },
       "confidence": 0.6,
       "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"getAccount\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:getAccount",
+        "snippet": "before: \"Use this when you need the authenticated Primitive account summary, including email, plan, onboarding state, and webhook secret rotation time.\" → after: \"Use this when you need the authenticated Primitive account summary, including plan, onboarding state, and managed inbox domain. managed_inbox_address is a domain, not a complete mailbox. When it is non-null, this MCP result also includes sender_address, such as agent@pink-ram.primitive.email, for us\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"sendEmail\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:sendEmail",
+        "snippet": "before: \"Use this when the user has confirmed a new outbound email. Sends real email through Primitive's relay and can wait for the first SMTP delivery outcome, or schedule the send for a future time with scheduled_at.\" → after: \"Use this when the user has confirmed a new outbound email. Sends real email through Primitive's relay and can wait for the first SMTP delivery outcome, or schedule the send for a future time with scheduled_at. IMPORTANT: `from` is YOUR OWN complete mailbox address, never the recipient's. Use sender_\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"sendEmailDemo\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:sendEmailDemo",
+        "snippet": "before: \"Send a SIMULATED email with no account required. Validates the body against the exact same schema as sendEmail (including cc/bcc, reply_to, tags, attachments, and scheduled_at), then returns a realistic synthetic success envelope (demo: true); it never actually sends, queues, or stores anything. Dem\" → after: \"SIMULATION ONLY: nothing is delivered. NEVER call this when the user actually wants an email to arrive, and never describe its result as a sent email: no message is sent, queued, or stored, and the recipient receives nothing. To really send with no account, call createEmailAddress (instant, no signu\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"awaitReply\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:awaitReply",
+        "snippet": "before: \"Get the threaded reply to a sent email — the canonical 'did they reply yet?' call. Pass the sent email's id (from a sendEmail response). With wait=true it long-polls up to wait_timeout_ms for the reply to arrive (synchronous agent-to-agent chat); with wait=false (default) it returns immediately with\" → after: \"Wait for the threaded reply to a sent email. Call this immediately after sendEmail or replyToEmail when you expect an answer. With only the sent email's id it long-polls for up to 30 seconds by default. Do not report that nobody replied or ask the user to check later until this call returns with no \""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
     }
   ],
-  "score": 60,
+  "score": 40,
   "scoreBreakdown": {
-    "tool-poisoning": 20,
+    "tool-poisoning": 40,
     "toxic-flow": 20
   },
   "errors": []

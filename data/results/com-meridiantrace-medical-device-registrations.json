@@ -1,0 +1,105 @@
+{
+  "schemaVersion": 1,
+  "scanner": {
+    "version": "1.6.0",
+    "rules": "402995650b68"
+  },
+  "target": {
+    "kind": "url",
+    "ref": "https://meridiantrace.com/v1/mcp"
+  },
+  "scannedAt": "2026-08-28T16:43:42.385Z",
+  "durationMs": 841,
+  "layers": {
+    "metadata": true,
+    "static": false
+  },
+  "tools": [
+    {
+      "name": "search_manufacturer",
+      "descriptionHash": "31ce410e818ed2f653d201f12395c361fda3f2857947c0bda2babd8d16f32d11",
+      "description": "Resolve a company name to a Meridian manufacturer entity — the entry point for every other tool. Names are unified across spelling variants and scripts, so \"Medtronic\", \"Медтроник\" and \"美敦力\" reach the same entity, and subsidiaries resolve to the parent that owns them. Returns up to 5 candidates with"
+    },
+    {
+      "name": "get_registrations",
+      "descriptionHash": "ae3882cd22b02c819b3981c1a1298543f39a936aaf303dd30ca23d6ebbfd5ed5",
+      "description": "Every individual registration held by a manufacturer — product name, registration number, status, dates, risk class and source registry — filterable by market and status. Each row carries a `provenance` block naming any field Meridian derived (inferred, classified, translated) with a confidence band"
+    },
+    {
+      "name": "get_license_holders",
+      "descriptionHash": "c189d6f41ca4458521967070daeeb236aeedde5f6306434d5d08da4a37192ea4",
+      "description": "The local entities that actually hold a foreign manufacturer's registrations — the importers, distributors and regulatory consultants named on the licence in each market. In Malaysia, Indonesia and Thailand the registry names this local party rather than the OEM, so this is the only way to see who c"
+    },
+    {
+      "name": "get_market_coverage",
+      "descriptionHash": "bd70bd21a84ef95b7dbd90d88d470c5a5ebdd826fac627d870a5558b6afc2399",
+      "description": "THE cross-market question, answered in one call: every market where this manufacturer IS registered and every market where they are NOT. Returns per-market registration and active-registration counts and the source registries, plus the markets absent from their footprint — which is the gap a market-"
+    },
+    {
+      "name": "get_registration_timeline",
+      "descriptionHash": "5623559cacf2cdb6af02986f137a5c06ce5bc56aa2f695d65325702bc54d7165",
+      "description": "New registrations per year for a manufacturer, split by market — the pace at which a company is entering markets and launching products, years before it appears in reported revenue. Built from each registry's own approval date, so it reaches back as far as the registry publishes (56 years for the US",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "find_predicates",
+      "descriptionHash": "628937f761b8074b73810e1dc091a73719e570566bfecf4986fe1923b57cff70",
+      "description": "US 510(k) predicate lineage, from the predicates actually cited in each clearance's own summary document — not a similarity guess. 64,567 clearances, 1992-2026. By k_number: what that device cited, AND which later devices cited IT as a predicate — the reverse direction shows whose clearances rest on",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "classify_device",
+      "descriptionHash": "98180e80a5a0d7220c86b68c7208f5fd3920c9a569720f61db9822bf3b726367",
+      "description": "RUNS WITHOUT AN API KEY (anonymous callers see the top 3 FDA product codes and the full per-market risk table — a free key unlocks the rest). Classification view of a device type: the GMDN hierarchy it sits in, the FDA product codes it maps to with how many devices carry each, and — the part not pub",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "find_similar_devices",
+      "descriptionHash": "52432bb115b49741254e46f785063a2e2236a85beac61a088bac0939b1174104",
+      "description": "Competing and comparable devices for a registration, matched on resolved device type (GMDN) rather than product-name text, and spread across markets so the answer is not all one country. Excludes the same manufacturer, so what comes back is the competitive set. Each result carries a match band. Use "
+    },
+    {
+      "name": "get_recent_registrations",
+      "descriptionHash": "05d1fcd8207997ece909b631b50f81cfefc96090fc08277e7badf611177f1098",
+      "description": "Registrations newly added to Meridian in the last N days, optionally filtered by market, risk class or device type — the competitor-monitoring feed. Ordered by when we first saw the record, so it surfaces market entries as they appear rather than by approval date. US PMA supplements are excluded: th",
+      "labels": [
+        "untrusted-content",
+        "private-data"
+      ]
+    },
+    {
+      "name": "get_coverage",
+      "descriptionHash": "126b7fb760502408af8443a05aca2bd519105f3f11872c203d297cacefddeb89",
+      "description": "RUNS WITHOUT AN API KEY — call it right now to check us before signing up for anything. What Meridian Trace actually holds: every source registry, the market it covers, how many registrations are on file from it, and when it was last crawled. Call this to verify coverage and freshness for yourself b",
+      "labels": [
+        "private-data"
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: get_recent_registrations · Private data: find_predicates, classify_device, get_recent_registrations, get_coverage · Public sink: get_registration_timeline.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: get_recent_registrations · Private data: find_predicates, classify_device, get_recent_registrations, get_coverage · Public sink: get_registration_timeline"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 80,
+  "scoreBreakdown": {
+    "toxic-flow": 20
+  },
+  "errors": []
+}

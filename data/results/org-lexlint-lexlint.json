@@ -1,0 +1,122 @@
+{
+  "schemaVersion": 1,
+  "scanner": {
+    "version": "1.6.0",
+    "rules": "402995650b68"
+  },
+  "target": {
+    "kind": "url",
+    "ref": "https://mcp.lexlint.org/mcp"
+  },
+  "scannedAt": "2026-08-28T16:54:55.799Z",
+  "durationMs": 1077,
+  "layers": {
+    "metadata": true,
+    "static": false
+  },
+  "tools": [
+    {
+      "name": "set_profile",
+      "descriptionHash": "d0c7b9b0ded5a3745ece114e6962623590755bc3927ba1d8686ef86e23a8714b",
+      "description": "Step 1 of the lint. Declare what the app does (activities) and where it will operate (jurisdiction slugs); get back the validated, canonical profile plus what the corpus holds for each jurisdiction, so the depth of a run is known before it is spent. Write the returned profile into the project's lexl",
+      "labels": [
+        "destructive"
+      ]
+    },
+    {
+      "name": "run_lint",
+      "descriptionHash": "ce222f0b099f952b22b71b34cca6604ce6e6103bd7fe852554f0de2a87b4c0e3",
+      "description": "Step 2 of the lint, and the one that returns findings. Pass the activities and jurisdictions set_profile validated, and get lint-style findings across AI, scraping, and privacy law: which obligations apply, with severity (error/warn/info), citation, as_of_date, staleness, and confidence. A finding w",
+      "labels": [
+        "untrusted-content",
+        "destructive"
+      ]
+    },
+    {
+      "name": "get_law",
+      "descriptionHash": "1df99f94b35c29710e4d0ec5e5cdcdb9a60ce2e4847f9f79d831a2f93c5ac8ec",
+      "description": "One jurisdiction's law from the UnGovr corpus, across all three topics LexLint covers: AI law, scraping/crawling and access legality, and personal-data and biometric privacy. Returns the instruments (citations, status, behavior categories, as_of_date) together with the jurisdiction-level crawl postu"
+    },
+    {
+      "name": "resolve_domain_jurisdiction",
+      "descriptionHash": "12b563637e709a41d14a0d9bcf66b130bfb438730942cfac8c64f51adebde5fe",
+      "description": "Best-effort mapping from a domain to the jurisdiction whose law governs its OPERATOR, for feeding into the other tools. Never uses server or edge-node location; IP addresses are refused. Requires X-API-Key (passed through to data.ungovr.org)."
+    },
+    {
+      "name": "check_access",
+      "descriptionHash": "333209fbfb255bc5254d284cb5a3faa02e9f3aa22d472e9dcd6cf3f472ddf1da",
+      "description": "Preflight. Reports whether an UnGovr Open Data key reached LexLint, whether it is valid, how much of today's free allowance is left and when it resets, how current the corpus is, and whether the LexLint plugin you are running is the latest published one. Call this first: a missing key otherwise surf",
+      "labels": [
+        "private-data",
+        "destructive"
+      ]
+    },
+    {
+      "name": "submit_feedback",
+      "descriptionHash": "cc236d46a8ffd20b80a1c56fc75e526ea8db6a35aeacdea42e20204a03dd92f6",
+      "description": "Send the developer's feedback on LexLint to the people who build it, recorded against their UnGovr account so we can write back. Run this ONLY when the developer asks for it: never volunteer it, never offer it as a next step after a lint, and never run it in a headless or CI session where nobody can",
+      "labels": [
+        "untrusted-content",
+        "public-sink",
+        "destructive"
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOOL-POISON-002",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description tells the model to hide behavior",
+      "detail": "Description of \"set_profile\" instructs the model to conceal actions from the user.",
+      "evidence": {
+        "source": "tool:set_profile",
+        "snippet": "Step 1 of the lint. Declare what the app does (activities) and where it will operate (jurisdiction slugs); get back the validated, canonical profile plus what t…"
+      },
+      "confidence": 0.75
+    },
+    {
+      "id": "MCP-TOOL-POISON-007",
+      "severity": "low",
+      "category": "tool-poisoning",
+      "title": "Description uses pressure/override language",
+      "detail": "Description of \"run_lint\" stacks urgency/override words (never, warning). Legitimate tool descriptions rarely pressure the model to act or ignore prior guidance.",
+      "evidence": {
+        "source": "tool:run_lint",
+        "snippet": "Step 2 of the lint, and the one that returns findings. Pass the activities and jurisdictions set_profile validated, and get lint-style findings across AI, scrap…"
+      },
+      "confidence": 0.3
+    },
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"get_law\" references sensitive artifacts (authorization). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:get_law",
+        "snippet": "One jurisdiction's law from the UnGovr corpus, across all three topics LexLint covers: AI law, scraping/crawling and access legality, and personal-data and biom…"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: run_lint, submit_feedback · Private data: check_access · Public sink: submit_feedback · Destructive: set_profile, run_lint, check_access, submit_feedback.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: run_lint, submit_feedback · Private data: check_access · Public sink: submit_feedback · Destructive: set_profile, run_lint, check_access, submit_feedback"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 49,
+  "scoreBreakdown": {
+    "tool-poisoning": 31,
+    "toxic-flow": 20
+  },
+  "errors": []
+}
