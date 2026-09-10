@@ -8,8 +8,8 @@
     "kind": "url",
     "ref": "https://mcp.medprice.ai/mcp"
   },
-  "scannedAt": "2026-08-12T05:53:28.327Z",
-  "durationMs": 637,
+  "scannedAt": "2026-09-10T09:11:03.050Z",
+  "durationMs": 551,
   "layers": {
     "metadata": true,
     "static": false
@@ -22,11 +22,23 @@
     },
     {
       "name": "list_hospitals",
-      "descriptionHash": "c8db009eb11c959bc4772e392f461ded92859b74d4e2970139b9f0cc3b307a5c",
-      "description": "Returns the hospitals supported by the medprice.ai API, with their hospital_id (opaque DB key), EIN, name, structured_locations (addresses with geocoded coordinates where available), last_updated_on, and revision history (with per-revision has_payer_data). Supports pagination.",
-      "labels": [
-        "private-data"
-      ]
+      "descriptionHash": "9d89317b526a7b6cb683ce9e4f7a4085dcca15b562094931c70f133315224b7d",
+      "description": "Returns the hospitals supported by the medprice.ai API, with their hospital_id (opaque handle), EIN, name, structured_locations (addresses with geocoded coordinates where available), last_updated_on, and revision history (with per-revision has_payer_data and revision_id). Defaults to returning the e"
+    },
+    {
+      "name": "list_hospital_code_costs",
+      "descriptionHash": "c99b3665bccd9f129665f39db00eea5eb965226bf091cfbb3ef033f9634084c7",
+      "description": "Returns cost stats for every hospital with a matching chargemaster entry for a code_type/code. Use this instead of calling get_hospital_chargemaster_cost once per hospital when comparing prices for the same procedure across hospitals (e.g. \"which hospital has the cheapest MS-DRG 652?\"). Defaults to "
+    },
+    {
+      "name": "list_code_types",
+      "descriptionHash": "0bfaa37585f513148d9dedfb351e379f3ee48bb0bedd72405493ce4667e0fa90",
+      "description": "Returns every distinct code_type (e.g. CPT, MS-DRG) with catalogued cost data, along with each type's distinct code count and total hospital reports. Unpaginated. Use this to discover which code systems have data before drilling into list_codes."
+    },
+    {
+      "name": "list_codes",
+      "descriptionHash": "e06f8ac10d98b51867c2ec344d5f9062f706836de9766a6dc9d9fcc8b4e41787",
+      "description": "Returns every distinct code catalogued under a given code_type, paginated, with each code's raw chargemaster description and the number of hospitals reporting it. Use this to discover which codes exist under a code system (e.g. all CPT codes) before looking up prices with get_hospital_chargemaster_c"
     }
   ],
   "findings": [
@@ -38,14 +50,53 @@
       "detail": "Tool \"get_hospital_chargemaster_cost\" appears informational but accepts parameters (code) that enable code/file/secret access.",
       "evidence": {
         "source": "tool:get_hospital_chargemaster_cost",
-        "snippet": "hospital_id, code_type, code, methodology"
+        "snippet": "hospital_id, code_type, code, methodology, revision_id"
       },
       "confidence": 0.55
+    },
+    {
+      "id": "MCP-TOOL-POISON-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description issues instructions to the model",
+      "detail": "Description of \"list_hospitals\" contains imperative instructions directed at the AI assistant rather than describing the tool. This is the core tool-poisoning technique.",
+      "evidence": {
+        "source": "tool:list_hospitals",
+        "snippet": "Returns the hospitals supported by the medprice.ai API, with their hospital_id (opaque handle), EIN, name, structured_locations (addresses with geocoded coordin…"
+      },
+      "confidence": 0.7,
+      "remediation": "Treat the server as untrusted; the model may obey embedded instructions."
+    },
+    {
+      "id": "MCP-SCHEMA-SMELL-001",
+      "severity": "medium",
+      "category": "schema-smell",
+      "title": "Read-only tool requests dangerous parameters",
+      "detail": "Tool \"list_hospital_code_costs\" appears informational but accepts parameters (code) that enable code/file/secret access.",
+      "evidence": {
+        "source": "tool:list_hospital_code_costs",
+        "snippet": "code_type, code, methodology, page_size, page_token"
+      },
+      "confidence": 0.55
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"list_hospitals\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:list_hospitals",
+        "snippet": "before: \"Returns the hospitals supported by the medprice.ai API, with their hospital_id (opaque DB key), EIN, name, structured_locations (addresses with geocoded coordinates where available), last_updated_on, and revision history (with per-revision has_payer_data). Supports pagination.\" → after: \"Returns the hospitals supported by the medprice.ai API, with their hospital_id (opaque handle), EIN, name, structured_locations (addresses with geocoded coordinates where available), last_updated_on, and revision history (with per-revision has_payer_data and revision_id). Defaults to returning the e\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
     }
   ],
-  "score": 92,
+  "score": 58,
   "scoreBreakdown": {
-    "schema-smell": 8
+    "schema-smell": 12,
+    "tool-poisoning": 30
   },
   "errors": []
 }

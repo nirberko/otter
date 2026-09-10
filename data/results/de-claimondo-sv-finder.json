@@ -8,8 +8,8 @@
     "kind": "url",
     "ref": "https://mcp.claimondo.de/mcp"
   },
-  "scannedAt": "2026-07-29T06:49:04.275Z",
-  "durationMs": 2896,
+  "scannedAt": "2026-09-10T09:04:44.363Z",
+  "durationMs": 2054,
   "layers": {
     "metadata": true,
     "static": false
@@ -24,8 +24,13 @@
       ]
     },
     {
+      "name": "claimondo_finde_werkstatt",
+      "descriptionHash": "5aa058e0f09e64d698d288c2830a061655cbff0718174a801fc3d9e45487ca4d",
+      "description": "Findet Claimondo-Partner-Werkstätten im Umkreis einer deutschen Postleitzahl. Read-only und anonym.\n\nWANN DIESES TOOL — und wann NICHT:\n  - SELBST verschuldeter Schaden → JA, das ist hier der erste Schritt. Es gibt keinen Gegner, gegen den man ein Gutachten durchsetzt: mit Vollkasko reguliert die ei"
+    },
+    {
       "name": "claimondo_finde_gutachter_termine",
-      "descriptionHash": "380e33fe9573e1bcc72ee2c409183eab4c21ecfb3e98c3c4aeb8d9cef3e031d7",
+      "descriptionHash": "83069172da0615732b43334c1190cf7396934bc3e3e4c98591c71c434fbf914f",
       "description": "Findet buchbare Partner-Kfz-Gutachter MIT freien Terminen im Umkreis einer deutschen Postleitzahl über Claimondo.\n\nAnders als claimondo_finde_sachverstaendige (nur anonymisierte Liste) liefert dieses Tool die *buchbaren* Gutachter mit konkreten freien Slots (Vorschau aufs Buchen). Read-only und anon"
     },
     {
@@ -51,26 +56,56 @@
       "name": "claimondo_rueckruf",
       "descriptionHash": "206b7b15b082272984a12f2917353b66486035c95d528d51b4b7046330d43e36",
       "description": "Fordert einen kostenlosen Telefon-Rückruf durch einen Claimondo-Berater an — der zweite Funnel-Arm neben claimondo_melde_schaden, für Kunden die lieber angerufen werden (oder wenn kein Slot passt / Daten fehlen). Legt einen Lead + Rückruf-Task in der Dispatch-Queue an; ein Berater meldet sich i. d. "
+    },
+    {
+      "name": "claimondo_fall_status",
+      "descriptionHash": "166aecad271e3ffa51694b58378e6cd0c0d67fd3c15368ee773ec7b61dd34772",
+      "description": "Gibt den groben Bearbeitungsstand eines zuvor über claimondo_melde_schaden/claimondo_rueckruf angelegten Falls zurück — für einen wiederkehrenden Kunden, der fragt „wo steht mein Fall?\".\n\nDer Kunde nennt seine persönliche Fall-Referenz (den Token aus seinem Claimondo-Link, den er per WhatsApp erhalt",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "claimondo_termin_absagen",
+      "descriptionHash": "28ac8088865673ffcf4116fe9ec01559005625910f5d854443ff3b8a4ea72b12",
+      "description": "Sagt einen bereits gebuchten Kfz-Gutachter-Termin bei Claimondo ab — ohne Anruf beim Gutachter, ohne Login. Nutze dieses Tool, wenn ein Kunde sagt, dass er seinen Termin nicht wahrnehmen kann, absagen oder verschieben möchte.\n\nDer Kunde nennt seine persönliche Fall-Referenz (den Token aus seinem Cla",
+      "labels": [
+        "private-data"
+      ]
     }
   ],
   "findings": [
     {
       "id": "MCP-TOXIC-FLOW-001",
-      "severity": "medium",
+      "severity": "high",
       "category": "toxic-flow",
-      "title": "Toxic flow: untrusted input can reach an external sink",
-      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: claimondo_finde_sachverstaendige, claimondo_melde_schaden · Public sink: claimondo_melde_schaden.",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: claimondo_finde_sachverstaendige, claimondo_melde_schaden · Private data: claimondo_fall_status, claimondo_termin_absagen · Public sink: claimondo_melde_schaden.",
       "evidence": {
         "source": "server:mcp",
-        "snippet": "Untrusted content: claimondo_finde_sachverstaendige, claimondo_melde_schaden · Public sink: claimondo_melde_schaden"
+        "snippet": "Untrusted content: claimondo_finde_sachverstaendige, claimondo_melde_schaden · Private data: claimondo_fall_status, claimondo_termin_absagen · Public sink: claimondo_melde_schaden"
       },
-      "confidence": 0.45,
+      "confidence": 0.6,
       "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"claimondo_finde_gutachter_termine\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:claimondo_finde_gutachter_termine",
+        "snippet": "before: \"Findet buchbare Partner-Kfz-Gutachter MIT freien Terminen im Umkreis einer deutschen Postleitzahl über Claimondo.\n\nAnders als claimondo_finde_sachverstaendige (nur anonymisierte Liste) liefert dieses Tool die *buchbaren* Gutachter mit konkreten freien Slots (Vorschau aufs Buchen). Read-only und anon\" → after: \"Findet buchbare Partner-Kfz-Gutachter MIT freien Terminen im Umkreis einer deutschen Postleitzahl über Claimondo.\n\nAnders als claimondo_finde_sachverstaendige (nur anonymisierte Liste) liefert dieses Tool die *buchbaren* Gutachter mit konkreten freien Slots (Vorschau aufs Buchen). Read-only und anon\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
     }
   ],
-  "score": 92,
+  "score": 60,
   "scoreBreakdown": {
-    "toxic-flow": 8
+    "toxic-flow": 20,
+    "tool-poisoning": 20
   },
   "errors": []
 }

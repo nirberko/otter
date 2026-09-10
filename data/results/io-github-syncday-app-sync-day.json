@@ -1,0 +1,91 @@
+{
+  "schemaVersion": 1,
+  "scanner": {
+    "version": "1.6.0",
+    "rules": "402995650b68"
+  },
+  "target": {
+    "kind": "url",
+    "ref": "https://sync.day/mcp/mcp"
+  },
+  "scannedAt": "2026-09-10T09:14:43.910Z",
+  "durationMs": 1088,
+  "layers": {
+    "metadata": true,
+    "static": false
+  },
+  "tools": [
+    {
+      "name": "create_event",
+      "descriptionHash": "ffaba6d078ac692b3898d27a4ee04bd98c218d216e38acf9c86b43c1cf221594",
+      "description": "Create a sync.day availability poll and get its share link. Candidate days run from startDate to endDate (inclusive; or give days instead). Each day offers candidate START times from hourFrom, every startStepMinutes, as long as start + durationMinutes <= hourTo. Returns slug, public url (share this)",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink",
+        "destructive"
+      ]
+    },
+    {
+      "name": "parse_event_text",
+      "descriptionHash": "eb32558f13ef694c5a757e5dc573fff429cd3e5e9f0a56e7d1d887c3d90f0127",
+      "description": "Turn a natural-language sentence (Chinese works best) into create_event input using sync.day's AI parser. Does NOT create anything; review the result, then call create_event. Example: '下周六或周日下午聚餐，大概 3 小时'."
+    },
+    {
+      "name": "get_event",
+      "descriptionHash": "4924f3c08be819f7bb808dd56d81c8a95d79d0ffdd9fcb98c7bbb912611edb33",
+      "description": "Read an event: settings, every candidate start key per day (startOptions), who has answered (participants with their start keys; names may repeat), the top 10 start times by head-count (ranked), the starts EVERYONE with picks can make with their votes (voteOptions), each person's vote (votes) and de"
+    },
+    {
+      "name": "submit_availability",
+      "descriptionHash": "a3455fb934c1510deb1c9f115dbe7817295a8d4aad4ecdfef2ec280390965ecc",
+      "description": "Save (or replace) one person's availability: the candidate start keys they can make, from get_event.startOptions. The person is identified by `identity`, not by name: the same identity later overwrites the same row (and can rename it), a different identity with the same name is a second participant.",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "remove_participant",
+      "descriptionHash": "eeac4c699af66273b94f089a6e95d03dd18b2a6580b56aae9f7a540ed3c00bf7",
+      "description": "Organiser only: remove one participant by name (the oldest row with that name when it repeats), together with their vote. Requires the adminKey from create_event.",
+      "labels": [
+        "destructive"
+      ]
+    },
+    {
+      "name": "update_event",
+      "descriptionHash": "b4ea8d1c8d3059fbb23a14d68f7051013bb810a651aa36a6104450edd5f79ea7",
+      "description": "Organiser only: change any event settings (same fields and rules as create_event; omitted fields keep their current value; endDate wins over days). Existing picks are kept; those no longer valid starts are just hidden."
+    },
+    {
+      "name": "vote_time",
+      "descriptionHash": "45ed3e623e6d8db7260dbf5d8794b65e0939a27b8103460d83f1ae8e3d59f104",
+      "description": "Approval voting: set every start one person accepts (replaces their earlier approvals; an empty list clears them). The voter is the `identity` used in submit_availability and must have at least one start saved. Only keys listed in get_event.voteOptions are accepted; the error lists the current optio"
+    },
+    {
+      "name": "decide_time",
+      "descriptionHash": "cf2d9948d9348a610a2dd1dec09d831276b40a577969b0b15607fc4e5f14f23a",
+      "description": "Organiser only: settle on a start time (locks availability picking and voting; the page shows 已定). Pass start=null to reopen. Requires the adminKey from create_event."
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: create_event · Private data: create_event · Public sink: create_event, submit_availability · Destructive: create_event, remove_participant.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: create_event · Private data: create_event · Public sink: create_event, submit_availability · Destructive: create_event, remove_participant"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 80,
+  "scoreBreakdown": {
+    "toxic-flow": 20
+  },
+  "errors": []
+}

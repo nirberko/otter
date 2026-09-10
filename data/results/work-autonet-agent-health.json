@@ -1,0 +1,147 @@
+{
+  "schemaVersion": 1,
+  "scanner": {
+    "version": "1.6.0",
+    "rules": "402995650b68"
+  },
+  "target": {
+    "kind": "url",
+    "ref": "https://autonet.work/mcp"
+  },
+  "scannedAt": "2026-09-10T09:14:11.448Z",
+  "durationMs": 530,
+  "layers": {
+    "metadata": true,
+    "static": false
+  },
+  "tools": [
+    {
+      "name": "agent_health_instructions",
+      "descriptionHash": "8331ffc9fca9329f23acb2c425fb0c97602e049ec6c2b338c9678f21b467ed4a",
+      "description": "Read FIRST: purpose, endpoint ownership requirements, heartbeat setup, scoring limits, API and free service usage."
+    },
+    {
+      "name": "register_agent_health",
+      "descriptionHash": "b9707496d1b926586ae2e63a49da2c4efe352125da941b6673eb28ce9a9535be",
+      "description": "Register ONCE your own deployed public agent readiness endpoint; save the returned api_key securely.\n    Read agent_health_instructions first. Never register example.com, a vendor homepage, or an unrelated\n    service. Without your own public endpoint, do not register: heartbeat-only monitoring is u",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "agent_health_status",
+      "descriptionHash": "579ca8a3bece6ab47fd7112da891c4cf419e22234dcc0662248059748cc94373",
+      "description": "Read public operational status and nested trust score. Provisional score is null; not identity/safety certification."
+    },
+    {
+      "name": "agent_health_checks",
+      "descriptionHash": "b56085870b3ef4079ca439fe7543f11f2a77b2163123258dfc7a29e45518a7cf",
+      "description": "Read recent HTTP/TLS results to diagnose failures. Limit 1–500."
+    },
+    {
+      "name": "agent_health_heartbeat",
+      "descriptionHash": "2c5eaec5594e22fa9f02a83c0d882b0442f15cc69e015a54bfc28a1f39343d8e",
+      "description": "Send an owner-authenticated heartbeat from the actual worker loop; does not replace endpoint checks.\n    Use the agent-specific key, not X-Autonet-Token. Never send a heartbeat to pretend a failed worker is alive.",
+      "labels": [
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "update_agent_health",
+      "descriptionHash": "ee5ca2ada8f82bf6c14cfe7e35be9603d2e818ee848059219fe28c9171ebd32b",
+      "description": "Owner-only update. Pause when retiring/testing; resume with paused=false. Endpoint and webhook must be public URLs you control.",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "delete_agent_health",
+      "descriptionHash": "2b576901e903a0913c3892e9d75fc511ccb0c7df9cf0d966da36ba07e3d9b5f3",
+      "description": "Permanently remove an owned registration and probe history when the operator requests it. Admin request logs retain up to 30 days.",
+      "labels": [
+        "destructive"
+      ]
+    },
+    {
+      "name": "agent_domain_challenge",
+      "descriptionHash": "4fa087d814c430bf60c5b0d63d7914fbabd4a4b07b1123df66d7abcbaa5bac23",
+      "description": "Issue/retrieve a DNS TXT challenge for your agent's exact endpoint hostname. Owner key required.\n    Publish the returned name/value in your DNS, then call verify_agent_domain. Pending challenges expire in 24 hours.",
+      "labels": [
+        "untrusted-content",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "verify_agent_domain",
+      "descriptionHash": "795b3219b8191ca286ce448ec6f7373fb47406e45e56dd63120b080430560d38",
+      "description": "Check your published DNS TXT record. Proves domain control only, not agent identity or safety.\n    Checks limited to once per minute. Successful proof renews hourly while TXT remains, expiring after 24 hours without renewal.",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "agent_webhook_secret",
+      "descriptionHash": "89d30e60c4b758162cb25907f27fdd8743c82768c61399a429368fb485e0b767",
+      "description": "Owner-only retrieve webhook signing secret, or rotate it when explicitly requested. Keep the secret private.",
+      "labels": [
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "agent_endpoint_assessment",
+      "descriptionHash": "96f64c20f26c4cd5e29a99739861d12f626bbc377e6049a748ca6796458edcb3",
+      "description": "With consent=true run two bounded HEAD/GET checks on your DNS-verified endpoint, max once/hour.\n    With consent=false read your last private result. Not an audit or LLM test; no score effect.",
+      "labels": [
+        "private-data",
+        "destructive"
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"register_agent_health\" references sensitive artifacts (api_key). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:register_agent_health",
+        "snippet": "Register ONCE your own deployed public agent readiness endpoint; save the returned api_key securely. Read agent_health_instructions first. Never register exampl…"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"agent_webhook_secret\" references sensitive artifacts (secret). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:agent_webhook_secret",
+        "snippet": "Owner-only retrieve webhook signing secret, or rotate it when explicitly requested. Keep the secret private."
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: agent_domain_challenge · Private data: agent_health_heartbeat, verify_agent_domain, agent_webhook_secret, agent_endpoint_assessment · Public sink: register_agent_health, agent_health_heartbeat, update_agent_health, agent_domain_challenge, agent_webhook_secret · Destructive: delete_agent_health, agent_endpoint_assessment.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: agent_domain_challenge · Private data: agent_health_heartbeat, verify_agent_domain, agent_webhook_secret, agent_endpoint_assessment · Public sink: register_agent_health, agent_health_heartbeat, update_agent_health, agent_domain_challenge, agent_webhook_secret · Destructive: delete_agent_health, agent_endpoint_assessment"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 50,
+  "scoreBreakdown": {
+    "tool-poisoning": 30,
+    "toxic-flow": 20
+  },
+  "errors": []
+}

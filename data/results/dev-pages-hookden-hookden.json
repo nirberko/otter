@@ -1,0 +1,121 @@
+{
+  "schemaVersion": 1,
+  "scanner": {
+    "version": "1.6.0",
+    "rules": "402995650b68"
+  },
+  "target": {
+    "kind": "url",
+    "ref": "https://hookden.pages.dev/mcp"
+  },
+  "scannedAt": "2026-09-10T09:05:08.197Z",
+  "durationMs": 1068,
+  "layers": {
+    "metadata": true,
+    "static": false
+  },
+  "tools": [
+    {
+      "name": "create_bin",
+      "descriptionHash": "ad710229fd5909fafa76479e17dc1e08e3b411c458de8a3216c30a3f327a9305",
+      "description": "Create a new webhook capture bin. Returns a public capture_url — point any webhook (Stripe, GitHub, Slack, your own service…) at it and every request sent there (any method, any subpath, headers + raw body) is stored. Then read what arrived with list_captures, get_capture, or wait_for_capture. Anony",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "list_captures",
+      "descriptionHash": "6dd77e2e37d4685e6fbe0d9d7d625512b542cd0bd2c1e18209f2d12058f5292d",
+      "description": "List requests captured by a bin, oldest first. Compact summaries (id, method, path, time, content-type, body size, signature status). Use get_capture for full headers/body. Pass `after` (a capture id) to only see newer captures."
+    },
+    {
+      "name": "get_capture",
+      "descriptionHash": "ff8b4d844c5e3d7969571347c6fbc27da33529be5b578ce00879e1ff9a4def8a",
+      "description": "Get one captured request in full: method, path, query, every header, and the body. Binary bodies are returned base64-encoded (up to 8KB, with a URL for the raw bytes).",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "wait_for_capture",
+      "descriptionHash": "8e27f6f40dabd99dd919d6b3126d52a20c67505758e6cfc9f561ddf7f1589ded",
+      "description": "Block until the next request arrives at a bin (or a timeout passes), then return it in full. Ideal flow: create_bin → configure the webhook sender → trigger it → wait_for_capture. If `after_id` is omitted, waits for the next capture after \"now\". Returns timed_out:true instead of erroring when nothin",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "send_test_webhook",
+      "descriptionHash": "1ee00164d39a7fdb962566bf04abe46e993c21bb793074702680fd47ddb54fe7",
+      "description": "Simulate a webhook delivery into a bin — no external sender or HTTP client needed. Seeds one realistic, clearly-labeled sample capture (default: a GitHub push event) and returns it in full, so you can exercise the whole loop (create_bin → send_test_webhook → list_captures / get_capture) entirely fro",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "set_response",
+      "descriptionHash": "02823d978575bcf349fd60aeed2694a1221d86d5f3238b47a6cbab0788f948d9",
+      "description": "Configure what a bin replies to webhook senders: HTTP status, content-type, body, custom response headers, optional delay. Body and header values support {{…}} templates rendered per-request from the INCOMING delivery — {{body.challenge}}, {{query.hub.challenge}}, {{header.x-hook-secret}}, {{hmac_sh",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "verify_signature",
+      "descriptionHash": "7dbaa2f7e0f425d3a6a40de6281bed555342744fc53e6dda7c7535f3e4ad8285",
+      "description": "Verify a webhook signature against a secret — 25 provider-exact schemes plus a generic HMAC mode, the same engine that computes ✓/✗ badges on captures. Covers HMAC-SHA256 (GitHub, Stripe, Svix/Standard Webhooks, Shopify-style base64, URL-signing Square/HubSpot/Trello…), ECDSA (SendGrid), RSA (Kick) ",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink"
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"set_response\" references sensitive artifacts (secret). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:set_response",
+        "snippet": "Configure what a bin replies to webhook senders: HTTP status, content-type, body, custom response headers, optional delay. Body and header values support {{…}} …"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"verify_signature\" references sensitive artifacts (secret). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:verify_signature",
+        "snippet": "Verify a webhook signature against a secret — 25 provider-exact schemes plus a generic HMAC mode, the same engine that computes ✓/✗ badges on captures. Covers H…"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: get_capture, set_response, verify_signature · Private data: set_response, verify_signature · Public sink: create_bin, wait_for_capture, send_test_webhook, set_response, verify_signature.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: get_capture, set_response, verify_signature · Private data: set_response, verify_signature · Public sink: create_bin, wait_for_capture, send_test_webhook, set_response, verify_signature"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 50,
+  "scoreBreakdown": {
+    "tool-poisoning": 30,
+    "toxic-flow": 20
+  },
+  "errors": []
+}

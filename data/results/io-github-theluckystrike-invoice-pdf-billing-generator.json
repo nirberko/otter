@@ -1,0 +1,130 @@
+{
+  "schemaVersion": 1,
+  "scanner": {
+    "version": "1.6.0",
+    "rules": "402995650b68"
+  },
+  "target": {
+    "kind": "url",
+    "ref": "https://mcp.zovo.one/mcp/invoice"
+  },
+  "scannedAt": "2026-09-10T09:12:49.764Z",
+  "durationMs": 538,
+  "layers": {
+    "metadata": true,
+    "static": false
+  },
+  "tools": [
+    {
+      "name": "business_set",
+      "descriptionHash": "a52336a47fd897077f8d069d315ee777afe7f346cdb02e7433ac39b06b43d76f",
+      "description": "The ONE business profile for the whole suite: name, address, VAT id, bank details and defaults (currency, tax rate, terms, prefix, timezone). Saved to the shared profile every other server reads. Call it once, first."
+    },
+    {
+      "name": "client_add",
+      "descriptionHash": "f5e8e0728f61da239952d770de62f2a6e60342ab1e42a809206beaa27aa4d56b",
+      "description": "Store a client so invoices can refer to them by name. Re-adding the same name updates the stored details; a record identical to one already stored is refused, naming the id that holds it.",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "client_delete",
+      "descriptionHash": "0e7da0264f0f57e5765995059cf437aec0423b5c625c5c21453d598bf24cd764",
+      "description": "Delete one stored client that nothing refers to. A client named on any invoice, quote, credit note, purchase order, deposit, statement or schedule is refused with those documents listed.",
+      "labels": [
+        "private-data",
+        "destructive"
+      ]
+    },
+    {
+      "name": "client_list",
+      "descriptionHash": "d0b517d4a8a48b85f0b35bd3fc6aba8dd58d4bf650e4914c6c9d9b5dd1c91361",
+      "description": "List every stored client with id, address, email and VAT id. No arguments, and it writes nothing. With none stored it says so: invoice_create also creates a client from the name you pass.",
+      "labels": [
+        "untrusted-content",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "invoice_create",
+      "descriptionHash": "c38a2c8fc1dd8435ee13773524110206f6ab00ddb5d089e124542be57fa16243",
+      "description": "Create an invoice from line items and return the record with its next, never-reused number. unit_price is in MAJOR units; lines are rounded then summed. One currency per invoice. Free: 3 a month.",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "invoice_from_hours",
+      "descriptionHash": "0f5afe94d90bbbb74b095ed630d8b91de9301fd8a1a9be028990fbb6a900b3dc",
+      "description": "Shortcut for the common case: bill one client for N hours at an hourly rate. Creates and returns a single-line invoice, converting the rate into target_currency when you supply fx_rates, and echoing back any entry_ids."
+    },
+    {
+      "name": "invoice_list",
+      "descriptionHash": "3eb958c23c436816fa3e5750078b117a7d05bff34bb6d5686bb72d917ac1ef46",
+      "description": "List invoices by number: client, dates, currency, subtotal, discount, tax lines, total, status, paid, credited and the balance still due after any credit note. Filter by status, client and date range."
+    },
+    {
+      "name": "invoice_get",
+      "descriptionHash": "1d3bd54896d9d8d623eaa9c45735d20535d63bd0910f07fcbe0e268f838b0a31",
+      "description": "Return the full stored record for one invoice number, including every line, tax breakdown, and the balance still open after any credit note issued against it (see credited_minor).",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "invoice_mark_paid",
+      "descriptionHash": "2fb666731e56d2b93f0944d0a58c2dee77e9407ad23b1ee0d45c0ceb89a6ebde",
+      "description": "Record a payment on one invoice. amount is in MAJOR units and ADDS to what is paid, never replaces it; omit it to settle the rest. An overpayment is refused, naming the open balance.",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "invoice_pdf",
+      "descriptionHash": "2174abf4bc7fe7761ac5d6e9eea4fcb85741e1afa1642eb2cdb81c4106a33461",
+      "description": "Call this tool to write one stored invoice as an A4 PDF and return the path: issuer, BILL TO, dates, items, taxes and totals. Free stamps a credit line and no logo; Pro renders it unbranded with your logo."
+    },
+    {
+      "name": "overdue_report",
+      "descriptionHash": "1268b8b4ad430ecc154a46d785d1b6cff44cb55a31471238df5a09e776e19d7d",
+      "description": "List every invoice not paid in full whose due date has passed, worst first, with days overdue and the amount, then a total per currency. Free. Use invoice_list for everything still open."
+    },
+    {
+      "name": "license_status",
+      "descriptionHash": "080db3942d81171fa77a72289f6338e4aab1b5a6a401c70f296efefa7ffa9d42",
+      "description": "Report this endpoint's licence state for your token as JSON: the product, the tier free or pro, why it is not Pro, and the checkout URL. Call it to explain a free-tier refusal. No arguments, nothing changes.",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "license_activate",
+      "descriptionHash": "237ee35409cab1a7bd1e0dd3544740e998735bf47e70e60cfc8f37906ec3f177",
+      "description": "Turn Pro on for this hosted connection using a key from checkout, keeping the data already stored under your current token. Pass key as MCPL1.<payload>.<signature>. A wrong or expired key changes nothing.",
+      "labels": [
+        "private-data"
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"invoice\" exposes tools that together enable an exfiltration flow. Untrusted content: client_list · Private data: client_add, client_delete, invoice_create, invoice_get, invoice_mark_paid, license_status, license_activate · Public sink: client_list · Destructive: client_delete.",
+      "evidence": {
+        "source": "server:invoice",
+        "snippet": "Untrusted content: client_list · Private data: client_add, client_delete, invoice_create, invoice_get, invoice_mark_paid, license_status, license_activate · Public sink: client_list · Destructive: client_delete"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 80,
+  "scoreBreakdown": {
+    "toxic-flow": 20
+  },
+  "errors": []
+}

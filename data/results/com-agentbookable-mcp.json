@@ -1,0 +1,119 @@
+{
+  "schemaVersion": 1,
+  "scanner": {
+    "version": "1.6.0",
+    "rules": "402995650b68"
+  },
+  "target": {
+    "kind": "url",
+    "ref": "https://agentbookable.com/mcp"
+  },
+  "scannedAt": "2026-09-10T09:03:20.562Z",
+  "durationMs": 1018,
+  "layers": {
+    "metadata": true,
+    "static": false
+  },
+  "tools": [
+    {
+      "name": "find_businesses",
+      "descriptionHash": "88d25bd3c55a960eb7aebd2f18dc8870818926840e1100e8f7123b8eb5385a3b",
+      "description": "Search the AgentBookable registry for businesses that accept AI bookings. Search by free text, category, city, service name or geo radius. ALWAYS start here — the results include capability flags and _links telling you the exact next endpoints."
+    },
+    {
+      "name": "get_business",
+      "descriptionHash": "f54326f693e98eb56eb9fc9e1094b8861e1af3fe6154fa59069aa4edcc1f0442",
+      "description": "Get one business's record by id (ab_bus_*) or slug. Includes capabilities (availability/booking/reschedule/cancellation/payment) — NEVER promise an action whose flag is false — plus _links to the service list, availability endpoint and booking flow, and per-service bookingRequirements (e.g. whether ",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "list_services",
+      "descriptionHash": "3f2fc77c08c5c943efaed4f7477f0d1a1be2811b27449b1729c855271fe6047d",
+      "description": "List the services a business has opened to AI booking. Each service has a durationMinutes and bookingRequirements telling you what customer details to collect (name/email/phone) BEFORE booking.",
+      "labels": [
+        "untrusted-content",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "get_availability",
+      "descriptionHash": "91a05aab0674ae86543ee74c16cd8092f21eba7b77276f6d72a89b553c4df9c1",
+      "description": "Find LIVE availability for a service. Always call this immediately before create_booking — slots are temporary (~60s) and revalidated at booking. Pass an ISO-8601 window; use a slot id from the result when booking."
+    },
+    {
+      "name": "create_booking",
+      "descriptionHash": "1df20f3f12d355325e8a0b179638a842f3433887056fd57770208b91a6419194",
+      "description": "Create a REAL appointment. CONSEQUENCEFUL: only after the user has explicitly chosen a slot and authorized the booking in their own words. Flow: (1) check the service's bookingRequirements and collect any required customer details (e.g. phone); (2) create a mandate via the create_mandate tool with t"
+    },
+    {
+      "name": "prepare_booking",
+      "descriptionHash": "6ca9a6ca3c8a805fe2c97e2cdf2c7d8e024ef746fe02fd95db65141c8cb45a6f",
+      "description": "Prepare a booking draft: the concrete proposal (business, service, time, customer) to show the user. Validates live availability and customer requirements — if requirements are missing you get MISSING_CUSTOMER_REQUIREMENT: ask the user for those details first, then call again. Show the returned draf"
+    },
+    {
+      "name": "create_mandate_for_draft",
+      "descriptionHash": "b4a6fe0f60a488688c1b4a69c5c1cb0022237c5b7e247b56371734fe05f4556b",
+      "description": "After the user explicitly agrees to the exact proposal in the draft (an affirmative reply such as 'yes, book it' — the user having already seen business, service, date and time), assert consent here to get a single-use mandate bound to that draft. consentObtained must be true; this assertion is audi"
+    },
+    {
+      "name": "get_booking",
+      "descriptionHash": "9ca45c3900a0b415e64d21d6918f3df103d15ce8d66eb8631f328bb4107d7969",
+      "description": "Retrieve a booking by its AgentBookable id (bb_bkg_*) — live status from the provider."
+    },
+    {
+      "name": "create_mandate",
+      "descriptionHash": "a06b4faa44fc0bb6c7b91dd38ec4494c31d7e7887127a8e5ea2c322580179ac8",
+      "description": "Legacy: record the user's authorization WITHOUT a booking draft. Prefer the draft flow: prepare_booking → show proposal → user agrees → create_mandate_for_draft → create_booking with draftId. The draft flow binds consent to the exact appointment the user saw.",
+      "labels": [
+        "private-data"
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOOL-POISON-007",
+      "severity": "low",
+      "category": "tool-poisoning",
+      "title": "Description uses pressure/override language",
+      "detail": "Description of \"get_availability\" stacks urgency/override words (immediately, always). Legitimate tool descriptions rarely pressure the model to act or ignore prior guidance.",
+      "evidence": {
+        "source": "tool:get_availability",
+        "snippet": "Find LIVE availability for a service. Always call this immediately before create_booking — slots are temporary (~60s) and revalidated at booking. Pass an ISO-86…"
+      },
+      "confidence": 0.3
+    },
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"create_mandate\" references sensitive artifacts (authorization). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:create_mandate",
+        "snippet": "Legacy: record the user's authorization WITHOUT a booking draft. Prefer the draft flow: prepare_booking → show proposal → user agrees → create_mandate_for_draft…"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: list_services · Private data: get_business, create_mandate · Public sink: list_services.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: list_services · Private data: get_business, create_mandate · Public sink: list_services"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 59,
+  "scoreBreakdown": {
+    "tool-poisoning": 22,
+    "toxic-flow": 20
+  },
+  "errors": []
+}

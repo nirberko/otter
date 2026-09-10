@@ -1,0 +1,129 @@
+{
+  "schemaVersion": 1,
+  "scanner": {
+    "version": "1.6.0",
+    "rules": "402995650b68"
+  },
+  "target": {
+    "kind": "url",
+    "ref": "https://mcp.zovo.one/mcp/resume"
+  },
+  "scannedAt": "2026-09-10T09:14:47.991Z",
+  "durationMs": 209,
+  "layers": {
+    "metadata": true,
+    "static": false
+  },
+  "tools": [
+    {
+      "name": "profile_set",
+      "descriptionHash": "9998f112dd2d7bdcf7bd117ee4ff3b9decf4a3d942e77f4a21d0ea871618f8a4",
+      "description": "Store the profile every resume and cover letter is built from: contact details, summary, skills, roles with bullets, education, certifications and languages. Returns a count of what was stored.",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "profile_get",
+      "descriptionHash": "18e44cc9c3c0b6d3fae3c3ffbf2bc179a3d41d2db817afb23e8e4015cd79e64f",
+      "description": "Return the stored CV profile exactly as resume_create, cover_letter_create and tailor_to_job will use it, plus the variant read and every stored variant name. Call it before any rewrite."
+    },
+    {
+      "name": "resume_create",
+      "descriptionHash": "747da03b736ebbdc10e193a72bc12baa4bd6335c6badf2d89fbfe46e6ecae2b4",
+      "description": "Call this tool to write the stored profile to a Word .docx. Returns the output path, the estimated page count, which bullets were dropped to fit, and which keywords matched or are missing."
+    },
+    {
+      "name": "resume_to_markdown",
+      "descriptionHash": "506108e3ab9f061445278a3ff3f27043373277a5b53762ac5c54147742131c64",
+      "description": "Return the stored profile as markdown text inline, ready to paste into a form or an ATS box. Same page-budget trimming as resume_create for max_pages. Nothing is written to disk. Free."
+    },
+    {
+      "name": "resume_to_html",
+      "descriptionHash": "20b0af684071066d4535dd97c15c5e7b9133bc3291fe495bbf0b5890378620c9",
+      "description": "Call this tool to write the resume as semantic HTML with a print stylesheet and return the path; print it to PDF from a browser. Bullets are trimmed to fit max_pages. Free and unlimited."
+    },
+    {
+      "name": "resume_read",
+      "descriptionHash": "817fcccfbbbddf06daa8bcb4092624a802980b8daa91807212a7509cb8c3c3b7",
+      "description": "Call this tool to read an existing .docx resume into the profile shape, with the sections found and anything unplaced. It saves nothing unless save is true, so review it first. .doc and .rtf are refused.",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "cover_letter_create",
+      "descriptionHash": "12ecfe46803129057684c3add3ef9d26cd0546f366b120dcf9f1e1b4348b3770",
+      "description": "Call this tool to write a one-page cover letter .docx from the stored profile and return the path, word count and bracketed prompts. Nothing from the posting is restated as yours. Free: 3 a month."
+    },
+    {
+      "name": "tailor_to_job",
+      "descriptionHash": "4b8bb596af8b462b5b111e123feeffb7b6babce72599632fa73aafc13f19a34f",
+      "description": "READ-ONLY gap analysis against a posting: writes nothing, changes nothing. Returns matched keywords, missing ones, a coverage figure and orderings of facts you already stated. Act on it with resume_create."
+    },
+    {
+      "name": "license_status",
+      "descriptionHash": "080db3942d81171fa77a72289f6338e4aab1b5a6a401c70f296efefa7ffa9d42",
+      "description": "Report this endpoint's licence state for your token as JSON: the product, the tier free or pro, why it is not Pro, and the checkout URL. Call it to explain a free-tier refusal. No arguments, nothing changes.",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "license_activate",
+      "descriptionHash": "237ee35409cab1a7bd1e0dd3544740e998735bf47e70e60cfc8f37906ec3f177",
+      "description": "Turn Pro on for this hosted connection using a key from checkout, keeping the data already stored under your current token. Pass key as MCPL1.<payload>.<signature>. A wrong or expired key changes nothing.",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "doc_upload",
+      "descriptionHash": "67336070e6b3e99dac9d1fd568daf89ceb4ad6949bcbc393cc414c93cf0d2495",
+      "description": "Send an existing Word document to this hosted endpoint. There is no filesystem here, so instead of a path you upload the file once with doc_upload and then pass its name as `path` to doc_read, doc_to_html and doc_fill_template. Give exactly one of docx_base64 or url. url: fetch a public file instead",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "doc_files",
+      "descriptionHash": "feb012cba9e075e3442e1b7e944c331b87c506b36e7d822855606bf725825da6",
+      "description": "List the documents uploaded for your token, with their sizes.",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "doc_delete_upload",
+      "descriptionHash": "d26bbf8bd8de594e97313722eb398a342ad9ff0b249950655f958a9fee6e3dc9",
+      "description": "Delete one document uploaded for your token.",
+      "labels": [
+        "private-data",
+        "public-sink",
+        "destructive"
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"resume\" exposes tools that together enable an exfiltration flow. Untrusted content: resume_read, doc_upload · Private data: profile_set, license_status, license_activate, doc_upload, doc_files, doc_delete_upload · Public sink: doc_upload, doc_delete_upload · Destructive: doc_delete_upload.",
+      "evidence": {
+        "source": "server:resume",
+        "snippet": "Untrusted content: resume_read, doc_upload · Private data: profile_set, license_status, license_activate, doc_upload, doc_files, doc_delete_upload · Public sink: doc_upload, doc_delete_upload · Destructive: doc_delete_upload"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 80,
+  "scoreBreakdown": {
+    "toxic-flow": 20
+  },
+  "errors": []
+}

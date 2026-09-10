@@ -1,0 +1,101 @@
+{
+  "schemaVersion": 1,
+  "scanner": {
+    "version": "1.6.0",
+    "rules": "402995650b68"
+  },
+  "target": {
+    "kind": "url",
+    "ref": "https://api.openboss.lol/mcp"
+  },
+  "scannedAt": "2026-09-10T09:11:21.300Z",
+  "durationMs": 2051,
+  "layers": {
+    "metadata": true,
+    "static": false
+  },
+  "tools": [
+    {
+      "name": "get_boss",
+      "descriptionHash": "eda1aab8a1dcb832562230ba4a2fcee127af948f74527792874234ffe9c3e27f",
+      "description": "Return the world boss everyone is currently hitting: its name, lore, tier, current and maximum hit points, active affixes, the live momentum multiplier, and how much damage has been dealt. Use this to answer \"what is the boss right now\", \"how much health is left\", or before deciding whether to smack"
+    },
+    {
+      "name": "get_leaderboard",
+      "descriptionHash": "073c95e99756debec2f33ca75b1e0f03380ab7e346371070c1a690ccfe37a91f",
+      "description": "Return the damage leaderboard for the current boss — display names and total damage, highest first — together with the most recent hits. Use this to answer \"who is winning\", \"who has done the most damage\", or to see whether a particular name is on the board. Resets when the boss dies."
+    },
+    {
+      "name": "get_graveyard",
+      "descriptionHash": "8df3fb5358fb6cb6b8435663147874810c674bc7b959249679377fbbe51f1c70",
+      "description": "Return bosses that have already been killed, newest first, each with the display name of whoever landed the killing blow. That engraving is permanent and is the only thing anyone actually wins. Use this for \"who has killed a boss\", \"how many bosses have died\", or to look up a past boss."
+    },
+    {
+      "name": "get_pixel",
+      "descriptionHash": "a5bfb932b4151acc1c4ab7f7e8ec0086a3f5cbf06c4d2c4dc89f0f34aa1e4af0",
+      "description": "Return the current state of The Pixel (thepixel.lol): who owns it, what they paid, its colour, the minimum price to take it, and recent ownership history. Use this for \"who owns the pixel\" or \"what would it cost to buy it\". BUYING IT IS NOT AVAILABLE AS A TOOL — a purchase needs a person at the paym",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "list_packs",
+      "descriptionHash": "adf174de665ce0cc2492a381f36286497b6ed1eaee1da6318a0ba02a1a201c54",
+      "description": "Return every smack pack for sale: id, price in US dollars, how many smacks it buys, and any bonus. Call this before create_checkout so you can tell the person what they are about to pay. Prices are final — no VAT or tax is added at checkout. Also reports the free allowance, so you can mention that t"
+    },
+    {
+      "name": "create_checkout",
+      "descriptionHash": "7f39b09bbe2fc8707aacc3c1b96ceb978eaa4bcbd50c1bd1ae329e4a025e19af",
+      "description": "Open a Stripe Checkout Session for one smack pack and return its URL. THIS DOES NOT PAY — hand the URL to the person, who opens it and enters their own card. That page is where they are told smacks are not refundable and that there are no prizes and no payouts, which is why it cannot be skipped. The",
+      "labels": [
+        "untrusted-content",
+        "private-data"
+      ]
+    },
+    {
+      "name": "check_purchase",
+      "descriptionHash": "508e494a6c03ecd3c2a1b27455ffa34cb89a3f070d328b69f5af5d70b948b729",
+      "description": "Given the sessionId from create_checkout, report whether the person has paid yet. Once paid, returns a walletToken and the smack balance it holds — pass that token to smack_boss to spend it. Poll every few seconds after sending someone to the checkout URL; card payments settle asynchronously, so \"no",
+      "labels": [
+        "untrusted-content",
+        "private-data"
+      ]
+    },
+    {
+      "name": "get_wallet",
+      "descriptionHash": "9835b63beb5dd31bb41f4fea9f984352d93d063a95f783c0fc89efeac46652cc",
+      "description": "Return the smack balance held by a walletToken. Use it to decide whether to keep smacking or to buy another pack.",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "smack_boss",
+      "descriptionHash": "5aad03ac52e4b49aa8bb3eacb47965150c588cfe7181638e7a527c0c8092fe1c",
+      "description": "Land one smack on the current boss and return the damage dealt and the remaining hit points. One swing per call — call it repeatedly to keep hitting.\n\nPAID: pass walletToken (from check_purchase) to spend one smack from that wallet. Paid hits are the real thing — they can crit, they take the momentu",
+      "labels": [
+        "private-data"
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: create_checkout, check_purchase · Private data: create_checkout, check_purchase, get_wallet, smack_boss · Public sink: get_pixel.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: create_checkout, check_purchase · Private data: create_checkout, check_purchase, get_wallet, smack_boss · Public sink: get_pixel"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 80,
+  "scoreBreakdown": {
+    "toxic-flow": 20
+  },
+  "errors": []
+}

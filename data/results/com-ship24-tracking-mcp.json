@@ -8,19 +8,105 @@
     "kind": "url",
     "ref": "https://api.ship24.com/mcp"
   },
-  "scannedAt": "2026-07-29T06:48:53.957Z",
-  "durationMs": 365,
+  "scannedAt": "2026-09-10T09:04:28.552Z",
+  "durationMs": 576,
   "layers": {
-    "metadata": false,
+    "metadata": true,
     "static": false
   },
-  "findings": [],
-  "score": 100,
-  "scoreBreakdown": {},
-  "errors": [
+  "tools": [
     {
-      "scanner": "metadata",
-      "message": "Streamable HTTP error: Error POSTing to endpoint: {\"jsonrpc\":\"2.0\",\"error\":{\"code\":-32000,\"message\":\"Unauthorized: missing or empty Authorization header\"},\"id\":0}"
+      "name": "create_tracker",
+      "descriptionHash": "169cbff8100820abed7639ae5c43c418adf9689b5bd1932c7ecce59cfa15d8c9",
+      "description": "Creates a new tracker for a tracking number. Use when the user explicitly wants ongoing monitoring or webhook updates; results arrive asynchronously — for immediate results use track or search_tracking. Idempotent: same parameters reuse the existing tracker; any field change creates a new one. Subsc",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "list_trackers",
+      "descriptionHash": "b6a1f75e19df2c89f46c85fc1a305d66f04cd28c752d67db3157235c66f8b3b4",
+      "description": "Returns a paginated list of all trackers. Supports offset (page/limit) or cursor-based pagination. Filter by subscription status with isSubscribed."
+    },
+    {
+      "name": "bulk_create_trackers",
+      "descriptionHash": "1e3e27e3cf7d58e52f4badd8ca4f7efcb9099fe6915f8d60f1abf1a05b0a7e9c",
+      "description": "Creates up to 100 trackers in one request. Each tracker object accepts the same fields as create_tracker — see that tool for field details. Not fully idempotent: retrying a failed bulk request may partially create trackers. Returns counts of created, ignored (duplicate), and failed trackers plus per"
+    },
+    {
+      "name": "track",
+      "descriptionHash": "2de7e7433662bba29bb051e516730833a2dad3fa0879e48e8a37313537a02364",
+      "description": "Creates a persistent tracker on the account AND returns full tracking results synchronously in one call (per-shipment plan). Idempotent: same payload reuses the existing tracker. Prefer search_tracking for one-off lookups when the per-call plan is available. If the returned shipment is still pending"
+    },
+    {
+      "name": "get_tracker",
+      "descriptionHash": "f8ab475f6e26a5f488a1dce45f6e55653d2a01b2ab262913b35958ff10ebb2b4",
+      "description": "Retrieves a single tracker by trackerId (or clientTrackerId when searchBy is set). Returns tracker metadata only — use get_tracking_results for events and status."
+    },
+    {
+      "name": "update_tracker",
+      "descriptionHash": "4ead922b3d2fe569dd3400cfba797aa970f2e20e5bd8b9947a4afb4527040dc8",
+      "description": "Partially updates a tracker (PATCH). Only provided fields are changed. Common uses: toggling isSubscribed, correcting destination details, or setting a clientTrackerId."
+    },
+    {
+      "name": "get_tracking_results",
+      "descriptionHash": "e0b44b1160771cc93a5256e0ab400fea8ea13a710ce328f3f41e09b5fa7a2921",
+      "description": "Returns full tracking results for an existing tracker: metadata, shipment status, all events in order, and delivery statistics. Primary tool for \"where is my package?\" when you have a trackerId. statusMilestone values: pending | info_received | in_transit | out_for_delivery | failed_attempt | availa"
+    },
+    {
+      "name": "search_tracking_by_number",
+      "descriptionHash": "20d2d28030155ffe998030517daebad0b308ed83314908fd1edbeda098422496",
+      "description": "Returns existing tracking results for a raw tracking number across trackers already on the account, without needing a trackerId. Free read: never creates a tracker and never triggers a new crawl. Responds 404 tracker_not_found if no tracker exists for that number — in that case use search_tracking ("
+    },
+    {
+      "name": "get_couriers",
+      "descriptionHash": "7b55c9b36c1c0901c63fc05057a314fb232373ca6d7b04f214faa2d2c181b0ce",
+      "description": "Returns the list of all couriers supported by Ship24, including their unique courier codes, human-readable names, and any special tracking requirements. Use this tool to discover valid courierCode values before creating or updating trackers, or to help identify which courier handles a particular tra",
+      "labels": [
+        "destructive"
+      ]
+    },
+    {
+      "name": "search_tracking",
+      "descriptionHash": "ae915d664303cbf1f184d0ca2ea1b4eb95b880cb2901892cc3aa476942e7a8f3",
+      "description": "Default tool for one-off tracking lookups ('track X', 'where is my package'). Synchronous per-call plan endpoint: returns full results (status, events, statistics) immediately and creates NO tracker on the account. Billed per call. Requires an active per-call plan — if it fails with no_active_subscr"
+    },
+    {
+      "name": "resend_webhooks",
+      "descriptionHash": "945ae9f8937dfdb812e01357c0e588ba47afc03d9a96cb15599bad76db9bb3c6",
+      "description": "Replays all webhook events for a tracker. Use when your endpoint missed or failed to process previous notifications. Terminates any in-flight webhook delivery for this tracker and invalidates its existing webhook payload records before regenerating and resending them — do not call repeatedly in quic",
+      "labels": [
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "download_webhook_history",
+      "descriptionHash": "46ca5a875405bccde2c4fa0b758d3215b398fe978bc4bbcf5c1ff6d1114499b0",
+      "description": "Retrieves the full webhook push history for a tracker. Returns metadata (trackingNumber, trackerId, clientTrackerId, webhookUrl, lastSuccessfulPushAt, lastFailedPushAt) and a list of all sent or failed pushes with status, pushTimestamp, requestBody, responseBody, responseHeaders, and responseStatusC",
+      "labels": [
+        "public-sink"
+      ]
     }
-  ]
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOOL-POISON-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description issues instructions to the model",
+      "detail": "Description of \"track\" contains imperative instructions directed at the AI assistant rather than describing the tool. This is the core tool-poisoning technique.",
+      "evidence": {
+        "source": "tool:track",
+        "snippet": "Creates a persistent tracker on the account AND returns full tracking results synchronously in one call (per-shipment plan). Idempotent: same payload reuses the…"
+      },
+      "confidence": 0.7,
+      "remediation": "Treat the server as untrusted; the model may obey embedded instructions."
+    }
+  ],
+  "score": 80,
+  "scoreBreakdown": {
+    "tool-poisoning": 20
+  },
+  "errors": []
 }

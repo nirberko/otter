@@ -1,0 +1,100 @@
+{
+  "schemaVersion": 1,
+  "scanner": {
+    "version": "1.6.0",
+    "rules": "402995650b68"
+  },
+  "target": {
+    "kind": "url",
+    "ref": "https://www.razi.pro/api/mcp/documents"
+  },
+  "scannedAt": "2026-09-10T09:12:13.370Z",
+  "durationMs": 924,
+  "layers": {
+    "metadata": true,
+    "static": false
+  },
+  "tools": [
+    {
+      "name": "merge_pdf",
+      "descriptionHash": "32b794da9797d37e1fcf39d57977284e60bda2cf075a8ba6e036371a9bf18402",
+      "description": "Concatenate two or more PDFs into a single PDF, in the order supplied, and return the merged file. Over MCP the PDF is never inlined: it comes back as a stored URL that stays retrievable for about 24 hours. Page content is copied unchanged — it does not compress (use compress_pdf) or select pages (u",
+      "labels": [
+        "private-data",
+        "public-sink",
+        "destructive"
+      ]
+    },
+    {
+      "name": "split_pdf",
+      "descriptionHash": "dceeb70d5109e3e7550e8247521b5e5d32a4cff3f5cf5f5ca90648da681e33ef",
+      "description": "Extract page ranges from one PDF into new PDFs. One output file is produced per range: a single range returns that PDF directly, several ranges return a ZIP containing one PDF each. Over MCP you receive a link to the stored output rather than its bytes, and that link keeps working for roughly a day.",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "compress_pdf",
+      "descriptionHash": "f44e40b2df93797b8af2af4d2bb3d075e180dd10b411d91ec44d077759d3201c",
+      "description": "Shrink a PDF's byte size while keeping it a PDF, for email limits or slow connections. Returns the compressed PDF; over MCP it is never inlined, arriving as a stored URL that stays retrievable for about 24 hours. Ghostscript on razi.pro's worker downsamples embedded images at a fixed 'ebook' preset ",
+      "labels": [
+        "private-data",
+        "public-sink",
+        "destructive"
+      ]
+    },
+    {
+      "name": "images_to_pdf",
+      "descriptionHash": "b82ef76b07d89c6ac8ca0f25e176c0e1bcc901eb1cd21202e04f7e5e60f94d3a",
+      "description": "Assemble pictures into one PDF, a page per picture, in the order supplied. PNG and JPEG bytes are embedded untouched; WebP, GIF, TIFF and AVIF are re-encoded to PNG on the way in, which loses no detail but does rewrite the file. A PDF sitting among the pictures is spliced in whole at its position, s",
+      "labels": [
+        "private-data",
+        "public-sink",
+        "destructive"
+      ]
+    },
+    {
+      "name": "extract_text_ocr",
+      "descriptionHash": "d507b7ca34f146ad75081bb60d9b07b0e5e601d9a0d6c69aa8da7f33a8f8a7d0",
+      "description": "Use this ONLY when the text exists as PIXELS and nothing else — a photo, a screenshot, a scan. It runs optical character recognition on an image and GUESSES the characters, so it is a best-effort transcription that misreads under blur, skew or low contrast. Returns JSON { text, language, confidence?",
+      "labels": [
+        "private-data",
+        "public-sink",
+        "destructive"
+      ]
+    },
+    {
+      "name": "parse_document",
+      "descriptionHash": "f5fd68f1ab0234861ef76344f0de76abdb4b62598cc26bf66cccb4bc34643e36",
+      "description": "Use this when the file ALREADY stores its text as characters: it decodes them and returns JSON { text, metadata } verbatim, with no guessing involved. That exactness is the whole difference from extract_text_ocr, which recovers text from pixels by guessing at glyph shapes and should only ever be poi",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink",
+        "destructive"
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"documents\" exposes tools that together enable an exfiltration flow. Untrusted content: split_pdf, parse_document · Private data: merge_pdf, split_pdf, compress_pdf, images_to_pdf, extract_text_ocr, parse_document · Public sink: merge_pdf, split_pdf, compress_pdf, images_to_pdf, extract_text_ocr, parse_document · Destructive: merge_pdf, compress_pdf, images_to_pdf, extract_text_ocr, parse_document.",
+      "evidence": {
+        "source": "server:documents",
+        "snippet": "Untrusted content: split_pdf, parse_document · Private data: merge_pdf, split_pdf, compress_pdf, images_to_pdf, extract_text_ocr, parse_document · Public sink: merge_pdf, split_pdf, compress_pdf, images_to_pdf, extract_text_ocr, parse_document · Destructive: merge_pdf, compress_pdf, images_to_pdf, extract_text_ocr, parse_document"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 80,
+  "scoreBreakdown": {
+    "toxic-flow": 20
+  },
+  "errors": []
+}

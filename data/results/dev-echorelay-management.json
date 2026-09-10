@@ -8,8 +8,8 @@
     "kind": "url",
     "ref": "https://mcp.echorelay.dev"
   },
-  "scannedAt": "2026-07-29T06:49:08.489Z",
-  "durationMs": 2842,
+  "scannedAt": "2026-09-10T09:04:47.526Z",
+  "durationMs": 2204,
   "layers": {
     "metadata": true,
     "static": false
@@ -112,8 +112,11 @@
     },
     {
       "name": "get_billing",
-      "descriptionHash": "a22ef52cf4f1aacb4612cae842ccc6aac36aaa571b27a76ca78983c28eb52254",
-      "description": "Get the project's credit balances (paid + testing). Check this first when a 402 (out of credits) or 429 (rate-limited) is unexpected — it is the project's billing-state oracle."
+      "descriptionHash": "602a197670835359f7ce380106d3b18558b9052d5c9820f699dae0e7f69c8a10",
+      "description": "Get the project's credit balances (paid + testing) and which ledger it settles on. `billingModel` is `prepaid` (metered against the credit balance) or `invoiceable` (an Enterprise account, settled on the contract — its credit fields read empty/zero by design, not because it is out of credits). A zer",
+      "labels": [
+        "public-sink"
+      ]
     },
     {
       "name": "set_burst_opt_in",
@@ -135,11 +138,8 @@
     },
     {
       "name": "create_line",
-      "descriptionHash": "82e3b5d36d2ddab3d2cda4876d13694f0d4539695000687cdbd84c0258abcf1f",
-      "description": "Create a new versioned line. Defaults to immediate publish; draft mode requires draftRevision 0. Requires edit access.",
-      "labels": [
-        "public-sink"
-      ]
+      "descriptionHash": "2ef14d022dc0b7abcde9be40af8cd4ae8a8ef3f7bc1e9c6026ea5e357979b534",
+      "description": "Create a new versioned line. A new line has no endpoints, so creating one publishes nothing and serves no traffic yet — add an endpoint, which publishes the line with it. Draft mode requires draftRevision 0. Requires edit access."
     },
     {
       "name": "delete_line",
@@ -184,6 +184,15 @@
       ]
     },
     {
+      "name": "generate_line_draft",
+      "descriptionHash": "46b9e2df3a6b7bbe2ec15dee795f679f8aa8c863d1678b4caf5b94f11323b318",
+      "description": "Generate a draft endpoint under a line from a sample inbound request and a description of the target: infers the inbound body schema from the sample, reads the target's method/URL/fields from an OpenAPI document (targetDocument) or a bare sample plus targetUrl, and proposes an outgoingMapping pairin",
+      "labels": [
+        "untrusted-content",
+        "private-data"
+      ]
+    },
+    {
       "name": "update_endpoint",
       "descriptionHash": "f9d6be875d79dd22add4b9b7cefaf0f16720f5d5db4bbecf47d75a10b01b7783",
       "description": "Update an endpoint immediately or in its line draft. The patch is merged field-by-field. Requires edit access."
@@ -198,8 +207,8 @@
     },
     {
       "name": "default_endpoint_template",
-      "descriptionHash": "43a69bfa33bdba6b65fdd10d15f45b9f0d12d3862b449db1c32370ed83729e4f",
-      "description": "Return a canonical minimal-valid endpoint JSON for a fresh line. POST it verbatim to create_endpoint to land an immediately-working mock endpoint, then customise. Read-only.",
+      "descriptionHash": "1d70b1df78050bb7be409ae7eecd03ade660b8577875cf6af41e7e846a8b8a97",
+      "description": "Return a canonical minimal-valid endpoint JSON for a fresh line. POST it verbatim to create_endpoint to land an immediately-working endpoint, then customise. It comes back with `mock: true`: it answers callers with its own canned body and never dials the target it carries, so a 200 from it proves th",
       "labels": [
         "untrusted-content",
         "public-sink"
@@ -207,8 +216,8 @@
     },
     {
       "name": "dry_run_endpoint",
-      "descriptionHash": "36334e9edc15da172a4ffc17ad2cdcb6f71aaf53ce2c4aeaad32a2e8ca207c9c",
-      "description": "Validate an endpoint document without writing it. Returns either {ok: true, resolved: <Framework config slice>} or {ok: false, errors: {...}}. Pass endpointId to dry-run a PATCH against an existing endpoint; omit it to dry-run a create. No DB write, no queue entry, no billing.",
+      "descriptionHash": "b4b31cd76adde682e56dc384fc320e969093d1e9360bb0f37825eaba1c5e4704",
+      "description": "Validate an endpoint document without writing it. Returns either {ok: true, resolved: <Framework config slice>} or {ok: false, errors: {...}}. Pass endpointId to dry-run a PATCH against an existing endpoint; omit it to dry-run a create. Supply sample and/or answerSample to also run each target's map",
       "labels": [
         "private-data",
         "destructive"
@@ -268,10 +277,11 @@
     },
     {
       "name": "create_api_key",
-      "descriptionHash": "e289001bb795af29a6ac982cec5268dc0a83e18da3fdb4b9b9344e80575aa47d",
-      "description": "Mint a project API key. Returns the plaintext exactly once — store it now, it cannot be retrieved later. Editor + owner; subject to the project key policy (see get_key_policy).",
+      "descriptionHash": "add1167631226818ab4fc918d37001f7261cd75000930583b032db40231ff8a6",
+      "description": "Mint an inbound relay (data-plane) API key for callers to send traffic to this project. Its `er_live_` or `er_test_` secret authenticates relay requests; it cannot call management MCP or REST. Returns the plaintext exactly once — store it now, it cannot be retrieved later. Editor + owner; subject to",
       "labels": [
-        "private-data"
+        "private-data",
+        "public-sink"
       ]
     },
     {
@@ -345,8 +355,17 @@
     },
     {
       "name": "get_request",
-      "descriptionHash": "3719e54ead62a0b57f95beeddcf0ee13a27691cd62926fd7536a319d9207cc4c",
-      "description": "Get one inbound request envelope + every per-target attempt the Consumer made on the way out (success / permanent_failure / retry_scheduled / dlq). The request and each attempt carry configVersion, the published config that authorised them; 0 means unstamped. Scoped to this project; returns null if "
+      "descriptionHash": "6bc77e58b5ae25c85b467f09773e7771f8135f87ba441c70824e921f667ede70",
+      "description": "Get one inbound request envelope + every per-target delivery attempt made on the way out (success / permanent_failure / retry_scheduled / dlq). The request and each attempt carry configVersion, the published config that authorised them; 0 means unstamped. Scoped to this project; returns null once th"
+    },
+    {
+      "name": "get_receipts",
+      "descriptionHash": "bf1155e98fe52c774be825c7902d52900b303e00df26678c7c5bf7ac63fa3204",
+      "description": "Get every target this request fanned out to, each with its delivery receipt or the reason it has none. A still-moving delivery (queued/retrying) answers from the live tracking copy, a terminal one (delivered/failed) from durable storage — the response shape is identical either way, so poll this on a",
+      "labels": [
+        "untrusted-content",
+        "private-data"
+      ]
     },
     {
       "name": "get_metrics",
@@ -355,16 +374,16 @@
     },
     {
       "name": "list_dlq",
-      "descriptionHash": "cc15fc1f7b4a9e484c80639f111dba62db26e24d6bdd28051944dd5ac348c7d7",
-      "description": "List entries currently in this project's dead-letter queue, newest first. One inbound request fans out per-target, so a single failed request may produce several DLQ entries with different `targetId`s. Returns `{total, limit, offset, rows[], evictedCount}` where each row has `id` (Redis stream id), ",
+      "descriptionHash": "5260d81a0241544d08afce7c872fc607e1c13c7daba5b9276538ded43b584971",
+      "description": "List entries currently in this project's dead-letter queue, newest first. One inbound request fans out per-target, so a single failed request may produce several DLQ entries with different `targetId`s. Returns `{total, limit, offset, rows[], evictedCount}` where each row has `id` (the dead-letter en",
       "labels": [
         "private-data"
       ]
     },
     {
       "name": "get_dlq_entry",
-      "descriptionHash": "f16b9cf9817f5279fc7c9f4aa7f6f3eeff561435f6889bbf78017b45df47cfb8",
-      "description": "Get a single DLQ entry by its Redis stream id (`{ms}-{seq}`, as returned by list_dlq), including configVersion (the published config that authorised the delivery; 0 means unstamped). DLQ entries are retained for up to 30 days from the failure time or until cleared; this returns null if the entry has"
+      "descriptionHash": "1dc369de59f3539c17c780f6109c4c5edbeaf2fa3ba99cee55ca37d04f6caf0e",
+      "description": "Get DLQ entries by entry id (`{ms}-{seq}`, as returned by list_dlq's `id`) or by `requestId`. `requestId` is the durable handle — stable across a retry, unlike `id`, which changes every time an entry is replayed and later dead-letters again — and returns every fanned-out target's entry for that inbo"
     },
     {
       "name": "retry_dlq_entry",
@@ -508,7 +527,7 @@
     },
     {
       "name": "create_project",
-      "descriptionHash": "2905c4a4f7393f36d4b64a407ef83e7b7262940f7cd2b70490d0485e9c0b4160",
+      "descriptionHash": "8bb0884dba62c633848b6ffac6bc8a9834eef93af94ba73ff3978333b47e8e57",
       "description": "Create a new project on your account so an agent can bootstrap from a fresh account. The slug is derived from the name and validated server-side (format, reserved words, uniqueness). Each plan includes a fixed number of active projects (free tiers one; paid plans more — see list_subscription_plans);",
       "labels": [
         "private-data",
@@ -517,8 +536,8 @@
     },
     {
       "name": "rename_project",
-      "descriptionHash": "1b3a3e51df921a16321c544bfd4f74794a073ba5d40ab6edb696e585904da834",
-      "description": "Rename a project you own (the display name only — the slug, which is the identity in URLs / Redis, never changes). Requires an ACCOUNT-scoped token and the `config` scope. 404-equivalent error when you do not own the slug.",
+      "descriptionHash": "89b7a547c36a4a1798eb273a4bbf47ad3c8dcfd78c9b2e6c8bd00cb64eebd027",
+      "description": "Rename a project you own (the display name only — the slug, which identifies the project in URLs and API paths, never changes). Requires an ACCOUNT-scoped token and the `config` scope. 404-equivalent error when you do not own the slug.",
       "labels": [
         "private-data"
       ]
@@ -549,8 +568,8 @@
     },
     {
       "name": "create_project_token",
-      "descriptionHash": "040bde051634b0aa734bde39cc8cfedba8a27817d91446d38e533891950343fe",
-      "description": "Mint a PROJECT-scoped API token for a project you own, so an agent can bootstrap a fresh project without the panel (create_project → create_project_token → configure). Attenuated by design: the scopes must be a subset of THIS token's own grant (`read` is always included), expiry is mandatory (1–90 d",
+      "descriptionHash": "171cc70149c2674a369f3800aa1c1d89e002170f9127011ac5b95765c0e23d2b",
+      "description": "Mint a PROJECT-scoped management token (`er_mcp_`) for MCP and REST; it cannot authenticate relay traffic. Use it after create_project to configure a fresh project, or for any project you already own. Attenuated by design: the scopes must be a subset of THIS token's own grant (`read` is always inclu",
       "labels": [
         "private-data"
       ]
@@ -599,6 +618,30 @@
       "confidence": 0.3
     },
     {
+      "id": "MCP-TOOL-POISON-007",
+      "severity": "low",
+      "category": "tool-poisoning",
+      "title": "Description uses pressure/override language",
+      "detail": "Description of \"generate_line_draft\" stacks urgency/override words (always, never). Legitimate tool descriptions rarely pressure the model to act or ignore prior guidance.",
+      "evidence": {
+        "source": "tool:generate_line_draft",
+        "snippet": "Generate a draft endpoint under a line from a sample inbound request and a description of the target: infers the inbound body schema from the sample, reads the …"
+      },
+      "confidence": 0.3
+    },
+    {
+      "id": "MCP-TOOL-POISON-007",
+      "severity": "low",
+      "category": "tool-poisoning",
+      "title": "Description uses pressure/override language",
+      "detail": "Description of \"default_endpoint_template\" stacks urgency/override words (immediately, never). Legitimate tool descriptions rarely pressure the model to act or ignore prior guidance.",
+      "evidence": {
+        "source": "tool:default_endpoint_template",
+        "snippet": "Return a canonical minimal-valid endpoint JSON for a fresh line. POST it verbatim to create_endpoint to land an immediately-working endpoint, then customise. It…"
+      },
+      "confidence": 0.3
+    },
+    {
       "id": "MCP-TOOL-POISON-003",
       "severity": "high",
       "category": "tool-poisoning",
@@ -607,6 +650,18 @@
       "evidence": {
         "source": "tool:list_api_keys",
         "snippet": "List the project's inbound API keys (metadata only — the secret plaintext is never returned)."
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"create_api_key\" references sensitive artifacts (secret). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:create_api_key",
+        "snippet": "Mint an inbound relay (data-plane) API key for callers to send traffic to this project. Its `er_live_` or `er_test_` secret authenticates relay requests; it can…"
       },
       "confidence": 0.65
     },
@@ -687,10 +742,10 @@
       "severity": "low",
       "category": "tool-poisoning",
       "title": "Anomalously long tool description",
-      "detail": "Description of \"get_metrics\" is 1228 chars, far longer than this server's median (225). Overlong descriptions are a common place to bury instructions.",
+      "detail": "Description of \"list_dlq\" is 1309 chars, far longer than this server's median (259). Overlong descriptions are a common place to bury instructions.",
       "evidence": {
-        "source": "tool:get_metrics",
-        "snippet": "Aggregate request metrics for this project over a time window — volume, error rate and p50/p95/p99 latency, bucketed for charting. By default the series cover i…"
+        "source": "tool:list_dlq",
+        "snippet": "List entries currently in this project's dead-letter queue, newest first. One inbound request fans out per-target, so a single failed request may produce severa…"
       },
       "confidence": 0.4
     },
@@ -714,7 +769,7 @@
       "detail": "Description of \"create_project_token\" stacks urgency/override words (always, never, mandatory). Legitimate tool descriptions rarely pressure the model to act or ignore prior guidance.",
       "evidence": {
         "source": "tool:create_project_token",
-        "snippet": "Mint a PROJECT-scoped API token for a project you own, so an agent can bootstrap a fresh project without the panel (create_project → create_project_token → conf…"
+        "snippet": "Mint a PROJECT-scoped management token (`er_mcp_`) for MCP and REST; it cannot authenticate relay traffic. Use it after create_project to configure a fresh proj…"
       },
       "confidence": 0.3
     },
@@ -735,58 +790,22 @@
       "severity": "high",
       "category": "toxic-flow",
       "title": "Lethal trifecta: untrusted input + private data + external sink",
-      "detail": "Server \"mcp.echorelay.dev\" exposes tools that together enable an exfiltration flow. Untrusted content: get_project, set_docs_shared, default_endpoint_template, list_members, list_audit_events · Private data: get_project, config_diff, dry_run_endpoint, invite_member, set_member_role, list_api_keys, create_api_key, rotate_api_key, revoke_api_key, list_credentials, create_credential, update_credential, delete_credential, list_dlq, list_addons, get_subscription, preview_plan_change, start_subscription, change_plan, cancel_subscription, start_topup, subscribe_addon, unsubscribe_addon, resume_addon, downgrade_addon, list_active_addons, list_audit_events, list_projects, create_project, rename_project, archive_project, protect_project, unarchive_project, create_project_token, list_project_tokens, revoke_project_token · Public sink: config_diff, publish_line_draft, schedule_line_publish, cancel_line_publish, rollback_config, set_burst_opt_in, create_line, activate_line, create_endpoint, default_endpoint_template, list_members, invite_member, remove_member, set_member_role, resend_invite, list_audit_events · Destructive: delete_line, delete_endpoint, dry_run_endpoint, remove_member, delete_credential, retry_dlq_entry, discard_dlq_entry, create_project, revoke_project_token.",
+      "detail": "Server \"mcp.echorelay.dev\" exposes tools that together enable an exfiltration flow. Untrusted content: get_project, set_docs_shared, generate_line_draft, default_endpoint_template, list_members, get_receipts, list_audit_events · Private data: get_project, config_diff, generate_line_draft, dry_run_endpoint, invite_member, set_member_role, list_api_keys, create_api_key, rotate_api_key, revoke_api_key, list_credentials, create_credential, update_credential, delete_credential, get_receipts, list_dlq, list_addons, get_subscription, preview_plan_change, start_subscription, change_plan, cancel_subscription, start_topup, subscribe_addon, unsubscribe_addon, resume_addon, downgrade_addon, list_active_addons, list_audit_events, list_projects, create_project, rename_project, archive_project, protect_project, unarchive_project, create_project_token, list_project_tokens, revoke_project_token · Public sink: config_diff, publish_line_draft, schedule_line_publish, cancel_line_publish, rollback_config, get_billing, set_burst_opt_in, activate_line, create_endpoint, default_endpoint_template, list_members, invite_member, remove_member, set_member_role, resend_invite, create_api_key, list_audit_events · Destructive: delete_line, delete_endpoint, dry_run_endpoint, remove_member, delete_credential, retry_dlq_entry, discard_dlq_entry, create_project, revoke_project_token.",
       "evidence": {
         "source": "server:mcp.echorelay.dev",
-        "snippet": "Untrusted content: get_project, set_docs_shared, default_endpoint_template, list_members, list_audit_events · Private data: get_project, config_diff, dry_run_endpoint, invite_member, set_member_role, list_api_keys, create_api_key, rotate_api_key, revoke_api_key, list_credentials, create_credential, update_credential, delete_credential, list_dlq, list_addons, get_subscription, preview_plan_change, start_subscription, change_plan, cancel_subscription, start_topup, subscribe_addon, unsubscribe_addon, resume_addon, downgrade_addon, list_active_addons, list_audit_events, list_projects, create_project, rename_project, archive_project, protect_project, unarchive_project, create_project_token, list_project_tokens, revoke_project_token · Public sink: config_diff, publish_line_draft, schedule_line_publish, cancel_line_publish, rollback_config, set_burst_opt_in, create_line, activate_line, create_endpoint, default_endpoint_template, list_members, invite_member, remove_member, set_member_role, resend_invite, list_audit_events · Destructive: delete_line, delete_endpoint, dry_run_endpoint, remove_member, delete_credential, retry_dlq_entry, discard_dlq_entry, create_project, revoke_project_token"
+        "snippet": "Untrusted content: get_project, set_docs_shared, generate_line_draft, default_endpoint_template, list_members, get_receipts, list_audit_events · Private data: get_project, config_diff, generate_line_draft, dry_run_endpoint, invite_member, set_member_role, list_api_keys, create_api_key, rotate_api_key, revoke_api_key, list_credentials, create_credential, update_credential, delete_credential, get_receipts, list_dlq, list_addons, get_subscription, preview_plan_change, start_subscription, change_plan, cancel_subscription, start_topup, subscribe_addon, unsubscribe_addon, resume_addon, downgrade_addon, list_active_addons, list_audit_events, list_projects, create_project, rename_project, archive_project, protect_project, unarchive_project, create_project_token, list_project_tokens, revoke_project_token · Public sink: config_diff, publish_line_draft, schedule_line_publish, cancel_line_publish, rollback_config, get_billing, set_burst_opt_in, activate_line, create_endpoint, default_endpoint_template, list_members, invite_member, remove_member, set_member_role, resend_invite, create_api_key, list_audit_events · Destructive: delete_line, delete_endpoint, dry_run_endpoint, remove_member, delete_credential, retry_dlq_entry, discard_dlq_entry, create_project, revoke_project_token"
       },
       "confidence": 0.6,
       "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
     }
   ],
-  "score": 36,
+  "score": 34,
   "scoreBreakdown": {
-    "tool-poisoning": 45,
+    "tool-poisoning": 46,
     "toxic-flow": 20
   },
   "errors": []
-}n_endpoint, invite_member, set_member_role, list_api_keys, create_api_key, rotate_api_key, revoke_api_key, list_credentials, create_credential, update_credential, delete_credential, list_dlq, list_addons, get_subscription, preview_plan_change, start_subscription, change_plan, cancel_subscription, start_topup, subscribe_addon, unsubscribe_addon, resume_addon, downgrade_addon, list_active_addons, list_audit_events, list_projects, create_project, rename_project, archive_project, protect_project, unarchive_project, create_project_token, list_project_tokens, revoke_project_token · Public sink: config_diff, publish_line_draft, schedule_line_publish, cancel_line_publish, rollback_config, set_burst_opt_in, create_line, activate_line, create_endpoint, default_endpoint_template, list_members, invite_member, remove_member, set_member_role, resend_invite, create_api_key, list_audit_events · Destructive: delete_line, delete_endpoint, dry_run_endpoint, remove_member, delete_credential, retry_dlq_entry, discard_dlq_entry, create_project, revoke_project_token"
-      },
-      "confidence": 0.6,
-      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
-    },
-    {
-      "id": "MCP-RUGPULL-001",
-      "severity": "high",
-      "category": "tool-poisoning",
-      "title": "Tool description changed since last scan",
-      "detail": "Tool \"create_api_key\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
-      "evidence": {
-        "source": "tool:create_api_key",
-        "snippet": "before: \"Mint a project API key. Returns the plaintext exactly once — store it now, it cannot be retrieved later. Editor + owner; subject to the project key policy (see get_key_policy).\" → after: \"Mint an inbound relay (data-plane) API key for callers to send traffic to this project. Its `er_live_` or `er_test_` secret authenticates relay requests; it cannot call management MCP or REST. Returns the plaintext exactly once — store it now, it cannot be retrieved later. Editor + owner; subject to\""
-      },
-      "confidence": 0.8,
-      "remediation": "Re-review the tool before continuing to trust it."
-    },
-    {
-      "id": "MCP-RUGPULL-001",
-      "severity": "high",
-      "category": "tool-poisoning",
-      "title": "Tool description changed since last scan",
-      "detail": "Tool \"list_dlq\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
-      "evidence": {
-        "source": "tool:list_dlq",
-        "snippet": "before: \"List entries currently in this project's dead-letter queue, newest first. One inbound request fans out per-target, so a single failed request may produce several DLQ entries with different `targetId`s. Returns `{total, limit, offset, rows[], evictedCount}` where each row has `id` (Redis stream id), \" → after: \"List entries currently in this project's dead-letter queue, newest first. One inbound request fans out per-target, so a single failed request may produce several DLQ entries with different `targetId`s. Returns `{total, limit, offset, rows[], evictedCount}` where each row has `id` (Redis stream id), \""
-      },
-      "confidence": 0.8,
-      "remediation": "Re-review the tool before continuing to trust it."
-    },
-    {
-      "id": "MCP-RUGPULL-001",
-      "severity": "high",
-      "category": "tool-poisoning",
-      "title": "Tool description changed since last scan",
-      "detail": "Tool \"get_dlq_entry\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+}iption changes are how a trusted server turns malicious after review.",
       "evidence": {
         "source": "tool:get_dlq_entry",
         "snippet": "before: \"Get a single DLQ entry by its Redis stream id (`{ms}-{seq}`, as returned by list_dlq), including configVersion (the published config that authorised the delivery; 0 means unstamped). DLQ entries are retained for up to 30 days from the failure time or until cleared; this returns null if the entry has\" → after: \"Get DLQ entries by Redis stream id (`{ms}-{seq}`, as returned by list_dlq's `id`) or by `requestId`. `requestId` is the durable handle — stable across a retry, unlike `id`, which changes every time an entry is replayed and later dead-letters again — and returns every fanned-out target's entry for th\""

@@ -1,0 +1,201 @@
+{
+  "schemaVersion": 1,
+  "scanner": {
+    "version": "1.6.0",
+    "rules": "402995650b68"
+  },
+  "target": {
+    "kind": "url",
+    "ref": "https://mcp.moltlinestudio.com/taxlots"
+  },
+  "scannedAt": "2026-09-10T09:16:44.766Z",
+  "durationMs": 506,
+  "layers": {
+    "metadata": true,
+    "static": false
+  },
+  "tools": [
+    {
+      "name": "parse_transactions",
+      "descriptionHash": "dba072d472ed6f72fa3963938861361b224d292f5c49235592e57a0e255f7cab",
+      "description": "Normalise an exchange CSV export into the canonical ledger rows. FREE.\n\nSupports the Coinbase transaction-history export (Transaction Type /\nAsset / Quantity Transacted columns), the Kraken ledgers export (txid /\nrefid / type / asset / amount / fee) and a generic CSV with the canonical\ncolumns ts, t",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "ledger_lint",
+      "descriptionHash": "242774369e2e460d5a0555c8cf7e8213f54340720ca71769f9be49d39249dec3",
+      "description": "Find the problems that break a lot build: missing values, duplicates, negative balances. FREE.\n\nTypical input {\"ledger\": <rows from parse_transactions>} returns\n{\"issues\": [{\"severity\": \"error\", \"row\": \"cb12\", \"issue\": \"sell of 0.5\nBTC exceeds balance 0.2 in account coinbase\"}], \"balances\": {\"coinba",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "match_transfers",
+      "descriptionHash": "578548bdb20d263f7bfa403307d4f3c008be37ba69d6c63a529d194aa49adaaa",
+      "description": "Pair withdrawals with the deposits that received them between your own accounts. FREE.\n\nTypical input {\"ledger\": <rows>, \"window_minutes\": 1440} returns\n{\"pairs\": [{\"out\": \"kr91\", \"in\": \"cb14\", \"asset\": \"BTC\", \"from\":\n\"kraken\", \"to\": \"coinbase\", \"network_fee\": \"0.0001\", \"minutes\": 42.0}],\n\"unmatched"
+    },
+    {
+      "name": "build_lots",
+      "descriptionHash": "62e3fe090e859eada7800cb35e58d5bafa236180b5678a2fea95be943bd73b0d",
+      "description": "Build the lot inventory per account and every disposal with basis, gain and holding period. PREMIUM (license).\n\nMethods: fifo (the default rule when no specific identification is made,\nTreas. Reg. 1.1012-1(j)), lifo, hifo, or specific_id via a row's\nspecific_lots {lot_id: qty}. Typical input {\"ledge"
+    },
+    {
+      "name": "form_8949_rows",
+      "descriptionHash": "0d78acfd6b772a4833f0473ff2ab2cdcc797ad9a3301376929de67848f45715a",
+      "description": "Lay the disposals out as Form 8949 rows with box categories and totals. PREMIUM (license).\n\nTypical input {\"disposals\": <from build_lots>, \"tax_year\": 2026,\n\"default_reporting\": \"proceeds_only\"} returns {\"part_i\": {\"B\": [rows]},\n\"part_ii\": {\"E\": [rows]}, \"totals\": {...}}. Columns follow the form:\nde"
+    },
+    {
+      "name": "reconcile_1099da",
+      "descriptionHash": "626b0a5e8f3c87bd4166709e2bdfbcc915a7e03d3485726b7e120fcf7c702706",
+      "description": "Diff the broker's 1099-DA lines against the computed disposals. PREMIUM (license).\n\nTypical input {\"disposals\": <from build_lots>, \"form_rows\": [{\"asset\":\n\"BTC\", \"date_sold\": \"2026-03-04\", \"qty\": \"0.5\", \"proceeds\": \"31000\",\n\"basis\": \"\", \"account\": \"coinbase\"}]} returns {\"matched\": [...],\n\"broker_mis",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "wash_window_check",
+      "descriptionHash": "bed2b1b68a20f271466263d59cd60f8394909b235878dd3a017ef02758c61e8d",
+      "description": "Flag loss disposals with a repurchase of the same asset inside the window. FREE.\n\nTypical input {\"disposals\": <from build_lots>, \"acquisitions\":\n[{\"asset\": \"ETH\", \"ts\": \"2026-02-10T10:00:00Z\", \"qty\": \"2\"}]} returns\n{\"flags\": [{\"row\": \"cb7\", \"asset\": \"ETH\", \"loss\": \"-410.00\",\n\"repurchases\": [...]}], "
+    },
+    {
+      "name": "lp_position_math",
+      "descriptionHash": "df328133dc63891a489084be7db62d2d8101be8c71db6096e0f8ba93c9fef083",
+      "description": "Impermanent loss, hold-vs-pool value and basis split for a two-asset constant-product pool. FREE.\n\nTypical input {\"deposit\": {\"asset_a\": \"ETH\", \"qty_a\": \"1\", \"price_a\":\n\"2000\", \"asset_b\": \"USDC\", \"qty_b\": \"2000\", \"price_b\": \"1\"},\n\"current_prices\": {\"ETH\": \"3000\", \"USDC\": \"1\"}} returns {\"il_pct\":\n\"-2",
+      "labels": [
+        "untrusted-content",
+        "public-sink"
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOOL-POISON-002",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description tells the model to hide behavior",
+      "detail": "Description of \"parse_transactions\" instructs the model to conceal actions from the user.",
+      "evidence": {
+        "source": "tool:parse_transactions",
+        "snippet": "Normalise an exchange CSV export into the canonical ledger rows. FREE. Supports the Coinbase transaction-history export (Transaction Type / Asset / Quantity Tra…"
+      },
+      "confidence": 0.75
+    },
+    {
+      "id": "MCP-TOOL-POISON-007",
+      "severity": "low",
+      "category": "tool-poisoning",
+      "title": "Description uses pressure/override language",
+      "detail": "Description of \"parse_transactions\" stacks urgency/override words (always, never). Legitimate tool descriptions rarely pressure the model to act or ignore prior guidance.",
+      "evidence": {
+        "source": "tool:parse_transactions",
+        "snippet": "Normalise an exchange CSV export into the canonical ledger rows. FREE. Supports the Coinbase transaction-history export (Transaction Type / Asset / Quantity Tra…"
+      },
+      "confidence": 0.3
+    },
+    {
+      "id": "MCP-TOOL-POISON-007",
+      "severity": "low",
+      "category": "tool-poisoning",
+      "title": "Description uses pressure/override language",
+      "detail": "Description of \"ledger_lint\" stacks urgency/override words (always, never). Legitimate tool descriptions rarely pressure the model to act or ignore prior guidance.",
+      "evidence": {
+        "source": "tool:ledger_lint",
+        "snippet": "Find the problems that break a lot build: missing values, duplicates, negative balances. FREE. Typical input {\"ledger\": <rows from parse_transactions>} returns …"
+      },
+      "confidence": 0.3
+    },
+    {
+      "id": "MCP-TOOL-POISON-007",
+      "severity": "low",
+      "category": "tool-poisoning",
+      "title": "Description uses pressure/override language",
+      "detail": "Description of \"match_transfers\" stacks urgency/override words (always, never). Legitimate tool descriptions rarely pressure the model to act or ignore prior guidance.",
+      "evidence": {
+        "source": "tool:match_transfers",
+        "snippet": "Pair withdrawals with the deposits that received them between your own accounts. FREE. Typical input {\"ledger\": <rows>, \"window_minutes\": 1440} returns {\"pairs\"…"
+      },
+      "confidence": 0.3
+    },
+    {
+      "id": "MCP-TOOL-POISON-007",
+      "severity": "low",
+      "category": "tool-poisoning",
+      "title": "Description uses pressure/override language",
+      "detail": "Description of \"build_lots\" stacks urgency/override words (always, never, ignore). Legitimate tool descriptions rarely pressure the model to act or ignore prior guidance.",
+      "evidence": {
+        "source": "tool:build_lots",
+        "snippet": "Build the lot inventory per account and every disposal with basis, gain and holding period. PREMIUM (license). Methods: fifo (the default rule when no specific …"
+      },
+      "confidence": 0.3
+    },
+    {
+      "id": "MCP-TOOL-POISON-007",
+      "severity": "low",
+      "category": "tool-poisoning",
+      "title": "Description uses pressure/override language",
+      "detail": "Description of \"form_8949_rows\" stacks urgency/override words (always, never). Legitimate tool descriptions rarely pressure the model to act or ignore prior guidance.",
+      "evidence": {
+        "source": "tool:form_8949_rows",
+        "snippet": "Lay the disposals out as Form 8949 rows with box categories and totals. PREMIUM (license). Typical input {\"disposals\": <from build_lots>, \"tax_year\": 2026, \"def…"
+      },
+      "confidence": 0.3
+    },
+    {
+      "id": "MCP-TOOL-POISON-007",
+      "severity": "low",
+      "category": "tool-poisoning",
+      "title": "Description uses pressure/override language",
+      "detail": "Description of \"reconcile_1099da\" stacks urgency/override words (always, never). Legitimate tool descriptions rarely pressure the model to act or ignore prior guidance.",
+      "evidence": {
+        "source": "tool:reconcile_1099da",
+        "snippet": "Diff the broker's 1099-DA lines against the computed disposals. PREMIUM (license). Typical input {\"disposals\": <from build_lots>, \"form_rows\": [{\"asset\": \"BTC\",…"
+      },
+      "confidence": 0.3
+    },
+    {
+      "id": "MCP-TOOL-POISON-007",
+      "severity": "low",
+      "category": "tool-poisoning",
+      "title": "Description uses pressure/override language",
+      "detail": "Description of \"wash_window_check\" stacks urgency/override words (always, never). Legitimate tool descriptions rarely pressure the model to act or ignore prior guidance.",
+      "evidence": {
+        "source": "tool:wash_window_check",
+        "snippet": "Flag loss disposals with a repurchase of the same asset inside the window. FREE. Typical input {\"disposals\": <from build_lots>, \"acquisitions\": [{\"asset\": \"ETH\"…"
+      },
+      "confidence": 0.3
+    },
+    {
+      "id": "MCP-TOOL-POISON-007",
+      "severity": "low",
+      "category": "tool-poisoning",
+      "title": "Description uses pressure/override language",
+      "detail": "Description of \"lp_position_math\" stacks urgency/override words (always, never). Legitimate tool descriptions rarely pressure the model to act or ignore prior guidance.",
+      "evidence": {
+        "source": "tool:lp_position_math",
+        "snippet": "Impermanent loss, hold-vs-pool value and basis split for a two-asset constant-product pool. FREE. Typical input {\"deposit\": {\"asset_a\": \"ETH\", \"qty_a\": \"1\", \"pr…"
+      },
+      "confidence": 0.3
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"taxlots\" exposes tools that together enable an exfiltration flow. Untrusted content: ledger_lint, lp_position_math · Private data: parse_transactions, reconcile_1099da · Public sink: lp_position_math.",
+      "evidence": {
+        "source": "server:taxlots",
+        "snippet": "Untrusted content: ledger_lint, lp_position_math · Private data: parse_transactions, reconcile_1099da · Public sink: lp_position_math"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 56,
+  "scoreBreakdown": {
+    "tool-poisoning": 24,
+    "toxic-flow": 20
+  },
+  "errors": []
+}

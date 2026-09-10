@@ -8,8 +8,8 @@
     "kind": "url",
     "ref": "https://postlia.com/api/mcp"
   },
-  "scannedAt": "2026-07-29T06:48:43.547Z",
-  "durationMs": 1453,
+  "scannedAt": "2026-09-10T09:04:18.288Z",
+  "durationMs": 889,
   "layers": {
     "metadata": true,
     "static": false
@@ -30,8 +30,8 @@
     },
     {
       "name": "create_post",
-      "descriptionHash": "c36659db2c6b593f274ac1bf02f4715b3f06051aeb7ef799cd0dc4501d7b7450",
-      "description": "Create a text post. Provide scheduledAt (ISO datetime) to schedule, queue=true for the next open queue slot, or neither to post within ~5 minutes.",
+      "descriptionHash": "37bc0e39c2258528dab2825270122b9c509aa0827e5959df38e3babed93c0cc0",
+      "description": "Create a post. Provide scheduledAt (ISO datetime) to schedule, queue=true for the next open queue slot, or neither to post within ~5 minutes. Media platforms (instagram, tiktok, pinterest, youtube) need mediaUrl/mediaUrls from upload_media; tiktok/pinterest/youtube also need their options object.",
       "labels": [
         "untrusted-content",
         "public-sink"
@@ -44,6 +44,91 @@
       "labels": [
         "public-sink"
       ]
+    },
+    {
+      "name": "upload_media",
+      "descriptionHash": "cccd19ece4722b379122b1182df924f673ba2998fcaf866fa84bc3629cf39fbe",
+      "description": "Pull an image or video from a public https URL into Postlia storage. Returns the storage URL and media type, ready for create_post. PNG, JPEG, WebP, GIF, MP4, WebM, MOV, max 25 MB.",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "get_post_receipt",
+      "descriptionHash": "5ab410372344014e1ae2d75cf5943a0e4096b3afd97e7d26914a195f45646eb2",
+      "description": "Delivery receipt for a post: per-platform outcome (published/failed/retrying/pending), platform post ids, and the platform's real error text. Use this to VERIFY a post actually went live instead of assuming. Accepts the id from create_post or from list_published_posts.",
+      "labels": [
+        "untrusted-content",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "list_published_posts",
+      "descriptionHash": "c5a71dea494998c381f27ff93195e5969acb0dbef16a9408cfa696e041c56333",
+      "description": "Recent post history with per-post outcome status and any platform errors.",
+      "labels": [
+        "untrusted-content",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "get_posting_quota",
+      "descriptionHash": "8ddda0c85bdc0098ea4b5a8eff3245d04665e944efd42d64cf777305439b055d",
+      "description": "The posting quota that will actually be enforced: tier, posts used, limit and remaining. Check this before composing a batch instead of discovering the limit via errors.",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "reschedule_post",
+      "descriptionHash": "22516eef169b7c5c27e45d0d64d283df03a398d4ed1a3e283c4a497c7fac6799",
+      "description": "Move a pending scheduled post to a new future time (ISO datetime).",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "update_post_content",
+      "descriptionHash": "8b1a7f7e85fdf675bae48a3304eff18d7fc847658ad4016f547eb0b8a85252a2",
+      "description": "Rewrite a pending scheduled post's text. Platform character limits are enforced.",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "list_drafts",
+      "descriptionHash": "4b3c8cbda186ceeb223f0e8b7bf4945f60cff98d95df23d8cc8173071a9b1e4e",
+      "description": "List saved drafts (not scheduled, cost no quota)."
+    },
+    {
+      "name": "create_draft",
+      "descriptionHash": "c31ebef9435a6b0858ede0f98953efce94a2d1342ccce0b5b45040aa84d93c8b",
+      "description": "Save a draft for later without spending posting quota."
+    },
+    {
+      "name": "delete_draft",
+      "descriptionHash": "17401ce6fb5d3df03285c5ab696e1dc61807b856a70a97c0fd8ab64725d05557",
+      "description": "Delete a draft by id.",
+      "labels": [
+        "destructive"
+      ]
+    },
+    {
+      "name": "get_queue_info",
+      "descriptionHash": "9cb2facae6e8aa719911ab581f7d3da691a9bf512e082f2c0bc623956bc78ac6",
+      "description": "The posting schedule (timezone + weekly slots) and the next open queue slots, i.e. when a create_post with queue=true would actually publish.",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "get_analytics_summary",
+      "descriptionHash": "6fbebb3a04c60a88b666370ac37d3326110ebcc01a7f017e288b68b62a8957c3",
+      "description": "Post-outcome summary over the last N days: totals, published/partial/failed counts, per-platform volume, and recent platform errors.",
+      "labels": [
+        "untrusted-content",
+        "public-sink"
+      ]
     }
   ],
   "findings": [
@@ -52,18 +137,32 @@
       "severity": "medium",
       "category": "toxic-flow",
       "title": "Toxic flow: untrusted input can reach an external sink",
-      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: list_scheduled_posts, create_post · Public sink: create_post, cancel_post.",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: list_scheduled_posts, create_post, get_post_receipt, list_published_posts, get_posting_quota, get_analytics_summary · Public sink: create_post, cancel_post, upload_media, get_post_receipt, list_published_posts, reschedule_post, update_post_content, get_queue_info, get_analytics_summary · Destructive: delete_draft.",
       "evidence": {
         "source": "server:mcp",
-        "snippet": "Untrusted content: list_scheduled_posts, create_post · Public sink: create_post, cancel_post"
+        "snippet": "Untrusted content: list_scheduled_posts, create_post, get_post_receipt, list_published_posts, get_posting_quota, get_analytics_summary · Public sink: create_post, cancel_post, upload_media, get_post_receipt, list_published_posts, reschedule_post, update_post_content, get_queue_info, get_analytics_summary · Destructive: delete_draft"
       },
       "confidence": 0.45,
       "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"create_post\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:create_post",
+        "snippet": "before: \"Create a text post. Provide scheduledAt (ISO datetime) to schedule, queue=true for the next open queue slot, or neither to post within ~5 minutes.\" → after: \"Create a post. Provide scheduledAt (ISO datetime) to schedule, queue=true for the next open queue slot, or neither to post within ~5 minutes. Media platforms (instagram, tiktok, pinterest, youtube) need mediaUrl/mediaUrls from upload_media; tiktok/pinterest/youtube also need their options object.\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
     }
   ],
-  "score": 92,
+  "score": 72,
   "scoreBreakdown": {
-    "toxic-flow": 8
+    "toxic-flow": 8,
+    "tool-poisoning": 20
   },
   "errors": []
 }

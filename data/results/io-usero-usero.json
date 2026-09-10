@@ -1,0 +1,72 @@
+{
+  "schemaVersion": 1,
+  "scanner": {
+    "version": "1.6.0",
+    "rules": "402995650b68"
+  },
+  "target": {
+    "kind": "url",
+    "ref": "https://usero.io/mcp"
+  },
+  "scannedAt": "2026-09-10T09:13:02.807Z",
+  "durationMs": 4258,
+  "layers": {
+    "metadata": true,
+    "static": false
+  },
+  "tools": [
+    {
+      "name": "start_signup",
+      "descriptionHash": "cac34d2f57cf80e63200d2c1777ecb70c98184dc5d8909bbb863e11a93fdde2b",
+      "description": "Start signup without leaving the agent. Ask for the user's email, do not invent one. Sends an email with a Review connection button; the user presses that button, then \"Yes, connect\" on the page that opens (opening the page alone does nothing). That lets check_signup return an API key for this MCP c",
+      "labels": [
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "check_signup",
+      "descriptionHash": "dfc916d5e0a8ea2b2ea6b6b781ecc3175b074c01d95f05f4fc7d6d7b032c53d6",
+      "description": "Poll after start_signup. Returns { status: \"pending\" } until the user presses the button in the email, then { status: \"ready\", apiKey, setup } exactly once; the pollToken is dead after that. The setup field holds the exact config or command for this client plus what to tell the user (restart, or rem",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink",
+        "destructive"
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"check_signup\" references sensitive artifacts (apikey). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:check_signup",
+        "snippet": "Poll after start_signup. Returns { status: \"pending\" } until the user presses the button in the email, then { status: \"ready\", apiKey, setup } exactly once; the…"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: check_signup · Private data: start_signup, check_signup · Public sink: start_signup, check_signup · Destructive: check_signup.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: check_signup · Private data: start_signup, check_signup · Public sink: start_signup, check_signup · Destructive: check_signup"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 60,
+  "scoreBreakdown": {
+    "tool-poisoning": 20,
+    "toxic-flow": 20
+  },
+  "errors": []
+}

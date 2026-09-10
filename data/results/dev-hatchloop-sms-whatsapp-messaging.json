@@ -1,0 +1,106 @@
+{
+  "schemaVersion": 1,
+  "scanner": {
+    "version": "1.6.0",
+    "rules": "402995650b68"
+  },
+  "target": {
+    "kind": "url",
+    "ref": "https://hatchloop.dev/mcp/sms-whatsapp-messaging"
+  },
+  "scannedAt": "2026-09-10T09:04:49.750Z",
+  "durationMs": 2246,
+  "layers": {
+    "metadata": true,
+    "static": false
+  },
+  "tools": [
+    {
+      "name": "find_business",
+      "descriptionHash": "0ad8d522a1eb3450e7b568cd6ddd32bf898071689cf464f0cfaf1f1b3475b24e",
+      "description": "Given criteria (vertical, location, capability, price band, availability window), return ranked candidate businesses from our supply network. THE NETWORK IS SMALL AND STILL MOSTLY SAMPLE DATA: entries that are not real are named [DEMO] and flagged is_demo - check that field before acting on a result"
+    },
+    {
+      "name": "verify_business",
+      "descriptionHash": "ed4b5c2a3c47eca65d052fb6b4e92dce7f2b49237dcd3d9ebb59e1cee6cb69c2",
+      "description": "Look up what we know about a business in our supply network: its contact channels, capabilities, and when the record was last verified. This is a DIRECTORY LOOKUP - it does not contact the business. [free, no key]",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "send_message",
+      "descriptionHash": "6e131ec86f05e8bf1f8b99971497133bb86f095fa1194de03dc77426ab3e15a4",
+      "description": "Send a message on behalf of an agent's user or an SMB across WhatsApp (free during launch), SMS, email, or voice. Five message types: transactional, reminder, follow_up, notification, marketing. Every send routes through a non-bypassable compliance gate (TCPA, GDPR, CASL, PDPL across 26 jurisdiction",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "send_transactional_confirmation",
+      "descriptionHash": "b95476d78ceb3bcb8438b698aa1516c18044757dc40928f1baaddf04e065cbf4",
+      "description": "Idempotent transactional messages: OTPs, booking confirmations, payment receipts, cancellation notices. Falls back across configured channels; an unconfigured channel fails honestly rather than reporting a delivery that did not happen. [$0.02/per_call] [async→get_outcome]",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "get_status",
+      "descriptionHash": "30174746fd7fcf03d67ba5ce015ae8bfd0c94c2cc093bdc16817419993a907eb",
+      "description": "Query the current state of any in-flight async operation by operation_id. [free, no key]"
+    },
+    {
+      "name": "get_outcome",
+      "descriptionHash": "9300f08ba00460cd4a2d80487c356ed2091d17fe1c953bd1828475f55d3b1f5e",
+      "description": "Retrieve the final OutcomeReceipt for a completed operation. [free, no key]"
+    },
+    {
+      "name": "preview_cost",
+      "descriptionHash": "85aed80ed2d5e9d4286b6da95e2e0c1ad4fcb6eeb03b53de0f299b65c9736df9",
+      "description": "Return an expected cost estimate, latency estimate, and success-probability estimate for a proposed call before execution. Returns the exact price when it is fixed, and a min/max range when the cost depends on channel or outcome. It does not promise an accuracy percentage - check cost_range. [free, "
+    },
+    {
+      "name": "self_test",
+      "descriptionHash": "4f90ae0301d10f62c48300bee955e66c118fa6ef3d43f41f5cf1df2987a35279",
+      "description": "Service health probe: runs 6 internal checks and reports how many passed. Confirms the server is up and responding - it does NOT probe each tool individually. Use to verify connectivity before production use. [free, no key]"
+    },
+    {
+      "name": "check_compliance",
+      "descriptionHash": "a8468d41bcd1721a64e9c6f449cd476d678f3c2ac27d6791a4665c5596fae310",
+      "description": "Free, instant pre-flight for the compliance gate. Runs the SAME TCPA / GDPR / CASL / CAN-SPAM / 10DLC gate that send_message and call_business run — but in preview mode, so NO message is sent and NO state changes. Tells you whether a (recipient, channel, message_type, content) send would be permitte",
+      "labels": [
+        "untrusted-content",
+        "public-sink",
+        "destructive"
+      ]
+    },
+    {
+      "name": "get_conversation",
+      "descriptionHash": "607347832fdec2943b1a6cc2e093d826c8c752d0a6747dbc7158d51ee3ce081d",
+      "description": "Read a two-way conversation thread you started: its state, every message exchanged, and how many replies the business has sent. [free, no key]",
+      "labels": [
+        "untrusted-content"
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"sms-whatsapp-messaging\" exposes tools that together enable an exfiltration flow. Untrusted content: check_compliance, get_conversation · Private data: verify_business · Public sink: send_message, send_transactional_confirmation, check_compliance · Destructive: check_compliance.",
+      "evidence": {
+        "source": "server:sms-whatsapp-messaging",
+        "snippet": "Untrusted content: check_compliance, get_conversation · Private data: verify_business · Public sink: send_message, send_transactional_confirmation, check_compliance · Destructive: check_compliance"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 80,
+  "scoreBreakdown": {
+    "toxic-flow": 20
+  },
+  "errors": []
+}

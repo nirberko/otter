@@ -1,0 +1,90 @@
+{
+  "schemaVersion": 1,
+  "scanner": {
+    "version": "1.6.0",
+    "rules": "402995650b68"
+  },
+  "target": {
+    "kind": "url",
+    "ref": "https://mcp.insuro.com.au"
+  },
+  "scannedAt": "2026-09-10T09:03:09.483Z",
+  "durationMs": 760,
+  "layers": {
+    "metadata": true,
+    "static": false
+  },
+  "tools": [
+    {
+      "name": "get_vault",
+      "descriptionHash": "4b3011b5ec3bc85548d6f1465685c367f56a7037e4a7aa5bd1947b4d37218d9f",
+      "description": "Read-only summary of the connected Insuro vault. Returns the private @insuro.com.au vault email, the account email, how many policies are on file, and upcoming renewal dates. Does not return documents, PDS text, or policy numbers.",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "list_policies",
+      "descriptionHash": "aec63888241e9e7c9a7ab61d1974006dcbc4101e9bb4a8b4dd7d35fa2baff0b1",
+      "description": "Read-only summaries of policies in the connected vault: type, insurer/provider, policy number (if present), status, and renewal/start dates. Does not return PDS text, document bodies, notes, or coverage wording.",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "get_renewals",
+      "descriptionHash": "68bd1965b26af81ea4705e3c9a5aa8dbcaa240048d866aae02cf914394f9ea9f",
+      "description": "Policies renewing within a window. Optional input { days?: number }, default 90. Same summary fields as list_policies — no document bodies.",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "ask_coverage",
+      "descriptionHash": "15a818fbf1c32db4279f7810388653a7f9b1fb0187bfa6466227308ad9de328d",
+      "description": "Ask a natural-language coverage question about the connected vault (same assistant as the Insuro website). Optional policy_id hint from list_policies. Returns a short answer, which policy/document was used, and a financial-advice disclaimer. Never returns PDS text or document bodies. Requires vault.",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "ingest_document",
+      "descriptionHash": "c71c02bd5b08ceb91d12996884ba9432af5c01acc6e6f9e1d4cc27d1f29b1a1f",
+      "description": "File a policy PDF into the vault. Send the file as content_base64 (standard base64, optional data: URL). Same storage, inbox, and parse path as the website. Links to a matching policy when the parser can; otherwise lands in the inbox. Returns a structured summary only — never PDS text. Max decoded s",
+      "labels": [
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "add_policy",
+      "descriptionHash": "18312f5aac4af0c5bb5362cba0b33f43d81e9ca7b9a4d55b117f63c14a332b7f",
+      "description": "Manually create a user-entered policy in the same table as the website form. Requires insurer and type. Policy number, renewal/expiry, start date, and premium are optional. Requires vault.write. Insuro does not sell insurance or give financial advice.",
+      "labels": [
+        "private-data"
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp.insuro.com.au\" exposes tools that together enable an exfiltration flow. Untrusted content: get_vault · Private data: get_vault, list_policies, get_renewals, ask_coverage, ingest_document, add_policy · Public sink: get_vault, ingest_document.",
+      "evidence": {
+        "source": "server:mcp.insuro.com.au",
+        "snippet": "Untrusted content: get_vault · Private data: get_vault, list_policies, get_renewals, ask_coverage, ingest_document, add_policy · Public sink: get_vault, ingest_document"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 80,
+  "scoreBreakdown": {
+    "toxic-flow": 20
+  },
+  "errors": []
+}

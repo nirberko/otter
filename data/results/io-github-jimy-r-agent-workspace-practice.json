@@ -1,0 +1,122 @@
+{
+  "schemaVersion": 1,
+  "scanner": {
+    "version": "1.6.0",
+    "rules": "402995650b68"
+  },
+  "target": {
+    "kind": "url",
+    "ref": "https://jamesross.ai/mcp"
+  },
+  "scannedAt": "2026-09-10T09:13:05.344Z",
+  "durationMs": 292,
+  "layers": {
+    "metadata": true,
+    "static": false
+  },
+  "tools": [
+    {
+      "name": "search_architecture",
+      "descriptionHash": "8f33a00c27260de946cf45a47e39b4dc568b2774fe8cb3ed5cfb8d0af1b1bf2b",
+      "description": "Full-text search across the published architecture corpus: the 18 patterns and how they compose, the evaluation method, the seven learn-track modules, and the teardowns of other people's published agent systems. Returns ranked sections, each with its title, its source file, a snippet, and a link to ",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "lookup_pattern",
+      "descriptionHash": "71c62ed3fe32c6badec53f957e3b1fe757711187895efbe6694562bf86aed386",
+      "description": "Search the 18 architecture patterns behind this practice by keyword or by pattern number. Returns up to 3 matches, each with its number, title, the problem it opens on, and a link to the full text. Use it when you want the reasoning behind an agent-workspace design decision rather than a how-to."
+    },
+    {
+      "name": "assess_workspace",
+      "descriptionHash": "c7d0aa7ccd02488ef253793416d08d409701a782aeed6cf175e232559e347a2f",
+      "description": "Score an agent workspace across six dimensions: canonical knowledge, memory and context economics, verification and oversight, safety and permissions, telemetry and cost, provenance and delegation. Two variants: \"practitioner\" takes 18 answers (a single operator's workspace), \"org\" takes 12 (an orga"
+    },
+    {
+      "name": "price_context_read",
+      "descriptionHash": "883365ccbd3cd00c0e471125dbb97ec703feb0ad91696edcef2427c5b3cbfac8",
+      "description": "Price a block of context by where it enters a session. The API is stateless, so the whole transcript is re-sent on every inference step, and a token costs its size times the number of turns left after it arrives. Returns the carried token volume, the cost of the block in USD, what the same read woul",
+      "labels": [
+        "untrusted-content",
+        "private-data"
+      ]
+    },
+    {
+      "name": "check_redaction",
+      "descriptionHash": "c3e12d9dbbd8cad7691f6167e1b636bc6b821454bcf8e5bdc4ef324a7a820ee0",
+      "description": "Scan text for the shapes of private content before it goes anywhere public: email addresses, absolute home paths, credential and token prefixes, private and link-local IPs, .local hostnames, and secret filenames. Returns a count per pattern class and a total, nothing else. The text you send and the ",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "request_capability",
+      "descriptionHash": "d8d062ab7eabcb0b78bd80f193b027310cccdf554f3effd9fb80a6a1f2c78e22",
+      "description": "Tell this server what capability you needed but didn't find here. Requests are logged and reviewed by a human; include no secrets or personal data.",
+      "labels": [
+        "private-data"
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOOL-POISON-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description issues instructions to the model",
+      "detail": "Description of \"assess_workspace\" contains imperative instructions directed at the AI assistant rather than describing the tool. This is the core tool-poisoning technique.",
+      "evidence": {
+        "source": "tool:assess_workspace",
+        "snippet": "Score an agent workspace across six dimensions: canonical knowledge, memory and context economics, verification and oversight, safety and permissions, telemetry…"
+      },
+      "confidence": 0.7,
+      "remediation": "Treat the server as untrusted; the model may obey embedded instructions."
+    },
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"check_redaction\" references sensitive artifacts (secret). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:check_redaction",
+        "snippet": "Scan text for the shapes of private content before it goes anywhere public: email addresses, absolute home paths, credential and token prefixes, private and lin…"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"request_capability\" references sensitive artifacts (secret). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:request_capability",
+        "snippet": "Tell this server what capability you needed but didn't find here. Requests are logged and reviewed by a human; include no secrets or personal data."
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: price_context_read, check_redaction · Private data: search_architecture, price_context_read, check_redaction, request_capability · Public sink: check_redaction.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: price_context_read, check_redaction · Private data: search_architecture, price_context_read, check_redaction, request_capability · Public sink: check_redaction"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 45,
+  "scoreBreakdown": {
+    "tool-poisoning": 35,
+    "toxic-flow": 20
+  },
+  "errors": []
+}

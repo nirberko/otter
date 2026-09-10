@@ -8,8 +8,8 @@
     "kind": "url",
     "ref": "https://mcp.onchaindiligence.com/mcp"
   },
-  "scannedAt": "2026-07-29T06:48:40.051Z",
-  "durationMs": 1166,
+  "scannedAt": "2026-09-10T09:04:07.535Z",
+  "durationMs": 811,
   "layers": {
     "metadata": true,
     "static": false
@@ -17,8 +17,8 @@
   "tools": [
     {
       "name": "screen_wallet",
-      "descriptionHash": "e4fd2ad82ec2ba31eee81b7e8e15a9876e1207ab7f21f14842e081954c1e4697",
-      "description": "Sanctions screening for a crypto wallet address. Checks an EVM address against the Chainalysis on-chain sanctions oracle, which covers OFAC SDN, EU, and UN designated addresses (including Tornado Cash and other sanctioned protocols). Returns a clear sanctioned / not-sanctioned result with the matchi",
+      "descriptionHash": "333bd54f9d412355e0eb75ec190254f178e991d59cc7ce1740568cf2d71904e5",
+      "description": "Sanctions-screen an EVM wallet address against the Chainalysis on-chain oracle (OFAC SDN, EU, UN designations). Reflects current status, including delistings -- a once-designated address may now screen clean. Returns a sanctioned / not-sanctioned boolean (no case-level detail). Call before sending U",
       "labels": [
         "private-data"
       ]
@@ -30,13 +30,13 @@
     },
     {
       "name": "verify_uk_company",
-      "descriptionHash": "b7cbe05df09b0f976f377bdf7e094c0d1127e73ea56b3cba6533501d5a5005e3",
-      "description": "UK company verification and KYB (know-your-business) lookup via the official Companies House register. Given a UK company registration number, returns legal status (active / dissolved), company type, incorporation date, registered office address, and the people with significant control (PSC / benefi"
+      "descriptionHash": "e4b249d8d68c8d2aaf0188e94f98a247398025861f31d2291d481df6741b383c",
+      "description": "UK company KYB lookup via the official Companies House register. Given a UK registration number, returns legal status (active/dissolved), company type, incorporation date, registered office, and people with significant control (PSC / beneficial owners). Call to confirm a UK business is real, active,"
     },
     {
       "name": "verify_us_company",
-      "descriptionHash": "31d7428a170e5a6a4b8d6b446ab5b967f5018fd448913250421a2cf4339027d4",
-      "description": "US public company verification via the SEC EDGAR system. Given a ticker, SEC CIK, or company name, returns the registered entity name, CIK, industry (SIC code), state of incorporation, listed exchanges and tickers, business address, and most recent SEC filing. SCOPE: EDGAR covers SEC-registered PUBL",
+      "descriptionHash": "7b3381aa1b69a7003a3d07fba8c578f228085121b8657f405a5f048d0fcbe906",
+      "description": "US public company verification via SEC EDGAR. Given a ticker, CIK, or company name, returns entity name, CIK, industry (SIC), state of incorporation, exchanges/tickers, address, and latest SEC filing. Ambiguous names return candidates, never a silent selection. Covers SEC-registered PUBLIC companies",
       "labels": [
         "private-data"
       ]
@@ -48,10 +48,97 @@
       "labels": [
         "private-data"
       ]
+    },
+    {
+      "name": "preflight_payment",
+      "descriptionHash": "3e7c9b1a038bd5c3462e0ccceec4092fa3110bf3dcb55b5bfb22ad68cfa15d50",
+      "description": "Call BEFORE an agent authorizes an autonomous payment. Evaluates it against your policy (max amount, allowed networks/assets, expected recipient, allowed origins) and returns a signed PREFLIGHT receipt -- ALLOW, REQUIRE_APPROVAL, or BLOCK, with reasons -- independently verifiable by anyone. Policy e",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "inspect_payment",
+      "descriptionHash": "0b333ad7d8dde93dc147107b6b271d6b2b09208a598d97cb79215e517446d524",
+      "description": "FREE. Pure deterministic inspection of a proposed payment against structured policy (amount/network/asset/recipient/resource) — no external evidence, no sanctions screening, no cryptographic signing, no receipt. Returns the same ALLOW / REQUIRE_APPROVAL / BLOCK decision semantics as POST /x402/prefl",
+      "labels": [
+        "untrusted-content",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "get_receipt",
+      "descriptionHash": "ee78d31701796b3b161cf06392d703dccc479a630506ed9ad907a66525d6f9d8",
+      "description": "Look up a public OCD receipt by its exact receipt_id (format \"OCD-RCP-XXXX-XXXX-XXXX-XXXX\"). Free, no payment. Returns the complete signed receipt envelope, or a structured not-found/unavailable reason -- never a guess. A private (unpublished) receipt and an unknown id are indistinguishable, both by",
+      "labels": [
+        "private-data",
+        "destructive"
+      ]
+    },
+    {
+      "name": "verify_receipt",
+      "descriptionHash": "df208629e24f2e1a8e2fd70ca945a14a3e87b647f74cd9b3ab2dee491808c5e6",
+      "description": "Independently checks whether a receipt is cryptographically VALID, INVALID, or UNVERIFIABLE, with a reason code. Free, no payment. Pass EITHER receipt_id (looks it up first, must be public) OR a complete receipt envelope you already hold (verified directly, no publication needed). This is a convenie"
     }
   ],
-  "findings": [],
-  "score": 100,
-  "scoreBreakdown": {},
+  "findings": [
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: inspect_payment · Private data: screen_wallet, verify_us_company, diligence, preflight_payment, get_receipt · Public sink: inspect_payment · Destructive: get_receipt.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: inspect_payment · Private data: screen_wallet, verify_us_company, diligence, preflight_payment, get_receipt · Public sink: inspect_payment · Destructive: get_receipt"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"screen_wallet\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:screen_wallet",
+        "snippet": "before: \"Sanctions screening for a crypto wallet address. Checks an EVM address against the Chainalysis on-chain sanctions oracle, which covers OFAC SDN, EU, and UN designated addresses (including Tornado Cash and other sanctioned protocols). Returns a clear sanctioned / not-sanctioned result with the matchi\" → after: \"Sanctions-screen an EVM wallet address against the Chainalysis on-chain oracle (OFAC SDN, EU, UN designations). Reflects current status, including delistings -- a once-designated address may now screen clean. Returns a sanctioned / not-sanctioned boolean (no case-level detail). Call before sending U\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"verify_uk_company\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:verify_uk_company",
+        "snippet": "before: \"UK company verification and KYB (know-your-business) lookup via the official Companies House register. Given a UK company registration number, returns legal status (active / dissolved), company type, incorporation date, registered office address, and the people with significant control (PSC / benefi\" → after: \"UK company KYB lookup via the official Companies House register. Given a UK registration number, returns legal status (active/dissolved), company type, incorporation date, registered office, and people with significant control (PSC / beneficial owners). Call to confirm a UK business is real, active,\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"verify_us_company\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:verify_us_company",
+        "snippet": "before: \"US public company verification via the SEC EDGAR system. Given a ticker, SEC CIK, or company name, returns the registered entity name, CIK, industry (SIC code), state of incorporation, listed exchanges and tickers, business address, and most recent SEC filing. SCOPE: EDGAR covers SEC-registered PUBL\" → after: \"US public company verification via SEC EDGAR. Given a ticker, CIK, or company name, returns entity name, CIK, industry (SIC), state of incorporation, exchanges/tickers, address, and latest SEC filing. Ambiguous names return candidates, never a silent selection. Covers SEC-registered PUBLIC companies\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    }
+  ],
+  "score": 45,
+  "scoreBreakdown": {
+    "toxic-flow": 20,
+    "tool-poisoning": 35
+  },
   "errors": []
 }

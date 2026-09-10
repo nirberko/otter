@@ -1,0 +1,81 @@
+{
+  "schemaVersion": 1,
+  "scanner": {
+    "version": "1.6.0",
+    "rules": "402995650b68"
+  },
+  "target": {
+    "kind": "url",
+    "ref": "https://realask.net/mcp"
+  },
+  "scannedAt": "2026-09-10T09:06:13.470Z",
+  "durationMs": 1150,
+  "layers": {
+    "metadata": true,
+    "static": false
+  },
+  "tools": [
+    {
+      "name": "quote_real_world_answer",
+      "descriptionHash": "a5828518045af168cb451dd28829c17d84c8e71e0fdaacbaaf0ae3156e6f8ddb",
+      "description": "Get a free, immutable price quote for verifying a current fact about a US local business (stock, price, availability, capability, policy, wait time). Returns quote_id, price in integer minor units, scope, expected_completion_seconds and expires_at. Use purchase_quote to buy it."
+    },
+    {
+      "name": "quote_real_world_action",
+      "descriptionHash": "df866bfba195769901d549e5b2920a4f9807e0e4e5a38514c92ace24db6230f2",
+      "description": "Get a free price to ARRANGE something at a specific US local business: book an appointment, hold an item, request a formal quote, or cancel a prior booking. This creates a real obligation, so it needs explicit authorization, the customer's name and callback number, and a maximum price the caller may"
+    },
+    {
+      "name": "purchase_quote",
+      "descriptionHash": "4b37ff9705dfb7d3f62e8faeca5ae8ee6dde77944738162ef96ac843f63b4900",
+      "description": "The single purchase path: pays for a quote from EITHER quote_real_world_answer or quote_real_world_action and starts the job. There is no separate action-purchase tool. Returns job_id and job_token (keep it; it is shown once), then poll get_verification_status and read get_verification_result. If th",
+      "labels": [
+        "untrusted-content",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "get_verification_status",
+      "descriptionHash": "3559639742049ac66a4baebf37777698f6568d3d407a27248b9cd910faa8ea0a",
+      "description": "Read-only progress check on a job bought with purchase_quote. Free, changes nothing, and safe to call repeatedly. Returns the state plus a progress object (businesses discovered, call attempts made). States are queued, discovering, calling or extracting while the job is still running, and completed,"
+    },
+    {
+      "name": "get_verification_result",
+      "descriptionHash": "1a02ad3871db8580691285331700215abb8296b6fcb53463bbf1ffbf33304b74",
+      "description": "Read-only. The answer itself: typed facts, evidence excerpts, timestamps, confidence scores, freshness, and an explicit list of what could not be verified. Free, and safe to call repeatedly. If the job is not final yet the response is provisional (http_status 202) - poll until 200, or watch get_veri"
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"quote_real_world_action\" references sensitive artifacts (authorization). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:quote_real_world_action",
+        "snippet": "Get a free price to ARRANGE something at a specific US local business: book an appointment, hold an item, request a formal quote, or cancel a prior booking. Thi…"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "medium",
+      "category": "toxic-flow",
+      "title": "Toxic flow: untrusted input can reach an external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: purchase_quote · Public sink: purchase_quote.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: purchase_quote · Public sink: purchase_quote"
+      },
+      "confidence": 0.45,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 72,
+  "scoreBreakdown": {
+    "tool-poisoning": 20,
+    "toxic-flow": 8
+  },
+  "errors": []
+}

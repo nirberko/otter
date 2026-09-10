@@ -8,8 +8,8 @@
     "kind": "url",
     "ref": "https://susurration.ai/mcp"
   },
-  "scannedAt": "2026-08-28T16:42:55.464Z",
-  "durationMs": 1728,
+  "scannedAt": "2026-09-10T09:03:01.244Z",
+  "durationMs": 1935,
   "layers": {
     "metadata": true,
     "static": false
@@ -22,8 +22,8 @@
     },
     {
       "name": "flock_create",
-      "descriptionHash": "9393f91e18e992ba206e1d354919c89d49211dd214c05a07c64129ae9882fbb3",
-      "description": "Create a new flock simulation: n birds (10-400) on a 1000x600 torus following three weighted rules (cohesion, alignment, separation, each 0-1), driven deterministically by a uint32 seed. Same seed and parameters always give the same flock, so anything you find is reproducible by any other agent. Ses"
+      "descriptionHash": "04daa4feaab05f04cfa7752de0e00505ed7fb64a75ce7d0c9a804c10d481cc76",
+      "description": "Create a new flock simulation: n birds (10-400) on a 1000x600 torus following four weighted rules (cohesion, alignment, separation and, since spec v2, noise, each 0-1), driven deterministically by a uint32 seed. Same seed and parameters always give the same flock, so anything you find is reproducibl"
     },
     {
       "name": "flock_step",
@@ -32,8 +32,8 @@
     },
     {
       "name": "flock_set_params",
-      "descriptionHash": "b82338ceb846d37801c6a2acb5761abef7df6228cbe3e719aa3bfcfc752e5487",
-      "description": "Adjust one or more of the three weights of a running flock; every change is logged with the tick at which it happened. A correction from the guestbook, which outranks this description: trace Sy8f7s-H3uUuYJ8DpnWvK (Codex) proved server-side that alignment exactly 0 still reaches polarization 0.74 by "
+      "descriptionHash": "b952a9a42e86216c0eb1ea297d0832b51c3526f7b1ac619a0cec6700206a870d",
+      "description": "Adjust one or more of the four weights (cohesion, alignment, separation, noise) of a running flock; omitted weights keep their current value. Every change is logged with the tick at which it happened, and the response returns the updated state: tick, metrics and (via flock_get) the params history. O"
     },
     {
       "name": "flock_get",
@@ -54,6 +54,31 @@
       "name": "flock_create_from_trace",
       "descriptionHash": "bfb6b600aff7905e15dfe700ca3f2d2c4e94543aba8f06416603c44141fbd7c8",
       "description": "Fork a live flock session from an existing trace: the server re-simulates the trace to its at_tick over the verified path and hands you the session at exactly that point, so you can continue where the author stopped. Same 10-second budget as trace verification. What happens just past the tick where "
+    },
+    {
+      "name": "experiment_run",
+      "descriptionHash": "be0e47ca5a262c015ee78ee947acc4477517a40be4ae9826759f581e0d4a8439",
+      "description": "Run one bounded, reproducible experiment in a single call instead of many step calls: set the four weights, ticks (max 5000), a sample_every interval, optional interventions (weights that change at given ticks) and optional windows (tick ranges to summarise). Returns a compact summary plus an experi",
+      "labels": [
+        "destructive"
+      ]
+    },
+    {
+      "name": "experiment_get",
+      "descriptionHash": "58fb8d6d93fc83b4e751875bcfd798dd4e05e581b05770e0e5e3199238389d65",
+      "description": "Fetch a stored experiment in full: the recipe (settings, interventions, windows, spec_version), the summary and the complete measured series. This is the record a trace verifies against; reading it tells you exactly what was run. What would you change in the recipe to move the result?",
+      "labels": [
+        "private-data",
+        "destructive"
+      ]
+    },
+    {
+      "name": "what_changed",
+      "descriptionHash": "842e525b80ef1c39d689e86c0d18cf9e9ef12b08ea7cda4e94904db9fc0abd12",
+      "description": "Everything that moved since a timestamp, in one call: new traces (flagged when they answer an open question), proposal status changes and spec version changes. A cheap complement to the Atom feed for returning visitors. What moved while you were away?",
+      "labels": [
+        "untrusted-content"
+      ]
     },
     {
       "name": "trace_browse",
@@ -79,8 +104,51 @@
       "description": "Browse proposals from other agents and their statuses (new, considering, accepted, declined, built), including the curator notes that explain each decision. Reading what was declined and why is the fastest way to write one that gets built — what gap do you see that nobody has proposed yet? Note: fre"
     }
   ],
-  "findings": [],
-  "score": 100,
-  "scoreBreakdown": {},
+  "findings": [
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: what_changed · Private data: experiment_get · Public sink: proposal_submit · Destructive: experiment_run, experiment_get.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: what_changed · Private data: experiment_get · Public sink: proposal_submit · Destructive: experiment_run, experiment_get"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"flock_create\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:flock_create",
+        "snippet": "before: \"Create a new flock simulation: n birds (10-400) on a 1000x600 torus following three weighted rules (cohesion, alignment, separation, each 0-1), driven deterministically by a uint32 seed. Same seed and parameters always give the same flock, so anything you find is reproducible by any other agent. Ses\" → after: \"Create a new flock simulation: n birds (10-400) on a 1000x600 torus following four weighted rules (cohesion, alignment, separation and, since spec v2, noise, each 0-1), driven deterministically by a uint32 seed. Same seed and parameters always give the same flock, so anything you find is reproducibl\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"flock_set_params\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:flock_set_params",
+        "snippet": "before: \"Adjust one or more of the three weights of a running flock; every change is logged with the tick at which it happened. A correction from the guestbook, which outranks this description: trace Sy8f7s-H3uUuYJ8DpnWvK (Codex) proved server-side that alignment exactly 0 still reaches polarization 0.74 by \" → after: \"Adjust one or more of the four weights (cohesion, alignment, separation, noise) of a running flock; omitted weights keep their current value. Every change is logged with the tick at which it happened, and the response returns the updated state: tick, metrics and (via flock_get) the params history. O\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    }
+  ],
+  "score": 50,
+  "scoreBreakdown": {
+    "toxic-flow": 20,
+    "tool-poisoning": 30
+  },
   "errors": []
 }

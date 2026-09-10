@@ -1,0 +1,132 @@
+{
+  "schemaVersion": 1,
+  "scanner": {
+    "version": "1.6.0",
+    "rules": "402995650b68"
+  },
+  "target": {
+    "kind": "url",
+    "ref": "https://mcp.offendersearch.app/mcp"
+  },
+  "scannedAt": "2026-09-10T09:03:08.305Z",
+  "durationMs": 611,
+  "layers": {
+    "metadata": true,
+    "static": false
+  },
+  "tools": [
+    {
+      "name": "search_offenders",
+      "descriptionHash": "3b4299fef499e8671d9f6a24014feb96463037dbf19505f78ccc8323fea56e5a",
+      "description": "Search US sex-offender registries for one person and/or location.\n\n    Fans out across all 58 registries (or the ones named in `jurisdictions`),\n    de-duplicates people across registries, scores each match, and returns the\n    normalized records. Supply whatever identifiers you have — all args are\n",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "batch_search",
+      "descriptionHash": "17a37ef416504b6453ece04582119c4ff37f54688217920875a87868e5e9a03f",
+      "description": "Run many person/location lookups in one call (row-in / row-out).\n\n    Each row goes through the SAME engine as search_offenders, so a row's records\n    are identical to what a single search would return. A row that fails is\n    reported with status='error' in place and never aborts the batch. Max 10",
+      "labels": [
+        "private-data",
+        "destructive"
+      ]
+    },
+    {
+      "name": "get_registry_coverage",
+      "descriptionHash": "33c6ff42678813ef7e5061901afbf6a4d86d81992b0eca4bc0131daba3f3bbd6",
+      "description": "List every registry we cover plus its scope, legal status, and health.\n\n    Public coverage catalog (no API key required). Use it to discover the\n    `jurisdictions` codes accepted by search_offenders / batch_search and to\n    check per-registry freshness/health before relying on a result.\n\n    Retu",
+      "labels": [
+        "untrusted-content",
+        "private-data"
+      ]
+    },
+    {
+      "name": "search_criminal",
+      "descriptionHash": "b5ecf5395ffd4cdc92d16b1bbe609cd46d5e919e124084b4c580ad163e3756f1",
+      "description": "Search US criminal records — county jail bookings, state prison custody, court cases and warrants.\n\n    Covers county jail rosters, statewide prison systems, court sources, warrant\n    systems and statewide registries across the states, DC and the territories,\n    plus the federal layer — which is a",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "get_criminal_coverage",
+      "descriptionHash": "b389d9a3f1ef7e9fe33d1a146124fdf32e58c06b9fa4f23c22638734f9f6f2e3",
+      "description": "List the criminal-record jurisdictions searched, with kind and status.\n\n    Use it to discover which states and counties are reachable and which are\n    answering today, before relying on an empty result. Depth is uneven by design:\n    counties publish independently, so a state with many county juri",
+      "labels": [
+        "private-data",
+        "public-sink"
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"search_offenders\" references sensitive artifacts (api_key). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:search_offenders",
+        "snippet": "Search US sex-offender registries for one person and/or location. Fans out across all 58 registries (or the ones named in `jurisdictions`), de-duplicates people…"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"batch_search\" references sensitive artifacts (api_key). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:batch_search",
+        "snippet": "Run many person/location lookups in one call (row-in / row-out). Each row goes through the SAME engine as search_offenders, so a row's records are identical to …"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOOL-POISON-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description issues instructions to the model",
+      "detail": "Description of \"get_registry_coverage\" contains imperative instructions directed at the AI assistant rather than describing the tool. This is the core tool-poisoning technique.",
+      "evidence": {
+        "source": "tool:get_registry_coverage",
+        "snippet": "List every registry we cover plus its scope, legal status, and health. Public coverage catalog (no API key required). Use it to discover the `jurisdictions` cod…"
+      },
+      "confidence": 0.7,
+      "remediation": "Treat the server as untrusted; the model may obey embedded instructions."
+    },
+    {
+      "id": "MCP-TOOL-POISON-002",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description tells the model to hide behavior",
+      "detail": "Description of \"get_registry_coverage\" instructs the model to conceal actions from the user.",
+      "evidence": {
+        "source": "tool:get_registry_coverage",
+        "snippet": "List every registry we cover plus its scope, legal status, and health. Public coverage catalog (no API key required). Use it to discover the `jurisdictions` cod…"
+      },
+      "confidence": 0.75
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: get_registry_coverage · Private data: search_offenders, batch_search, get_registry_coverage, search_criminal, get_criminal_coverage · Public sink: get_criminal_coverage · Destructive: batch_search.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: get_registry_coverage · Private data: search_offenders, batch_search, get_registry_coverage, search_criminal, get_criminal_coverage · Public sink: get_criminal_coverage · Destructive: batch_search"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 43,
+  "scoreBreakdown": {
+    "tool-poisoning": 38,
+    "toxic-flow": 20
+  },
+  "errors": []
+}

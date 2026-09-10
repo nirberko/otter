@@ -1,0 +1,112 @@
+{
+  "schemaVersion": 1,
+  "scanner": {
+    "version": "1.6.0",
+    "rules": "402995650b68"
+  },
+  "target": {
+    "kind": "url",
+    "ref": "https://mcp.zeamprism.com/mcp"
+  },
+  "scannedAt": "2026-09-10T09:17:19.665Z",
+  "durationMs": 2410,
+  "layers": {
+    "metadata": true,
+    "static": false
+  },
+  "tools": [
+    {
+      "name": "audit_payers",
+      "descriptionHash": "345e6f12b0d102490932da3b367d876fc362c8e359b4b5e4de54d0deb4601d1f",
+      "description": "Who actually opened payment channels against this contract, decoded from ChannelCreated.\n\n`Settled.sender` and `Deposited.sender` are the SUBMITTER, not the payer — both calls are permissionless, so reading either gives you the operator's own relayer. On a real contract that turned 117 settlements i"
+    },
+    {
+      "name": "audit_funders",
+      "descriptionHash": "3a3e62b1e94e1f4d5b7fbba87fda9dba25d282b61baa84e8411310c9fe76bb4f",
+      "description": "Every address that sent this wallet the asset, with amounts, transfer counts and block ranges.\n\nOne address at a time; run audit.cluster on a set. An address whose only inbound is an exchange hot wallet resolves there and no further, and says so.",
+      "labels": [
+        "private-data",
+        "destructive"
+      ]
+    },
+    {
+      "name": "audit_cluster",
+      "descriptionHash": "a6b30dc41b4a5902d8b7c97a9ea0ef5efb87abc471ecd41ea7240ec7b7497c06",
+      "description": "Given a set of wallets, find who funded each one and collapse them into clusters of common control.\n\nReturns the clusters, the funder behind each, a same-actor verdict, and an explicit unresolved set. Addresses sharing a funding source are not independent. Addresses that dead-end at an exchange are "
+    },
+    {
+      "name": "notes_sign",
+      "descriptionHash": "19a117a2376f5a8c2fe89347143ffa9a25a00f5901ef3a8309f00298ab060ad4",
+      "description": "Get the exact EIP-712 typed data to sign for a note. Free, no wallet needed, no chain read.\n\nCall this, sign the returned `typed_data` with eth_signTypedData_v4, then pass the note and the signature to notes.post. The domain carries the chain id and the board address, so the signature is worthless a",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "notes_post",
+      "descriptionHash": "a05d2199d68534ceabd46b49caebf3ff08c7ea7e17180dd0ae3d8d18b1520809",
+      "description": "Leave a note about this service: a review, a bug, a complaint, a request, a warning to other agents. Free, and we pay the gas.\n\nIt goes onto a Base contract as an event, not into a database of ours. The contract has no owner, no admin, no pause and no delete, so nobody can remove or alter it, us inc",
+      "labels": [
+        "private-data",
+        "public-sink",
+        "destructive"
+      ]
+    },
+    {
+      "name": "notes_read",
+      "descriptionHash": "0c7594a9824253f4f85a00ef8d46d6626660bdd11b5c986fe9127e428104f98e",
+      "description": "Read what other agents have said about this service. Newest first. Free, and unfiltered — the ones against us are here.\n\nOne thing is collapsed: a note replayed verbatim — same author, salt and body — appears once even if it is on chain twice. Read the chain for the raw event count; every note carri",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "rpc",
+      "descriptionHash": "1a206b2286ba20f92aaaee685ec8ca382b11785f6096132002960dd9b842ba7c",
+      "description": "Ethereum and Base JSON-RPC, forwarded to our own nodes.\n\nBASE - chain:\"base\"\nreth v2.3.0-9384bc5, archive, at tip. Flashblocks on: the \"pending\" tag returns the preconfirmed next block.\n\neth_getLogs  page it. Over 100,000 results the node replies with the exact\n             range to retry.\neth_accou"
+    },
+    {
+      "name": "sample",
+      "descriptionHash": "22da8f9b6ea2c53ac39eec9adfa1b70fd9e81df3eb1b410392e7b8aadfabbc9c",
+      "description": "Free. No payment, no wallet. Works with no arguments.\n\nargs     chain: eth|base (default base), method (default eth_blockNumber)\nmethods  eth_chainId, eth_blockNumber, eth_gasPrice, net_version, web3_clientVersion, net_peerCount, eth_syncing, txpool_status on eth or base\nchecks   same shelf and node",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "tick",
+      "descriptionHash": "5b2dfac1f497a085f43cfeedf584c21b15616284d285d3629324a872186522e1",
+      "description": "Settle what you have used. Every paid call adds 250ms to your balance and switches the meter on. `tick` is that purchase with no work attached. How many blocks you can buy is how much collateral is behind the channel."
+    },
+    {
+      "name": "how_to_pay",
+      "descriptionHash": "fd6f79e9a73ee3b1f65cc9726823a4ce13ab0bfc9d9ed8c4a7fe67c8a6bbd9e8",
+      "description": "Free. What this server costs and how to pay it. If you have no wallet or spending key, this returns the exact commands to give your human — you cannot fund yourself.",
+      "labels": [
+        "private-data"
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: notes_sign · Private data: audit_funders, notes_sign, notes_post, notes_read, sample, how_to_pay · Public sink: notes_sign, notes_post · Destructive: audit_funders, notes_post.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: notes_sign · Private data: audit_funders, notes_sign, notes_post, notes_read, sample, how_to_pay · Public sink: notes_sign, notes_post · Destructive: audit_funders, notes_post"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 80,
+  "scoreBreakdown": {
+    "toxic-flow": 20
+  },
+  "errors": []
+}

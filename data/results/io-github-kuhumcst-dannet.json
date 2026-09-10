@@ -8,19 +8,82 @@
     "kind": "url",
     "ref": "https://wordnet.dk/mcp"
   },
-  "scannedAt": "2026-08-12T05:53:08.081Z",
-  "durationMs": 576,
+  "scannedAt": "2026-09-10T09:10:40.650Z",
+  "durationMs": 1540,
   "layers": {
-    "metadata": false,
+    "metadata": true,
     "static": false
   },
-  "findings": [],
-  "score": 100,
-  "scoreBreakdown": {},
-  "errors": [
+  "tools": [
     {
-      "scanner": "metadata",
-      "message": "Streamable HTTP error: Error POSTing to endpoint: "
+      "name": "get_word_synsets",
+      "descriptionHash": "4057c83b9485437d35903818d01a178894ff4c2711cb6c71fb4ce0beaf65585b",
+      "description": "The synsets (senses) of the Danish `word`, as JSON-LD entries with @id\n(e.g. \"dn:synset-3047\" for get_entity_info), skos:definition,\ndns:ontologicalType and wn:lexfile. A word with a single synset gives that\nsynset's full JSON-LD as the only entry."
+    },
+    {
+      "name": "get_entity_info",
+      "descriptionHash": "610b7227754eca6f88879983acf1790ac05a3806fe13534860ca688cc0706f70",
+      "description": "Full JSON-LD of a DanNet resource: a synset (\"synset-3047\"), word\n(\"word-11021628\") or sense (\"sense-21033604\"), given bare or prefixed\n(\"dn:synset-3047\"), or an external resource by prefix (\"ili:i76470\",\n\"ontolex:LexicalConcept\"). Properties use prefixed names (wn:hypernym,\nontolex:isEvokedBy, ...)"
+    },
+    {
+      "name": "get_word_overview",
+      "descriptionHash": "8ea7c99dc97c3ff8a65050e8184252530a8ecc3f3d243acb96d346ae1f79c5ea",
+      "description": "Every sense of the Danish `word` in one call: a list with synset_id,\nlabel, definition, lexfile, ontological_types, synonyms (words sharing the\nsynset) and hypernym ({synset_id, label} or null) per synset. Only synsets\nwhere the word itself has a sense count, not multi-word expressions\ncontaining it"
+    },
+    {
+      "name": "autocomplete_danish_word",
+      "descriptionHash": "77845d6c5313f3c11aaaf421bca0185908660e62e1263f9c4e73d718456d0dd4",
+      "description": "Danish words starting with `prefix` (at least 3 characters), at most\n`max_results`, as {\"autocompletions\": [...]} where lemmas are plain strings\nand inflected forms of a matching lemma are [lemma, form] pairs."
+    },
+    {
+      "name": "fetch_ddo_definition",
+      "descriptionHash": "9e8d2c81c2485bb3eb08b7c0608935d8b6b003748d6b369308ed889ffb454cfa",
+      "description": "The full definitions of `synset_id` from DDO (ordnet.dk), where DanNet's\nown skos:definition may be truncated. Follows the dns:source of each sense.\nReturns the DanNet definition, the DDO definitions found and any errors;\nDDO and DanNet have drifted apart, so some source URLs no longer resolve.",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "sparql_query",
+      "descriptionHash": "59f51f92a4cebf157db0df334d41ca271bcba109d9e930d5f2a61b02f37ce022",
+      "description": "Run a SPARQL SELECT `query` against DanNet and return standard SPARQL\nJSON results ({\"head\": ..., \"results\": {\"bindings\": [...]}}). The common\nprefixes (dn, dns, dnc, dnf, wn, ontolex, lexinfo, skos, rdfs, rdf, owl,\nmarl, dc, ili, en, enl, cor) are declared automatically. `timeout` is in\nms (max 150",
+      "labels": [
+        "public-sink",
+        "destructive"
+      ]
     }
-  ]
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOOL-POISON-006",
+      "severity": "low",
+      "category": "tool-poisoning",
+      "title": "Anomalously long tool description",
+      "detail": "Description of \"sparql_query\" is 2076 chars, far longer than this server's median (298). Overlong descriptions are a common place to bury instructions.",
+      "evidence": {
+        "source": "tool:sparql_query",
+        "snippet": "Run a SPARQL SELECT `query` against DanNet and return standard SPARQL JSON results ({\"head\": ..., \"results\": {\"bindings\": [...]}}). The common prefixes (dn, dns…"
+      },
+      "confidence": 0.4
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "medium",
+      "category": "toxic-flow",
+      "title": "Toxic flow: untrusted input can reach an external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: fetch_ddo_definition · Public sink: sparql_query · Destructive: sparql_query.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: fetch_ddo_definition · Public sink: sparql_query · Destructive: sparql_query"
+      },
+      "confidence": 0.45,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 89,
+  "scoreBreakdown": {
+    "tool-poisoning": 3,
+    "toxic-flow": 8
+  },
+  "errors": []
 }

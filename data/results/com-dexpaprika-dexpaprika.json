@@ -93,37 +93,40 @@
       "descriptionHash": "b1debce911c7fc30797f561ff5fcad28d01ccd8379722125e9bd515cd04f2bf7",
       "description": "Get tokens on one network filtered by exact thresholds for volume, liquidity, FDV, transactions, or creation time. Use when asked 'tokens with FDV over $10M on Base', 'newly created tokens today', or 'low-liquidity high-volume tokens'. Choose this over getTopTokens when the user gives numeric constr",
       "labels": [
-        "private-data"
-      ]
-    },
-    {
-      "name": "getTokenMultiPrices",
-      "descriptionHash": "29a95cebfef60492ebe402c8d7c765e0023f6612a1fff0fd6162bea6fb717862",
-      "description": "Get current USD prices for up to 10 tokens on the same network in one batched call. Use when asked 'prices for these tokens', 'compare the price of X, Y and Z', or when building a portfolio or dashboard snapshot. Tokens that cannot be priced come back in `missing_tokens` rather than being dropped, s",
+        "ly created tokens today'",
       "labels": [
         "private-data"
       ]
     },
     {
+      "name": "getTokenMultiPrices",
+      "descriptionHash": "715a5ca1f5c72656273df4d57a3384eddada95ba747d65e72604319b3c8d3c2a",
+      "description": "Get current USD prices for up to 10 tokens on the same network in one batched call, returned as a prices array plus a missing_tokens list. Read-only and keyless. Tokens that cannot be priced come back in missing_tokens rather than being dropped, so check that list for partial failures. Use for 'pric",
+      "labels": [
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
       "name": "search",
-      "descriptionHash": "503f447707bfac7a18f9aaed68ea446636c3263ec42213187e0e0a73f9448a0b",
-      "description": "Search across ALL networks at once for tokens, pools, and DEXes by name, symbol, or address, returning three arrays: tokens, pools, dexes. Use when asked 'find PEPE', 'what's the address for USDC', or whenever you do not yet know which network something lives on. This is the cross-chain entry point;",
+      "descriptionHash": "7858047105d5fa8e002c4a2c0c38247addebc86a39da437d21d6660dc6c34e4c",
+      "description": "Search across ALL networks at once for tokens, pools, and DEXes by name, symbol, or address, returning three arrays: 'tokens', 'pools', and 'dexes'. Read-only and keyless. This is the cross-chain entry point when you do not yet know which network something lives on; once you have a network slug from",
       "labels": [
         "private-data"
       ]
     },
     {
       "name": "getStats",
-      "descriptionHash": "35c84882b2eac3b4ea5e3935afa22c09134a32853871697850af709cbd6f5faf",
-      "description": "Get platform-wide totals for DexPaprika: number of networks, DEXes, pools, and tokens indexed. Use when asked 'how much data do you cover?', 'how many chains or pools total?', or for a one-line coverage summary. These are ecosystem-wide counts, not per-network figures; use getNetworks for per-chain ",
+      "descriptionHash": "ec8eb458bcf4cf17301e087cf1f2e6fda1bd4ef0ddf72fe774600c6517757295",
+      "description": "Get platform-wide totals for DexPaprika: the number of networks, DEXes, pools, and tokens indexed, returned as a single summary object. Read-only and keyless. Use for 'how much data do you cover?', 'how many chains or pools total?', or a one-line coverage summary. These are ecosystem-wide counts, no",
       "labels": [
         "private-data"
       ]
     },
     {
       "name": "getCapabilities",
-      "descriptionHash": "e9c211f27ef9e687f9c91ec29bcdfac9841fd411f82e7c0b9e89fb649af1fcb8",
-      "description": "Get an agent onboarding guide: supported workflows, network name synonyms, common pitfalls, and recommended call sequences. Use when asked 'how do I use this API?', 'what order should I call things in?', or before your first query so you can map user words like 'eth' to the canonical network slug. T"
+      "descriptionHash": "f43d2e55351db5470e850eb57b4a123b54a60d39b7f5d3073e4316e22efc16ba",
+      "description": "Get the static agent onboarding guide for this server: supported workflows, network name synonyms (mapping words like 'eth' to the canonical slug 'ethereum'), recommended call sequences, and common pitfalls. Read-only and keyless. Read it once at the start of a session before your first query, or wh"
     },
     {
       "name": "submitFeedback",
@@ -133,19 +136,6 @@
   ],
   "findings": [
     {
-      "id": "MCP-TOOL-POISON-001",
-      "severity": "high",
-      "category": "tool-poisoning",
-      "title": "Description issues instructions to the model",
-      "detail": "Description of \"getNetworks\" contains imperative instructions directed at the AI assistant rather than describing the tool. This is the core tool-poisoning technique.",
-      "evidence": {
-        "source": "tool:getNetworks",
-        "snippet": "Get the full list of blockchain networks DexPaprika indexes, each with 24h volume, transaction counts, and pool counts. Use when asked 'which chains do you supp…"
-      },
-      "confidence": 0.7,
-      "remediation": "Treat the server as untrusted; the model may obey embedded instructions."
-    },
-    {
       "id": "MCP-TOOL-POISON-002",
       "severity": "high",
       "category": "tool-poisoning",
@@ -153,7 +143,7 @@
       "detail": "Description of \"getTopTokens\" instructs the model to conceal actions from the user.",
       "evidence": {
         "source": "tool:getTopTokens",
-        "snippet": "Get the top tokens on one network ranked by volume, liquidity, transactions, FDV, or 24h price change. Use when asked 'top gainers on Solana', 'highest-volume t…"
+        "snippet": "Get the top tokens on one network ranked by volume, liquidity, transactions, FDV, or 24h price change, returned under 'results' with has_next_page and next_curs…"
       },
       "confidence": 0.75
     },
@@ -168,12 +158,234 @@
         "snippet": "search"
       },
       "confidence": 0.4
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"streamable-http\" exposes tools that together enable an exfiltration flow. Untrusted content: getNetworkDexes, getPoolDetails, getPoolTransactions · Private data: getPoolDetails, getPoolTransactions, getTokenDetails, getTokenPools, getTopTokens, filterNetworkTokens, getTokenMultiPrices, search, getStats · Public sink: getTokenMultiPrices · Destructive: getTokenPools.",
+      "evidence": {
+        "source": "server:streamable-http",
+        "snippet": "Untrusted content: getNetworkDexes, getPoolDetails, getPoolTransactions · Private data: getPoolDetails, getPoolTransactions, getTokenDetails, getTokenPools, getTopTokens, filterNetworkTokens, getTokenMultiPrices, search, getStats · Public sink: getTokenMultiPrices · Destructive: getTokenPools"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"getNetworks\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:getNetworks",
+        "snippet": "before: \"Get the full list of blockchain networks DexPaprika indexes, each with 24h volume, transaction counts, and pool counts. Use when asked 'which chains do you support?', 'is Base/Solana/Arbitrum covered?', or whenever you need the exact network slug before calling any other tool. Start here (or getCapa\" → after: \"List every blockchain network DexPaprika indexes, each row carrying its network id (slug), 24h volume, transaction count, and pool count. Read-only and keyless. Start here (or getCapabilities) to get the exact network slug that nearly every other tool requires as its 'network' argument. Use for 'whi\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"getNetworkDexes\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:getNetworkDexes",
+        "snippet": "before: \"List the DEXes (exchanges) operating on one specific network, such as Uniswap on ethereum or Raydium on solana. Use when asked 'which DEXes are on Base?', 'does Solana have Orca?', or when you need a DEX name to pass into getDexPools. Scope is a single network; call getNetworks first if you do not k\" → after: \"List the DEXes (exchanges) operating on one network, such as Uniswap on ethereum or Raydium on solana, returned under 'dexes' with page_info (page, total_pages). Read-only and keyless. Use for 'which DEXes are on Base?', 'does Solana have Orca?', or to get a dex id to feed into getDexPools. Scope is\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"getNetworkPools\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:getNetworkPools",
+        "snippet": "before: \"Get the top liquidity pools on one network, ranked by 24h volume by default. Use when asked 'what are the biggest/hottest pools on ethereum?', 'top trading pairs on Base right now', or 'most active pools on Solana'. This is the primary pool-discovery tool for a whole chain; narrow to one exchange wi\" → after: \"Get the top liquidity pools across a whole network, ranked by 24h volume by default, returned under 'results' with has_next_page and next_cursor. Read-only and keyless. This is the primary chain-wide pool discovery tool. Use for 'biggest pools on ethereum', 'top trading pairs on Base', or 'most acti\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"getDexPools\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:getDexPools",
+        "snippet": "before: \"Get the pools that belong to one specific DEX on one network, such as all Uniswap v3 pools on ethereum. Use when asked 'show me Raydium pools', 'top pairs on PancakeSwap', or 'liquidity on Orca'. Narrower than getNetworkPools (a single exchange, not the whole chain); get the DEX name from getNetwork\" → after: \"Get the pools belonging to one specific DEX on one network, e.g. all Uniswap v3 pools on ethereum, returned under 'results' with has_next_page and next_cursor. Read-only and keyless. Proxies /networks/{network}/pools/search with a dex_name filter; the old /networks/{network}/dexes/{dex}/pools endpoi\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"getNetworkPoolsFilter\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:getNetworkPoolsFilter",
+        "snippet": "before: \"Get pools on one network filtered by exact thresholds for volume, liquidity, transaction count, or creation time. Use when asked 'pools with over $1M liquidity on Base', 'pools created in the last 24h', or 'high-volume low-liquidity pairs'. Choose this over getNetworkPools when the user gives numeri\" → after: \"Get pools on one network filtered by numeric thresholds, returned under 'results' with has_next_page and next_cursor. Read-only and keyless. Choose this over getNetworkPools when the user gives numeric constraints or a time window. Use for 'pools over $1M liquidity on Base', 'pools created in the la\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"getPoolDetails\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:getPoolDetails",
+        "snippet": "before: \"Get full details for one pool by its address: the two tokens, current price, liquidity, 24h volume, and transaction counts. Use when asked 'what's the price/TVL of this pool?', 'details for pool 0x...', or after search or getNetworkPools surfaces a pool you want to inspect. Returns the live current \" → after: \"Get the full current snapshot for one pool by address: its two tokens, current price, liquidity/TVL, 24h volume, and transaction counts, returned as a single pool object (not a list). Read-only and keyless. Use after search or getNetworkPools surfaces a pool, or for 'price/TVL of this pool?' or 'det\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"getPoolOHLCV\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:getPoolOHLCV",
+        "snippet": "before: \"Get historical open/high/low/close/volume candles for one pool across a date range and interval (1m up to 1d). Use when asked 'price history of this pair', 'hourly chart for the last week', 'candles since Jan 1', or for backtesting and technical analysis. This is historical time-series data; use get\" → after: \"Get historical OHLCV candles (open, high, low, close, volume) for one pool over a time range, returned as a time-series array. Read-only and keyless. Use for 'price history of this pair', 'hourly chart for the last week', 'candles since Jan 1', or backtesting; for the single current price use getPoo\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"getPoolTransactions\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:getPoolTransactions",
+        "snippet": "before: \"Get the recent individual swap transactions for one pool, newest first, optionally filtered to a from/to window (Unix epoch seconds, last 7 days max). Use when asked 'recent trades on this pool', 'who swapped in the last hour', or 'raw transaction feed'. These are per-trade records, not aggregated c\" → after: \"Get one pool's recent individual swap transactions, newest first, returned under 'transactions' (paginate with page, or a cursor). Read-only and keyless. These are per-trade records, not aggregated candles (use getPoolOHLCV) or a summary snapshot (use getPoolDetails). Use for 'recent trades on this \""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"getTokenDetails\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:getTokenDetails",
+        "snippet": "before: \"Get metadata and multi-timeframe price and volume metrics for one token by its contract address on one network, including website, Twitter and Telegram links. Use for 'price and volume for 0x... on Base', 'tell me about this token'. If you only have a symbol (e.g. WETH) and not an address, call sear\" → after: \"Get one token's data and metadata by contract address on one network: multi-timeframe price and volume metrics, plus name, website, Twitter, and Telegram links, returned as a single token object. Read-only and keyless. Use for 'price and volume for 0x... on Base' or 'tell me about this token'. If yo\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"getTokenPools\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:getTokenPools",
+        "snippet": "before: \"Get the liquidity pools that contain a specific token on one network. Use when asked 'which pools hold WETH on ethereum?', 'where can I trade this token', or 'liquidity venues for 0x...'. The token filter is network-scoped only, so run search first if you do not know the network; an unknown token_ad\" → after: \"Get the liquidity pools that contain a specific token on one network, returned under 'results' with has_next_page and next_cursor. Read-only and keyless. Use for 'which pools hold WETH on ethereum?' or 'liquidity venues for 0x...'. Network-scoped, so run search first if unsure of the network; unknow\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"getTopTokens\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:getTopTokens",
+        "snippet": "before: \"Get the top tokens on one network ranked by volume, liquidity, transactions, FDV, or 24h price change. Use when asked 'top gainers on Solana', 'highest-volume tokens on Base', or 'biggest tokens by FDV on ethereum'. Ranking by raw price is not supported and silently falls back to volume; for arbitra\" → after: \"Get the top tokens on one network ranked by volume, liquidity, transactions, FDV, or 24h price change, returned under 'results' with has_next_page and next_cursor. Read-only and keyless. Use for 'top gainers on Solana', 'highest-volume tokens on Base', or 'biggest tokens by FDV on ethereum'. For arb\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"filterNetworkTokens\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:filterNetworkTokens",
+        "snippet": "before: \"Get tokens on one network filtered by exact thresholds for volume, liquidity, FDV, transactions, or creation time. Use when asked 'tokens with FDV over $10M on Base', 'newly created tokens today', or 'low-liquidity high-volume tokens'. Choose this over getTopTokens when the user gives numeric constr\" → after: \"Get tokens on one network matching numeric thresholds, returned under 'results' with has_next_page and next_cursor. Read-only and keyless. Choose this over getTopTokens when the user gives numeric constraints or a time window. Use for 'tokens with FDV over $10M on Base', 'newly created tokens today'\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"getTokenMultiPrices\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:getTokenMultiPrices",
+        "snippet": "before: \"Get current USD prices for up to 10 tokens on the same network in one batched call. Use when asked 'prices for these tokens', 'compare the price of X, Y and Z', or when building a portfolio or dashboard snapshot. Tokens that cannot be priced come back in `missing_tokens` rather than being dropped, s\" → after: \"Get current USD prices for up to 10 tokens on the same network in one batched call, returned as a prices array plus a missing_tokens list. Read-only and keyless. Tokens that cannot be priced come back in missing_tokens rather than being dropped, so check that list for partial failures. Use for 'pric\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"search\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:search",
+        "snippet": "before: \"Search across ALL networks at once for tokens, pools, and DEXes by name, symbol, or address, returning three arrays: tokens, pools, dexes. Use when asked 'find PEPE', 'what's the address for USDC', or whenever you do not yet know which network something lives on. This is the cross-chain entry point;\" → after: \"Search across ALL networks at once for tokens, pools, and DEXes by name, symbol, or address, returning three arrays: 'tokens', 'pools', and 'dexes'. Read-only and keyless. This is the cross-chain entry point when you do not yet know which network something lives on; once you have a network slug from\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"getStats\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:getStats",
+        "snippet": "before: \"Get platform-wide totals for DexPaprika: number of networks, DEXes, pools, and tokens indexed. Use when asked 'how much data do you cover?', 'how many chains or pools total?', or for a one-line coverage summary. These are ecosystem-wide counts, not per-network figures; use getNetworks for per-chain \" → after: \"Get platform-wide totals for DexPaprika: the number of networks, DEXes, pools, and tokens indexed, returned as a single summary object. Read-only and keyless. Use for 'how much data do you cover?', 'how many chains or pools total?', or a one-line coverage summary. These are ecosystem-wide counts, no\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"getCapabilities\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:getCapabilities",
+        "snippet": "before: \"Get an agent onboarding guide: supported workflows, network name synonyms, common pitfalls, and recommended call sequences. Use when asked 'how do I use this API?', 'what order should I call things in?', or before your first query so you can map user words like 'eth' to the canonical network slug. T\" → after: \"Get the static agent onboarding guide for this server: supported workflows, network name synonyms (mapping words like 'eth' to the canonical slug 'ethereum'), recommended call sequences, and common pitfalls. Read-only and keyless. Read it once at the start of a session before your first query, or wh\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
     }
   ],
-  "score": 62,
+  "score": 18,
   "scoreBreakdown": {
-    "tool-poisoning": 30,
-    "shadowing": 8
+    "tool-poisoning": 54,
+    "shadowing": 8,
+    "toxic-flow": 20
   },
   "errors": []
 }
