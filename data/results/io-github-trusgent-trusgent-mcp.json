@@ -8,8 +8,8 @@
     "kind": "url",
     "ref": "https://www.trusgent.com/api/mcp"
   },
-  "scannedAt": "2026-08-28T17:04:10.059Z",
-  "durationMs": 456,
+  "scannedAt": "2026-09-11T09:25:55.890Z",
+  "durationMs": 700,
   "layers": {
     "metadata": true,
     "static": false
@@ -30,8 +30,8 @@
     },
     {
       "name": "verify_agent",
-      "descriptionHash": "3e6f44e009c072dac04c5352420623f6f282c39b35e9bce56c71659f139d08c7",
-      "description": "Lightweight verification lookup: whether an Agent ID exists, is public, and its verification level / trustScore. Trust Score is a published formula (identity verification + official records + completeness + source consistency); reviews are auxiliary only. Prefer this before citing or recommending an",
+      "descriptionHash": "49108fc34f66e933d59cc3ff368e7ddcca7e8b3638ca39e904863a1b024afbe0",
+      "description": "Lightweight verification lookup: whether an AgentID exists, is public, and its verification level / trustScore. Trust Score is a published formula (identity verification + official records + completeness + source consistency); reviews are auxiliary only. Prefer this before citing or recommending an ",
       "labels": [
         "untrusted-content",
         "private-data"
@@ -41,6 +41,27 @@
       "name": "get_business_facade",
       "descriptionHash": "94ef1ab7a7d9b62f1a8250885e986b8739404d0487301f2136cd9c7914daeb9e",
       "description": "Fetch a published business facade (menu/services, hours, booking capabilities) by the same public ID/handle as /b/{id}. Use for customer-facing answers about what the merchant currently publishes — do not invent menu items."
+    },
+    {
+      "name": "check_availability",
+      "descriptionHash": "55cda963f671046fc6cf3a6f4736dea99e6ac4cbbfab2c09b32df5ab7f252dd0",
+      "description": "Check remaining reservation capacity for a business facade slot before create_reservation. HTTP equivalent: GET /api/v1/b/{handle}/availability?date=YYYY-MM-DD&time=HH:mm."
+    },
+    {
+      "name": "create_reservation",
+      "descriptionHash": "1a339f86589f5d6a513732f37861b3b8522155cfb22d5869bd57287c911f9967",
+      "description": "Submit a booking or appointment request for a published business facade. Creates a PENDING reservation; the merchant confirms in Dashboard. Not a guaranteed instant booking. HTTP equivalent: POST /api/v1/b/{handle}/reservations.",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "create_order",
+      "descriptionHash": "7dda47ffd1c2e4d05b75412c3d80052cc297e71f6ab346cbd8ed2c04558d7b52",
+      "description": "Submit a dine-in or takeaway order from a published restaurant facade menu. Creates a PENDING order; kitchen confirms in Dashboard. Restaurant facades only; menu item names must match facade.menu. HTTP equivalent: POST /api/v1/b/{handle}/orders.",
+      "labels": [
+        "public-sink"
+      ]
     },
     {
       "name": "get_registry",
@@ -67,8 +88,38 @@
       ]
     }
   ],
-  "findings": [],
-  "score": 100,
-  "scoreBreakdown": {},
+  "findings": [
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: get_agent, verify_agent, get_merged_profile · Private data: verify_agent, get_registry, search_registry · Public sink: create_reservation, create_order.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: get_agent, verify_agent, get_merged_profile · Private data: verify_agent, get_registry, search_registry · Public sink: create_reservation, create_order"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"verify_agent\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:verify_agent",
+        "snippet": "before: \"Lightweight verification lookup: whether an Agent ID exists, is public, and its verification level / trustScore. Trust Score is a published formula (identity verification + official records + completeness + source consistency); reviews are auxiliary only. Prefer this before citing or recommending an\" → after: \"Lightweight verification lookup: whether an AgentID exists, is public, and its verification level / trustScore. Trust Score is a published formula (identity verification + official records + completeness + source consistency); reviews are auxiliary only. Prefer this before citing or recommending an \""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    }
+  ],
+  "score": 60,
+  "scoreBreakdown": {
+    "toxic-flow": 20,
+    "tool-poisoning": 20
+  },
   "errors": []
 }

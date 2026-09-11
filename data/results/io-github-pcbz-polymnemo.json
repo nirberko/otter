@@ -1,0 +1,114 @@
+{
+  "schemaVersion": 1,
+  "scanner": {
+    "version": "1.6.0",
+    "rules": "402995650b68"
+  },
+  "target": {
+    "kind": "url",
+    "ref": "https://polymnemo.purpleground-26f6d744.westus2.azurecontainerapps.io/mcp"
+  },
+  "scannedAt": "2026-09-11T09:12:51.563Z",
+  "durationMs": 483,
+  "layers": {
+    "metadata": true,
+    "static": false
+  },
+  "tools": [
+    {
+      "name": "ping",
+      "descriptionHash": "dc710bece27f24002890acc85783c25a3cd7b392b5074a6cb6355208793a822e",
+      "description": "Health / connectivity check.\n\nReturns server identity plus the active pluggable layers, so a client (or\nMCP Inspector) can confirm the connection and see how the server is wired."
+    },
+    {
+      "name": "remember",
+      "descriptionHash": "33659df6048644d36dd7f32e261d60223522f309e52cd4af2f93bf0269673ccc",
+      "description": "Store a memory for later semantic recall.\n\nLarge content is split into smaller chunks on write (one vector each), so\nthis may create several ids. `namespace` groups memories (defaults to the\nshared namespace); `tags`/`source` are optional metadata.\n\nReturns `{ids, chunks, namespace}`."
+    },
+    {
+      "name": "recall",
+      "descriptionHash": "4c7aee71912a33116685f2c681f4f2bfbc5d37cc8d0aa1daa95fe9755009bd64",
+      "description": "Search memories by meaning and return the closest matches.\n\nResults are ranked by similarity and bounded by `limit` (default 8). Use the\nreturned `next_cursor` with `has_more` to page further — you decide whether\nthe results are enough. `namespace` selects the collection (defaults to the\nshared name"
+    },
+    {
+      "name": "list_memories",
+      "descriptionHash": "b6da8729394294059b22bd2277a610fe760122a57acd3dc46defbf854766a119",
+      "description": "List stored memories newest-first (no search query).\n\n`namespace` selects the collection (defaults to the shared namespace). Page\nwith `next_cursor` / `has_more`. Returns `{items, total, has_more, next_cursor}`."
+    },
+    {
+      "name": "get_memory",
+      "descriptionHash": "3bf15ea95497f5426da3c20fbdc4c4098ce5042489948358832cd630c358dc3a",
+      "description": "Fetch a single memory by its id (from `remember`/`recall`/`list_memories`)."
+    },
+    {
+      "name": "update",
+      "descriptionHash": "4700227268c3efa2a21a4a55d51a1fb342ed47ffd9cdc14273f5358d05502382",
+      "description": "Replace a memory's content (re-embeds it). Returns the updated memory."
+    },
+    {
+      "name": "forget",
+      "descriptionHash": "4bcc4d3b1bdf35e3035dd142000e936bdd0e88116374e0def25b7eda4aeeaf52",
+      "description": "Delete a memory by id. Returns `{id, deleted}` (deleted=false if absent).",
+      "labels": [
+        "destructive"
+      ]
+    },
+    {
+      "name": "save_session",
+      "descriptionHash": "e1565bd9daac973ff0dfbb1784dc6c8e6dd8ce5523d8dd9fa4f8ffd736db3b57",
+      "description": "Persist a session's full content under `session_id` for later reload.\n\nContent is stored as ordered, losslessly-reassemblable chunks (also embedded,\nso it's searchable via `recall`). Re-saving the same `session_id` replaces it.\nReturns `{session_id, chunks, chars, namespace}`."
+    },
+    {
+      "name": "load_session",
+      "descriptionHash": "694ad059daacf93386932d080891ca0ae1635445a2b0d844d15cdad6b26c3431",
+      "description": "Reload a saved session's content, one character page at a time.\n\nPage with `page` (0-based) while `has_more` is true. Returns\n`{session_id, content, page, page_size, total_chars, has_more}`."
+    },
+    {
+      "name": "create_upload",
+      "descriptionHash": "64a10339e0c6e7dac995b0d2b39b717f0cef3dadf7a028a5a0d0a63a6e4854db",
+      "description": "Register a file / image / video memory and get a URL to upload its bytes.\n\nThe bytes never go through this channel: `description` is embedded so the file\nis findable via `recall`. **PUT** the raw bytes to `upload_url` sending\n`upload_headers` (the signed Content-Type). **Then call `confirm_upload`**",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "confirm_upload",
+      "descriptionHash": "87fa9b03f13fe89bc6873950beaab239d5fbbdae47e79f1c914aa59ac1c217c7",
+      "description": "Confirm a media upload after you've PUT the bytes.\n\nVerifies the object exists, records its real size + checksum (and rejects an\nover-limit upload), then makes the memory findable via `recall` /\ndownloadable. `id` is from `create_upload`. Returns\n`{memory_id, confirmed, size_bytes, content_type}`.",
+      "labels": [
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "get_download_url",
+      "descriptionHash": "03afdfce4eb279f08352c5db6f5b114a3d1986bb715f64ca429e122eb8ae5034",
+      "description": "Get a short-lived URL to download a media memory's bytes.\n\n`id` is the media memory's id (from `create_upload` / `recall`). Returns\n`{memory_id, url, content_type}`.",
+      "labels": [
+        "untrusted-content"
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: create_upload, get_download_url · Private data: create_upload, confirm_upload · Public sink: create_upload, confirm_upload · Destructive: forget.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: create_upload, get_download_url · Private data: create_upload, confirm_upload · Public sink: create_upload, confirm_upload · Destructive: forget"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 80,
+  "scoreBreakdown": {
+    "toxic-flow": 20
+  },
+  "errors": []
+}

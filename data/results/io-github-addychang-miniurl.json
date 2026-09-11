@@ -8,8 +8,8 @@
     "kind": "url",
     "ref": "https://workers.miniurl.com/mcp"
   },
-  "scannedAt": "2026-07-25T06:39:18.627Z",
-  "durationMs": 995,
+  "scannedAt": "2026-09-11T09:18:03.914Z",
+  "durationMs": 1075,
   "layers": {
     "metadata": true,
     "static": false
@@ -17,29 +17,24 @@
   "tools": [
     {
       "name": "create_guest_token",
-      "descriptionHash": "dc8fc2f82221d3a59d70fc7ff6e91d3c4a26ce35d559dcb8dc0127ef95b8a6c3",
-      "description": "Create a MiniURL guest token and store it in an unauthenticated MCP session. If auth is already set, keep it or call clear_authentication first. shorten_url can provision a guest automatically.",
-      "labels": [
-        "private-data"
-      ]
-    },
-    {
-      "name": "authenticate_token",
-      "descriptionHash": "e9f5b6b776bcc0eecad3af9f99327c78d1e10f2b992454cb61025f2bb9b6cd05",
-      "description": "Store an existing MiniURL token in the current MCP session. Accepts either a gt_ guest token or an mk_ API key.",
+      "descriptionHash": "9468b6df598a5aab875f28d8c30f019cad99b104045a8b758bed3c2b55389da0",
+      "description": "Create a short-lived MiniURL guest bearer token. Legacy MCP sessions retain it; stateless clients must pass the returned gt_ token explicitly on later requests. shorten_url can provision one automatically.",
       "labels": [
         "private-data"
       ]
     },
     {
       "name": "clear_authentication",
-      "descriptionHash": "b42068392e97bdcde67b5577ff8cb4e9494797be964a1dcf9c3bb14e655eedfb",
-      "description": "Clear any stored MiniURL authentication from the current MCP session."
+      "descriptionHash": "8d3809969ce21cd220615f20450cb377e9832a0abb433b80b768881c25fc82f9",
+      "description": "Clear authentication retained by a legacy MCP session. Stateless clients clear authentication by omitting the Authorization header on later requests."
     },
     {
       "name": "shorten_url",
-      "descriptionHash": "9e1923a920ce5b8fb97d148c2e794f225813b34727a017165938d5998f7dccec",
-      "description": "Create a short URL. If no authentication is set, MiniURL automatically starts a guest session for this MCP connection."
+      "descriptionHash": "0583388211c7b0edfc1fd89df1f0e71bdac4031c015d3e092e1a4f1116128242",
+      "description": "Create a MiniURL short link for a supplied HTTP or HTTPS destination. Use when the user asks to shorten a URL or generate a MiniURL link. This is an additive external write; do not fetch or open the destination. If no authentication is supplied, MiniURL automatically starts a guest flow. Reuse idemp",
+      "labels": [
+        "untrusted-content"
+      ]
     },
     {
       "name": "send_registration_code",
@@ -51,8 +46,8 @@
     },
     {
       "name": "verify_registration_code",
-      "descriptionHash": "1c2848d79473157ad5f67567d7f4785860f150679fa6350f33b47c151fdea7a1",
-      "description": "Verify the emailed code, create the account, claim guest links, and replace the current guest auth with the new mk_ API key.",
+      "descriptionHash": "7cbf17f4388e48e8ef94feac6e5a5b7ada71f6d4cbf925c4563ae4e33a03b2ab",
+      "description": "Verify the emailed code, create the account, claim guest links, and continue with OAuth 2.1 + PKCE. Long-lived API keys are never returned over MCP.",
       "labels": [
         "private-data"
       ]
@@ -71,6 +66,24 @@
       "name": "list_domains",
       "descriptionHash": "95b050598eddad1b484105f73c2aceb5e4832ea95dd85d0451a153f0062f2d52",
       "description": "List domains available to the current registered account, including miniurl.com and active custom domains."
+    },
+    {
+      "name": "add_domain",
+      "descriptionHash": "797e67d8eb11ebb95c5905afd70bde8cddfceda4402bbc7d323a59ca1c944abc",
+      "description": "Request a custom domain to be connected to MiniURL. Agent domain changes require human approval by default."
+    },
+    {
+      "name": "delete_domain",
+      "descriptionHash": "fb56709c302a246e57a357b643503d402eb66b6f09062ec008797c70c55fc686",
+      "description": "Delete a custom domain and its linked URLs after a dry-run confirmation. Agent domain changes require human approval by default.",
+      "labels": [
+        "destructive"
+      ]
+    },
+    {
+      "name": "verify_domain",
+      "descriptionHash": "e9b8c96b27a8b2a572a124bb1fb417e8a4bcdf2712aeddb9b383024459ae38ff",
+      "description": "Refresh custom-domain DNS and SSL verification status. Agent domain changes require human approval by default."
     },
     {
       "name": "list_links",
@@ -142,8 +155,113 @@
       ]
     }
   ],
-  "findings": [],
-  "score": 100,
-  "scoreBreakdown": {},
+  "findings": [
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"create_guest_token\" references sensitive artifacts (bearer). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:create_guest_token",
+        "snippet": "Create a short-lived MiniURL guest bearer token. Legacy MCP sessions retain it; stateless clients must pass the returned gt_ token explicitly on later requests.…"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"clear_authentication\" references sensitive artifacts (authorization). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:clear_authentication",
+        "snippet": "Clear authentication retained by a legacy MCP session. Stateless clients clear authentication by omitting the Authorization header on later requests."
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: shorten_url · Private data: create_guest_token, verify_registration_code · Public sink: send_registration_code · Destructive: delete_domain, delete_link, delete_tag, untag_link.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: shorten_url · Private data: create_guest_token, verify_registration_code · Public sink: send_registration_code · Destructive: delete_domain, delete_link, delete_tag, untag_link"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"create_guest_token\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:create_guest_token",
+        "snippet": "before: \"Create a MiniURL guest token and store it in an unauthenticated MCP session. If auth is already set, keep it or call clear_authentication first. shorten_url can provision a guest automatically.\" → after: \"Create a short-lived MiniURL guest bearer token. Legacy MCP sessions retain it; stateless clients must pass the returned gt_ token explicitly on later requests. shorten_url can provision one automatically.\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "medium",
+      "category": "tool-poisoning",
+      "title": "Tool removed since last scan",
+      "detail": "Tool \"authenticate_token\" is no longer advertised. Removal can precede a shadowing replacement from another server.",
+      "evidence": {
+        "source": "tool:authenticate_token",
+        "snippet": "removed: authenticate_token"
+      },
+      "confidence": 0.5
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"clear_authentication\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:clear_authentication",
+        "snippet": "before: \"Clear any stored MiniURL authentication from the current MCP session.\" → after: \"Clear authentication retained by a legacy MCP session. Stateless clients clear authentication by omitting the Authorization header on later requests.\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"shorten_url\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:shorten_url",
+        "snippet": "before: \"Create a short URL. If no authentication is set, MiniURL automatically starts a guest session for this MCP connection.\" → after: \"Create a MiniURL short link for a supplied HTTP or HTTPS destination. Use when the user asks to shorten a URL or generate a MiniURL link. This is an additive external write; do not fetch or open the destination. If no authentication is supplied, MiniURL automatically starts a guest flow. Reuse idemp\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"verify_registration_code\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:verify_registration_code",
+        "snippet": "before: \"Verify the emailed code, create the account, claim guest links, and replace the current guest auth with the new mk_ API key.\" → after: \"Verify the emailed code, create the account, claim guest links, and continue with OAuth 2.1 + PKCE. Long-lived API keys are never returned over MCP.\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    }
+  ],
+  "score": 40,
+  "scoreBreakdown": {
+    "tool-poisoning": 41,
+    "toxic-flow": 20
+  },
   "errors": []
 }

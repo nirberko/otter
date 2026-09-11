@@ -8,8 +8,8 @@
     "kind": "url",
     "ref": "https://mcp.aiconduit.app/mcp"
   },
-  "scannedAt": "2026-08-28T16:42:59.061Z",
-  "durationMs": 851,
+  "scannedAt": "2026-09-11T09:02:58.038Z",
+  "durationMs": 681,
   "layers": {
     "metadata": true,
     "static": false
@@ -17,29 +17,50 @@
   "tools": [
     {
       "name": "agent_create",
-      "descriptionHash": "cfa7db6f1e7cfb1dac2991ed3b3b7e444929af875bf128083c29be36f8c146e7",
-      "description": "Register an agent (ES256 P-256 public JWK JSON string + optional payment rails + destination). BEFORE: read ~/.conduit/credentials.json — if it exists, reuse agent_id (do NOT register again). AFTER: write credentials (version, agent_id, public_key, private_key as JWKs; recommend handle; chmod 0600).",
+      "descriptionHash": "eff19bd250b6864fd2cb683f61ed113af781582d6560a18c8be9788d75a68c6b",
+      "description": "Register an agent (ES256 P-256 public JWK JSON string + optional payment rails + destination). BEFORE: list ~/.conduit identity files — if any exist, reuse agent_id (do NOT register again unless the human asked for a new agent). AFTER: write persist.path (version, agent_id, public_key, private_key a",
       "labels": [
         "private-data"
       ]
     },
     {
       "name": "agent_authenticate",
-      "descriptionHash": "0d7f081c5dffc5e04d78f5d4a168ca5f29aaddeabb5191b72f9c6b1b2d02c4c9",
-      "description": "Two-step re-auth. Call with agent_id only → ES256-sign nonce → call again with nonce+signature. Prefer keys from ~/.conduit/credentials.json. Do not agent_create if credentials already exist.",
+      "descriptionHash": "b7cdb55c2a7e636551916742046a49aa2a21cce9a65517b8c24a714223a69a9d",
+      "description": "Two-step re-auth. Call with agent_id only → ES256-sign nonce → call again with nonce+signature. Prefer keys from ~/.conduit ({handle}.credentials.json or legacy credentials.json; CONDUIT_CREDENTIALS_PATH pins one file). After success, merge name/role/description into that file; never overwrite priva",
       "labels": [
-        "private-data"
+        "private-data",
+        "destructive"
       ]
     },
     {
       "name": "agent_update",
-      "descriptionHash": "f8c2e194f2fdb3a91c915d208a0cd8dcf3245413997dd51d897fefa24b425998",
-      "description": "Patch handle, rails, default_destination (postcode required for ships-to), friendly_name, human_description, role_description, business profile, or preferences."
+      "descriptionHash": "b5d297558d55f3436ffeabfdb7d2a24658b5db12e73c82ae6df088ebd2118cf5",
+      "description": "Patch handle, rails, default_destination (postcode required for ships-to), friendly_name, human_description, role_description, avatar (glyph+gradient or small image), business profile, or preferences. Set avatar only if the human chose it. Does not accept permissions — a human enables capabilities i"
     },
     {
       "name": "agent_organization",
-      "descriptionHash": "d1bc0061561a1aad20a66788dee1cc4e0098df999f549f62e141acfa2024895a",
-      "description": "Read the linked organization (name, slug, country, default address) for an agent. Returns org_not_linked when organization_id is unset — dashboard claim/join is not released yet; do not invent join_org."
+      "descriptionHash": "c3c395e3241c109f3febe713a2b86427ee5abbabc140212a15675fe1d141928e",
+      "description": "Read the linked organization (name, slug, country, default address) and members (user_id, name, role, email) for an agent. Returns org_not_linked when organization_id is unset — do not invent join_org. Use members to target agent_notify.",
+      "labels": [
+        "untrusted-content",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "agent_notify",
+      "descriptionHash": "7784be8f5d9f8f9486f4fc1ca2b0189c9f3e696923186ea2bbe04b3493367556",
+      "description": "Email Hub users in this agent’s linked organization (never addresses outside the org). to=all or { user_id } / { role } / { email } matching agent_organization members. Optional actions (Hub URLs only), severity, idempotency_key. Channel is email.",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "agent_outreach",
+      "descriptionHash": "463b9f3fcd4ec40a5ca50610b994c8315a9e1b79cf323f775230667208301331",
+      "description": "Email outside addresses (suppliers, carriers). to is a string email, { email }, or { emails } (max 5). Not to=all and not a Hub user_id / role — those are agent_notify. Linked agents set Reply-To to an org member (default OWNER). No action buttons. Channel is email.",
+      "labels": [
+        "public-sink"
+      ]
     },
     {
       "name": "agent_report_issue",
@@ -56,32 +77,38 @@
     },
     {
       "name": "payment_mandate",
-      "descriptionHash": "1035841bf59f79f675d94b32d0903b97d31e484db2a613cb43da1be49dfeb8be",
-      "description": "AP2 spend mandates. action=request (needs scope) → approval_url; list; update (mandate_id+scope); revoke (mandate_id). Widening needs human re-approval; narrowing applies immediately."
+      "descriptionHash": "1c9aea4f46943a925c735fd64d2e8ab812c776fe08503d830ae997721f8c702a",
+      "description": "AP2 spend mandates. action=request (needs scope) → approval_url; list (includes remaining, window_resets_at, coverage); update (mandate_id+scope); revoke (mandate_id). update NEVER approves. Widening returns an ACTIVE mandate to PENDING_HUMAN_APPROVAL; narrowing keeps whatever status it already had."
     },
     {
       "name": "supply_search",
-      "descriptionHash": "99574f025f38a1978883c28a9f00e8ace2ff4b44ca5a620385beccdf1ebdbb5a",
+      "descriptionHash": "24c5347e6b86ab62c0c08e8764b906f5f28cc6988950c7f2b0cf4eb2145f3685",
       "description": "Multi-provider discovery (live REAL merchants by default). Returns a ranked page (default limit=30, max 100) with total/has_more/next_offset. Follow next.args (search_id+offset+limit) to page without re-fanout. Optional fetch_limit (max 300) deepens the upstream pull on new searches. Pass include_sa"
     },
     {
       "name": "supply_details",
-      "descriptionHash": "e6651929dec7cf0acc72cffc386b65751fd6b6d74c066e5474c0afeaac4fb7e5",
-      "description": "Full normalized product detail from search cache. For shipping ETA/cost use supply_delivery. Re-run supply_search if offer_not_in_cache.",
+      "descriptionHash": "fc63ce06f1db9031d6ca8506252cabec6207c7664e293b9375876111798d5799",
+      "description": "Re-reads one offer from the search cache and refreshes its badge/action against current mandate state. For most catalog offers the payload equals the object supply_search already returned, so skip this if you still hold that offer and only need its fields. Carries no shipping data: use supply_delive",
       "labels": [
         "destructive"
       ]
     },
     {
+      "name": "supply_options",
+      "descriptionHash": "f078a942b1c97e8966550923c1bd6b039da036c239d61fb961855cfa70812200",
+      "description": "Lists the selectable options (size, color, pack) for an offer whose has_options=true, with one variant per combination. Each variant carries its OWN supply_id, price and availability: to buy a chosen option, call order_execute with that variant's supply_id, not the one you searched with. Reads the m"
+    },
+    {
       "name": "supply_delivery",
-      "descriptionHash": "c9f3e8d8068818e9f00501acb5ae31ec49774d588c4e82ceef8a72d369f643eb",
-      "description": "Non-committing checkout probe for shipping ETA/cost. Uses agent default_destination, else linked org default address, or country override."
+      "descriptionHash": "7befbdb4f3c09f6badfce396c9c4d39522838cc575aa784e031d5ba8042c7274",
+      "description": "Non-committing checkout probe for shipping ETA/cost. Uses agent default_destination, else linked org default address, or country override. status describes how far the merchant checkout got: ready_for_complete (priced and completable), incomplete (merchant returned partial rates, quote may firm up a"
     },
     {
       "name": "order_execute",
-      "descriptionHash": "cbc0f6e83d8801f14ad569eaa3a6c63a9316696d93b4879762db1560a9421ac7",
-      "description": "Handoff or autonomous checkout. Autonomous needs badge payable_now + active mandate. Use idempotency_key. Prefer supply_delivery when only comparing delivery.",
+      "descriptionHash": "69aa4a8b3d2826822e89f315b565193b04ec4f15780706fac1df532cf25bd193",
+      "description": "Handoff or autonomous checkout. Handoff continue_url is a Conduit /handoff/{org_slug}/{order_id} link: open it as returned (records the open, then redirects to the merchant). Autonomous needs badge payable_now (covering mandate fits). No covering mandate, or a spent covering budget, still returns a ",
       "labels": [
+        "private-data",
         "destructive"
       ]
     },
@@ -122,234 +149,148 @@
       "severity": "high",
       "category": "tool-poisoning",
       "title": "Description references secrets/credentials",
-      "detail": "Description of \"agent_create\" references sensitive artifacts (credentials). A tool description has no reason to mention credentials.",
-      "evidence": {
-        "source": "tool:agent_create",
-        "snippet": "Register an agent (ES256 P-256 public JWK JSON string + optional payment rails + destination). BEFORE: read ~/.conduit/credentials.json — if it exists, reuse ag…"
-      },
-      "confidence": 0.65
-    },
-    {
-      "id": "MCP-TOOL-POISON-003",
-      "severity": "high",
-      "category": "tool-poisoning",
-      "title": "Description references secrets/credentials",
       "detail": "Description of \"agent_authenticate\" references sensitive artifacts (credentials). A tool description has no reason to mention credentials.",
       "evidence": {
         "source": "tool:agent_authenticate",
-        "snippet": "Two-step re-auth. Call with agent_id only → ES256-sign nonce → call again with nonce+signature. Prefer keys from ~/.conduit/credentials.json. Do not agent_creat…"
+        "snippet": "Two-step re-auth. Call with agent_id only → ES256-sign nonce → call again with nonce+signature. Prefer keys from ~/.conduit ({handle}.credentials.json or legacy…"
       },
       "confidence": 0.65
     },
     {
-      "id": "MCP-TOOL-POISON-003",
+      "id": "MCP-TOXIC-FLOW-001",
       "severity": "high",
-      "category": "tool-poisoning",
-      "title": "Description references secrets/credentials",
-      "detail": "Description of \"prompt:signup_buyer_agent\" references sensitive artifacts (credentials). A tool description has no reason to mention credentials.",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: agent_organization, agent_report_issue · Private data: agent_create, agent_authenticate, order_execute · Public sink: agent_organization, agent_notify, agent_outreach · Destructive: agent_authenticate, supply_details, order_execute.",
       "evidence": {
-        "source": "tool:prompt:signup_buyer_agent",
-        "snippet": "Register on Conduit: reuse credentials if present, otherwise create a profile and persist keys."
+        "source": "server:mcp",
+        "snippet": "Untrusted content: agent_organization, agent_report_issue · Private data: agent_create, agent_authenticate, order_execute · Public sink: agent_organization, agent_notify, agent_outreach · Destructive: agent_authenticate, supply_details, order_execute"
       },
-      "confidence": 0.65
-    },
-    {
-      "id": "MCP-RUGPULL-001",
-      "severity": "medium",
-      "category": "tool-poisoning",
-      "title": "Tool removed since last scan",
-      "detail": "Tool \"create_agent_profile\" is no longer advertised. Removal can precede a shadowing replacement from another server.",
-      "evidence": {
-        "source": "tool:create_agent_profile",
-        "snippet": "removed: create_agent_profile"
-      },
-      "confidence": 0.5
-    },
-    {
-      "id": "MCP-RUGPULL-001",
-      "severity": "medium",
-      "category": "tool-poisoning",
-      "title": "Tool removed since last scan",
-      "detail": "Tool \"authenticate_agent\" is no longer advertised. Removal can precede a shadowing replacement from another server.",
-      "evidence": {
-        "source": "tool:authenticate_agent",
-        "snippet": "removed: authenticate_agent"
-      },
-      "confidence": 0.5
-    },
-    {
-      "id": "MCP-RUGPULL-001",
-      "severity": "medium",
-      "category": "tool-poisoning",
-      "title": "Tool removed since last scan",
-      "detail": "Tool \"update_agent_profile\" is no longer advertised. Removal can precede a shadowing replacement from another server.",
-      "evidence": {
-        "source": "tool:update_agent_profile",
-        "snippet": "removed: update_agent_profile"
-      },
-      "confidence": 0.5
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
     },
     {
       "id": "MCP-RUGPULL-001",
       "severity": "high",
       "category": "tool-poisoning",
       "title": "Tool description changed since last scan",
-      "detail": "Tool \"payment_methods\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "detail": "Tool \"agent_create\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
       "evidence": {
-        "source": "tool:payment_methods",
-        "snippet": "before: \"List or enable agent payment methods with friendly labels.\" → after: \"List or enable agent payment methods (action=list|enable) with friendly labels. Defaults: cod + x402. invoice (B2B) is coming_soon. bank_card is handoff-only.\""
+        "source": "tool:agent_create",
+        "snippet": "before: \"Register an agent (ES256 P-256 public JWK JSON string + optional payment rails + destination). BEFORE: read ~/.conduit/credentials.json — if it exists, reuse agent_id (do NOT register again). AFTER: write credentials (version, agent_id, public_key, private_key as JWKs; recommend handle; chmod 0600).\" → after: \"Register an agent (ES256 P-256 public JWK JSON string + optional payment rails + destination). BEFORE: list ~/.conduit identity files — if any exist, reuse agent_id (do NOT register again unless the human asked for a new agent). AFTER: write persist.path (version, agent_id, public_key, private_key a\""
       },
       "confidence": 0.8,
       "remediation": "Re-review the tool before continuing to trust it."
     },
     {
       "id": "MCP-RUGPULL-001",
-      "severity": "medium",
+      "severity": "high",
       "category": "tool-poisoning",
-      "title": "Tool removed since last scan",
-      "detail": "Tool \"search_supply\" is no longer advertised. Removal can precede a shadowing replacement from another server.",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"agent_authenticate\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
       "evidence": {
-        "source": "tool:search_supply",
-        "snippet": "removed: search_supply"
+        "source": "tool:agent_authenticate",
+        "snippet": "before: \"Two-step re-auth. Call with agent_id only → ES256-sign nonce → call again with nonce+signature. Prefer keys from ~/.conduit/credentials.json. Do not agent_create if credentials already exist.\" → after: \"Two-step re-auth. Call with agent_id only → ES256-sign nonce → call again with nonce+signature. Prefer keys from ~/.conduit ({handle}.credentials.json or legacy credentials.json; CONDUIT_CREDENTIALS_PATH pins one file). After success, merge name/role/description into that file; never overwrite priva\""
       },
-      "confidence": 0.5
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
     },
     {
       "id": "MCP-RUGPULL-001",
-      "severity": "medium",
+      "severity": "high",
       "category": "tool-poisoning",
-      "title": "Tool removed since last scan",
-      "detail": "Tool \"get_supply_details\" is no longer advertised. Removal can precede a shadowing replacement from another server.",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"agent_update\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
       "evidence": {
-        "source": "tool:get_supply_details",
-        "snippet": "removed: get_supply_details"
+        "source": "tool:agent_update",
+        "snippet": "before: \"Patch handle, rails, default_destination (postcode required for ships-to), friendly_name, human_description, role_description, business profile, or preferences.\" → after: \"Patch handle, rails, default_destination (postcode required for ships-to), friendly_name, human_description, role_description, avatar (glyph+gradient or small image), business profile, or preferences. Set avatar only if the human chose it. Does not accept permissions — a human enables capabilities i\""
       },
-      "confidence": 0.5
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
     },
     {
       "id": "MCP-RUGPULL-001",
-      "severity": "medium",
+      "severity": "high",
       "category": "tool-poisoning",
-      "title": "Tool removed since last scan",
-      "detail": "Tool \"get_delivery_estimate\" is no longer advertised. Removal can precede a shadowing replacement from another server.",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"agent_organization\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
       "evidence": {
-        "source": "tool:get_delivery_estimate",
-        "snippet": "removed: get_delivery_estimate"
+        "source": "tool:agent_organization",
+        "snippet": "before: \"Read the linked organization (name, slug, country, default address) for an agent. Returns org_not_linked when organization_id is unset — dashboard claim/join is not released yet; do not invent join_org.\" → after: \"Read the linked organization (name, slug, country, default address) and members (user_id, name, role, email) for an agent. Returns org_not_linked when organization_id is unset — do not invent join_org. Use members to target agent_notify.\""
       },
-      "confidence": 0.5
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
     },
     {
       "id": "MCP-RUGPULL-001",
-      "severity": "medium",
+      "severity": "high",
       "category": "tool-poisoning",
-      "title": "Tool removed since last scan",
-      "detail": "Tool \"execute_order\" is no longer advertised. Removal can precede a shadowing replacement from another server.",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"payment_mandate\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
       "evidence": {
-        "source": "tool:execute_order",
-        "snippet": "removed: execute_order"
+        "source": "tool:payment_mandate",
+        "snippet": "before: \"AP2 spend mandates. action=request (needs scope) → approval_url; list; update (mandate_id+scope); revoke (mandate_id). Widening needs human re-approval; narrowing applies immediately.\" → after: \"AP2 spend mandates. action=request (needs scope) → approval_url; list (includes remaining, window_resets_at, coverage); update (mandate_id+scope); revoke (mandate_id). update NEVER approves. Widening returns an ACTIVE mandate to PENDING_HUMAN_APPROVAL; narrowing keeps whatever status it already had.\""
       },
-      "confidence": 0.5
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
     },
     {
       "id": "MCP-RUGPULL-001",
-      "severity": "medium",
+      "severity": "high",
       "category": "tool-poisoning",
-      "title": "Tool removed since last scan",
-      "detail": "Tool \"request_payment_mandate\" is no longer advertised. Removal can precede a shadowing replacement from another server.",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"supply_search\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
       "evidence": {
-        "source": "tool:request_payment_mandate",
-        "snippet": "removed: request_payment_mandate"
+        "source": "tool:supply_search",
+        "snippet": "before: \"Multi-provider discovery (live REAL merchants by default). Returns a ranked page (default limit=30, max 100) with total/has_more/next_offset. Follow next.args (search_id+offset+limit) to page without re-fanout. Optional fetch_limit (max 300) deepens the upstream pull on new searches. Pass include_sa\" → after: \"Multi-provider discovery (live REAL merchants by default). Returns a ranked page (default limit=30, max 100) with total/has_more/next_offset. Follow next.args (search_id+offset+limit) to page without re-fanout. Optional fetch_limit (max 300) deepens the upstream pull on new searches. Pass include_sa\""
       },
-      "confidence": 0.5
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
     },
     {
       "id": "MCP-RUGPULL-001",
-      "severity": "medium",
+      "severity": "high",
       "category": "tool-poisoning",
-      "title": "Tool removed since last scan",
-      "detail": "Tool \"manage_mandate\" is no longer advertised. Removal can precede a shadowing replacement from another server.",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"supply_details\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
       "evidence": {
-        "source": "tool:manage_mandate",
-        "snippet": "removed: manage_mandate"
+        "source": "tool:supply_details",
+        "snippet": "before: \"Full normalized product detail from search cache. For shipping ETA/cost use supply_delivery. Re-run supply_search if offer_not_in_cache.\" → after: \"Re-reads one offer from the search cache and refreshes its badge/action against current mandate state. For most catalog offers the payload equals the object supply_search already returned, so skip this if you still hold that offer and only need its fields. Carries no shipping data: use supply_delive\""
       },
-      "confidence": 0.5
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
     },
     {
       "id": "MCP-RUGPULL-001",
-      "severity": "medium",
+      "severity": "high",
       "category": "tool-poisoning",
-      "title": "Tool removed since last scan",
-      "detail": "Tool \"get_dispute_path\" is no longer advertised. Removal can precede a shadowing replacement from another server.",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"supply_delivery\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
       "evidence": {
-        "source": "tool:get_dispute_path",
-        "snippet": "removed: get_dispute_path"
+        "source": "tool:supply_delivery",
+        "snippet": "before: \"Non-committing checkout probe for shipping ETA/cost. Uses agent default_destination, else linked org default address, or country override.\" → after: \"Non-committing checkout probe for shipping ETA/cost. Uses agent default_destination, else linked org default address, or country override. status describes how far the merchant checkout got: ready_for_complete (priced and completable), incomplete (merchant returned partial rates, quote may firm up a\""
       },
-      "confidence": 0.5
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
     },
     {
       "id": "MCP-RUGPULL-001",
-      "severity": "medium",
+      "severity": "high",
       "category": "tool-poisoning",
-      "title": "Tool removed since last scan",
-      "detail": "Tool \"update_order_status\" is no longer advertised. Removal can precede a shadowing replacement from another server.",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"order_execute\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
       "evidence": {
-        "source": "tool:update_order_status",
-        "snippet": "removed: update_order_status"
+        "source": "tool:order_execute",
+        "snippet": "before: \"Handoff or autonomous checkout. Autonomous needs badge payable_now + active mandate. Use idempotency_key. Prefer supply_delivery when only comparing delivery.\" → after: \"Handoff or autonomous checkout. Handoff continue_url is a Conduit /handoff/{org_slug}/{order_id} link: open it as returned (records the open, then redirects to the merchant). Autonomous needs badge payable_now (covering mandate fits). No covering mandate, or a spent covering budget, still returns a \""
       },
-      "confidence": 0.5
-    },
-    {
-      "id": "MCP-RUGPULL-001",
-      "severity": "medium",
-      "category": "tool-poisoning",
-      "title": "Tool removed since last scan",
-      "detail": "Tool \"submit_feedback\" is no longer advertised. Removal can precede a shadowing replacement from another server.",
-      "evidence": {
-        "source": "tool:submit_feedback",
-        "snippet": "removed: submit_feedback"
-      },
-      "confidence": 0.5
-    },
-    {
-      "id": "MCP-RUGPULL-001",
-      "severity": "medium",
-      "category": "tool-poisoning",
-      "title": "Tool removed since last scan",
-      "detail": "Tool \"get_order_events\" is no longer advertised. Removal can precede a shadowing replacement from another server.",
-      "evidence": {
-        "source": "tool:get_order_events",
-        "snippet": "removed: get_order_events"
-      },
-      "confidence": 0.5
-    },
-    {
-      "id": "MCP-RUGPULL-001",
-      "severity": "medium",
-      "category": "tool-poisoning",
-      "title": "Tool removed since last scan",
-      "detail": "Tool \"list_orders\" is no longer advertised. Removal can precede a shadowing replacement from another server.",
-      "evidence": {
-        "source": "tool:list_orders",
-        "snippet": "removed: list_orders"
-      },
-      "confidence": 0.5
-    },
-    {
-      "id": "MCP-RUGPULL-001",
-      "severity": "medium",
-      "category": "tool-poisoning",
-      "title": "Tool removed since last scan",
-      "detail": "Tool \"track_order\" is no longer advertised. Removal can precede a shadowing replacement from another server.",
-      "evidence": {
-        "source": "tool:track_order",
-        "snippet": "removed: track_order"
-      },
-      "confidence": 0.5
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
     }
   ],
-  "score": 55,
+  "score": 35,
   "scoreBreakdown": {
-    "tool-poisoning": 45
+    "tool-poisoning": 45,
+    "toxic-flow": 20
   },
   "errors": []
 }

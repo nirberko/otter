@@ -8,8 +8,8 @@
     "kind": "url",
     "ref": "https://api.adminlanding.com/mcp"
   },
-  "scannedAt": "2026-08-28T16:43:10.977Z",
-  "durationMs": 2787,
+  "scannedAt": "2026-09-11T09:03:20.491Z",
+  "durationMs": 2647,
   "layers": {
     "metadata": true,
     "static": false
@@ -53,6 +53,14 @@
       "description": "French rental limits by DPE class: letting ban, rent freeze, DPE validity. · Restrictions locatives selon la classe DPE : interdiction de louer, gel des loyers, validité du DPE. — Given a dwelling's DPE class (A–G), returns the French rental restrictions in force: letting ban status and date (loi n°"
     },
     {
+      "name": "calculate_deposit_restitution",
+      "descriptionHash": "ff8f23bfaecbfc291ec3ee6ba0b0cd02ab20dd26dbf91eaad4bb5e254e46cc6d",
+      "description": "Deposit restitution: due date, 10 %/month late penalty, vétusté-apportioned retentions. · Restitution du dépôt de garantie : date limite, majoration de 10 % par mois de retard, retenues avec vétusté. — For a French residential lease (loi n° 89-462 art. 22 / art. 25-6): the restitution deadline (1 mo",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
       "name": "calculate_rent_revision",
       "descriptionHash": "1962ed9357f70209bf6403a758957ac218517d935b1326006b39d2ad69b79015",
       "description": "New rent after the yearly IRL increase; F/G homes are frozen. · Nouveau loyer après la révision IRL annuelle ; les biens F/G sont gelés. — Computes the legally revised rent for a French residential lease using the INSEE IRL (indice de référence des loyers): new rent = current rent × (IRL of the leas"
@@ -64,8 +72,16 @@
     },
     {
       "name": "compare_lamal_cmu",
-      "descriptionHash": "12340e9942f769658c032421b4e67ecbdaeca6a4fc30113e23cba8b351e04ac1",
+      "descriptionHash": "0fe74dbce4fea724d84f16194cbf0ee85c1163f123408abc9ffc1b98adbf646c",
       "description": "Frontalier health cover: LAMal (CH) vs CMU/PUMa (FR). · Couverture santé frontalier : LAMal (CH) ou CMU (FR). — Estimates the monthly cost of the two health-insurance options a France–Switzerland cross-border worker chooses between (droit d'option): Swiss LAMal (in CHF) vs French CMU/PUMa (in EUR, a"
+    },
+    {
+      "name": "calculate_teletravail_frontalier",
+      "descriptionHash": "07a9c5fca38bb56691de0b17bafa57c4d03a9fbe478f3668ef6fb3cdc4504d33",
+      "description": "Frontalier telework thresholds (FR–CH): 40 % tax and 49.9 % social security, reported separately. · Télétravail frontalier : seuils fiscal 40 % et sécurité sociale 49,9 %, distingués. — Projects a typical working week over 46 worked weeks and returns the telework share, the position against BOTH lim",
+      "labels": [
+        "public-sink"
+      ]
     },
     {
       "name": "compare_family_allowances",
@@ -79,6 +95,14 @@
       "labels": [
         "public-sink"
       ]
+    },
+    {
+      "name": "generate_rent_receipt",
+      "descriptionHash": "a96247d07e87c1d026f1ea8fc2afa4b43fe84b08bcc00454e5eab6cb1e1379a7",
+      "description": "FREE — no account needed. · GRATUIT, sans compte : quittance de loyer en PDF. — Rent receipt (quittance de loyer, loi n° 89-462 art. 21) PDF from the data you give: landlord, tenant, property address, period, rent and charges, payment date. Deterministic template engine — a fixed legal template fill",
+      "labels": [
+        "private-data"
+      ]
     }
   ],
   "findings": [
@@ -87,10 +111,10 @@
       "severity": "high",
       "category": "toxic-flow",
       "title": "Lethal trifecta: untrusted input + private data + external sink",
-      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: check_zone_tendue, calculate_tenant_notice_period · Private data: calculate_home_employment_end_of_contract, calculate_assistant_maternel_end_of_contract · Public sink: check_geneva_quasi_resident.",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: check_zone_tendue, calculate_tenant_notice_period · Private data: calculate_home_employment_end_of_contract, calculate_assistant_maternel_end_of_contract, generate_rent_receipt · Public sink: calculate_deposit_restitution, calculate_teletravail_frontalier, check_geneva_quasi_resident.",
       "evidence": {
         "source": "server:mcp",
-        "snippet": "Untrusted content: check_zone_tendue, calculate_tenant_notice_period · Private data: calculate_home_employment_end_of_contract, calculate_assistant_maternel_end_of_contract · Public sink: check_geneva_quasi_resident"
+        "snippet": "Untrusted content: check_zone_tendue, calculate_tenant_notice_period · Private data: calculate_home_employment_end_of_contract, calculate_assistant_maternel_end_of_contract, generate_rent_receipt · Public sink: calculate_deposit_restitution, calculate_teletravail_frontalier, check_geneva_quasi_resident"
       },
       "confidence": 0.6,
       "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
@@ -100,45 +124,19 @@
       "severity": "high",
       "category": "tool-poisoning",
       "title": "Tool description changed since last scan",
-      "detail": "Tool \"check_zone_tendue\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "detail": "Tool \"compare_lamal_cmu\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
       "evidence": {
-        "source": "tool:check_zone_tendue",
-        "snippet": "before: \"Checks whether a French commune is in the 'zone tendue' perimeter and — crucially — WHICH one: the first list (décret n° 2013-392 annex, 1,434 communes, agglomérations >50k) where the tenant's reduced 1-month notice applies, or the wider TLV tax perimeter added in 2023 where ONLY fiscal measures app\" → after: \"Is a commune in zone tendue, and which list (reduced tenant notice, or tax only)? · Une commune est-elle en zone tendue, et sur quelle liste (préavis réduit, ou fiscal seulement) ? — Checks whether a French commune is in the 'zone tendue' perimeter and — crucially — WHICH one: the first list (décret\""
-      },
-      "confidence": 0.8,
-      "remediation": "Re-review the tool before continuing to trust it."
-    },
-    {
-      "id": "MCP-RUGPULL-001",
-      "severity": "high",
-      "category": "tool-poisoning",
-      "title": "Tool description changed since last scan",
-      "detail": "Tool \"calculate_tenant_notice_period\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
-      "evidence": {
-        "source": "tool:calculate_tenant_notice_period",
-        "snippet": "before: \"Computes the tenant's notice period for terminating a French residential lease (loi n° 89-462 art. 15): furnished = always 1 month; unfurnished = 3 months, reduced to 1 month in a zone tendue commune (first-list perimeter, resolved automatically from insee_code/commune) or on a statutory ground (art\" → after: \"Tenant's notice period to end a French lease (préavis). · Délai de préavis du locataire pour résilier un bail. — Computes the tenant's notice period for terminating a French residential lease (loi n° 89-462 art. 15): furnished = always 1 month; unfurnished = 3 months, reduced to 1 month in a zone te\""
-      },
-      "confidence": 0.8,
-      "remediation": "Re-review the tool before continuing to trust it."
-    },
-    {
-      "id": "MCP-RUGPULL-001",
-      "severity": "high",
-      "category": "tool-poisoning",
-      "title": "Tool description changed since last scan",
-      "detail": "Tool \"check_dpe_rental_restrictions\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
-      "evidence": {
-        "source": "tool:check_dpe_rental_restrictions",
-        "snippet": "before: \"Given a dwelling's DPE class (A–G), returns the French rental restrictions in force: letting ban status and date (loi n° 2021-1104 Climat et Résilience — G banned since 2025, F from 2028, E from 2034, France métropolitaine), the F/G rent freeze (in force since 25 Aug 2022), and — when dpe_issue_date\" → after: \"French rental limits by DPE class: letting ban, rent freeze, DPE validity. · Restrictions locatives selon la classe DPE : interdiction de louer, gel des loyers, validité du DPE. — Given a dwelling's DPE class (A–G), returns the French rental restrictions in force: letting ban status and date (loi n°\""
+        "source": "tool:compare_lamal_cmu",
+        "snippet": "before: \"Frontalier health cover: LAMal (CH) vs CMU/PUMa (FR). · Couverture santé frontalier : LAMal (CH) ou CMU (FR). — Estimates the monthly cost of the two health-insurance options a France–Switzerland cross-border worker chooses between (droit d'option): Swiss LAMal (in CHF) vs French CMU/PUMa (in EUR, a\" → after: \"Frontalier health cover: LAMal (CH) vs CMU/PUMa (FR). · Couverture santé frontalier : LAMal (CH) ou CMU (FR). — Estimates the monthly cost of the two health-insurance options a France–Switzerland cross-border worker chooses between (droit d'option): Swiss LAMal (in CHF) vs French CMU/PUMa (in EUR, a\""
       },
       "confidence": 0.8,
       "remediation": "Re-review the tool before continuing to trust it."
     }
   ],
-  "score": 45,
+  "score": 60,
   "scoreBreakdown": {
     "toxic-flow": 20,
-    "tool-poisoning": 35
+    "tool-poisoning": 20
   },
   "errors": []
 }

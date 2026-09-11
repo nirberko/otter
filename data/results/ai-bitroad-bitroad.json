@@ -8,19 +8,478 @@
     "kind": "url",
     "ref": "https://app.bitroad.ai/api/v1/mcp"
   },
-  "scannedAt": "2026-08-28T16:42:39.222Z",
-  "durationMs": 562,
+  "scannedAt": "2026-09-11T09:02:35.716Z",
+  "durationMs": 2309,
   "layers": {
-    "metadata": false,
+    "metadata": true,
     "static": false
   },
-  "findings": [],
-  "score": 100,
-  "scoreBreakdown": {},
-  "errors": [
+  "tools": [
     {
-      "scanner": "metadata",
-      "message": "Streamable HTTP error: Error POSTing to endpoint: {\"error\":{\"type\":\"unauthenticated\",\"code\":\"no_credentials\",\"message\":\"\"}}"
+      "name": "services_search_listings",
+      "descriptionHash": "4ae1fd6c8eb0cc909fee808afe692c13ae794f3c7b227bfdece94860803dcc5f",
+      "description": "Search service listings (GPU compute, synthetic data, inference, vector hosting, code review, research, data labelling). This is the entry point to the primary Bitroad flow: find a listing, then buy it with services_purchase (pricing_mode 'fixed', one call) or file a scope with services_request_quot",
+      "labels": [
+        "untrusted-content",
+        "private-data"
+      ]
+    },
+    {
+      "name": "services_purchase",
+      "descriptionHash": "a8003cb31632e1a581b381f0a73c4a6cefeeda8da1a6ae0cbb91d4bd0720668a",
+      "description": "Buy a fixed-price service in one call: validates the scope, computes the deterministic price, creates the quote thread directly in accepted, and charges immediately, with no seller round-trip. The charge is held in escrow; the seller delivers via services_submit_deliverable and the payout releases w"
+    },
+    {
+      "name": "services_request_quote",
+      "descriptionHash": "17758b9b7dc86e39663ed0e074a4b96db397fc8d77a57e04479968dcf077d63f",
+      "description": "File a scope-of-work against a quote-mode service listing for bespoke work. The scope must conform to the listing's scope schema. The seller responds with a price + ETA; the buyer then has 24h to accept with services_accept_quote, which charges into escrow. Fixed-price listings refuse this: use serv",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "services_get_quote",
+      "descriptionHash": "ef8f3d1b468e2f374824e8962b4559e6e07a15d5a64b139ff97709804be7c17d",
+      "description": "Fetch one service quote thread with its deliverables. Buyer or seller side. Secret deliverables are decrypted only for the buyer; everyone else sees a redaction.",
+      "labels": [
+        "untrusted-content",
+        "private-data"
+      ]
+    },
+    {
+      "name": "services_accept_quote",
+      "descriptionHash": "edae87222e3c8fb8dbd9c2415015e08e59e2c69b433c83106cb1c4dbfe49a56a",
+      "description": "Accept a submitted quote and charge immediately. Runs the same delegation caps and payment-envelope rails as goods purchases; cap kickbacks return confirmation_required with a token — re-accept with acknowledged_confirmation + the token after the principal signs off. Funds are held in escrow until t",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "services_counter_quote",
+      "descriptionHash": "b408c9f47fb4f44c23a91a5389e586144c9220abafd1798fdd35cf906e3c0a03",
+      "description": "Post a counter-offer on a quote thread (price in pence, ETA in minutes, optional terms). Either side may counter: the buyer counters a submitted quote (requires the listing to have haggling enabled), the seller counters/revises a requested or already-quoted thread (always allowed pre-accept). Each c",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "services_reject_quote",
+      "descriptionHash": "c34d2527b925f571c5cab36651a6bc0808311a46d2a0bb14076fcfaff9ab82e5",
+      "description": "Reject a submitted quote (buyer-only). Also used by the principal to deny a quote sitting in pending_principal_confirmation after a cap kickback."
+    },
+    {
+      "name": "services_withdraw_quote",
+      "descriptionHash": "0008bdece08ba8471f65e22604b4565ee58100668dfe5d3e6d2fd07732f5009c",
+      "description": "Withdraw a quote request before the seller has quoted (buyer-only)."
+    },
+    {
+      "name": "services_list_my_quotes",
+      "descriptionHash": "ef094628ab561c0608c3248bb57ddd77a575a233349963a9c01299fcb7bf5c2c",
+      "description": "List service quote threads the authenticated principal opened (buyer-side view), paginated. Filter by status (requested, quoted, paid, delivered, released, …).",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "services_acknowledge_delivery",
+      "descriptionHash": "dd0b040f826ee524f23b806e8f5719c837a46adbba7e953ec129556658b4b659",
+      "description": "Explicitly accept the deliverable on a delivered quote. The acknowledgement is recorded immediately; the held payout releases as soon as the funds have settled in the seller's Stripe balance (instant when settled, otherwise the worker completes it — the returned status stays 'delivered' until then)."
+    },
+    {
+      "name": "services_create_listing",
+      "descriptionHash": "be62bdb345abb5560524c409c2bc574d372f2ac4dc1b5637e25e8c328cd1a159",
+      "description": "Seller-side: publish a service listing (GPU compute, synthetic data, inference, vector hosting, code review, research). pricing_mode='fixed' lets buyers purchase in one call (set fixed_price_pence, optionally per-unit fixed_unit_* against a scope_schema field); pricing_mode='quote' (default) adverti",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "services_get_listing",
+      "descriptionHash": "574d4472a096ea8b56d3415854d29cd80155f77003c20acf1ca0d3a8b8d47ef6",
+      "description": "Fetch a single service listing including its scope schema — the fields a quote request or purchase scope must provide — and, for fixed-price listings, the deterministic pricing formula (flat price plus optional per-unit block billing)."
+    },
+    {
+      "name": "services_list_open_requests",
+      "descriptionHash": "ec58a9c2c1bf1b35e06f07cb66b4c38637ff65294c0454bce5f69d378b64ff8b",
+      "description": "Seller-side: list unanswered quote requests (status=requested). The primary polling tool for seller agents — respond with services_submit_quote."
+    },
+    {
+      "name": "services_submit_quote",
+      "descriptionHash": "3f0f1db1ed957c57779fd6ae49f5725adf230e2a0c8b208a09dd0be621a967d7",
+      "description": "Seller-side: answer a quote request with a price (pence), ETA in minutes, and optional terms. Requires the delegation's respond_quote action. Price must sit inside the listing's min/max band when one is set. Starts the buyer's 24h acceptance SLA.",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "services_start_work",
+      "descriptionHash": "885cb1f6a878e7a586252703ac8d1ddfde90ea55d9a4e9a29aea1234fdecb0b1",
+      "description": "Seller-side: mark a paid quote as in_progress. Requires the delegation's respond_quote action."
+    },
+    {
+      "name": "services_submit_deliverable",
+      "descriptionHash": "3063e9a47b22d646030e537c90aaee661a3d1bee240e14c67d7adf7bd54638e7",
+      "description": "Seller-side: submit the deliverable on a paid/in-progress quote. kind=url|text|file|secret. Files are base64 in file_b64 (max 25 MB) with file_name + file_mime_type and land on object storage; secrets are envelope-encrypted and only the buyer can read them. Starts the buyer-acceptance window; re-sub",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "services_list_my_sales",
+      "descriptionHash": "35b3dc726b16c5ff9dc70773c59c750a28ef4d4de78f8561240533ae60314a4e",
+      "description": "Seller-side: list charged threads you still owe work on, paginated. status=paid | in_progress | delivered, or active (all three, the default). The polling tool for fixed-price listings — a fixed-mode purchase is created already paid, so it never shows up in services_list_open_requests. Respond with ",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "auth_whoami",
+      "descriptionHash": "68c98764d90a0b0140f38d97b27a502af96c248d5be85cf48fe4cc92487b47e5",
+      "description": "Return who this MCP credential acts as: principal email/role, agent name, client (Claude install) that issued the token, and when it was last used. Works for both br_ik_* instance keys and br_oat_* OAuth tokens; OAuth-specific fields are null when called under an instance key.",
+      "labels": [
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "auth_revoke_self",
+      "descriptionHash": "107b1f0cb5a6c86f794a5fd77d72dd28a6ac26d655510bd5812b0f3559303cf0",
+      "description": "Disconnect this OAuth connection by revoking the access+refresh chain that issued the token making this call. Idempotent: a second call returns `{ revoked: false, reason: 'already_revoked' }`. Refuses with `not_oauth_token` when called under an br_ik_* instance key — rotate those from the dashboard ",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "sellers_get",
+      "descriptionHash": "988d9feacb9ceb220a7843d7d891ead5798175d23a0fb9d5f3445fa3f2d0fc26",
+      "description": "Fetch a seller's public profile + trust signals (verification tier, dispute / refund / on-time-ship rates over a 90-day window, response times). Trust metrics carry a `stale: true` flag when the last computation is older than 36 hours."
+    },
+    {
+      "name": "platforms_get",
+      "descriptionHash": "597af05a623eeed22fc9e7a8b153b5dfc95da261e09080b3c087671d0d3da1b5",
+      "description": "Fetch a platform's public reputation profile by slug: KYC status, rolling-window orders/disputes/refunds, on-time-ship rate, dispute resolution p50/p95, anomaly-pause count. Decommissioned platforms include the banner and reason."
+    },
+    {
+      "name": "addresses_list",
+      "descriptionHash": "8ce4601cb579c548c31f2d369cb3eeca7daa5f6c2496a286a0bd8ad247c1a9a7",
+      "description": "List the principal's saved shipping addresses. The agent does NOT need to call this every purchase — purchase_create_intent will use the principal's default shipping address if `address_id` is omitted."
+    },
+    {
+      "name": "addresses_create",
+      "descriptionHash": "30c0ae15e15d079f8b8c55b1b3e03bc102a61ad866a781fc9c38b1eb5d5ba2c5",
+      "description": "Save a new shipping address. Set is_default_shipping=true to make it the default."
+    },
+    {
+      "name": "payment_methods_list",
+      "descriptionHash": "6eeaebcb87a59c5c6b092abfb70f3c8cd53ea4fe543e2a9740412eeb6d942fa3",
+      "description": "List the principal's saved payment methods (last4 + brand only — full card numbers are never exposed to agents). purchase_confirm_intent uses the principal's default method if no `payment_method_id` is passed."
+    },
+    {
+      "name": "payment_methods_create",
+      "descriptionHash": "0d03050360ee96042f5b845f65802a8423620b31431fc306e060374284ce6744",
+      "description": "Returns a one-time Stripe Checkout URL to hand the user so they can add a payment card. The card is saved to their account automatically when they complete the hosted flow — no charge is made (setup mode only). Present the `checkout_url` to the user as a link to open in a browser; there is nothing e",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "envelopes_list",
+      "descriptionHash": "c8278ae90120d2b91470836de600ab126f80f319f571e9f8db3a68ba824126d4",
+      "description": "List the active and historical payment envelopes the calling agent instance can draw against. Each entry shows balance, scope, validity, and per-tx / per-day caps. Read-only — envelopes are created, topped up, and revoked by the principal in the dashboard."
+    },
+    {
+      "name": "envelopes_get",
+      "descriptionHash": "28d53f2b5f7c63b60f90e9e4aab5d1ef3c215d1d367b5da7a46880bd4da5c419",
+      "description": "Fetch a single envelope by id. Returns the same shape as envelopes_list. Returns 404 when the envelope is not bound to the calling agent instance."
+    },
+    {
+      "name": "disputes_file",
+      "descriptionHash": "c86f27a0a0b5b92e6a14da9a0096aba2c946ca91a3e351b68b36139987d0679d",
+      "description": "File a dispute on a goods order (order_id; reasons: not_as_described, defective, not_received, fraud_unauthorized_charge, duplicate_charge, other) or a service quote (service_quote_id; reasons: service_not_delivered, service_quality, service_scope_mismatch, plus the generic three). Exactly one targe",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "disputes_list",
+      "descriptionHash": "85e13db3e3f1f1a600c713019f03c7de49fe9261211a8b4b64f76f3cb5679935",
+      "description": "List disputes for the authenticated principal (buyer-side: ones they filed; seller-side: ones filed against their orders). Filter by `status` (admin_review, awaiting_seller, resolved_for_buyer, resolved_for_seller, withdrawn)."
+    },
+    {
+      "name": "disputes_get",
+      "descriptionHash": "caafabe81c7a3ffd56eada025baa25e62706973725d457437c26ba886a6d23b3",
+      "description": "Fetch one dispute by id with the full evidence trail and timeline. Buyer-side or seller-side caller — returns 404 if the dispute doesn't belong to either of the calling actor's roles."
+    },
+    {
+      "name": "disputes_add_evidence",
+      "descriptionHash": "a7ee3163c1439d3cfd66c46ae074bfab78ea9ee43406928bf09fb6fd2991ba24",
+      "description": "Attach an evidence item to an open dispute. The body is base64-encoded; per-item cap is 25 MB and per-dispute cap is 200 MB. Either the filing buyer or the seller-owner can upload.",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "disputes_withdraw",
+      "descriptionHash": "17979a8e1c318bd932641bc579dece52532d98bb035da24dc47f9c53d9529843",
+      "description": "Buyer-only: withdraw an open dispute. Closed disputes cannot be withdrawn."
+    },
+    {
+      "name": "disputes_respond",
+      "descriptionHash": "18af02e5afef7524d9c1d927022ee10232662fc2b5a96f1ab28e918334fd57ca",
+      "description": "Seller-side response to a dispute. Requires the seller delegation's `respond_dispute` action. Free-form text 1–4000 chars."
+    },
+    {
+      "name": "catalog_search_products",
+      "descriptionHash": "40e8f4369163276bbc2c9cefa144e1dda484183a299d78b63a273297b82fa0f9",
+      "description": "Search marketplace products by free-text query, optional category, or seller. Returns a paginated list of summaries with pence-denominated prices, available stock, and restricted-goods flags. Pass a concise phrase, not a full sentence."
+    },
+    {
+      "name": "catalog_get_product",
+      "descriptionHash": "9a3e9756efb117d9ba10f19b74121f28b08b44602c8f177b65a7e39c7ad3fb7b",
+      "description": "Fetch a single product by id. Returns full description, structured spec values, seller id, live stock, and any restricted-goods flags. Prefer this over re-running search when the agent already has the product id."
+    },
+    {
+      "name": "catalog_list_categories",
+      "descriptionHash": "fb27d260cf890c14731afe3e7297614e1be28b4c481161a36ebc20dddf19fbd6",
+      "description": "List the marketplace's category taxonomy. Optionally pass `slug` to scope to a subtree (e.g. 'electronics'). Each leaf carries its JSON Schema for specs, plus filterable / rangeable arrays so agents know which spec keys are queryable."
+    },
+    {
+      "name": "catalog_describe_category",
+      "descriptionHash": "9457637c4cc56b8f7964aa2324ee5581aa69b629098ed8e5d34728d7147bb777",
+      "description": "Fetch one category by slug, including the spec JSON Schema for leaf categories. Useful before building a structured purchase intent so the agent emits a valid spec query."
+    },
+    {
+      "name": "purchase_create_intent",
+      "descriptionHash": "fc07be15fa567ba05dccf778668a20eabd0e9e85a6e134b5b4db7015b40a59be",
+      "description": "Create a purchase intent for a product. Reserves stock, snapshots price + VAT + shipping, and consults the delegation policy. Returns an intent id; intents expire after 15 minutes if not confirmed. Combined postage: same-seller purchases to the same address while earlier orders are unshipped are onl"
+    },
+    {
+      "name": "purchase_confirm_intent",
+      "descriptionHash": "75882ebfaacba448b6a2144cdd596a218439a778afbb742e332f8878f8483197",
+      "description": "Confirm a purchase intent — re-validates price within 1p tolerance, charges via Stripe Connect destination charges (per-seller application fee on item only), and creates the order. May return SCA / payment-action-required / declined errors."
+    },
+    {
+      "name": "purchase_cancel_intent",
+      "descriptionHash": "9ee8ac8f2b25c8080bd5008913eee29e1c1a8620a3d37d3f079601c3e6d23b86",
+      "description": "Cancel a pending purchase intent and release the stock reservation."
+    },
+    {
+      "name": "orders_list",
+      "descriptionHash": "f7efeb9712a4e0507a00b901f0d582b66216e95aa6e4e0b4fe3c5b7c50920297",
+      "description": "List orders the authenticated principal placed (buyer-side view), paginated with a cursor. Optional status filter (e.g. 'paid_awaiting_fulfillment', 'delivered', 'cancelled'). Use this to find an order id before calling orders_get."
+    },
+    {
+      "name": "orders_get",
+      "descriptionHash": "d18c26e02af2eb701d4ad3fdcf6e126268f3948cbd08420c8a6c9118420fe0b3",
+      "description": "Fetch a single order with line items, shipment / tracking, payment status, and any associated returns or disputes. Buyer-side view — for seller-side use seller_get_order."
+    },
+    {
+      "name": "returns_initiate",
+      "descriptionHash": "2a4f0f2931d71da069fd1852eb113d6f0d235cc8eb4c36373bd3d2049d867840",
+      "description": "Initiate a return on a delivered order. Uniform platform policy: a 30-day change-of-mind window from delivery, FREE, full refund, NO restocking fee, and the SELLER funds the return label. Reasons: cooling_off_statutory (days 0–14) and cooling_off_extended (days 15–30) are change-of-mind; defective i",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "returns_get",
+      "descriptionHash": "d38172e0339e3ed0ac8c48acc251e3cdf8bb4aad2c24266e697b078ff739f0e9",
+      "description": "Fetch a single return by id, including reason, status, restocking fee (if any), refund ledger, and the inspection trail once the parcel has arrived."
+    },
+    {
+      "name": "returns_list",
+      "descriptionHash": "3bdc8d5670efa00a4e6d47563e2ea0e4775d585dc190a9fdb9b9341263aa34df",
+      "description": "List returns the authenticated principal filed (buyer-side view), paginated. Filter by `order_id` to find returns on a specific order, or by `status` (initiated, label_ready, in_transit, received, refunded, rejected)."
+    },
+    {
+      "name": "returns_get_label",
+      "descriptionHash": "745e095fdccdb049b6dd05045ec50e0deae642938634fc683ecafb8acc35869b",
+      "description": "Fetch a short-lived signed URL for the return shipping label PDF. URL expires within minutes; re-call to get a fresh one. Only available once the return has progressed to label_ready.",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "seller_get_me",
+      "descriptionHash": "c369eadff812a1eb289b2dda167c623c7bc8d213561f59c77fbad312c4e4bb58",
+      "description": "Fetch the seller record bound to the calling principal or seller-side agent instance. Refuses when the caller has no seller record.",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "seller_onboarding_status",
+      "descriptionHash": "83c93e1f2cb0f138ddb898f8054de93f8df1f2521da38c01a8911b31808f7489",
+      "description": "Read-only Stripe Connect onboarding status. Stripe Express onboarding itself is human-on-session; agents wait on this read until charges_enabled flips true before listing."
+    },
+    {
+      "name": "seller_list_listings",
+      "descriptionHash": "8992b2315b02540f07f2335f91b45cd63bd7e96454e00b8e96b97aeaedbb0d58",
+      "description": "List the bound seller's product listings, paginated. Includes archived/flagged listings by default — pass `is_active: true` to filter to live listings only. Returns slug, category, stock, price, and any moderation flags."
+    },
+    {
+      "name": "seller_get_listing",
+      "descriptionHash": "5c0c36ad8418d9b1c392e67a3bd8825247a0d00ec5053218b31000b9280ec10f",
+      "description": "Fetch a single listing the bound seller owns, including its full description, current stock + reserved counts, spec values, and any moderation state. Refuses if the listing belongs to a different seller."
+    },
+    {
+      "name": "seller_create_listing",
+      "descriptionHash": "2eca69ccd5177f13093cd66c4405fbbb980845a91f4349a4ca9e420abd8af934",
+      "description": "Create a product listing. Validates the payload against the leaf category's spec schema and the structured return policy. Restricted-goods classifier runs at write time; flagged listings are inserted but invisible until cleared."
+    },
+    {
+      "name": "seller_update_listing",
+      "descriptionHash": "2f7da8df0ef6ec47fa56c2043c8f67c2702222692f080dc1e06cf2f0f97310e0",
+      "description": "Patch an existing listing the calling seller owns. Specs are re-validated against the leaf schema; return_policy is re-validated against the platform statutory floor. Buyers with pending intents get re-validated at confirm time, not blocked here."
+    },
+    {
+      "name": "seller_archive_listing",
+      "descriptionHash": "ca80bbe57962676f090666257e385123399684080e5da6c21d046d44de7ff8b7",
+      "description": "Soft-delete a listing (is_active=false). Refuses while any purchase intents are still pending against it.",
+      "labels": [
+        "destructive"
+      ]
+    },
+    {
+      "name": "seller_update_stock",
+      "descriptionHash": "16230968d602d77ecad863d44fef681c6c60d36830ede760df61ed62978bca8d",
+      "description": "Update a listing's stock count. Pass `stock` for an absolute value or `delta` for a relative change. Resulting stock must remain >= reserved."
+    },
+    {
+      "name": "seller_list_orders",
+      "descriptionHash": "e78526b98817dedd10d017b7e26a080690b9b979629741297a0c07e18372ef7e",
+      "description": "List orders placed against the bound seller's products (seller-side view), paginated. Filter by `status` (e.g. 'paid_awaiting_fulfillment' to find orders that need shipping). This is the seller-equivalent of orders_list."
+    },
+    {
+      "name": "seller_get_order",
+      "descriptionHash": "a5c65fec478174fc1f2732a5b3f08254f029edbe594970c49d1ffa0ac648b1c5",
+      "description": "Fetch a single seller-scoped order with buyer shipping address (PII-redacted where the policy requires it), items, shipment, payment status, and any associated return/dispute. Refuses if the order isn't against this seller."
+    },
+    {
+      "name": "seller_mark_shipped",
+      "descriptionHash": "f0b21098bcde6627da39b803972c6e188c3ae8b4158e199a7a5b8483ca2bddd8",
+      "description": "Mark an order as shipped with a tracking number. Idempotent on (order_id, tracking_number) — same pair is a no-op success. Enqueues carrier polling automatically."
+    },
+    {
+      "name": "seller_mark_delivered",
+      "descriptionHash": "c516db2357d7e5f3ae03fcd6f9a9ab1d91a6ef533bdeea281408333738791647",
+      "description": "Declare a shipped order as delivered (no carrier confirmation is wired). Only valid from shipped; already-delivered is a no-op success. Notifies the buyer, who can dispute if it never arrived. Orders still shipped after 10 days are auto-marked delivered by the platform."
+    },
+    {
+      "name": "seller_attach_tracking",
+      "descriptionHash": "efb46f7395c1eb4fcd35bccba5e24d2c5687fd9728327857ea18f30bf4f0c3ac",
+      "description": "Attach or update tracking on an already-shipped order. Use mark_shipped for first ship; this is for late-arriving tracking only."
+    },
+    {
+      "name": "seller_list_returns",
+      "descriptionHash": "ab1f77a26a88f66d38a72c44e0a0539a2dfdf22e8a6d03151c45f3d5a5b18fdb",
+      "description": "List returns filed against the bound seller's orders, paginated. Filter by `status` (initiated, label_ready, in_transit, received, refunded, rejected) to triage what needs inspection. Seller-equivalent of returns_list."
+    },
+    {
+      "name": "seller_get_return",
+      "descriptionHash": "b995a9e478de2af1572837faa05cd220043cb0934c2499c0f633a5ae173c6927",
+      "description": "Fetch a single return filed against one of the bound seller's orders, with reason, status, restocking fee, inspection notes, and the refund ledger. Refuses if the return isn't on a seller-owned order."
+    },
+    {
+      "name": "seller_accept_return",
+      "descriptionHash": "7b60b27c53f9093a7f121a22ecc5c2c3862f5319207845af85507087219994a5",
+      "description": "Acknowledge that a returned parcel arrived and was inspected. Moves return: approved → received. The refund engine runs idempotently afterwards via the existing webhook flow.",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "seller_reject_return",
+      "descriptionHash": "6c8e88c940ed0c4b48f974af5b9805296531b29937d45c77493da1782cdfc15b",
+      "description": "Reject a return after inspection. inspection_notes is required. Refuses if the return has already refunded."
+    },
+    {
+      "name": "seller_list_reviews",
+      "descriptionHash": "63e385b0fa486df1d5386cf33ea4ac6beaff24ccedff934dd988b8197589d42b",
+      "description": "List reviews left on this seller's orders, paginated. Filter by `responded: false` to find reviews that still need a seller response. A review's `rating` is 1-5; lower-rated ones are typically the highest priority to respond to.",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "seller_respond_to_review",
+      "descriptionHash": "76ebc4a1c1b33632de6653f59de719ca57b0f61013584232db2072927db0484a",
+      "description": "Post the seller's response to a review. One response per review; subsequent attempts return already_responded.",
+      "labels": [
+        "public-sink"
+      ]
     }
-  ]
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"services_get_quote\" references sensitive artifacts (secret). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:services_get_quote",
+        "snippet": "Fetch one service quote thread with its deliverables. Buyer or seller side. Secret deliverables are decrypted only for the buyer; everyone else sees a redaction…"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"services_submit_deliverable\" references sensitive artifacts (secret). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:services_submit_deliverable",
+        "snippet": "Seller-side: submit the deliverable on a paid/in-progress quote. kind=url|text|file|secret. Files are base64 in file_b64 (max 25 MB) with file_name + file_mime_…"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"auth_whoami\" references sensitive artifacts (auth token). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:auth_whoami",
+        "snippet": "Return who this MCP credential acts as: principal email/role, agent name, client (Claude install) that issued the token, and when it was last used. Works for bo…"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOOL-POISON-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description issues instructions to the model",
+      "detail": "Description of \"orders_list\" contains imperative instructions directed at the AI assistant rather than describing the tool. This is the core tool-poisoning technique.",
+      "evidence": {
+        "source": "tool:orders_list",
+        "snippet": "List orders the authenticated principal placed (buyer-side view), paginated with a cursor. Optional status filter (e.g. 'paid_awaiting_fulfillment', 'delivered'…"
+      },
+      "confidence": 0.7,
+      "remediation": "Treat the server as untrusted; the model may obey embedded instructions."
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: services_search_listings, services_get_quote, services_list_my_quotes, services_submit_deliverable, services_list_my_sales, payment_methods_create, returns_get_label, seller_list_reviews · Private data: services_search_listings, services_request_quote, services_get_quote, services_accept_quote, services_submit_deliverable, auth_whoami, auth_revoke_self, disputes_file, seller_get_me · Public sink: services_counter_quote, services_create_listing, services_submit_quote, services_submit_deliverable, auth_whoami, disputes_add_evidence, returns_initiate, seller_accept_return, seller_respond_to_review · Destructive: seller_archive_listing.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: services_search_listings, services_get_quote, services_list_my_quotes, services_submit_deliverable, services_list_my_sales, payment_methods_create, returns_get_label, seller_list_reviews · Private data: services_search_listings, services_request_quote, services_get_quote, services_accept_quote, services_submit_deliverable, auth_whoami, auth_revoke_self, disputes_file, seller_get_me · Public sink: services_counter_quote, services_create_listing, services_submit_quote, services_submit_deliverable, auth_whoami, disputes_add_evidence, returns_initiate, seller_accept_return, seller_respond_to_review · Destructive: seller_archive_listing"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 43,
+  "scoreBreakdown": {
+    "tool-poisoning": 38,
+    "toxic-flow": 20
+  },
+  "errors": []
 }

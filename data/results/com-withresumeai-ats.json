@@ -8,8 +8,8 @@
     "kind": "url",
     "ref": "https://withresumeai.com/api/mcp"
   },
-  "scannedAt": "2026-07-25T06:38:59.243Z",
-  "durationMs": 1356,
+  "scannedAt": "2026-09-11T09:17:23.896Z",
+  "durationMs": 1673,
   "layers": {
     "metadata": true,
     "static": false
@@ -17,13 +17,13 @@
   "tools": [
     {
       "name": "which_ats",
-      "descriptionHash": "c7b9693c4a4bb95e34d7d33dae13eb80b9bf406c3e27d0ecdce00ea97d7be1cd",
-      "description": "Look up the applicant tracking system (ATS) a specific large employer uses, from ResumeAI's State of ATS 2026 dataset (743 Fortune 500 / Global 2000 employers checked, 713 verified against live careers portals, June 2026). Accepts a company name or slug, e.g. 'Nike' or 'jpmorgan-chase'."
+      "descriptionHash": "f44e83ef36a68d521d365d54167de2cfd49bbe75a977efcd5a1cdd93c2e3df0b",
+      "description": "Look up the applicant tracking system (ATS) a specific large employer uses, from ResumeAI's State of ATS 2026 dataset (738 Fortune 500 / Global 2000 employers checked, 704 verified against live careers portals, June 2026 audit, re-verified July 2026). Accepts a company name or slug, e.g. 'Nike' or '"
     },
     {
       "name": "ats_stats",
-      "descriptionHash": "03002a71a40de2a028a9acfe2bfed54dc2c544d260058001730b534c4a515ffa",
-      "description": "Canonical ATS market-share numbers from ResumeAI's State of ATS 2026 dataset: 743 large employers checked, 713 portal-verified (June 2026). Workday leads at 38.6% of verified employers — not the ~75% figure often repeated online — and the top 3 vendors cover about 60%. Shares are computed live from ",
+      "descriptionHash": "891fd24ba11930f9ffc71815484b755beb03798d87dd8bb136fe39b7a0631f38",
+      "description": "Canonical ATS market-share numbers from ResumeAI's State of ATS 2026 dataset: 738 large employers, 704 verified against their live careers portal. Workday leads — not the ~75% figure often repeated online — and the top 3 vendors cover about 60%. Every share in the response is computed live from the ",
       "labels": [
         "public-sink"
       ]
@@ -35,15 +35,16 @@
     },
     {
       "name": "ats_changes",
-      "descriptionHash": "e940d193b0aae6d18d68a6174568534569cf9919906ea5e3798d158bba2a8d98",
-      "description": "The living-feed counterpart of the dataset: which tracked employers changed their applicant tracking system. ResumeAI automatically re-probes every company's careers portal against live vendor infrastructure on a weekly rotation; detected changes are human-confirmed before they appear here. An empty",
+      "descriptionHash": "96cd15546e7e012533de50d590cb030e24f0d24c12cd4e1bea8b1c0a53507874",
+      "description": "The living-feed counterpart of the dataset: which tracked employers changed their applicant tracking system. Every entry currently in the feed was confirmed by a person against the live careers portal during the July 2026 re-verification and published together, which is why they share a timestamp — ",
       "labels": [
-        "untrusted-content"
+        "untrusted-content",
+        "public-sink"
       ]
     },
     {
       "name": "check_resume",
-      "descriptionHash": "c9d1dd0ea326e92551b7cbf6755bde7353dbaaf5cd0b0a2e86d61c2a9f4fb12a",
+      "descriptionHash": "900b592e3babc361e2e8f862733f703f2f4f25c739473760dc8dbcd2f08bcbbf",
       "description": "Score a resume 0-100 with ResumeAI's production ATS engine — the same one behind https://withresumeai.com/ats-checker. Returns a breakdown (keywords, format, sections, content, length), concrete fixes, and missing keywords. Optionally pass a target company (to get that employer's verified ATS + vend",
       "labels": [
         "destructive"
@@ -61,21 +62,86 @@
   ],
   "findings": [
     {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"check_resume\" references sensitive artifacts (api_key). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:check_resume",
+        "snippet": "Score a resume 0-100 with ResumeAI's production ATS engine — the same one behind https://withresumeai.com/ats-checker. Returns a breakdown (keywords, format, se…"
+      },
+      "confidence": 0.65
+    },
+    {
       "id": "MCP-TOXIC-FLOW-001",
       "severity": "high",
       "category": "toxic-flow",
       "title": "Lethal trifecta: untrusted input + private data + external sink",
-      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: ats_changes · Private data: get_agent_resume · Public sink: ats_stats · Destructive: check_resume, get_agent_resume.",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: ats_changes · Private data: get_agent_resume · Public sink: ats_stats, ats_changes · Destructive: check_resume, get_agent_resume.",
       "evidence": {
         "source": "server:mcp",
-        "snippet": "Untrusted content: ats_changes · Private data: get_agent_resume · Public sink: ats_stats · Destructive: check_resume, get_agent_resume"
+        "snippet": "Untrusted content: ats_changes · Private data: get_agent_resume · Public sink: ats_stats, ats_changes · Destructive: check_resume, get_agent_resume"
       },
       "confidence": 0.6,
       "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"which_ats\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:which_ats",
+        "snippet": "before: \"Look up the applicant tracking system (ATS) a specific large employer uses, from ResumeAI's State of ATS 2026 dataset (743 Fortune 500 / Global 2000 employers checked, 713 verified against live careers portals, June 2026). Accepts a company name or slug, e.g. 'Nike' or 'jpmorgan-chase'.\" → after: \"Look up the applicant tracking system (ATS) a specific large employer uses, from ResumeAI's State of ATS 2026 dataset (738 Fortune 500 / Global 2000 employers checked, 704 verified against live careers portals, June 2026 audit, re-verified July 2026). Accepts a company name or slug, e.g. 'Nike' or '\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"ats_stats\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:ats_stats",
+        "snippet": "before: \"Canonical ATS market-share numbers from ResumeAI's State of ATS 2026 dataset: 743 large employers checked, 713 portal-verified (June 2026). Workday leads at 38.6% of verified employers — not the ~75% figure often repeated online — and the top 3 vendors cover about 60%. Shares are computed live from \" → after: \"Canonical ATS market-share numbers from ResumeAI's State of ATS 2026 dataset: 738 large employers, 704 verified against their live careers portal. Workday leads — not the ~75% figure often repeated online — and the top 3 vendors cover about 60%. Every share in the response is computed live from the \""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"ats_changes\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:ats_changes",
+        "snippet": "before: \"The living-feed counterpart of the dataset: which tracked employers changed their applicant tracking system. ResumeAI automatically re-probes every company's careers portal against live vendor infrastructure on a weekly rotation; detected changes are human-confirmed before they appear here. An empty\" → after: \"The living-feed counterpart of the dataset: which tracked employers changed their applicant tracking system. Every entry currently in the feed was confirmed by a person against the live careers portal during the July 2026 re-verification and published together, which is why they share a timestamp — \""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"check_resume\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:check_resume",
+        "snippet": "before: \"Score a resume 0-100 with ResumeAI's production ATS engine — the same one behind https://withresumeai.com/ats-checker. Returns a breakdown (keywords, format, sections, content, length), concrete fixes, and missing keywords. Optionally pass a target company (to get that employer's verified ATS + vend\" → after: \"Score a resume 0-100 with ResumeAI's production ATS engine — the same one behind https://withresumeai.com/ats-checker. Returns a breakdown (keywords, format, sections, content, length), concrete fixes, and missing keywords. Optionally pass a target company (to get that employer's verified ATS + vend\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
     }
   ],
-  "score": 80,
+  "score": 41,
   "scoreBreakdown": {
+    "tool-poisoning": 39,
     "toxic-flow": 20
   },
   "errors": []

@@ -8,8 +8,8 @@
     "kind": "url",
     "ref": "https://changegamer.ai/mcp"
   },
-  "scannedAt": "2026-07-25T06:39:28.493Z",
-  "durationMs": 270,
+  "scannedAt": "2026-09-11T09:18:23.606Z",
+  "durationMs": 686,
   "layers": {
     "metadata": true,
     "static": false
@@ -73,8 +73,38 @@
     },
     {
       "name": "get_stats",
-      "descriptionHash": "d03464b721b3c6f9b19f9b0c5fd856861f0bc185f0e767bf55df672af8ce91a1",
-      "description": "Return corpus stats: total/free/premium counts, per-category counts, tag count, newest/oldest update dates, the 10 most recently updated resources, and feed URLs. A small freshness/size signal to poll before deciding whether to re-ingest. Same data as /api/stats.json.",
+      "descriptionHash": "c8dcb3d8d3b9e82c6f3b23101400d3b9f9bc6eb8fa64950c0cf149953ea70c72",
+      "description": "Return corpus stats: total/free/premium counts, per-category counts, tag count, newest/oldest update dates, the 10 most recently updated resources, feed URLs — plus an editorial block (guide count, words, newest publish) merged at runtime from the static articles index. A small freshness/size signal",
+      "labels": [
+        "untrusted-content",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "list_articles",
+      "descriptionHash": "27175262d4b818d3629c6e3163d3aaed69cfb3046ec62a7a7ab55f59de3d08a5",
+      "description": "List all ChangeGamer editorial guides (always free, separate from the licensable corpus): cluster-first hub/spoke graph with every article's title, search intent, word count, takeaways count and variant URLs. No body content — fetch bodies with get_article.",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "get_article",
+      "descriptionHash": "9701273958860d28cf20d99d8d69a6b3f9f35cf767c9c42dc5292f172c67e94d",
+      "description": "Fetch one ChangeGamer guide (editorial article) by slug as full Markdown with its metadata header. Always free — never part of the paid corpus. Use list_articles to discover slugs."
+    },
+    {
+      "name": "search",
+      "descriptionHash": "66c9e1136fb70a3084fe635854553a87063763db6a01baa7c16d4edf470843b3",
+      "description": "Keyword search across ALL ChangeGamer content (resources and editorial guides) with server-side ranking: term hits in title weigh most, then tags, then description. Returns ranked rows with type, slug, title and .md URL (no body content). Use get_resource/get_article to fetch winners.",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "get_cluster",
+      "descriptionHash": "95c3b9d6dcad5551f5df248e4c09d9c9a768aedebf93d9e339c58d7d58d89d48",
+      "description": "Fetch one ChangeGamer guide cluster (topic bundle) from the free editorial layer: pillar metadata, every sub-article with variant URLs, and the pillar’s full Markdown body. Use list_articles to discover cluster ids.",
       "labels": [
         "untrusted-content"
       ]
@@ -127,22 +157,60 @@
       "confidence": 0.65
     },
     {
+      "id": "MCP-TOOL-POISON-007",
+      "severity": "low",
+      "category": "tool-poisoning",
+      "title": "Description uses pressure/override language",
+      "detail": "Description of \"get_article\" stacks urgency/override words (always, never). Legitimate tool descriptions rarely pressure the model to act or ignore prior guidance.",
+      "evidence": {
+        "source": "tool:get_article",
+        "snippet": "Fetch one ChangeGamer guide (editorial article) by slug as full Markdown with its metadata header. Always free — never part of the paid corpus. Use list_article…"
+      },
+      "confidence": 0.3
+    },
+    {
+      "id": "MCP-SHADOW-001",
+      "severity": "medium",
+      "category": "shadowing",
+      "title": "Generic tool name can shadow trusted tools",
+      "detail": "Tool \"search\" uses a generic high-value name. When multiple servers load together, this can intercept calls meant for a trusted server.",
+      "evidence": {
+        "source": "tool:search",
+        "snippet": "search"
+      },
+      "confidence": 0.4
+    },
+    {
       "id": "MCP-TOXIC-FLOW-001",
       "severity": "high",
       "category": "toxic-flow",
       "title": "Lethal trifecta: untrusted input + private data + external sink",
-      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: list_resources, search_resources, get_corpus, get_pricing, get_stats, check_access · Private data: get_corpus, get_full_corpus · Public sink: check_access.",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: list_resources, search_resources, get_corpus, get_pricing, get_stats, list_articles, search, get_cluster, check_access · Private data: get_corpus, get_full_corpus · Public sink: get_stats, check_access.",
       "evidence": {
         "source": "server:mcp",
-        "snippet": "Untrusted content: list_resources, search_resources, get_corpus, get_pricing, get_stats, check_access · Private data: get_corpus, get_full_corpus · Public sink: check_access"
+        "snippet": "Untrusted content: list_resources, search_resources, get_corpus, get_pricing, get_stats, list_articles, search, get_cluster, check_access · Private data: get_corpus, get_full_corpus · Public sink: get_stats, check_access"
       },
       "confidence": 0.6,
       "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"get_stats\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:get_stats",
+        "snippet": "before: \"Return corpus stats: total/free/premium counts, per-category counts, tag count, newest/oldest update dates, the 10 most recently updated resources, and feed URLs. A small freshness/size signal to poll before deciding whether to re-ingest. Same data as /api/stats.json.\" → after: \"Return corpus stats: total/free/premium counts, per-category counts, tag count, newest/oldest update dates, the 10 most recently updated resources, feed URLs — plus an editorial block (guide count, words, newest publish) merged at runtime from the static articles index. A small freshness/size signal\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
     }
   ],
-  "score": 45,
+  "score": 34,
   "scoreBreakdown": {
-    "tool-poisoning": 35,
+    "tool-poisoning": 38,
+    "shadowing": 8,
     "toxic-flow": 20
   },
   "errors": []

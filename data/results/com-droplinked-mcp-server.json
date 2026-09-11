@@ -8,8 +8,8 @@
     "kind": "url",
     "ref": "https://mcp.droplinked.com/mcp"
   },
-  "scannedAt": "2026-08-28T16:43:24.156Z",
-  "durationMs": 1114,
+  "scannedAt": "2026-09-11T09:03:44.518Z",
+  "durationMs": 1079,
   "layers": {
     "metadata": true,
     "static": false
@@ -17,12 +17,15 @@
   "tools": [
     {
       "name": "find_merchant",
-      "descriptionHash": "ab1ca1ac825af1c230507f07252caedc169e8b547532cc021bd1e3742535ebd0",
-      "description": "Find a droplinked merchant by slug, name, or category. Provide exactly one of:  `slug` (exact storefront URL), `name` (case-insensitive substring), or `category` (matches merchants with products in that category). Returns up to `limit` MerchantCards: { id, slug, name, description, verifiedBrand, pro"
+      "descriptionHash": "bf9fcbbf2b2ace5016666f61feabb0c3f10bce7515e88b096cc9fcf7e7309c97",
+      "description": "Find a droplinked merchant by slug, name, or category. Provide exactly one of:  `slug` (exact storefront URL), `name` (case-insensitive substring over merchant names), or `category` (a case-insensitive substring matched against PRODUCT TITLES, then deduped to the merchants selling them — droplinked ",
+      "labels": [
+        "untrusted-content"
+      ]
     },
     {
       "name": "find_inventory",
-      "descriptionHash": "4a7e94280110e180bff7f888f506d90a7cffbd6e653f49cd1ca85de21962f8ab",
+      "descriptionHash": "f0f6f628c10a21eec3eb5c5ce3eada56c1f9e75f0174840997243175c52da29b",
       "description": "Discover droplinked inventory (SKU-level) matching a free-text query and/or filters, across every connected catalog source (native droplinked shops + the Shopify Global Catalog + Henry + Impact brands). Provide at least one of `query` (catalog match) or `brandSlug` (scope to a single droplinked shop"
     },
     {
@@ -120,16 +123,13 @@
     },
     {
       "name": "recommend_lender",
-      "descriptionHash": "9a42d91303ff142078ca2a5573a453231fe7a3cccbe93aa42f567123f35d075d",
-      "description": "Get an ordered list of recommended lenders for a merchant based on jurisdiction and archetype. Returns an array of lenders sorted by track record (issuedAttestationCount, lastAttestationAt) with a computed recommendation score. Use this when an agent needs to suggest lenders to a merchant based on g",
-      "labels": [
-        "private-data"
-      ]
+      "descriptionHash": "5a57d3360580e14ebe35bcade083abc76e1d2034c22568b374656d9d393dad66",
+      "description": "Find out whether droplinked can source financing for a merchant's jurisdiction, and how the available matches rank. Returns an ordered array of matches, each carrying `jurisdiction`, `matchKind` ('exact-jurisdiction' or 'global-fallback') and `rank`. Use this when an agent needs to tell a merchant w"
     },
     {
       "name": "recommend_service_provider",
-      "descriptionHash": "bae785bebae4cc95222c55cb52e624cae0ee34e57276e6bbde351eb1ebbc6cb1",
-      "description": "Get an ordered list of recommended service providers (WMS, 3PL, fulfillment partners) for a merchant. Returns an array sorted by track record (successfulIngestionCount, lastIngestionAt) with a computed recommendation score. Use this when an agent needs to route a merchant to an appropriate WMS/3PL b",
+      "descriptionHash": "97dda61c303849b4a63109b50f50fef33971a0293b27cbeafdc9bcdf8a754d4c",
+      "description": "Get an ordered list of ACTIVE service providers (WMS, 3PL, fulfillment partners) a merchant can route inventory ingestion or fulfillment to. Returns an array sorted by track record (successfulIngestionCount desc, then most-recent success), each row carrying `providerId`, `displayName`, `archetype`, ",
       "labels": [
         "private-data"
       ]
@@ -156,8 +156,8 @@
     },
     {
       "name": "list_shop_products",
-      "descriptionHash": "761999c8209d71e8a531ab15b8c45244ea983cde61acd1b1c17ebeb36bb3dcec",
-      "description": "Page through the public catalog of a single droplinked shop by slug. Use the returned cursor to fetch additional pages. The response includes a `shop_verification` block (KYB is per-merchant so every product on the page shares it) and a parallel `verifications` array. Surface the shop's verification"
+      "descriptionHash": "06f44c2857aae6a9653614e275d44e9c26f11b257655547eddf1834e61b8f1df",
+      "description": "Page through the public catalog of a single droplinked shop by slug. Paginate with `page` (1-based); the response carries `page`, `totalPages`, `hasNextPage` and `nextPage` — there is no cursor on this route. The response includes a `shop_verification` block (KYB is per-merchant so every product on "
     },
     {
       "name": "start_checkout",
@@ -253,6 +253,31 @@
   ],
   "findings": [
     {
+      "id": "MCP-TOOL-POISON-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description issues instructions to the model",
+      "detail": "Description of \"recommend_lender\" contains imperative instructions directed at the AI assistant rather than describing the tool. This is the core tool-poisoning technique.",
+      "evidence": {
+        "source": "tool:recommend_lender",
+        "snippet": "Find out whether droplinked can source financing for a merchant's jurisdiction, and how the available matches rank. Returns an ordered array of matches, each ca…"
+      },
+      "confidence": 0.7,
+      "remediation": "Treat the server as untrusted; the model may obey embedded instructions."
+    },
+    {
+      "id": "MCP-TOOL-POISON-002",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description tells the model to hide behavior",
+      "detail": "Description of \"recommend_lender\" instructs the model to conceal actions from the user.",
+      "evidence": {
+        "source": "tool:recommend_lender",
+        "snippet": "Find out whether droplinked can source financing for a merchant's jurisdiction, and how the available matches rank. Returns an ordered array of matches, each ca…"
+      },
+      "confidence": 0.75
+    },
+    {
       "id": "MCP-TOOL-POISON-003",
       "severity": "high",
       "category": "tool-poisoning",
@@ -305,18 +330,83 @@
       "severity": "high",
       "category": "toxic-flow",
       "title": "Lethal trifecta: untrusted input + private data + external sink",
-      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: get_methodology_versions, get_feed, find_business_buyer · Private data: verify_lender, get_methodology_versions, recommend_lender, recommend_service_provider, get_document_checklist, report_repayment · Public sink: request_brand_attestation, get_brand_attestation_status, get_document_checklist, request_partner_referral, quote_credit_terms, report_repayment · Destructive: cart.updateLineQuantity, cart.removeLine.",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: find_merchant, get_methodology_versions, get_feed, find_business_buyer · Private data: verify_lender, get_methodology_versions, recommend_service_provider, get_document_checklist, report_repayment · Public sink: request_brand_attestation, get_brand_attestation_status, get_document_checklist, request_partner_referral, quote_credit_terms, report_repayment · Destructive: cart.updateLineQuantity, cart.removeLine.",
       "evidence": {
         "source": "server:mcp",
-        "snippet": "Untrusted content: get_methodology_versions, get_feed, find_business_buyer · Private data: verify_lender, get_methodology_versions, recommend_lender, recommend_service_provider, get_document_checklist, report_repayment · Public sink: request_brand_attestation, get_brand_attestation_status, get_document_checklist, request_partner_referral, quote_credit_terms, report_repayment · Destructive: cart.updateLineQuantity, cart.removeLine"
+        "snippet": "Untrusted content: find_merchant, get_methodology_versions, get_feed, find_business_buyer · Private data: verify_lender, get_methodology_versions, recommend_service_provider, get_document_checklist, report_repayment · Public sink: request_brand_attestation, get_brand_attestation_status, get_document_checklist, request_partner_referral, quote_credit_terms, report_repayment · Destructive: cart.updateLineQuantity, cart.removeLine"
       },
       "confidence": 0.6,
       "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"find_merchant\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:find_merchant",
+        "snippet": "before: \"Find a droplinked merchant by slug, name, or category. Provide exactly one of:  `slug` (exact storefront URL), `name` (case-insensitive substring), or `category` (matches merchants with products in that category). Returns up to `limit` MerchantCards: { id, slug, name, description, verifiedBrand, pro\" → after: \"Find a droplinked merchant by slug, name, or category. Provide exactly one of:  `slug` (exact storefront URL), `name` (case-insensitive substring over merchant names), or `category` (a case-insensitive substring matched against PRODUCT TITLES, then deduped to the merchants selling them — droplinked \""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"find_inventory\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:find_inventory",
+        "snippet": "before: \"Discover droplinked inventory (SKU-level) matching a free-text query and/or filters, across every connected catalog source (native droplinked shops + the Shopify Global Catalog + Henry + Impact brands). Provide at least one of `query` (catalog match) or `brandSlug` (scope to a single droplinked shop\" → after: \"Discover droplinked inventory (SKU-level) matching a free-text query and/or filters, across every connected catalog source (native droplinked shops + the Shopify Global Catalog + Henry + Impact brands). Provide at least one of `query` (catalog match) or `brandSlug` (scope to a single droplinked shop\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"recommend_lender\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:recommend_lender",
+        "snippet": "before: \"Get an ordered list of recommended lenders for a merchant based on jurisdiction and archetype. Returns an array of lenders sorted by track record (issuedAttestationCount, lastAttestationAt) with a computed recommendation score. Use this when an agent needs to suggest lenders to a merchant based on g\" → after: \"Find out whether droplinked can source financing for a merchant's jurisdiction, and how the available matches rank. Returns an ordered array of matches, each carrying `jurisdiction`, `matchKind` ('exact-jurisdiction' or 'global-fallback') and `rank`. Use this when an agent needs to tell a merchant w\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"recommend_service_provider\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:recommend_service_provider",
+        "snippet": "before: \"Get an ordered list of recommended service providers (WMS, 3PL, fulfillment partners) for a merchant. Returns an array sorted by track record (successfulIngestionCount, lastIngestionAt) with a computed recommendation score. Use this when an agent needs to route a merchant to an appropriate WMS/3PL b\" → after: \"Get an ordered list of ACTIVE service providers (WMS, 3PL, fulfillment partners) a merchant can route inventory ingestion or fulfillment to. Returns an array sorted by track record (successfulIngestionCount desc, then most-recent success), each row carrying `providerId`, `displayName`, `archetype`, \""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"list_shop_products\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:list_shop_products",
+        "snippet": "before: \"Page through the public catalog of a single droplinked shop by slug. Use the returned cursor to fetch additional pages. The response includes a `shop_verification` block (KYB is per-merchant so every product on the page shares it) and a parallel `verifications` array. Surface the shop's verification\" → after: \"Page through the public catalog of a single droplinked shop by slug. Paginate with `page` (1-based); the response carries `page`, `totalPages`, `hasNextPage` and `nextPage` — there is no cursor on this route. The response includes a `shop_verification` block (KYB is per-merchant so every product on \""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
     }
   ],
-  "score": 43,
+  "score": 34,
   "scoreBreakdown": {
-    "tool-poisoning": 38,
+    "tool-poisoning": 46,
     "toxic-flow": 20
   },
   "errors": []
