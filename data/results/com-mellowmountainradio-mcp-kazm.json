@@ -8,8 +8,8 @@
     "kind": "url",
     "ref": "https://mcp.mellowmountainradio.com/mcp"
   },
-  "scannedAt": "2026-07-25T06:38:43.873Z",
-  "durationMs": 188,
+  "scannedAt": "2026-09-12T09:02:55.093Z",
+  "durationMs": 1075,
   "layers": {
     "metadata": true,
     "static": false
@@ -237,9 +237,22 @@
       "description": "Create or update a KAZM listener profile. Returns a listener_id that persists across AI sessions — saves name, location, language, and favorite genres so any future AI session can deliver a fully personalized Mellow Mountain Radio experience without starting from scratch."
     },
     {
+      "name": "get_or_create_listener",
+      "descriptionHash": "01e275cf065dbbf83d5f080acb82d7dd510cd61cd980c28649bd1b04ea93cba6",
+      "description": "The zero-friction entry point for KAZM personalization. Pass whatever you know — listener_id, email, or just a name — and this tool either returns the existing profile or silently creates one in a single call. No separate registration step needed. Call this at the start of every listener session.",
+      "labels": [
+        "untrusted-content",
+        "public-sink"
+      ]
+    },
+    {
       "name": "get_listener_profile",
-      "descriptionHash": "21489796627828e133456da73796e83141659476b416d72613731bfeb5344c33",
-      "description": "Retrieve a KAZM listener's full profile by listener_id — name, location, language preference, favorite genres, custom preferences, and recent listening history. Call this at the start of any session to instantly personalize the experience."
+      "descriptionHash": "2ddb7545287accfeab8ea6da4bcd6a5bec8b2792ea68b7284762599f1ea26a4d",
+      "description": "Retrieve a KAZM listener's full profile — by listener_id OR by email address. Either identifier works. Use at the start of any session to instantly personalize the experience. If the listener has their KAZM ID saved in Claude custom instructions, use that; otherwise look them up by email.",
+      "labels": [
+        "untrusted-content",
+        "public-sink"
+      ]
     },
     {
       "name": "update_listener_preference",
@@ -253,79 +266,53 @@
     },
     {
       "name": "get_personalized_content",
-      "descriptionHash": "41d93249d68e6e6f343d43c1433983189936244d1d74a5211407726ab571625e",
-      "description": "Returns a fully personalized KAZM experience for a listener — greeting in their language, listening recommendations based on their history and genre preferences, and a station brief tailored to where they are in the world. The core of KAZM's AI-powered personal radio."
+      "descriptionHash": "62c7619a0d46dc4428e2582a426129d7fe84763c5e97a56c3ef53a9174df5043",
+      "description": "Returns a fully personalized KAZM experience — greeting in the listener's language, recommendations from their history, station brief. Accepts listener_id OR email, so no separate registration step is ever needed. Pairs perfectly with get_or_create_listener.",
+      "labels": [
+        "untrusted-content",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "search_broadcast_transcripts",
+      "descriptionHash": "542c7142cddec5a9b3f7df7d7c3d02e0c0360edeb431beda72a706cf6d138f35",
+      "description": "Search every word spoken on KAZM's airwaves — weather reports, local news, live talk breaks, and syndicated shows, machine-transcribed from the station's own broadcast tapes. The archive begins July 2026 and grows four blocks a day, forever. Commercials and PSAs are never archived. Times are Arizona",
+      "labels": [
+        "untrusted-content",
+        "public-sink"
+      ]
     }
   ],
   "findings": [
+    {
+      "id": "MCP-TOOL-POISON-002",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description tells the model to hide behavior",
+      "detail": "Description of \"get_or_create_listener\" instructs the model to conceal actions from the user.",
+      "evidence": {
+        "source": "tool:get_or_create_listener",
+        "snippet": "The zero-friction entry point for KAZM personalization. Pass whatever you know — listener_id, email, or just a name — and this tool either returns the existing …"
+      },
+      "confidence": 0.75
+    },
     {
       "id": "MCP-TOXIC-FLOW-001",
       "severity": "medium",
       "category": "toxic-flow",
       "title": "Toxic flow: untrusted input can reach an external sink",
-      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: get_now_playing, get_stream_url, get_schumann_resonance, get_rewind, get_local_news_headlines, get_day_in_music_history · Public sink: submit_song_request.",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: get_now_playing, get_stream_url, get_schumann_resonance, get_rewind, get_local_news_headlines, get_day_in_music_history, get_or_create_listener, get_listener_profile, get_personalized_content, search_broadcast_transcripts · Public sink: submit_song_request, get_or_create_listener, get_listener_profile, get_personalized_content, search_broadcast_transcripts.",
       "evidence": {
         "source": "server:mcp",
-        "snippet": "Untrusted content: get_now_playing, get_stream_url, get_schumann_resonance, get_rewind, get_local_news_headlines, get_day_in_music_history · Public sink: submit_song_request"
+        "snippet": "Untrusted content: get_now_playing, get_stream_url, get_schumann_resonance, get_rewind, get_local_news_headlines, get_day_in_music_history, get_or_create_listener, get_listener_profile, get_personalized_content, search_broadcast_transcripts · Public sink: submit_song_request, get_or_create_listener, get_listener_profile, get_personalized_content, search_broadcast_transcripts"
       },
       "confidence": 0.45,
       "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
-    },
-    {
-      "id": "MCP-RUGPULL-001",
-      "severity": "high",
-      "category": "tool-poisoning",
-      "title": "Tool description changed since last scan",
-      "detail": "Tool \"get_road_conditions\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
-      "evidence": {
-        "source": "tool:get_road_conditions",
-        "snippet": "before: \"Returns active road and trail closures for the Sedona / Oak Creek area from the Coconino National Forest alerts page. Also includes AZ511 highway incidents for Yavapai and Coconino counties when the AZ511_KEY environment variable is set.\" → after: \"Returns active road and trail closures for the Sedona / Oak Creek area from the Coconino National Forest alerts page. Also includes highway incidents for SR-89A, SR-179, and I-17 via Road511 when ROAD511_KEY is set.\""
-      },
-      "confidence": 0.8,
-      "remediation": "Re-review the tool before continuing to trust it."
     }
   ],
   "score": 72,
   "scoreBreakdown": {
-    "toxic-flow": 8,
-    "tool-poisoning": 20
-  },
-  "errors": []
-}_stream_url, get_schumann_resonance, get_rewind, get_local_news_headlines, get_day_in_music_history, get_or_create_listener, get_listener_profile, get_personalized_content · Public sink: submit_song_request, get_or_create_listener, get_listener_profile, get_personalized_content"
-      },
-      "confidence": 0.45,
-      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
-    },
-    {
-      "id": "MCP-RUGPULL-001",
-      "severity": "high",
-      "category": "tool-poisoning",
-      "title": "Tool description changed since last scan",
-      "detail": "Tool \"get_listener_profile\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
-      "evidence": {
-        "source": "tool:get_listener_profile",
-        "snippet": "before: \"Retrieve a KAZM listener's full profile by listener_id — name, location, language preference, favorite genres, custom preferences, and recent listening history. Call this at the start of any session to instantly personalize the experience.\" → after: \"Retrieve a KAZM listener's full profile — by listener_id OR by email address. Either identifier works. Use at the start of any session to instantly personalize the experience. If the listener has their KAZM ID saved in Claude custom instructions, use that; otherwise look them up by email.\""
-      },
-      "confidence": 0.8,
-      "remediation": "Re-review the tool before continuing to trust it."
-    },
-    {
-      "id": "MCP-RUGPULL-001",
-      "severity": "high",
-      "category": "tool-poisoning",
-      "title": "Tool description changed since last scan",
-      "detail": "Tool \"get_personalized_content\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
-      "evidence": {
-        "source": "tool:get_personalized_content",
-        "snippet": "before: \"Returns a fully personalized KAZM experience for a listener — greeting in their language, listening recommendations based on their history and genre preferences, and a station brief tailored to where they are in the world. The core of KAZM's AI-powered personal radio.\" → after: \"Returns a fully personalized KAZM experience — greeting in the listener's language, recommendations from their history, station brief. Accepts listener_id OR email, so no separate registration step is ever needed. Pairs perfectly with get_or_create_listener.\""
-      },
-      "confidence": 0.8,
-      "remediation": "Re-review the tool before continuing to trust it."
-    }
-  ],
-  "score": 57,
-  "scoreBreakdown": {
-    "tool-poisoning": 35,
+    "tool-poisoning": 20,
     "toxic-flow": 8
   },
   "errors": []

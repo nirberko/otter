@@ -1,0 +1,81 @@
+{
+  "schemaVersion": 1,
+  "scanner": {
+    "version": "1.6.0",
+    "rules": "402995650b68"
+  },
+  "target": {
+    "kind": "url",
+    "ref": "https://luckdrop.app/mcp"
+  },
+  "scannedAt": "2026-09-12T09:01:47.923Z",
+  "durationMs": 1775,
+  "layers": {
+    "metadata": true,
+    "static": false
+  },
+  "tools": [
+    {
+      "name": "luckdrop_get_draw",
+      "descriptionHash": "82a05e84338f83696307ed95f147f652b75ce5dac4ce3f14f2652e9c35676319",
+      "description": "Read the state of the live LuckDrop draw: which draw is running, its phase, the\nprize, how many tickets are in, and the countdown to the next round.\n\nPublishes both weekNumber (the display number) and contractWeekId (the on-chain\nnumber) -- they are different numbers for the same draw. The `week` bl",
+      "labels": [
+        "untrusted-content",
+        "private-data"
+      ]
+    },
+    {
+      "name": "luckdrop_check_entry",
+      "descriptionHash": "40931f5f02dac9c22fcd2c040db9f7c2b423d60108c1397cba4f4606ff47ba9a",
+      "description": "Answer 'can this wallet enter the draw right now, and what exactly does it send'.\nSourced from the CHAIN rather than our database, because this gates a transaction\nand a stale yes costs the caller gas on a revert.\n\nReturns canEnter, a reason mirroring the contract's own revert strings, and the\nexact",
+      "labels": [
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "luckdrop_get_results",
+      "descriptionHash": "726cc6ac399d5c547a154afc969f2a1b71309e39ae564677b6d2708729f5a3dd",
+      "description": "Read a single draw's five rounds and its winner.\n\n`week` is the DISPLAY week number by default. If you are following contractWeekId\nfrom the chain, pass idSpace='contract' -- the same number means different draws\nin the two id spaces, and without it you get a valid-looking answer describing the\nWRON"
+    },
+    {
+      "name": "luckdrop_list_market",
+      "descriptionHash": "514f76849160c5dbaf2774dd59155a98dbca9bb14e6ed56558256499b3dc457f",
+      "description": "Read the live marketplace: which tickets are listed, at what price, and whether\nthe trading window is currently open. Tickets are NFTs and can be traded while a\ndraw is running.\n\nThe CONTRACT decides whether trading is open, not the draw's database status, so\ntrust tradingOpen in this result rather ",
+      "labels": [
+        "untrusted-content",
+        "private-data"
+      ]
+    },
+    {
+      "name": "luckdrop_check_prize",
+      "descriptionHash": "73b0c7946e28e2f8ecda42fb38d58d5c10729f943e09101a058a2476aa6da98a",
+      "description": "Check whether a wallet has won a prize it has not yet collected, and get the\ntransaction that claims it. Read from the chain, so it works for a wallet that\nentered without ever signing in to the website.\n\nSCOPE: this reads THIS DEPLOYMENT's prize escrows, and the result names in\nescrowsChecked exact",
+      "labels": [
+        "private-data",
+        "public-sink",
+        "destructive"
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: luckdrop_get_draw, luckdrop_list_market · Private data: luckdrop_get_draw, luckdrop_check_entry, luckdrop_list_market, luckdrop_check_prize · Public sink: luckdrop_check_entry, luckdrop_check_prize · Destructive: luckdrop_check_prize.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: luckdrop_get_draw, luckdrop_list_market · Private data: luckdrop_get_draw, luckdrop_check_entry, luckdrop_list_market, luckdrop_check_prize · Public sink: luckdrop_check_entry, luckdrop_check_prize · Destructive: luckdrop_check_prize"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 80,
+  "scoreBreakdown": {
+    "toxic-flow": 20
+  },
+  "errors": []
+}

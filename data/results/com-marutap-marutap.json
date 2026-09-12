@@ -1,0 +1,91 @@
+{
+  "schemaVersion": 1,
+  "scanner": {
+    "version": "1.6.0",
+    "rules": "402995650b68"
+  },
+  "target": {
+    "kind": "url",
+    "ref": "https://mcp.marutap.com/mcp"
+  },
+  "scannedAt": "2026-09-12T08:50:33.060Z",
+  "durationMs": 936,
+  "layers": {
+    "metadata": true,
+    "static": false
+  },
+  "tools": [
+    {
+      "name": "request_payment",
+      "descriptionHash": "f3a0914b9b96b0d2136e9edebba32f9e79d1a8ad4fcda5192801b47add725c3a",
+      "description": "Request the user's approval to pay for a purchase.\n\n    Usually returns `{auto_approved: false, approval_url}` — show the approval_url to the user\n    so they can review the total and approve with one tap, then call get_payment_result.\n\n    If the user's spending policy auto-approves this purchase (",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "get_payment_result",
+      "descriptionHash": "4fc470b542fa960b8043e5062f2b39d81c520d7b562d52c7f2b755ba089e23dc",
+      "description": "Poll for the outcome of a payment request.\n\n    Long-polls up to wait_seconds. Returns status one of: pending, approved, settled,\n    declined, expired, not_found, claim_pending. When approved, includes a single-use\n    `card` (number, cvc, exp) locked to this purchase — use it to complete checkout ",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "record_order",
+      "descriptionHash": "0fb68b4ff4398cfb9463523e56e7d8768426b32d2fc74b14d8d70bc3c9a3e864",
+      "description": "Report the merchant's order reference back after checkout, so the user can later reverse\n    (refund) the purchase. `order_ref` is the merchant's payment id (e.g. a Stripe PaymentIntent).",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "request_subscription",
+      "descriptionHash": "2f7c50bd92fd4555bc9ae60bfd067ddca27ba3131c30228c8ab8fcd4d4a15acf",
+      "description": "Set up a recurring subscription mandate (e.g. Netflix at up to $16/month).\n\n    Requires the user's explicit one-time approval — returns an approval_url. The mandate is\n    merchant-locked and capped: the merchant can never charge more than `cap` per period, and the\n    user can cancel anytime (afte"
+    },
+    {
+      "name": "list_subscriptions",
+      "descriptionHash": "5a8aaf75a07572199cd3c89dcf32fc457bec076fbcd288735f84229b4a5a32ac",
+      "description": "List the user's subscription mandates and their status."
+    },
+    {
+      "name": "cancel_subscription",
+      "descriptionHash": "3a973f4118212bb218e02443666550c959c5bcf493445eff3403eb486928b289",
+      "description": "Cancel a subscription mandate. Safe — canceling never spends money, and the merchant can\n    never charge again afterwards."
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"get_payment_result\" references sensitive artifacts (secret, authorization, bearer). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:get_payment_result",
+        "snippet": "Poll for the outcome of a payment request. Long-polls up to wait_seconds. Returns status one of: pending, approved, settled, declined, expired, not_found, claim…"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: request_payment · Private data: record_order · Public sink: get_payment_result.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: request_payment · Private data: record_order · Public sink: get_payment_result"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 60,
+  "scoreBreakdown": {
+    "tool-poisoning": 20,
+    "toxic-flow": 20
+  },
+  "errors": []
+}

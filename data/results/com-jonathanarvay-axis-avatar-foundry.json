@@ -8,8 +8,8 @@
     "kind": "url",
     "ref": "https://api.avatar.jonathanarvay.com/mcp"
   },
-  "scannedAt": "2026-08-11T05:37:55.152Z",
-  "durationMs": 882,
+  "scannedAt": "2026-09-12T09:02:48.197Z",
+  "durationMs": 868,
   "layers": {
     "metadata": true,
     "static": false
@@ -48,9 +48,10 @@
     },
     {
       "name": "post_process_mesh",
-      "descriptionHash": "bcd88e99b5e717fdffe4bf96ae4995e09a295735ef2689c7297dd4a779f4d117",
-      "description": "Post-process a RAW generated mesh given INLINE as base64 GLB (normalize → mesh-repair → rig/skin → validate → export) and return the finished, validated GLB as base64. The inline counterpart of axis_process (which needs a server file path) — the generation post-process step, callable by an LLM/agent",
+      "descriptionHash": "d4400f919739d0f9523aa7f934d354ad52c62c952bd3846030985e8d9b80bbc8",
+      "description": "Post-process a RAW generated mesh (normalize → mesh-repair → rig/skin → validate → export) and return the finished, validated GLB as base64. The inline counterpart of axis_process (which needs a server file path) — the generation post-process step, callable by an LLM/agent that holds the mesh bytes ",
       "labels": [
+        "untrusted-content",
         "private-data",
         "public-sink"
       ]
@@ -85,7 +86,7 @@
     },
     {
       "name": "generate_avatar_from_text",
-      "descriptionHash": "307eca4807bbc3cabc81c76e0bb769ebeeae30ae005853f714f7f4c944467c5b",
+      "descriptionHash": "79ea64fff22cd14fc2acc08614f62b8339a17fd9f6f04ab92238936626a117e2",
       "description": "PAID (x402, 5 USDC): generate a production 3D avatar from a text prompt — xAI concept image → TRELLIS.2 GPU mesh → full canonical post-process (repair/validate/export). Payment settles ONLY when generation completes; a failed generation is never charged. Returns a job_id — poll with the free get_gen",
       "labels": [
         "public-sink"
@@ -93,7 +94,7 @@
     },
     {
       "name": "generate_avatar_from_image",
-      "descriptionHash": "fbbaf3032955addb1a563fe957d94d17169b96892593cf316e6ecc4fabe2154d",
+      "descriptionHash": "3dfb6bb00205d826a9aaf789aee286bd629da7a14753dc813766a567ed1d4299",
       "description": "PAID (x402, 6 USDC): generate a production 3D avatar from a reference photo (base64) — xAI A-pose normalize → TRELLIS.2 GPU mesh → full canonical post-process. Payment settles ONLY when generation completes; a failed generation is never charged. Returns a job_id — poll with the free get_generation_s",
       "labels": [
         "public-sink"
@@ -101,8 +102,8 @@
     },
     {
       "name": "get_generation_status",
-      "descriptionHash": "ad38a85cc99350ad38f74bab8caa2fc6557410f4eff82363458a254afb87db1b",
-      "description": "FREE: poll a generation job submitted by the paid generate tools. Returns status/progress; once complete AND the deferred payment has settled, returns the download URLs. A failed generation reports charged=false. [Free — no payment required.]",
+      "descriptionHash": "a1c8acb53ae9b15108c365e866ad0713e62a833eb867a992a2016924d40248f4",
+      "description": "FREE: poll a generation job submitted by the paid generate tools. Returns status/progress; once complete AND the deferred payment has settled, returns the download URLs. A failed generation reports charged=false. Look up by job_id, or by idempotency_key + payer if the job_id was lost. [Free — no pay",
       "labels": [
         "untrusted-content"
       ]
@@ -114,18 +115,71 @@
       "severity": "high",
       "category": "toxic-flow",
       "title": "Lethal trifecta: untrusted input + private data + external sink",
-      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: get_generation_status · Private data: axis_validate, post_process_mesh · Public sink: post_process_mesh, generate_avatar_from_text, generate_avatar_from_image · Destructive: axis_process, roblox_compliance_check.",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: post_process_mesh, get_generation_status · Private data: axis_validate, post_process_mesh · Public sink: post_process_mesh, generate_avatar_from_text, generate_avatar_from_image · Destructive: axis_process, roblox_compliance_check.",
       "evidence": {
         "source": "server:mcp",
-        "snippet": "Untrusted content: get_generation_status · Private data: axis_validate, post_process_mesh · Public sink: post_process_mesh, generate_avatar_from_text, generate_avatar_from_image · Destructive: axis_process, roblox_compliance_check"
+        "snippet": "Untrusted content: post_process_mesh, get_generation_status · Private data: axis_validate, post_process_mesh · Public sink: post_process_mesh, generate_avatar_from_text, generate_avatar_from_image · Destructive: axis_process, roblox_compliance_check"
       },
       "confidence": 0.6,
       "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"post_process_mesh\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:post_process_mesh",
+        "snippet": "before: \"Post-process a RAW generated mesh given INLINE as base64 GLB (normalize → mesh-repair → rig/skin → validate → export) and return the finished, validated GLB as base64. The inline counterpart of axis_process (which needs a server file path) — the generation post-process step, callable by an LLM/agent\" → after: \"Post-process a RAW generated mesh (normalize → mesh-repair → rig/skin → validate → export) and return the finished, validated GLB as base64. The inline counterpart of axis_process (which needs a server file path) — the generation post-process step, callable by an LLM/agent that holds the mesh bytes \""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"generate_avatar_from_text\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:generate_avatar_from_text",
+        "snippet": "before: \"PAID (x402, 5 USDC): generate a production 3D avatar from a text prompt — xAI concept image → TRELLIS.2 GPU mesh → full canonical post-process (repair/validate/export). Payment settles ONLY when generation completes; a failed generation is never charged. Returns a job_id — poll with the free get_gen\" → after: \"PAID (x402, 5 USDC): generate a production 3D avatar from a text prompt — xAI concept image → TRELLIS.2 GPU mesh → full canonical post-process (repair/validate/export). Payment settles ONLY when generation completes; a failed generation is never charged. Returns a job_id — poll with the free get_gen\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"generate_avatar_from_image\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:generate_avatar_from_image",
+        "snippet": "before: \"PAID (x402, 6 USDC): generate a production 3D avatar from a reference photo (base64) — xAI A-pose normalize → TRELLIS.2 GPU mesh → full canonical post-process. Payment settles ONLY when generation completes; a failed generation is never charged. Returns a job_id — poll with the free get_generation_s\" → after: \"PAID (x402, 6 USDC): generate a production 3D avatar from a reference photo (base64) — xAI A-pose normalize → TRELLIS.2 GPU mesh → full canonical post-process. Payment settles ONLY when generation completes; a failed generation is never charged. Returns a job_id — poll with the free get_generation_s\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"get_generation_status\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:get_generation_status",
+        "snippet": "before: \"FREE: poll a generation job submitted by the paid generate tools. Returns status/progress; once complete AND the deferred payment has settled, returns the download URLs. A failed generation reports charged=false. [Free — no payment required.]\" → after: \"FREE: poll a generation job submitted by the paid generate tools. Returns status/progress; once complete AND the deferred payment has settled, returns the download URLs. A failed generation reports charged=false. Look up by job_id, or by idempotency_key + payer if the job_id was lost. [Free — no pay\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
     }
   ],
-  "score": 80,
+  "score": 43,
   "scoreBreakdown": {
-    "toxic-flow": 20
+    "toxic-flow": 20,
+    "tool-poisoning": 38
   },
   "errors": []
 }
