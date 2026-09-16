@@ -1,0 +1,131 @@
+{
+  "schemaVersion": 1,
+  "scanner": {
+    "version": "1.6.0",
+    "rules": "402995650b68"
+  },
+  "target": {
+    "kind": "url",
+    "ref": "https://ai.agentemaillist.com/mcp"
+  },
+  "scannedAt": "2026-09-16T09:25:11.172Z",
+  "durationMs": 1985,
+  "layers": {
+    "metadata": true,
+    "static": false
+  },
+  "tools": [
+    {
+      "name": "create_account",
+      "descriptionHash": "bb25ad3a3183c7b4a2e1fb8cfe1588c2ea9954a15fc6fb81ea255f9fa3a73ba4",
+      "description": "Create an account on this email service and get an API key back. Needs no existing credentials, so an agent with nothing can call this first. The key is returned once and never again. Free, with no card and no trial clock.",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "list_domains",
+      "descriptionHash": "7f6319b9b051b24e60c5a038e3c20f822c4d5472ea09cfec78583fd2b040d101",
+      "description": "List the sending domains on this account, with their verification state and how much of today's sending allowance each has left."
+    },
+    {
+      "name": "add_domain",
+      "descriptionHash": "f2f9e40e33dc16aab7a0f147102530b12d557ea2a053adf2ec1cbf041b1dbd9b",
+      "description": "Register a domain to send from, and get the DNS records that must be published before it will work. Publishing DNS usually needs a human with registrar access, so start this early. The domain cannot send until verify_domain succeeds.",
+      "labels": [
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "verify_domain",
+      "descriptionHash": "07eada4d4a7fed0776205df5a71b4b31f2d40a496aa7923f81cb5580843e6e24",
+      "description": "Re-read DNS now and mark the domain active if its SPF and DKIM records are visible. DNS takes minutes to hours to propagate; poll this every few minutes, not every few seconds.",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "send_email",
+      "descriptionHash": "bee96d7571932c7dc86026fec4430fccdc74c93d3f9339292ce43f04e4454ead",
+      "description": "Send a message. The domain must be verified and the from address must belong to it. Counts one against the daily allowance per recipient. Set test_mode true to run the whole pipeline, including content screening, without sending anything and without spending allowance — do that first when building.",
+      "labels": [
+        "public-sink",
+        "destructive"
+      ]
+    },
+    {
+      "name": "get_sending_limits",
+      "descriptionHash": "ea9c33b6fa39e59b34ab5a26adad9d3acd88d9f7225e44ddc85797f4147b45e8",
+      "description": "How much this domain may send today and what graduates it to the next rung, plus this account's standing: how many domains it may hold and whether sending is paused. New domains start at a low daily cap and climb as they prove themselves, so check this before planning a bulk send rather than discove",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "list_messages",
+      "descriptionHash": "b80df2927641d2a0f6a9ad76142fda559f313d5915158d53b2ab14422b780e7f",
+      "description": "Recent messages for a domain, sent and received. Use direction to filter, and folder to separate inbox from spam on received mail.",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "get_delivery_events",
+      "descriptionHash": "e44cb43dbe87ad8d372baeb661edaa74ef7bb63d2ca280e08fc9be02de1202f0",
+      "description": "What happened to messages on this domain: accepted, delivered, failed, and so on. A send returning success means queued, not delivered; this is where the delivery outcome actually appears.",
+      "labels": [
+        "untrusted-content",
+        "public-sink"
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"create_account\" references sensitive artifacts (credentials). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:create_account",
+        "snippet": "Create an account on this email service and get an API key back. Needs no existing credentials, so an agent with nothing can call this first. The key is returne…"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-SHADOW-001",
+      "severity": "medium",
+      "category": "shadowing",
+      "title": "Generic tool name can shadow trusted tools",
+      "detail": "Tool \"send_email\" uses a generic high-value name. When multiple servers load together, this can intercept calls meant for a trusted server.",
+      "evidence": {
+        "source": "tool:send_email",
+        "snippet": "send_email"
+      },
+      "confidence": 0.4
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: create_account, list_messages, get_delivery_events · Private data: create_account, add_domain, verify_domain · Public sink: create_account, add_domain, send_email, get_sending_limits, get_delivery_events · Destructive: send_email.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: create_account, list_messages, get_delivery_events · Private data: create_account, add_domain, verify_domain · Public sink: create_account, add_domain, send_email, get_sending_limits, get_delivery_events · Destructive: send_email"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 52,
+  "scoreBreakdown": {
+    "tool-poisoning": 20,
+    "shadowing": 8,
+    "toxic-flow": 20
+  },
+  "errors": []
+}

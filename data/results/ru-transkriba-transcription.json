@@ -1,0 +1,90 @@
+{
+  "schemaVersion": 1,
+  "scanner": {
+    "version": "1.6.0",
+    "rules": "402995650b68"
+  },
+  "target": {
+    "kind": "url",
+    "ref": "https://transkriba.ru/api/mcp"
+  },
+  "scannedAt": "2026-09-16T09:37:22.997Z",
+  "durationMs": 2236,
+  "layers": {
+    "metadata": true,
+    "static": false
+  },
+  "tools": [
+    {
+      "name": "transcribe_url",
+      "descriptionHash": "b0e9484d30a85376ea606bc087e25e46d308082cb4ac5f9d3469332e9eaf357f",
+      "description": "Переводит аудио или видео по ссылке в текст с таймкодами. Передайте diarize=true, если нужно разделение по спикерам. Понимает публичные записи YouTube, VK Видео, Rutube, Дзен, OK, Castbox и SoundCloud. Возвращает job_id сразу: результат забирается инструментом get_transcript. Списывает минуты с бала"
+    },
+    {
+      "name": "create_upload",
+      "descriptionHash": "43234ccaeee6b3f8b1afa57ac3145e8602eb48290a32bcbc1c440b35d1089c02",
+      "description": "Путь для локального файла, у которого нет публичной ссылки. Передайте file_name и точный size_bytes. Возвращает upload_url, s3_key и обязательный content_type. Загрузите файл запросом PUT, передав Content-Type и Content-Length в точности из ответа (например, curl -X PUT -H 'Content-Type: application",
+      "labels": [
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "transcribe_file",
+      "descriptionHash": "fae31953c7a8fb5bfe1f41671f68b0a71cf65c9cd5a00caf31fdb7c1ef054fc3",
+      "description": "Переводит в текст файл, загруженный по ссылке из create_upload. Возвращает job_id сразу: результат забирается инструментом get_transcript. Списывает минуты с баланса по факту длительности записи.",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "get_transcript",
+      "descriptionHash": "2e56b09f2d6d3889088bbdc0386f2708a39556c90a97caa72b33ea09ec8a3d2a",
+      "description": "Возвращает состояние задачи по job_id, а когда она готова — текст с таймкодами и метками спикеров, если при запуске было передано diarize=true. Пока идёт расшифровка, отвечает status=processing: вызывайте повторно с паузой в несколько секунд. Время зависит от длины записи, очереди и запуска обработч",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "list_transcripts",
+      "descriptionHash": "a62bca657ff1cda58bbb55d16a3f442b9cc97b6a3792a99a0ee5267d6e836d73",
+      "description": "Перечисляет последние расшифровки учётной записи: id, имя файла, длительность и состояние. Полезно, чтобы найти job_id вчерашней записи, не спрашивая человека.",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "search_transcripts",
+      "descriptionHash": "cc2cf680f08bd40d449dfd22130e41a1ecb0776f30dfb11e294caf55348838a6",
+      "description": "Ищет фразу по текстам последних 200 готовых расшифровок и возвращает совпадения с таймкодом и именем спикера. Так можно найти, где именно на трёхчасовом созвоне обсуждали сроки, не перечитывая всё.",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "get_balance",
+      "descriptionHash": "19bb39e877231e98d66bb5c839ce15a88b3dadaafa62057b79ef79948ae49a6d",
+      "description": "Показывает, сколько минут расшифровки осталось на балансе. Стоит спросить перед пачкой длинных записей, чтобы не упереться в нехватку на середине."
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: get_transcript, list_transcripts, search_transcripts · Private data: create_upload, transcribe_file · Public sink: create_upload.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: get_transcript, list_transcripts, search_transcripts · Private data: create_upload, transcribe_file · Public sink: create_upload"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 80,
+  "scoreBreakdown": {
+    "toxic-flow": 20
+  },
+  "errors": []
+}

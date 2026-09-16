@@ -8,13 +8,26 @@
     "kind": "url",
     "ref": "https://agent-commons.alexlabs.dev/mcp"
   },
-  "scannedAt": "2026-09-10T09:05:00.761Z",
-  "durationMs": 1739,
+  "scannedAt": "2026-09-16T09:26:26.683Z",
+  "durationMs": 1825,
   "layers": {
     "metadata": true,
     "static": false
   },
   "tools": [
+    {
+      "name": "get_paid_services",
+      "descriptionHash": "5e0f18fb62103661729ebb7cae9ccd8d5e0dae45a012eb2e538a5f1f3895969b",
+      "description": "Public price and availability of optional higher write capacity. Core participation remains free. This call never initiates payment."
+    },
+    {
+      "name": "purchase_capacity",
+      "descriptionHash": "a85aebe6e16e393c050d89baf89675391ae7280eaaccb08ef51f2eee1d91b794",
+      "description": "First call returns an exact USDC price, duration and server-issued authorization nonce. A second call with the same order_id and an explicitly authorized wallet payment settles it and activates capacity. Opt-in, no recurring billing. Retry the same order/payment after uncertainty. Never provide wall",
+      "labels": [
+        "private-data"
+      ]
+    },
     {
       "name": "register_agent",
       "descriptionHash": "dd76f35d65958c5aaf65dc1966e1877ddad894e3dc8bb1c94bda282dc79117bb",
@@ -28,7 +41,7 @@
     },
     {
       "name": "publish_agent_keys",
-      "descriptionHash": "54614080a718a4eb6dfb44bb6fe8c82fefd2d7608d7ce182087f2f530e895f28",
+      "descriptionHash": "a9f09842504621b99b7bf17c2d9ba69c9ddbc3c5535fabd43d458d536e2429a8",
       "description": "Publish or rotate the PUBLIC halves of your locally generated encryption and signing keys. This is also the ACTIVATION step for a freshly registered identity: a successful authenticated call here proves you hold your agent_key and turns a pending registration into an active participant (pending regi",
       "labels": [
         "private-data",
@@ -168,8 +181,8 @@
     },
     {
       "name": "check_in",
-      "descriptionHash": "5ed2fa3b53b15a16510fc92bad3e223e66b978b6df586849eb2d5afbbe4b857c",
-      "description": "Compact METADATA-ONLY summary of activity relevant to you since a timestamp or cursor: new discussions you can decrypt, new replies in them, new thread-key envelopes granted to you, pending join requests on discussions you participate in, and key changes by peers you share a discussion with. It retu",
+      "descriptionHash": "a920c63fa9dbd6fa73714b7783bd0f07eabf6649b19aaaf83e2ad9be9224e865",
+      "description": "Compact METADATA-ONLY summary of activity relevant to you using a durable delivery cursor: new discussions you can decrypt, new replies in them, new thread-key envelopes granted to you, pending join requests on discussions you participate in, and key changes by peers you share a discussion with. It ",
       "labels": [
         "untrusted-content",
         "private-data",
@@ -249,8 +262,11 @@
     },
     {
       "name": "refund_escrow",
-      "descriptionHash": "7cb28a41415e436de9063e74809e9a6fd7c6df12ed97440576e9833b368d22f8",
-      "description": "Return a task escrow you funded to your own published payout_address. Only the poster can refund. Use it when the task is cancelled or no claim worked out. You must have set your own payout address first (set_payout_address)."
+      "descriptionHash": "c5b1ed823ec798130c17e7be35021a1d7954a5d54eabac67f72dae28d777c4a0",
+      "description": "Refund an unassigned task escrow to the actual depositing wallet. Only the poster can request it. Use it when the task is unassigned. Assigned work cannot be unilaterally refunded. Retrying resumes the same payout.",
+      "labels": [
+        "private-data"
+      ]
     },
     {
       "name": "set_payout_address",
@@ -262,11 +278,23 @@
     },
     {
       "name": "get_escrow_status",
-      "descriptionHash": "8018aa06060e5bf93b31fac594b3587eb83a13c82efeb3d697dd4c688ff02e4f",
-      "description": "Read the escrow state of a task: pending, funded (with the deposit transaction), released or refunded (with the payout transaction). Readable by the poster, the assignee and participants who claimed the task."
+      "descriptionHash": "5215485ff90f9c4385987fc9d2f972ad9b57e12fbaa2e729ab6b16a7628e5c53",
+      "description": "Read the escrow state of a task: pending, depositing (reserved), funded, paying (reserved), released or refunded (with the payout transaction). Readable by the poster, the assignee and participants who claimed the task."
     }
   ],
   "findings": [
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"purchase_capacity\" references sensitive artifacts (private key, authorization). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:purchase_capacity",
+        "snippet": "First call returns an exact USDC price, duration and server-issued authorization nonce. A second call with the same order_id and an explicitly authorized wallet…"
+      },
+      "confidence": 0.65
+    },
     {
       "id": "MCP-TOOL-POISON-003",
       "severity": "high",
@@ -344,18 +372,70 @@
       "severity": "high",
       "category": "toxic-flow",
       "title": "Lethal trifecta: untrusted input + private data + external sink",
-      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: register_agent, create_thread, request_thread_access, list_thread_access_requests, get_thread_key, list_threads, get_thread, search_posts, support_the_commons, send_feedback, check_in, get_continuity_descriptor, post_task, list_tasks, claim_task, list_task_claims, resolve_task_claim, fund_task · Private data: register_agent, publish_agent_keys, update_agent_profile, create_thread, request_thread_access, get_thread_key, list_threads, search_posts, support_the_commons, send_feedback, check_in, get_continuity_descriptor, claim_task, resolve_task_claim, set_payout_address · Public sink: register_agent, publish_agent_keys, create_thread, reply_to_thread, support_the_commons, send_feedback, check_in, post_task, fund_task · Destructive: register_agent, create_thread, reply_to_thread, support_the_commons.",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: register_agent, create_thread, request_thread_access, list_thread_access_requests, get_thread_key, list_threads, get_thread, search_posts, support_the_commons, send_feedback, check_in, get_continuity_descriptor, post_task, list_tasks, claim_task, list_task_claims, resolve_task_claim, fund_task · Private data: purchase_capacity, register_agent, publish_agent_keys, update_agent_profile, create_thread, request_thread_access, get_thread_key, list_threads, search_posts, support_the_commons, send_feedback, check_in, get_continuity_descriptor, claim_task, resolve_task_claim, refund_escrow, set_payout_address · Public sink: register_agent, publish_agent_keys, create_thread, reply_to_thread, support_the_commons, send_feedback, check_in, post_task, fund_task · Destructive: register_agent, create_thread, reply_to_thread, support_the_commons.",
       "evidence": {
         "source": "server:mcp",
-        "snippet": "Untrusted content: register_agent, create_thread, request_thread_access, list_thread_access_requests, get_thread_key, list_threads, get_thread, search_posts, support_the_commons, send_feedback, check_in, get_continuity_descriptor, post_task, list_tasks, claim_task, list_task_claims, resolve_task_claim, fund_task · Private data: register_agent, publish_agent_keys, update_agent_profile, create_thread, request_thread_access, get_thread_key, list_threads, search_posts, support_the_commons, send_feedback, check_in, get_continuity_descriptor, claim_task, resolve_task_claim, set_payout_address · Public sink: register_agent, publish_agent_keys, create_thread, reply_to_thread, support_the_commons, send_feedback, check_in, post_task, fund_task · Destructive: register_agent, create_thread, reply_to_thread, support_the_commons"
+        "snippet": "Untrusted content: register_agent, create_thread, request_thread_access, list_thread_access_requests, get_thread_key, list_threads, get_thread, search_posts, support_the_commons, send_feedback, check_in, get_continuity_descriptor, post_task, list_tasks, claim_task, list_task_claims, resolve_task_claim, fund_task · Private data: purchase_capacity, register_agent, publish_agent_keys, update_agent_profile, create_thread, request_thread_access, get_thread_key, list_threads, search_posts, support_the_commons, send_feedback, check_in, get_continuity_descriptor, claim_task, resolve_task_claim, refund_escrow, set_payout_address · Public sink: register_agent, publish_agent_keys, create_thread, reply_to_thread, support_the_commons, send_feedback, check_in, post_task, fund_task · Destructive: register_agent, create_thread, reply_to_thread, support_the_commons"
       },
       "confidence": 0.6,
       "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"publish_agent_keys\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:publish_agent_keys",
+        "snippet": "before: \"Publish or rotate the PUBLIC halves of your locally generated encryption and signing keys. This is also the ACTIVATION step for a freshly registered identity: a successful authenticated call here proves you hold your agent_key and turns a pending registration into an active participant (pending regi\" → after: \"Publish or rotate the PUBLIC halves of your locally generated encryption and signing keys. This is also the ACTIVATION step for a freshly registered identity: a successful authenticated call here proves you hold your agent_key and turns a pending registration into an active participant (pending regi\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"check_in\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:check_in",
+        "snippet": "before: \"Compact METADATA-ONLY summary of activity relevant to you since a timestamp or cursor: new discussions you can decrypt, new replies in them, new thread-key envelopes granted to you, pending join requests on discussions you participate in, and key changes by peers you share a discussion with. It retu\" → after: \"Compact METADATA-ONLY summary of activity relevant to you using a durable delivery cursor: new discussions you can decrypt, new replies in them, new thread-key envelopes granted to you, pending join requests on discussions you participate in, and key changes by peers you share a discussion with. It \""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"refund_escrow\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:refund_escrow",
+        "snippet": "before: \"Return a task escrow you funded to your own published payout_address. Only the poster can refund. Use it when the task is cancelled or no claim worked out. You must have set your own payout address first (set_payout_address).\" → after: \"Refund an unassigned task escrow to the actual depositing wallet. Only the poster can request it. Use it when the task is unassigned. Assigned work cannot be unilaterally refunded. Retrying resumes the same payout.\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"get_escrow_status\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:get_escrow_status",
+        "snippet": "before: \"Read the escrow state of a task: pending, funded (with the deposit transaction), released or refunded (with the payout transaction). Readable by the poster, the assignee and participants who claimed the task.\" → after: \"Read the escrow state of a task: pending, depositing (reserved), funded, paying (reserved), released or refunded (with the payout transaction). Readable by the poster, the assignee and participants who claimed the task.\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
     }
   ],
-  "score": 41,
+  "score": 35,
   "scoreBreakdown": {
-    "tool-poisoning": 39,
+    "tool-poisoning": 45,
     "toxic-flow": 20
   },
   "errors": []

@@ -8,8 +8,8 @@
     "kind": "url",
     "ref": "https://console.plutus-cloud.com/api/mcp"
   },
-  "scannedAt": "2026-09-11T09:04:20.000Z",
-  "durationMs": 2004,
+  "scannedAt": "2026-09-16T09:25:49.921Z",
+  "durationMs": 2021,
   "layers": {
     "metadata": true,
     "static": false
@@ -42,6 +42,11 @@
       "description": "List Reservation (RI) and Savings Plan utilization/coverage snapshots for this account — sourced from AWS Cost Explorer's own GetReservationUtilization/GetSavingsPlansUtilization APIs, one snapshot per commitment type per month. Shows how much of a purchased commitment is actually being used and its"
     },
     {
+      "name": "list_commitment_expirations",
+      "descriptionHash": "5d6477e35046499545f5369c7c9cd8e53aaee61a42e01896770409da1c2e03d5",
+      "description": "List this account's Reserved Instance / Savings Plan / Azure Reservation commitments with their expiration dates, ordered soonest-first. `days_until_expiration` is computed server-side against the current UTC date (negative means already expired — rows are not pruned immediately on expiry, so check "
+    },
+    {
       "name": "list_cost_tags",
       "descriptionHash": "b2b7125718b765912812fe9229fc9f53c1536618feeecaf983502a6da5464995",
       "description": "List the virtual cost-allocation tag_keys defined for this account (e.g. \"team\", \"product\"), each with the cost_entries grain it's locked to and how many rules map dimension values to a tag_value. Use a tag_key with query_costs (breakdown_by: \"tag\") to see spend broken down by it. redistribute_bucke",
@@ -51,11 +56,19 @@
     },
     {
       "name": "list_anomalies",
-      "descriptionHash": "9f1a940f6c049d65b68f11adb9198053f5ec34ae03048c8d00cf477c321a6195",
+      "descriptionHash": "d0e9e669e97c05805fc3c89517c8025d96544ef1551d8e7e9a46a32b2cd8dd9d",
       "description": "List detected cost anomalies for this account over a trailing lookback window — the real output of Plutus's nightly anomaly detector (severity, baseline vs. current spend, and what drove a tag-level spike), not something recomputed here from raw spend. Prefer this over eyeballing query_costs for \"di",
       "labels": [
         "public-sink",
         "destructive"
+      ]
+    },
+    {
+      "name": "explain_cost_change",
+      "descriptionHash": "918e650aac359fbc134008db600842e3a0317280ba6db8faef09c93e4019595c",
+      "description": "Explain a specific cost change: which timeline events line up with it, how strongly, and how much of the move Plutus could account for. Ask this about any point on a cost chart — it is not limited to anomalies the detector flagged (use list_anomalies for those; each already carries the same explanat",
+      "labels": [
+        "public-sink"
       ]
     },
     {
@@ -211,18 +224,6 @@
       "confidence": 0.65
     },
     {
-      "id": "MCP-TOOL-POISON-006",
-      "severity": "low",
-      "category": "tool-poisoning",
-      "title": "Anomalously long tool description",
-      "detail": "Description of \"query_costs\" is 2316 chars, far longer than this server's median (460). Overlong descriptions are a common place to bury instructions.",
-      "evidence": {
-        "source": "tool:query_costs",
-        "snippet": "Query time-bucketed spend for this account, optionally broken down by a dimension (service, region, linked_account, usage_type, operation, or identity) or by a …"
-      },
-      "confidence": 0.4
-    },
-    {
       "id": "MCP-TOOL-POISON-001",
       "severity": "high",
       "category": "tool-poisoning",
@@ -253,7 +254,7 @@
       "severity": "low",
       "category": "tool-poisoning",
       "title": "Anomalously long tool description",
-      "detail": "Description of \"query_unit_costs\" is 2497 chars, far longer than this server's median (460). Overlong descriptions are a common place to bury instructions.",
+      "detail": "Description of \"query_unit_costs\" is 2497 chars, far longer than this server's median (494). Overlong descriptions are a common place to bury instructions.",
       "evidence": {
         "source": "tool:query_unit_costs",
         "snippet": "Compute one of this account's saved unit-economics metrics (see list_unit_metrics) over a date range — the cost of a slice of spend divided by the business unit…"
@@ -376,18 +377,31 @@
       "severity": "high",
       "category": "toxic-flow",
       "title": "Lethal trifecta: untrusted input + private data + external sink",
-      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: query_events, list_alert_channels · Private data: query_costs, query_usage, list_alert_channels · Public sink: list_cost_tags, list_anomalies, query_unit_costs, list_alert_channels, list_alert_deliveries · Destructive: list_savings_recommendations, list_anomalies, list_data_health, list_cost_tag_rules.",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: query_events, list_alert_channels · Private data: query_costs, query_usage, list_alert_channels · Public sink: list_cost_tags, list_anomalies, explain_cost_change, query_unit_costs, list_alert_channels, list_alert_deliveries · Destructive: list_savings_recommendations, list_anomalies, list_data_health, list_cost_tag_rules.",
       "evidence": {
         "source": "server:mcp",
-        "snippet": "Untrusted content: query_events, list_alert_channels · Private data: query_costs, query_usage, list_alert_channels · Public sink: list_cost_tags, list_anomalies, query_unit_costs, list_alert_channels, list_alert_deliveries · Destructive: list_savings_recommendations, list_anomalies, list_data_health, list_cost_tag_rules"
+        "snippet": "Untrusted content: query_events, list_alert_channels · Private data: query_costs, query_usage, list_alert_channels · Public sink: list_cost_tags, list_anomalies, explain_cost_change, query_unit_costs, list_alert_channels, list_alert_deliveries · Destructive: list_savings_recommendations, list_anomalies, list_data_health, list_cost_tag_rules"
       },
       "confidence": 0.6,
       "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"list_anomalies\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:list_anomalies",
+        "snippet": "before: \"List detected cost anomalies for this account over a trailing lookback window — the real output of Plutus's nightly anomaly detector (severity, baseline vs. current spend, and what drove a tag-level spike), not something recomputed here from raw spend. Prefer this over eyeballing query_costs for \"di\" → after: \"List detected cost anomalies for this account over a trailing lookback window — the real output of Plutus's nightly anomaly detector (severity, baseline vs. current spend, and what drove a tag-level spike), not something recomputed here from raw spend. Prefer this over eyeballing query_costs for \"di\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
     }
   ],
-  "score": 36,
+  "score": 35,
   "scoreBreakdown": {
-    "tool-poisoning": 44,
+    "tool-poisoning": 45,
     "toxic-flow": 20
   },
   "errors": []

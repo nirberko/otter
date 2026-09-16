@@ -8,8 +8,8 @@
     "kind": "url",
     "ref": "https://mcp.uptimepage.dev/mcp"
   },
-  "scannedAt": "2026-08-28T16:44:39.219Z",
-  "durationMs": 2605,
+  "scannedAt": "2026-09-16T09:26:36.714Z",
+  "durationMs": 1876,
   "layers": {
     "metadata": true,
     "static": false
@@ -55,8 +55,8 @@
     },
     {
       "name": "get_org_usage",
-      "descriptionHash": "8764ec8e1e763f3a6f5684f65b10f5571da7f56417c5a3868d15d55bc51bef4c",
-      "description": "Org resource usage against plan limits: monitors, status pages, members, components, and key policy values. Read-only."
+      "descriptionHash": "7efeaea20888528ee313003910a5366e760b038c33386c0c83b287f6cb8de12e",
+      "description": "Which org this connector is bound to, and the account's resource usage against plan limits: monitors, status pages, members, components, and key policy values. Caps are pooled across every org the account owns, so the counts can exceed what this one org holds. Read-only."
     },
     {
       "name": "get_status_page",
@@ -88,8 +88,11 @@
     },
     {
       "name": "list_regions",
-      "descriptionHash": "9957e824e14d24774157f2ca863126a367a409afeaaa57bec6cc1158601ac15d",
-      "description": "The fleet's probe regions: id, display name, city, country, continent. Use it to name where a check runs from and to pass a valid `region` to get_monitor_history. Read-only."
+      "descriptionHash": "f3aa73e487b5dcbfef8aea70f530f9a18ba2693549cf0343959a5791cd9b080c",
+      "description": "The fleet's probe regions: id, display name, city, country, continent, and whether each is on by default for a new monitor. Reports `max_regions` only when the plan reaches fewer regions than the catalog lists, so a set too large to be accepted is visible before it is sent. Use it to pass a valid `r",
+      "labels": [
+        "destructive"
+      ]
     },
     {
       "name": "list_status_pages",
@@ -103,6 +106,14 @@
       "name": "list_tags",
       "descriptionHash": "75d2a3ed5f2bebe3957df70f32e5b688c89eaa035fd4f9d94d7656215bad161b",
       "description": "Every tag in use across the org's monitors, most-used first, with how many monitors carry each. Pass one back as the `tag` filter to list_monitors. Read-only."
+    },
+    {
+      "name": "list_variables",
+      "descriptionHash": "71fac197daca83678de67ddd589aa1de5336c0c1b6a8cca5ab4a26c6129f924f",
+      "description": "The org's reusable variables: key, and whether it is a secret. Values are never returned, and a secret's value is never even read. Write a variable into a monitor's header or body as `{{ key }}`, which is resolved when the check runs: this is how an authenticated check is built here, since pasting t",
+      "labels": [
+        "private-data"
+      ]
     }
   ],
   "findings": [
@@ -119,14 +130,26 @@
       "confidence": 0.65
     },
     {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"list_variables\" references sensitive artifacts (secret). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:list_variables",
+        "snippet": "The org's reusable variables: key, and whether it is a secret. Values are never returned, and a secret's value is never even read. Write a variable into a monit…"
+      },
+      "confidence": 0.65
+    },
+    {
       "id": "MCP-TOXIC-FLOW-001",
       "severity": "high",
       "category": "toxic-flow",
       "title": "Lethal trifecta: untrusted input + private data + external sink",
-      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: get_status_page, list_notification_channels, list_status_pages · Private data: get_monitor, list_notification_channels · Public sink: list_notification_channels.",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: get_status_page, list_notification_channels, list_status_pages · Private data: get_monitor, list_notification_channels, list_variables · Public sink: list_notification_channels · Destructive: list_regions.",
       "evidence": {
         "source": "server:mcp",
-        "snippet": "Untrusted content: get_status_page, list_notification_channels, list_status_pages · Private data: get_monitor, list_notification_channels · Public sink: list_notification_channels"
+        "snippet": "Untrusted content: get_status_page, list_notification_channels, list_status_pages · Private data: get_monitor, list_notification_channels, list_variables · Public sink: list_notification_channels · Destructive: list_regions"
       },
       "confidence": 0.6,
       "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
@@ -136,18 +159,31 @@
       "severity": "high",
       "category": "tool-poisoning",
       "title": "Tool description changed since last scan",
-      "detail": "Tool \"list_notification_channels\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "detail": "Tool \"get_org_usage\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
       "evidence": {
-        "source": "tool:list_notification_channels",
-        "snippet": "before: \"The org's notification channels: id, operator-set name, kind (email, slack, telegram, webhook, and so on), and whether the channel is enabled. Channel settings are withheld, since they hold webhook URLs and bot tokens. Channels are created in the Uptimepage app, not here. Read-only.\" → after: \"The org's notification channels: id, operator-set name, kind (email, slack, telegram, webhook, and so on), and whether the channel is enabled. Two flags say a channel is not working even where it reads as ready: awaiting_verification for an email address nobody confirmed, and not_delivering for an e\""
+        "source": "tool:get_org_usage",
+        "snippet": "before: \"Org resource usage against plan limits: monitors, status pages, members, components, and key policy values. Read-only.\" → after: \"Which org this connector is bound to, and the account's resource usage against plan limits: monitors, status pages, members, components, and key policy values. Caps are pooled across every org the account owns, so the counts can exceed what this one org holds. Read-only.\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"list_regions\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:list_regions",
+        "snippet": "before: \"The fleet's probe regions: id, display name, city, country, continent. Use it to name where a check runs from and to pass a valid `region` to get_monitor_history. Read-only.\" → after: \"The fleet's probe regions: id, display name, city, country, continent, and whether each is on by default for a new monitor. Reports `max_regions` only when the plan reaches fewer regions than the catalog lists, so a set too large to be accepted is visible before it is sent. Use it to pass a valid `r\""
       },
       "confidence": 0.8,
       "remediation": "Re-review the tool before continuing to trust it."
     }
   ],
-  "score": 50,
+  "score": 43,
   "scoreBreakdown": {
-    "tool-poisoning": 30,
+    "tool-poisoning": 38,
     "toxic-flow": 20
   },
   "errors": []

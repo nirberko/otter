@@ -1,0 +1,132 @@
+{
+  "schemaVersion": 1,
+  "scanner": {
+    "version": "1.6.0",
+    "rules": "402995650b68"
+  },
+  "target": {
+    "kind": "url",
+    "ref": "https://app.atlasipholdingsllc.com/mcp?src=mcp_registry"
+  },
+  "scannedAt": "2026-09-16T09:25:18.161Z",
+  "durationMs": 687,
+  "layers": {
+    "metadata": true,
+    "static": false
+  },
+  "tools": [
+    {
+      "name": "search_products",
+      "descriptionHash": "bccf06eb37a816769d941b336c6dc1d9cdb12cb98267206248e96a3b21ac00dc",
+      "description": "SEMANTIC product discovery: describe the need in plain words (industry, infrastructure type, hazard, question) and get products ranked by profile match (answers_questions, use_cases, industries, infrastructure_types, hazard_classes, example_questions), with the matched terms, what each product is NO",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "inspect_product",
+      "descriptionHash": "d36132f1b68dec3caea4e7604ef989cb99085d69adc9558bd5910f1313340ab0",
+      "description": "The full machine-readable commercial contract of one product: pricing ladder, credit multipliers, views, schema, measured quality, SLOs, provenance, join quality, semantics (ships through risk indicator), limitations."
+    },
+    {
+      "name": "sample_product",
+      "descriptionHash": "906ac43a531055baab7f7fe06e70710983ac65e0052cef3443823deced4d03d8",
+      "description": "Free sample rows of a product (k-anonymised where applicable) with data_through and contract version."
+    },
+    {
+      "name": "answer_question",
+      "descriptionHash": "afbedffc9851ec7766a65186c7a5b069379a1942b3bd7fbee1c039faf21856ec",
+      "description": "Ask a question Atlas can answer live (seismic unusual in a region, wave energy, commodity regimes, logistics safety, what cells are alert-worthy). Returns verdict, evidence, datasets and the purchase path."
+    },
+    {
+      "name": "quote_request",
+      "descriptionHash": "78701fbddd4e693cfbc3d790f2e77d0dc6fed8326be8d0a5f35876c4a225972d",
+      "description": "Quote a dataset need: text / keywords / category, max_age_hours, budget_usd, resolution, window_days, records, region or bbox. Returns ranked products with the cheapest fitting tier, estimated records and credits, cost, and the exact purchase call.",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "quote_watch",
+      "descriptionHash": "22172433d544e7365c8eb6c9b4217a8f0dc08ef4891d34e7d9759339531ff3e5",
+      "description": "Quote a watch (signal feed): need text plus filters (bbox, cohorts, signals, min_severity, min_confidence) -> product (ranked like quote_request, among packs with the cell layer), cheapest tier that meets the need, best tier within budget, estimated events per month and credits (watch events cost 5 "
+    },
+    {
+      "name": "get_changes",
+      "descriptionHash": "2d87627a6f2573ad05f5ae5a2340cdb51996075829ae9646f0552fccc5952b9c",
+      "description": "Change events since a cursor. Anonymous: the latest-day preview, at most 10 events (limit_applied/limit_max in the response). With api_key: the metered signal feed for that subscription (GET /api/feeds/{slug}/changes).",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "get_entitlement",
+      "descriptionHash": "5f57ec9a91cf36925c749d5e9b47146e2f0e6001d2e6b4e702288cda774fe610",
+      "description": "What an api_key is entitled to and has used: tier, credits quota, used, remaining, projected cost of a request, reset date.",
+      "labels": [
+        "destructive"
+      ]
+    },
+    {
+      "name": "buy_product",
+      "descriptionHash": "ea8909ef5f91db04c508e0d9b0599e18671f159c39d9591460ce30c5f21ce4c8",
+      "description": "The exact purchase call for a product and tier (one-time pack via POST /api/datapacks/buy, subscription via POST /api/feeds/subscribe), with terms, idempotency and what is metered. Does not move money: purchases need a session (or Stripe checkout).",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "create_watch",
+      "descriptionHash": "0fdecabda62110dc7a5f9042595a12adc389f8da8f345bb5059ad55ddcbd70bd",
+      "description": "The exact subscribe call for a watch (mode=watch) with the filters given, its tier, price and metering, plus the webhook contract. Does not move money.",
+      "labels": [
+        "public-sink"
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"get_changes\" references sensitive artifacts (api_key). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:get_changes",
+        "snippet": "Change events since a cursor. Anonymous: the latest-day preview, at most 10 events (limit_applied/limit_max in the response). With api_key: the metered signal f…"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"get_entitlement\" references sensitive artifacts (api_key). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:get_entitlement",
+        "snippet": "What an api_key is entitled to and has used: tier, credits quota, used, remaining, projected cost of a request, reset date."
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp?src=mcp_registry\" exposes tools that together enable an exfiltration flow. Untrusted content: search_products, get_changes · Private data: quote_request · Public sink: buy_product, create_watch · Destructive: get_entitlement.",
+      "evidence": {
+        "source": "server:mcp?src=mcp_registry",
+        "snippet": "Untrusted content: search_products, get_changes · Private data: quote_request · Public sink: buy_product, create_watch · Destructive: get_entitlement"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 50,
+  "scoreBreakdown": {
+    "tool-poisoning": 30,
+    "toxic-flow": 20
+  },
+  "errors": []
+}

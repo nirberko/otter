@@ -8,8 +8,8 @@
     "kind": "url",
     "ref": "https://www.cintrasupply.com/mcp"
   },
-  "scannedAt": "2026-09-11T09:03:34.960Z",
-  "durationMs": 1525,
+  "scannedAt": "2026-09-16T09:25:03.642Z",
+  "durationMs": 577,
   "layers": {
     "metadata": true,
     "static": false
@@ -17,37 +17,103 @@
   "tools": [
     {
       "name": "get_supplier_capabilities",
-      "descriptionHash": "02d877f94c42695641ed8fe3737070af1fee7a7a97c42fd792ff2333c177c955",
-      "description": "Returns Cintra's supported supply categories, service area, and official quote endpoints."
+      "descriptionHash": "1d408aca8382da92767a306c9b986c7d13d1339109f338a97d67d3437a03b779",
+      "description": "Returns Cintra's supported categories, accepted inputs, and the quote-to-order flow available over this server."
     },
     {
-      "name": "validate_bom",
-      "descriptionHash": "e58453aa2c002d0657fcc712db1cacca6a73bd267a6812db6445dd4500918cc6",
-      "description": "Checks quote lines for missing identifiers and ambiguous substitution instructions. It does not price or submit the request.",
+      "name": "submit_rfq",
+      "descriptionHash": "21602bf06a81820f630bc6b02b1bf32ceef77710abdcdb623c219f78ccd72d7f",
+      "description": "Submits a parts list for a wholesale quote and returns an rfq_id. Poll get_quote(rfq_id) until status is 'ready'. Non-binding; no charge occurs at this step.",
       "labels": [
         "public-sink"
       ]
     },
     {
-      "name": "prepare_quote_request",
-      "descriptionHash": "77ab94dfdd62c4132742c60aac52b9c75574010e4fb42db66b0af0d154ef420d",
-      "description": "Normalizes up to 500 BOM lines into Cintra's quote-ready format and returns a review link. This does not submit, purchase, reserve inventory, or create a binding quote.",
-      "labels": [
-        "public-sink",
-        "destructive"
-      ]
+      "name": "get_quote",
+      "descriptionHash": "7ef51867026fc7f0db4a20c64428ff586132581e626f8bbe210377938616c561",
+      "description": "Returns the current state of a quote. status is 'pending' while it is being priced, 'ready' once priced (with total and line pricing), 'accepted' once ordered, or 'expired'."
     },
     {
-      "name": "submit_quote_request",
-      "descriptionHash": "63d3785a51234e9b1806a1ddf7b59db0a5c4a98b6e939294083e873b795fa9de",
-      "description": "Submits a non-binding RFQ only when production submission is enabled and the user explicitly confirms. No order is placed and no price is guaranteed.",
+      "name": "accept_quote",
+      "descriptionHash": "cfd392bfe8b48de1d867c2f275f0975c7b4457a89a3bc8b576f77a72344c9469",
+      "description": "Accepts a 'ready' quote. Returns an order_id and a secure payment link the buyer completes to place the order. Accepting a quote whose payment is settled confirms the order."
+    },
+    {
+      "name": "get_order",
+      "descriptionHash": "a925b95e9e6d29f5f9107504d79379830dc97ca4bb49a0a34793381dc657a434",
+      "description": "Returns whether an order is awaiting payment or paid, its amount, and the invoice link. Fulfillment updates are added to the record as they occur.",
       "labels": [
-        "public-sink"
+        "private-data"
       ]
     }
   ],
-  "findings": [],
-  "score": 100,
-  "scoreBreakdown": {},
+  "findings": [
+    {
+      "id": "MCP-SCHEMA-SMELL-001",
+      "severity": "medium",
+      "category": "schema-smell",
+      "title": "Read-only tool requests dangerous parameters",
+      "detail": "Tool \"submit_rfq\" appears informational but accepts parameters (context) that enable code/file/secret access.",
+      "evidence": {
+        "source": "tool:submit_rfq",
+        "snippet": "lines, buyer_email, company, contact_name, ship_to_zip, needed_by, context, account_number"
+      },
+      "confidence": 0.55
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"get_supplier_capabilities\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:get_supplier_capabilities",
+        "snippet": "before: \"Returns Cintra's supported supply categories, service area, and official quote endpoints.\" → after: \"Returns Cintra's supported categories, accepted inputs, and the quote-to-order flow available over this server.\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "medium",
+      "category": "tool-poisoning",
+      "title": "Tool removed since last scan",
+      "detail": "Tool \"validate_bom\" is no longer advertised. Removal can precede a shadowing replacement from another server.",
+      "evidence": {
+        "source": "tool:validate_bom",
+        "snippet": "removed: validate_bom"
+      },
+      "confidence": 0.5
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "medium",
+      "category": "tool-poisoning",
+      "title": "Tool removed since last scan",
+      "detail": "Tool \"prepare_quote_request\" is no longer advertised. Removal can precede a shadowing replacement from another server.",
+      "evidence": {
+        "source": "tool:prepare_quote_request",
+        "snippet": "removed: prepare_quote_request"
+      },
+      "confidence": 0.5
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "medium",
+      "category": "tool-poisoning",
+      "title": "Tool removed since last scan",
+      "detail": "Tool \"submit_quote_request\" is no longer advertised. Removal can precede a shadowing replacement from another server.",
+      "evidence": {
+        "source": "tool:submit_quote_request",
+        "snippet": "removed: submit_quote_request"
+      },
+      "confidence": 0.5
+    }
+  ],
+  "score": 65,
+  "scoreBreakdown": {
+    "schema-smell": 8,
+    "tool-poisoning": 27
+  },
   "errors": []
 }

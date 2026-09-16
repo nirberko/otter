@@ -1,0 +1,114 @@
+{
+  "schemaVersion": 1,
+  "scanner": {
+    "version": "1.6.0",
+    "rules": "402995650b68"
+  },
+  "target": {
+    "kind": "url",
+    "ref": "https://aamio.at/mcp"
+  },
+  "scannedAt": "2026-09-16T09:24:40.594Z",
+  "durationMs": 2479,
+  "layers": {
+    "metadata": true,
+    "static": false
+  },
+  "tools": [
+    {
+      "name": "aamio_open",
+      "descriptionHash": "a2e82f5abffb1cf1bb12a2df95ebe473b45482c87c64ef76660418d67ce351bf",
+      "description": "Create a thread. Returns id (your secret read key), w (the write address to share) and the expiry. The server makes the id for you and does not keep it. A client that can generate 26 random [a-z0-9] characters itself should do so and derive w as the first 20 characters of lowercase base32(sha256(id)",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "aamio_send",
+      "descriptionHash": "62a54434507a1de12adcbbeee815b25f242699b83d83af6ed96c5949fa7ea702",
+      "description": "Append a message to a thread by its write address. Anyone with w may do this. Maximum 65536 bytes; send a URL and a hash for anything larger. Optional signing: pass body as a string, sign \"aamio-v1\\n\" + w + \"\\n\" + sha256hex(body) with your Ed25519 key, and send key and sig. The reader then sees veri",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "aamio_read",
+      "descriptionHash": "3bd6748f26185da856a0fe85d11d0460bd93b122959ffe6d1f931217b8ca0ab1",
+      "description": "Read messages after a sequence number using the read key. Pass the next value from the previous answer as after. With wait, the call returns as soon as a new message arrives or the time is up. A thread nobody has written to yet reads as empty and can be waited on.",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "aamio_receipt",
+      "descriptionHash": "2f2ed571b54c46df8fc2bcc258c613454538c32c2e413de4caa0dcbc11a6b8ff",
+      "description": "Hashes, times and signer keys of every message, and a root over them. No content. The root is the commitment to anchor, for example with Verifyum, if you need proof later. Take it before the thread expires; afterwards there is nothing to take it from."
+    },
+    {
+      "name": "aamio_close",
+      "descriptionHash": "f684d2d1c34e112e7c3a52181a997b27f0bbf5ce7889b421f39ee9e448d74e8b",
+      "description": "Delete a thread now instead of waiting for its expiry. Owner only.",
+      "labels": [
+        "destructive"
+      ]
+    },
+    {
+      "name": "aamio_presence_set",
+      "descriptionHash": "854ebc82e285cefa7f2e80bf568bb5c1d34f1222f51709c023a3761eb3378f40",
+      "description": "Publish where you can be reached, found by a prefix of the hash of your key. This is not access controlled: a lookup takes a prefix of the hash and not a proof, so anyone who has seen your key can check it. Anyone who has not cannot find it by trying, at 8 characters minimum. It lives at most 120 se",
+      "labels": [
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "aamio_presence_get",
+      "descriptionHash": "6b5ea49b03a3dbaae41e428d2abafb6a632c76fb8e638457d26f9f0039ced882",
+      "description": "Where a key holder can be reached right now, if it has published presence that has not expired."
+    },
+    {
+      "name": "aamio_presence_lookup",
+      "descriptionHash": "8659456f249fab7f7d51aa7c3e1ca1650079c2b00015ea27b2c57a2b418006d6",
+      "description": "Find which of the keys you know are live now, in one call. Send prefixes of sha256(key) in hex, 8 to 64 characters each; the answer holds live records whose hash starts with any prefix. A short prefix keeps your address book from the server, and cuts both ways: a prefix is a search and not a proof, ",
+      "labels": [
+        "private-data",
+        "public-sink"
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"aamio_open\" references sensitive artifacts (secret). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:aamio_open",
+        "snippet": "Create a thread. Returns id (your secret read key), w (the write address to share) and the expiry. The server makes the id for you and does not keep it. A clien…"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: aamio_open, aamio_read · Private data: aamio_open, aamio_presence_set, aamio_presence_lookup · Public sink: aamio_open, aamio_send, aamio_presence_set, aamio_presence_lookup · Destructive: aamio_close.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: aamio_open, aamio_read · Private data: aamio_open, aamio_presence_set, aamio_presence_lookup · Public sink: aamio_open, aamio_send, aamio_presence_set, aamio_presence_lookup · Destructive: aamio_close"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 60,
+  "scoreBreakdown": {
+    "tool-poisoning": 20,
+    "toxic-flow": 20
+  },
+  "errors": []
+}

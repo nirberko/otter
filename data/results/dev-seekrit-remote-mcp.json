@@ -23,4 +23,674 @@
       "message": "Streamable HTTP error: Error POSTing to endpoint: {\"server\":\"seekrit-remote-mcp\",\"description\":\"seekrit's hosted metadata-plane MCP server — see `instructions`.\",\"instructions\":\"seekrit is a zero-knowledge secrets manager. This is the HOSTED METADATA plane:\\nexplore and provision structure (orgs, apps, environments, groups, composition),\\nread audit and billing, and manage keyless resources — for autonomous agents,\\nno human and no install required.\\n\\nYou authenticate as a MACHINE client (M2M). If you have no credentials yet,\\nPOST /signup once with the org's name + slug (required — name them for the real\\nproject/company, e.g. orgName 'Acme Storefront', orgSlug 'acme-storefront', not a\\nplaceholder) to get a client id + secret and a fresh org, then connect with\\n`Authorization: Basic base64(client_id:client_secret)`.\\n\\nONE credential drives both planes. This plane can NEVER see plaintext: reading\\nor writing a secret VALUE, creating an environment (which mints a data key), and\\nissuing a decryption-capable token all require encryption that happens only on\\nYOUR machine — on the LOCAL crypto plane (`npx -y @seekrit/mcp`). Give the local\\nserver the SAME client id + secret and it mints its own admin token automatically;\\nyour keys are generated there and never sent here.\\n\\nModel: org → apps → environments → secrets. Call `whoami` first, then\\n`get_started` for the end-to-end recipe. When you need to set or use a value,\\ncall `setup_local_crypto` — it hands you the exact local command.\",\"mcp_endpoint\":\"https://mcp.seekrit.dev/mcp\",\"signup_endpoint\":\"https://mcp.seekrit.dev/signup\",\"authentication\":\"Authorization: Basic base64(client_id:client_secret), minted via POST /signup\"}"
     }
   ]
+}explaining the plane boundary for an unrecognised one. Use setup_local_crypto instead when you need the "
+    },
+    {
+      "name": "whoami",
+      "descriptionHash": "732ab7914f7f9b73b57aec0ef018b75e011514c98adad90e534f63a77e894150",
+      "description": "Show the authenticated machine client and the org it can access. Call this first: it confirms the credential works and tells you which org slug to pass (or that you can omit `org` entirely). Returns { kind, clientId, orgs: [{ id, name, slug, role, createdAt }] }.",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "list_orgs",
+      "descriptionHash": "358eb15dbe98fd7c923afe18636f7de4913493ce78df16c865aa10ea7aedc966",
+      "description": "List the organizations this credential can access. Use it to find the `org` slug every other tool takes; prefer whoami if you also want to confirm which client you are. Returns [{ id, name, slug, role, createdAt }].",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "list_apps",
+      "descriptionHash": "ae82f4cf32f45eedec582608a84f2cc44b9ef8cd30189817f0f944183a6d0458",
+      "description": "List the applications in an organization — an application is the top-level container that owns environments, which in turn own secrets. Start here when you know the org but not the app slug the other tools need. Returns [{ id, orgId, name, slug, createdAt }]; use list_envs next to descend into one.",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "list_envs",
+      "descriptionHash": "793deb4712bbda982b03c6a2ba61830fed242b3c30fe29adcc2ef5c7ede8a322",
+      "description": "List the environments an application owns (production, staging, …). Names and slugs only — never values. Use this to find the `env` slug that list_secrets and the delete/restore tools take. Returns [{ id, name, slug, applicationId, groupId, parentEnvironmentId, expiresAt, createdAt }]. Not to be con",
+      "labels": [
+        "untrusted-content",
+        "destructive"
+      ]
+    },
+    {
+      "name": "list_branches",
+      "descriptionHash": "908990acad3b807f21a253f17dc31b3a2e599fefedf5bb48a6a235414baaa510",
+      "description": "List ephemeral branch configs (per-PR / preview environments) across an application, or just those forked from one environment. Names, parents, and expiry only — never values. Use it before delete_branch to find a branch slug, or to spot branches that have already expired. Returns Environment rows w",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "list_groups",
+      "descriptionHash": "aa7ac094d1ebdd3b9c56871f5f5f3b136216e8eabe342257b2a88067079e2d4a",
+      "description": "List the shared groups in an organization — a group is a reusable bag of secrets (a shared datastore, a vendor account) that many application environments can compose in rather than duplicating. Use it to find the `group` slug compose_group and list_group_envs take. Returns [{ id, orgId, name, slug,",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "list_group_envs",
+      "descriptionHash": "5ba38e07adfa0778d30045763d29987bd35068f1fc6fdf4ef07a90ada68be5ca",
+      "description": "List the environments belonging to one shared GROUP — a group holds a separate value set per slug, so its `production` differs from its `staging`. Use this when you already have a group and want its own environments; use list_envs for an application's, and list_env_groups to see which groups an appl"
+    },
+    {
+      "name": "list_env_groups",
+      "descriptionHash": "0580dbded891a31cd428f241f5aa71ac9ef05082329d8eac66c35a063a63d863",
+      "description": "List the shared groups composed INTO one application environment, in precedence order (higher position wins a name clash). Read this to explain where a secret name actually comes from, or to pick the next `position` for compose_group. The inverse direction of list_group_envs. Returns [{ groupId, slu",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "list_members",
+      "descriptionHash": "612ba32371d2f76ed638d2bc04b21f11bee37211ff2a1a54ad9eefd2542febcf",
+      "description": "List organization members with their public keys. The public keys are what you pass to `grant_env` on the LOCAL crypto plane to give a human the ability to decrypt — so call this when handing a project off to a person. Returns [{ userId, email, name, role, publicKeyJwk }]; `publicKeyJwk` is null for",
+      "labels": [
+        "untrusted-content",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "list_secrets",
+      "descriptionHash": "6c91d5338814af4af734c64cb08a8fabbc097f7a72a699bc2284892db535b54e",
+      "description": "List the secret NAMES and versions in an environment. NEVER returns values: this server cannot decrypt. Use it to discover which names exist before referencing them; to read a value, run the local crypto plane (see setup_local_crypto) — no tool here will ever return one. Returns [{ name, version, up",
+      "labels": [
+        "private-data",
+        "destructive"
+      ]
+    },
+    {
+      "name": "list_secret_versions",
+      "descriptionHash": "61fc18ae83ea68a2888c9d1a3da8292b218b4bcc7780c92b8281499dda789453",
+      "description": "List one secret's version history: who wrote each version, when, and which ones were restores. Metadata only — never values. Pair with restore_secret to undo a bad write: read the history here, then pass the version number you want back. Returns { currentVersion, versions: [{ version, createdAt, cre",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "list_tokens",
+      "descriptionHash": "cf09a79c37a560370338236ee044bc9629ffb7e6893797bd94cbd2e9dc8830fe",
+      "description": "List an organization's service tokens — the long-lived credentials that let a deployed workload fetch secrets. Metadata only: the token strings are shown once at creation (on the local crypto plane) and are never retrievable here. Use it to find a `tokenId` for revoke_token, or to audit what still h",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "list_invites",
+      "descriptionHash": "6ad07cd0a296a3e4ff4d6936a4572caa4422374a27e3a02cb63ee2d4d7b74c90",
+      "description": "List invitations to the organization that have been sent but not yet accepted. Use it to confirm an invite_member call landed, or to find an `inviteId` for revoke_invite. Accepted invitations become members — see list_members. Returns [{ id, orgId, email, role, invitedById, createdAt }].",
+      "labels": [
+        "untrusted-content",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "kms_list_keys",
+      "descriptionHash": "766740da896feb54f99bfca6fb9a3402b2f821773bd90529ee0dcd396676c93b",
+      "description": "List the managed KMS keys the caller can see — symmetric and signing keys seekrit stores wrapped, for encrypting data outside the secret store. Metadata only: key material is fetched and used on the local crypto plane (kms_encrypt / kms_decrypt / kms_sign live there, not here). Use it to find a `key",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "list_lease_targets",
+      "descriptionHash": "868dd1c27b1af7e939f4e8dfa35ae61b9012a3fd79d5ca7dcd047ae50cbddaba",
+      "description": "List the registered temporary-access targets — the databases (Postgres, MySQL, …) against which short-lived credentials can be minted on demand instead of storing a standing password. Use it to see what can be leased before minting one (create_pg_lease / create_mysql_lease run on the LOCAL crypto pl",
+      "labels": [
+        "private-data",
+        "destructive"
+      ]
+    },
+    {
+      "name": "list_leases",
+      "descriptionHash": "8296c37860b119deb16d2fb68291d434244aaf9580a023ccde9f58cb5ecf1056",
+      "description": "List temporary-access leases that have been issued — the ledger of who got a short-lived credential against which target and until when. Never includes the credential itself. Use it to find a `leaseId` for revoke_lease, or to check whether a lease has already expired before revoking it; list_lease_t",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "audit",
+      "descriptionHash": "57da7c2879376ac1acfd294ddcc55745a95a7df88466ad1997f335b58ad28836",
+      "description": "Read the organization's append-only audit trail, most recent first — every mutation across apps, environments, secrets, members, and tokens. Use it to answer \"what changed and who did it\"; for one secret's history specifically, list_secret_versions is narrower and cheaper. Returns [{ id, action, act",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "billing",
+      "descriptionHash": "7ea9358fd550fdd8d17aa5e7bd6839722d2bfa58945a3540604d6c571bd48e61",
+      "description": "Show the org's plan, effective entitlements, current usage, and which upgrade actions are available. Read this if a create action was refused with a plan limit — it names the limit you hit and how to lift it. Returns { plan, subscription, promo, entitlements, usage, overrides, enforced, manage } — `"
+    },
+    {
+      "name": "create_app",
+      "descriptionHash": "36f9348107961efe50085d53fbe1920ec1ef8916fa945ba55e8557ef1514b6fd",
+      "description": "Create an application — the container that will own environments and secrets. This step needs no key material, so it runs here. Creating its environments does NOT: create_env mints a data key and lives on the local crypto plane (call setup_local_crypto). Returns the new { id, orgId, name, slug, crea",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "create_group",
+      "descriptionHash": "98a5f28c575985b2b7728a4f684432384a3881651bce1fbbe1da01646b8cca07",
+      "description": "Create a shared group — a reusable bag of secrets (a shared datastore, a vendor account) that many application environments compose in rather than each keeping a copy. Use create_app instead for a deployable service. No key material involved, so it runs here; the group's environments are minted loca",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "compose_group",
+      "descriptionHash": "fe448a1ad24787f7aecf6fe94d34e92dc38ecfb5770d9dfdfe079cfa139f5c20",
+      "description": "Compose a shared group into an application environment, so that environment resolves the group's secrets as well as its own. Safe to repeat — composing an already-composed group just updates its position. Use uncompose_group to undo, and list_env_groups to see the current order. No key material invo",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "uncompose_group",
+      "descriptionHash": "2ce9a89c0e7f977c3920edb1229aa8f4a67cc6b974ac5b601591283633dbef81",
+      "description": "Remove a composed group from an application environment. The group and its secrets are untouched — only the link is dropped — but the environment stops resolving every name it inherited from that group, which will break a workload still reading one. Check list_env_groups first, and use delete_group ",
+      "labels": [
+        "private-data",
+        "destructive"
+      ]
+    },
+    {
+      "name": "invite_member",
+      "descriptionHash": "9b71d35e7b4945df85ee119e94eddd1e75ad5648b8a6b52e337dfa6cb9f8f12c",
+      "description": "Invite a human to the organization by email (admin only). They join at the given role once they sign in. Use this to hand a project off to a person — then grant them decryption with `grant_env` on the LOCAL crypto plane, since an invite alone conveys no ability to read values. Returns the pending { ",
+      "labels": [
+        "untrusted-content",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "rename_app",
+      "descriptionHash": "0f5618bdda9b87077273e228fd8eb03400f33bff9cff3005537328014d41e17e",
+      "description": "Change an application's display name. The slug is immutable — every other tool refers to the app by slug, so a rename breaks nothing. Use delete_app + create_app only if the slug itself must change. Returns the updated { id, orgId, name, slug, createdAt }."
+    },
+    {
+      "name": "rename_group",
+      "descriptionHash": "6608bf6a17e39a80873948f44a91d6a042660a71dffcd3e2c95f3bb04008af97",
+      "description": "Change a shared group's display name. The slug is immutable — references from composed environments are by slug, so a rename breaks nothing. Returns the updated { id, orgId, name, slug, createdAt }."
+    },
+    {
+      "name": "restore_secret",
+      "descriptionHash": "bcba5e46c351a447980667af6f5ffc644bf4aa7b45deec63f9896d5dde678dbe",
+      "description": "Roll a secret back to an earlier version — the undo for a bad write. The stored ciphertext is replayed as a NEW version, so history is append-only and nothing is overwritten. Read list_secret_versions first to choose the version. No decryption happens, which is why this works here and not only on th",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "delete_secret",
+      "descriptionHash": "53e8eebb3029018b8735991c6ff509a14d285042034128599788e8553ad3bdea",
+      "description": "Delete a secret from an environment, discarding its ciphertext and every version. Irreversible — restore_secret CANNOT bring it back (that only rolls back within a surviving secret's history), and re-creating it means setting the value again on the local crypto plane. Prefer restore_secret to undo a",
+      "labels": [
+        "private-data",
+        "destructive"
+      ]
+    },
+    {
+      "name": "revoke_token",
+      "descriptionHash": "17f48c44bc769d9ee138a6f333b7f99bff7487dbdaa090e11a9490e10d9a3037",
+      "description": "Revoke a service token by id. Future key fetches by that token stop immediately, so any workload still using it loses access on its next read. If the holder may have cached the key already, also rotate the environment on the local crypto plane — revocation alone does not re-encrypt anything. Find th",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "revoke_invite",
+      "descriptionHash": "e5a82cec5278ce4db7aae5b96451ae1c9c05a8b056da7583b9a328de129bf53a",
+      "description": "Cancel a pending organization invitation before it is accepted. Use this for an invite sent in error; once someone has accepted, they are a member and this no longer applies. Find the id with list_invites. Returns { ok, inviteId }."
+    },
+    {
+      "name": "revoke_lease",
+      "descriptionHash": "1c98d1a1e11ca9ff8ae13fc2365fefffe84dd49f758b21ac97abc998eb0008d2",
+      "description": "Revoke a temporary-access lease now instead of waiting for it to expire — the leased database credential is dropped at the target immediately, so anything still holding it fails on its next connection. Irreversible: a new lease must be minted on the local crypto plane. Check list_leases first, since",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "kms_disable_key",
+      "descriptionHash": "1c92263a95a1b22018e0a508811922bc3c3c65fecc2cf8121d74ada42f55bb3b",
+      "description": "Disable a managed KMS key: new encrypt/sign operations are blocked, while data already encrypted under it stays decryptable locally by existing grantees. Reversible only by an operator re-enabling the key — there is no enable tool here. Use kms_revoke_grant instead to cut off ONE principal while the"
+    },
+    {
+      "name": "kms_revoke_grant",
+      "descriptionHash": "83fe8b6e3e40c373fd856679498bf9df5e3bd2f2466e89a7512d59c32b46953b",
+      "description": "Revoke one principal's grant on a managed KMS key, across all its versions — that user or service token can no longer use the key, while everyone else keeps working. Use kms_disable_key instead to stop the key entirely. Removing a grant needs no key material, which is why it runs here. Returns { ok,",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "delete_app",
+      "descriptionHash": "f3edef374653aeb4654c359417fb8a5e51d6d18890af3a67331160b968586c65",
+      "description": "Delete an application together with all of its environments and their secrets, discarding the ciphertext. Irreversible — there is no undo and no export. This is the widest-blast-radius tool here; prefer delete_env for a single environment, or rename_app if the name is the only problem. Confirm inten",
+      "labels": [
+        "private-data",
+        "destructive"
+      ]
+    },
+    {
+      "name": "delete_group",
+      "descriptionHash": "ac6208b7da6ac785981ee5b52e32518ddbd51db762b0256b28da77ee4ccc9a7a",
+      "description": "Delete a shared group together with its environments and their secrets, discarding the ciphertext. Irreversible. Every application environment that composed this group loses those names — check list_env_groups (or use uncompose_group) before deciding the group is unused. Confirm intent before callin",
+      "labels": [
+        "private-data",
+        "destructive"
+      ]
+    },
+    {
+      "name": "delete_env",
+      "descriptionHash": "dc2a0d4e940bfa061ea7cced08cf872a35834eb1d2029c6a7642e7afcced4d76",
+      "description": "Delete one application environment and the secrets it owns, discarding the ciphertext. Irreversible, and the environment's data key goes with it — recreating the environment means setting every value again on the local crypto plane. Sibling environments and the application itself are untouched; use ",
+      "labels": [
+        "private-data",
+        "destructive"
+      ]
+    },
+    {
+      "name": "delete_branch",
+      "descriptionHash": "3efbc7901cfa28a184afc5ae220efab50f219891562cb57989b96605ef4a0865",
+      "description": "Tear down an ephemeral branch config and every value it overrode. The parent environment is untouched — only the branch's own overrides go — which makes this the routine cleanup when a PR merges. Irreversible; creating a branch mints a data key, so create_branch stays on the local crypto plane. Find",
+      "labels": [
+        "destructive"
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"signup\" references sensitive artifacts (secret). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:signup",
+        "snippet": "Create a seekrit workspace and your own machine credential — one call, no human, no browser. Binds the credential to this session, so every other tool works on …"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"setup_local_crypto\" references sensitive artifacts (secret). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:setup_local_crypto",
+        "snippet": "Get the exact commands for running the local crypto plane (the `@seekrit/mcp` npm server, the `@seekrit/cli` CLI, seekrit-run, seekrit-proxy), including a copy-…"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"list_apps\" references sensitive artifacts (secret). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:list_apps",
+        "snippet": "List the applications in an organization — an application is the top-level container that owns environments, which in turn own secrets. Start here when you know…"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"list_envs\" references sensitive artifacts (secret). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:list_envs",
+        "snippet": "List the environments an application owns (production, staging, …). Names and slugs only — never values. Use this to find the `env` slug that list_secrets and t…"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-SCHEMA-SMELL-001",
+      "severity": "medium",
+      "category": "schema-smell",
+      "title": "Read-only tool requests dangerous parameters",
+      "detail": "Tool \"list_branches\" appears informational but accepts parameters (env) that enable code/file/secret access.",
+      "evidence": {
+        "source": "tool:list_branches",
+        "snippet": "org, app, env"
+      },
+      "confidence": 0.55
+    },
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"list_groups\" references sensitive artifacts (secret). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:list_groups",
+        "snippet": "List the shared groups in an organization — a group is a reusable bag of secrets (a shared datastore, a vendor account) that many application environments can c…"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"list_env_groups\" references sensitive artifacts (secret). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:list_env_groups",
+        "snippet": "List the shared groups composed INTO one application environment, in precedence order (higher position wins a name clash). Read this to explain where a secret n…"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-SCHEMA-SMELL-001",
+      "severity": "medium",
+      "category": "schema-smell",
+      "title": "Read-only tool requests dangerous parameters",
+      "detail": "Tool \"list_env_groups\" appears informational but accepts parameters (env) that enable code/file/secret access.",
+      "evidence": {
+        "source": "tool:list_env_groups",
+        "snippet": "org, app, env"
+      },
+      "confidence": 0.55
+    },
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"list_secrets\" references sensitive artifacts (secret). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:list_secrets",
+        "snippet": "List the secret NAMES and versions in an environment. NEVER returns values: this server cannot decrypt. Use it to discover which names exist before referencing …"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-SCHEMA-SMELL-001",
+      "severity": "medium",
+      "category": "schema-smell",
+      "title": "Read-only tool requests dangerous parameters",
+      "detail": "Tool \"list_secrets\" appears informational but accepts parameters (env) that enable code/file/secret access.",
+      "evidence": {
+        "source": "tool:list_secrets",
+        "snippet": "org, app, env"
+      },
+      "confidence": 0.55
+    },
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"list_secret_versions\" references sensitive artifacts (secret). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:list_secret_versions",
+        "snippet": "List one secret's version history: who wrote each version, when, and which ones were restores. Metadata only — never values. Pair with restore_secret to undo a …"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-SCHEMA-SMELL-001",
+      "severity": "medium",
+      "category": "schema-smell",
+      "title": "Read-only tool requests dangerous parameters",
+      "detail": "Tool \"list_secret_versions\" appears informational but accepts parameters (env) that enable code/file/secret access.",
+      "evidence": {
+        "source": "tool:list_secret_versions",
+        "snippet": "org, app, env, name, limit"
+      },
+      "confidence": 0.55
+    },
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"list_tokens\" references sensitive artifacts (credentials, secret). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:list_tokens",
+        "snippet": "List an organization's service tokens — the long-lived credentials that let a deployed workload fetch secrets. Metadata only: the token strings are shown once a…"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"kms_list_keys\" references sensitive artifacts (secret). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:kms_list_keys",
+        "snippet": "List the managed KMS keys the caller can see — symmetric and signing keys seekrit stores wrapped, for encrypting data outside the secret store. Metadata only: k…"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"list_lease_targets\" references sensitive artifacts (credentials, password, secret). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:list_lease_targets",
+        "snippet": "List the registered temporary-access targets — the databases (Postgres, MySQL, …) against which short-lived credentials can be minted on demand instead of stori…"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"audit\" references sensitive artifacts (secret). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:audit",
+        "snippet": "Read the organization's append-only audit trail, most recent first — every mutation across apps, environments, secrets, members, and tokens. Use it to answer \"w…"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"create_app\" references sensitive artifacts (secret). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:create_app",
+        "snippet": "Create an application — the container that will own environments and secrets. This step needs no key material, so it runs here. Creating its environments does N…"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"create_group\" references sensitive artifacts (secret). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:create_group",
+        "snippet": "Create a shared group — a reusable bag of secrets (a shared datastore, a vendor account) that many application environments compose in rather than each keeping …"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"compose_group\" references sensitive artifacts (secret). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:compose_group",
+        "snippet": "Compose a shared group into an application environment, so that environment resolves the group's secrets as well as its own. Safe to repeat — composing an alrea…"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"uncompose_group\" references sensitive artifacts (secret). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:uncompose_group",
+        "snippet": "Remove a composed group from an application environment. The group and its secrets are untouched — only the link is dropped — but the environment stops resolvin…"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"restore_secret\" references sensitive artifacts (secret). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:restore_secret",
+        "snippet": "Roll a secret back to an earlier version — the undo for a bad write. The stored ciphertext is replayed as a NEW version, so history is append-only and nothing i…"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-SCHEMA-SMELL-001",
+      "severity": "medium",
+      "category": "schema-smell",
+      "title": "Read-only tool requests dangerous parameters",
+      "detail": "Tool \"restore_secret\" appears informational but accepts parameters (env) that enable code/file/secret access.",
+      "evidence": {
+        "source": "tool:restore_secret",
+        "snippet": "org, app, env, name, version"
+      },
+      "confidence": 0.55
+    },
+    {
+      "id": "MCP-TOOL-POISON-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description issues instructions to the model",
+      "detail": "Description of \"delete_secret\" contains imperative instructions directed at the AI assistant rather than describing the tool. This is the core tool-poisoning technique.",
+      "evidence": {
+        "source": "tool:delete_secret",
+        "snippet": "Delete a secret from an environment, discarding its ciphertext and every version. Irreversible — restore_secret CANNOT bring it back (that only rolls back withi…"
+      },
+      "confidence": 0.7,
+      "remediation": "Treat the server as untrusted; the model may obey embedded instructions."
+    },
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"delete_secret\" references sensitive artifacts (secret). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:delete_secret",
+        "snippet": "Delete a secret from an environment, discarding its ciphertext and every version. Irreversible — restore_secret CANNOT bring it back (that only rolls back withi…"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOOL-POISON-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description issues instructions to the model",
+      "detail": "Description of \"delete_app\" contains imperative instructions directed at the AI assistant rather than describing the tool. This is the core tool-poisoning technique.",
+      "evidence": {
+        "source": "tool:delete_app",
+        "snippet": "Delete an application together with all of its environments and their secrets, discarding the ciphertext. Irreversible — there is no undo and no export. This is…"
+      },
+      "confidence": 0.7,
+      "remediation": "Treat the server as untrusted; the model may obey embedded instructions."
+    },
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"delete_app\" references sensitive artifacts (secret). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:delete_app",
+        "snippet": "Delete an application together with all of its environments and their secrets, discarding the ciphertext. Irreversible — there is no undo and no export. This is…"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOOL-POISON-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description issues instructions to the model",
+      "detail": "Description of \"delete_group\" contains imperative instructions directed at the AI assistant rather than describing the tool. This is the core tool-poisoning technique.",
+      "evidence": {
+        "source": "tool:delete_group",
+        "snippet": "Delete a shared group together with its environments and their secrets, discarding the ciphertext. Irreversible. Every application environment that composed thi…"
+      },
+      "confidence": 0.7,
+      "remediation": "Treat the server as untrusted; the model may obey embedded instructions."
+    },
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"delete_group\" references sensitive artifacts (secret). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:delete_group",
+        "snippet": "Delete a shared group together with its environments and their secrets, discarding the ciphertext. Irreversible. Every application environment that composed thi…"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOOL-POISON-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description issues instructions to the model",
+      "detail": "Description of \"delete_env\" contains imperative instructions directed at the AI assistant rather than describing the tool. This is the core tool-poisoning technique.",
+      "evidence": {
+        "source": "tool:delete_env",
+        "snippet": "Delete one application environment and the secrets it owns, discarding the ciphertext. Irreversible, and the environment's data key goes with it — recreating th…"
+      },
+      "confidence": 0.7,
+      "remediation": "Treat the server as untrusted; the model may obey embedded instructions."
+    },
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"delete_env\" references sensitive artifacts (secret). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:delete_env",
+        "snippet": "Delete one application environment and the secrets it owns, discarding the ciphertext. Irreversible, and the environment's data key goes with it — recreating th…"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: list_envs, list_branches, list_members, list_invites, invite_member · Private data: signup, setup_local_crypto, whoami, list_orgs, list_apps, list_groups, list_env_groups, list_secrets, list_secret_versions, list_tokens, kms_list_keys, list_lease_targets, list_leases, audit, create_app, create_group, compose_group, uncompose_group, restore_secret, delete_secret, revoke_token, revoke_lease, kms_revoke_grant, delete_app, delete_group, delete_env · Public sink: list_members, list_invites, invite_member · Destructive: get_started, setup_local_crypto, list_envs, list_secrets, list_lease_targets, uncompose_group, delete_secret, delete_app, delete_group, delete_env, delete_branch.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: list_envs, list_branches, list_members, list_invites, invite_member · Private data: signup, setup_local_crypto, whoami, list_orgs, list_apps, list_groups, list_env_groups, list_secrets, list_secret_versions, list_tokens, kms_list_keys, list_lease_targets, list_leases, audit, create_app, create_group, compose_group, uncompose_group, restore_secret, delete_secret, revoke_token, revoke_lease, kms_revoke_grant, delete_app, delete_group, delete_env · Public sink: list_members, list_invites, invite_member · Destructive: get_started, setup_local_crypto, list_envs, list_secrets, list_lease_targets, uncompose_group, delete_secret, delete_app, delete_group, delete_env, delete_branch"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 1,
+  "scoreBreakdown": {
+    "tool-poisoning": 64,
+    "schema-smell": 16,
+    "toxic-flow": 20
+  },
+  "errors": []
 }
