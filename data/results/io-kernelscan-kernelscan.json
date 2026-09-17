@@ -8,8 +8,8 @@
     "kind": "url",
     "ref": "https://kernelscan.io/mcp/"
   },
-  "scannedAt": "2026-08-11T05:36:04.972Z",
-  "durationMs": 2314,
+  "scannedAt": "2026-09-17T09:45:59.429Z",
+  "durationMs": 1300,
   "layers": {
     "metadata": true,
     "static": false
@@ -46,8 +46,17 @@
     },
     {
       "name": "get_product_vex",
-      "descriptionHash": "cf880c9c545b2bccfdab2fa5d1f9ed378a61b2d7bb669d1f16911d4ef009a6b6",
-      "description": "Return the CycloneDX 1.6 VEX document for one of the caller's products.\n\n        Reads from the 24h ProductVexCache; if the cache is empty/expired the\n        next call to ``get_product`` (or the REST endpoint) will regenerate it.",
+      "descriptionHash": "806c6b4d97736cc3240b0f7490b63b7179311fbf46994ab596b68bd8b4bcb857",
+      "description": "Return the VEX MANIFEST for one of the caller's products — metadata,\n        not the document.\n\n        Multi-megabyte CycloneDX documents (up to 8,000+ vulnerability entries)\n        are not safe model-context payloads, so this tool returns a bounded\n        manifest: CycloneDX format/spec version,",
+      "labels": [
+        "private-data",
+        "destructive"
+      ]
+    },
+    {
+      "name": "list_product_vex_entries",
+      "descriptionHash": "a66d9b4bea564f95ec5158a2366649b6d5f5bcc662965af33bd1ab4443430c1d",
+      "description": "Page through the VEX vulnerability entries of one of the caller's products.\n\n        Returns COMPLETE CycloneDX vulnerability objects for one bounded page\n        — never the root document, never all entries — plus ``returned``,\n        ``total_matching``, and a ``next_cursor`` to continue with. Eve",
       "labels": [
         "private-data"
       ]
@@ -105,6 +114,18 @@
       "severity": "high",
       "category": "tool-poisoning",
       "title": "Description tells the model to hide behavior",
+      "detail": "Description of \"list_product_vex_entries\" instructs the model to conceal actions from the user.",
+      "evidence": {
+        "source": "tool:list_product_vex_entries",
+        "snippet": "Page through the VEX vulnerability entries of one of the caller's products. Returns COMPLETE CycloneDX vulnerability objects for one bounded page — never the ro…"
+      },
+      "confidence": 0.75
+    },
+    {
+      "id": "MCP-TOOL-POISON-002",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description tells the model to hide behavior",
       "detail": "Description of \"create_product\" instructs the model to conceal actions from the user.",
       "evidence": {
         "source": "tool:create_product",
@@ -129,10 +150,10 @@
       "severity": "high",
       "category": "toxic-flow",
       "title": "Lethal trifecta: untrusted input + private data + external sink",
-      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: list_products, create_product, update_product, request_access · Private data: search_cves, get_cve, get_product_vex, update_product, whoami, request_access · Public sink: create_product, update_product, request_access, submit_support_report · Destructive: create_product.",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: list_products, create_product, update_product, request_access · Private data: search_cves, get_cve, get_product_vex, list_product_vex_entries, update_product, whoami, request_access · Public sink: create_product, update_product, request_access, submit_support_report · Destructive: get_product_vex, create_product.",
       "evidence": {
         "source": "server:mcp",
-        "snippet": "Untrusted content: list_products, create_product, update_product, request_access · Private data: search_cves, get_cve, get_product_vex, update_product, whoami, request_access · Public sink: create_product, update_product, request_access, submit_support_report · Destructive: create_product"
+        "snippet": "Untrusted content: list_products, create_product, update_product, request_access · Private data: search_cves, get_cve, get_product_vex, list_product_vex_entries, update_product, whoami, request_access · Public sink: create_product, update_product, request_access, submit_support_report · Destructive: get_product_vex, create_product"
       },
       "confidence": 0.6,
       "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
@@ -142,23 +163,10 @@
       "severity": "high",
       "category": "tool-poisoning",
       "title": "Tool description changed since last scan",
-      "detail": "Tool \"create_product\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "detail": "Tool \"get_product_vex\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
       "evidence": {
-        "source": "tool:create_product",
-        "snippet": "before: \"Create a new product, run analysis, and return its initial stats.\n\n        ``config_upload_id`` references a previously-staged .config that the\n        caller POSTed to ``/api/configs/uploads`` over plain HTTP — the LLM\n        does NOT emit the config text itself (a real kernel .config is\n        ~\" → after: \"Create a new product, run analysis, and return its initial stats.\n\n        ``config_upload_id`` references a previously-staged .config that the\n        caller POSTed to ``/api/configs/uploads`` over plain HTTP — the LLM\n        does NOT emit the config text itself (a real kernel .config is\n        ~\""
-      },
-      "confidence": 0.8,
-      "remediation": "Re-review the tool before continuing to trust it."
-    },
-    {
-      "id": "MCP-RUGPULL-001",
-      "severity": "high",
-      "category": "tool-poisoning",
-      "title": "Tool description changed since last scan",
-      "detail": "Tool \"update_product\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
-      "evidence": {
-        "source": "tool:update_product",
-        "snippet": "before: \"Update a product owned by the caller. Re-runs analysis if the\n        kernel_version, arch, or referenced .config changed.\n\n        To change the .config, first POST the new file to\n        ``/api/configs/uploads`` (see ``create_product`` for the curl recipe)\n        and pass the returned ``config_u\" → after: \"Update a product owned by the caller. Re-runs analysis if the\n        kernel_version, arch, or referenced .config changed.\n\n        To change the .config, first POST the new file to\n        ``/api/configs/uploads`` (see ``create_product`` for the curl recipe)\n        and pass the returned ``config_u\""
+        "source": "tool:get_product_vex",
+        "snippet": "before: \"Return the CycloneDX 1.6 VEX document for one of the caller's products.\n\n        Reads from the 24h ProductVexCache; if the cache is empty/expired the\n        next call to ``get_product`` (or the REST endpoint) will regenerate it.\" → after: \"Return the VEX MANIFEST for one of the caller's products — metadata,\n        not the document.\n\n        Multi-megabyte CycloneDX documents (up to 8,000+ vulnerability entries)\n        are not safe model-context payloads, so this tool returns a bounded\n        manifest: CycloneDX format/spec version,\""
       },
       "confidence": 0.8,
       "remediation": "Re-review the tool before continuing to trust it."

@@ -1,0 +1,117 @@
+{
+  "schemaVersion": 1,
+  "scanner": {
+    "version": "1.6.0",
+    "rules": "402995650b68"
+  },
+  "target": {
+    "kind": "url",
+    "ref": "https://notrobo.shop/mcp/shop"
+  },
+  "scannedAt": "2026-09-17T09:59:59.947Z",
+  "durationMs": 1620,
+  "layers": {
+    "metadata": true,
+    "static": false
+  },
+  "tools": [
+    {
+      "name": "search-products",
+      "descriptionHash": "17862dea70fb1675564ca7caab034dff5b099ac9f708752de4b5f57eef35a180",
+      "description": "Search the shop catalogue. Returns matching products with their slugs, price and stock availability. Use get-product for full details and variants."
+    },
+    {
+      "name": "get-product",
+      "descriptionHash": "81555307ec0ccc6924ccf504e3ada4332d6dfc9c84bacce7c360b2aabae98301",
+      "description": "Get a product's full details by slug: description, options, and every variant with its SKU, price and stock. Variant IDs are what you add to a basket."
+    },
+    {
+      "name": "create-basket",
+      "descriptionHash": "e05ba7756df9b0a92cc55236f4c638b64734e982ca1d265a0559ef18cc2c0709",
+      "description": "Create a new basket. Returns a basket_token — keep it and pass it to every basket and checkout tool. Treat it as a secret.",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "add-to-basket",
+      "descriptionHash": "2929a2e6d3cca08b7905159611b65c702ab8e52f2f8c03e7c7d351758697bef2",
+      "description": "Add a product variant to a basket. Get variant IDs from get-product. Returns the updated basket."
+    },
+    {
+      "name": "view-basket",
+      "descriptionHash": "660facae084919593328ac2be1860a275f1de9e4c4a89b8c894867a008dfee8f",
+      "description": "View a basket: its lines, quantities and subtotal."
+    },
+    {
+      "name": "update-basket-item",
+      "descriptionHash": "622df6729740e6a9c2cb82e23260ef12b931a6f922e35949ccb66489823654d6",
+      "description": "Change the quantity of a basket line. A quantity of 0 removes it. Returns the updated basket."
+    },
+    {
+      "name": "remove-from-basket",
+      "descriptionHash": "4174e71ca7ded11eeda71b65ae7c791646525844c7571c7a39535c79bfb1757e",
+      "description": "Remove a line from a basket. Returns the updated basket.",
+      "labels": [
+        "destructive"
+      ]
+    },
+    {
+      "name": "apply-discount-to-basket",
+      "descriptionHash": "661faed95096de5f2c29451fa64b1c6c788d1fd705052003c7e8fcff9ac51f84",
+      "description": "Apply a discount code to a basket. Returns the updated basket with the discount reflected in the totals."
+    },
+    {
+      "name": "list-shipping-methods",
+      "descriptionHash": "1050a9df1f0b3bcdd4cc743470996e72ebea7e72fe4c4e6cfefcfe6805594862",
+      "description": "List available delivery methods, optionally filtered by destination country (ISO 2-letter code). Use the method ID in start-checkout."
+    },
+    {
+      "name": "start-checkout",
+      "descriptionHash": "2f5df9cffb450b2fe08a09d2cb4573f5a11e8eff5885434dd41766a3fbf69931",
+      "description": "Turn a basket into an order and get payment links. Two ways to pay: a human pay_url (pay-by-bank, the customer authorises in their banking app) and, when offered, an x402_payment_url for autonomous USDC settlement with no human needed. Never claim to have paid — confirm with get-order-status. For di"
+    },
+    {
+      "name": "get-order-status",
+      "descriptionHash": "c5a6adf61d0221d4c8b5e0817f3f751cc05a8d25c93057aeedccf66b56de73a3",
+      "description": "Check an order's status. Requires the order number AND the email it was placed with.",
+      "labels": [
+        "untrusted-content",
+        "public-sink"
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"create-basket\" references sensitive artifacts (secret). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:create-basket",
+        "snippet": "Create a new basket. Returns a basket_token — keep it and pass it to every basket and checkout tool. Treat it as a secret."
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"shop\" exposes tools that together enable an exfiltration flow. Untrusted content: get-order-status · Private data: create-basket · Public sink: get-order-status · Destructive: remove-from-basket.",
+      "evidence": {
+        "source": "server:shop",
+        "snippet": "Untrusted content: get-order-status · Private data: create-basket · Public sink: get-order-status · Destructive: remove-from-basket"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 60,
+  "scoreBreakdown": {
+    "tool-poisoning": 20,
+    "toxic-flow": 20
+  },
+  "errors": []
+}

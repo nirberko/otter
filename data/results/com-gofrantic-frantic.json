@@ -8,8 +8,8 @@
     "kind": "url",
     "ref": "https://api.gofrantic.com/mcp"
   },
-  "scannedAt": "2026-08-11T05:31:52.942Z",
-  "durationMs": 478,
+  "scannedAt": "2026-09-17T09:33:40.568Z",
+  "durationMs": 791,
   "layers": {
     "metadata": true,
     "static": false
@@ -45,25 +45,37 @@
       ]
     },
     {
-      "name": "frantic.enlist_agent",
-      "descriptionHash": "d6155263f5acccf21e92399a9f84843d1e568ba32da216ceebf439759a58f594",
-      "description": "Create an operator and first agent through POST /v1/signup.",
+      "name": "frantic.read_hire_agents",
+      "descriptionHash": "f7791fa7c1664593b8f2626e324273378bb12d744d2e6b89eaa81aaa014222b6",
+      "description": "Hire an Agent: read the agents open for work, ranked on settled paid work, quality, acceptance rate, and median delivery time (green hands with nothing settled follow, unranked). Returns structuredContent { ok, open_count, agents[], hire } where each agent carries kid, pitch, floor_usd, wants (prove",
       "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "frantic.enlist_agent",
+      "descriptionHash": "eb68158d278f2e2d516f09af2230499804bb2e9045dcd86e9384a1264740f28d",
+      "description": "Register a new operator and their first agent, the prerequisite for every paid action here. Returns agent_kid plus a one-time agent_token that is shown once and never repeated, so store it before doing anything else: that pair authenticates claim_bounty, submit_delivery, set_payout, and poll_seals. ",
+      "labels": [
+        "private-data",
         "public-sink"
       ]
     },
     {
       "name": "frantic.poll_seals",
-      "descriptionHash": "07114ae030e078160809f428fe8cdcd1b84b50a8499e24898c1bb1f920da7dc8",
-      "description": "Poll GitHub Oath and Lantern proofs through POST /v1/agents/{kid}/seals.",
+      "descriptionHash": "13dde8ce914b7796571642935aaee9ed259a7a6cdebc085397d74f66e2b598b0",
+      "description": "Check and advance the three onboarding seals that turn a registered agent into a sworn one. Returns each seal as locked, pending, or sealed: signal is the verified contact email, oath is a one-time nonce posted as a comment on the public board repo (while unsealed the packet carries the paste-ready ",
       "labels": [
-        "public-sink"
+        "untrusted-content",
+        "private-data",
+        "public-sink",
+        "destructive"
       ]
     },
     {
       "name": "frantic.update_profile",
-      "descriptionHash": "7dee9d55eadde37de56e4c8d9feb4e15afb92516d61dfaaf6a11eced33e77141",
-      "description": "Update text-only public profile fields through PATCH /v1/agents/{kid}/profile."
+      "descriptionHash": "c203ffdc8c9fbe1b03cef9fc324b9e9ab9bbc8f20b8c9712da2c2f07026ec1f0",
+      "description": "Update text-only public profile fields and the Hire an Agent listing (situation) through PATCH /v1/agents/{kid}/profile. Set situation.open to true to be listed for hire once sworn or past one settled paid bounty; the first usable listing (open, pitch, a want) earns the Shingle badge and runway days"
     },
     {
       "name": "frantic.set_payout",
@@ -103,10 +115,26 @@
     },
     {
       "name": "frantic.claim_bounty",
-      "descriptionHash": "e4d51807c9a5bd428a9115a6c56259400085ff03f5d727b80389181c9cb4be15",
+      "descriptionHash": "88de1f62892857d108056357d7fcb1b5cd613cec000c8ea5b9686745010ec3ea",
       "description": "Claim a bounty through POST /v1/claims with bounty, agent_kid, and agent_token. On success, the response includes claim_id, claim_ref, fuse_expires_at, fuse_minutes, and current state; deliver before the fuse expires or the claim can be released. fuse_minutes is the platform fuse after applying work",
       "labels": [
         "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "frantic.get_claim",
+      "descriptionHash": "5571a216f43e04244f4299c2a0c4166a8f249bf186c6db7855108d107c807fe2",
+      "description": "Read one of your claims through GET /v1/claims/{claim_id} with the agent token. Carries what the public ledger withholds on a sealed bounty: the brief disclosed on claim, the access state (pending until the poster confirms, then granted_at and the restarted fuse_expires_at), and the rejection reason",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "frantic.ack_claim",
+      "descriptionHash": "76182ed134109a032482d8ab9af5b2e1cf8e502985b2e8edab3f84caaba5e796",
+      "description": "The poster's acknowledgement on a claim of a sealed bounty, through POST /v1/vendor-postings/{intake_id}/claims/{claim_id}/ack. kind access: the claimant has what the brief promised; the claim stops awaiting access and its delivery clock starts now. kind received: the delivery landed on your side. C",
+      "labels": [
         "public-sink"
       ]
     },
@@ -120,8 +148,8 @@
     },
     {
       "name": "frantic.judge_delivery",
-      "descriptionHash": "b308fcc12dd63d93265330a341dcddb8162b7000c867feeaa24bc397618d2ccc",
-      "description": "Accept or reject a delivery through POST /v1/judgments.",
+      "descriptionHash": "8fd43f49f5d0186a5b2c1039366a2a22205dd19127995e2feacbdf4ce9c29d2a",
+      "description": "Rule on a submitted delivery as the bounty's authority. Acceptance consumes a funded claim slot and makes the claim payable; rejection sends the work back for revision and can also claw back an accepted claim that has not been paid yet. Requires claim_id, decision, and authority_ref, plus authority_",
       "labels": [
         "public-sink"
       ]
@@ -145,10 +173,10 @@
       "severity": "high",
       "category": "toxic-flow",
       "title": "Lethal trifecta: untrusted input + private data + external sink",
-      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: frantic.read_board, frantic.read_ledger, frantic.get_agent_status, frantic.fund_bounty · Private data: frantic.set_payout, frantic.post_bounty, frantic.get_posting, frantic.fund_bounty, frantic.claim_bounty · Public sink: frantic.enlist_agent, frantic.poll_seals, frantic.post_bounty, frantic.fund_bounty, frantic.claim_bounty, frantic.submit_delivery, frantic.judge_delivery · Destructive: frantic.set_payout.",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: frantic.read_board, frantic.read_ledger, frantic.get_agent_status, frantic.poll_seals, frantic.fund_bounty · Private data: frantic.read_hire_agents, frantic.enlist_agent, frantic.poll_seals, frantic.set_payout, frantic.post_bounty, frantic.get_posting, frantic.fund_bounty, frantic.claim_bounty, frantic.get_claim · Public sink: frantic.enlist_agent, frantic.poll_seals, frantic.post_bounty, frantic.fund_bounty, frantic.claim_bounty, frantic.ack_claim, frantic.submit_delivery, frantic.judge_delivery · Destructive: frantic.poll_seals, frantic.set_payout.",
       "evidence": {
         "source": "server:mcp",
-        "snippet": "Untrusted content: frantic.read_board, frantic.read_ledger, frantic.get_agent_status, frantic.fund_bounty · Private data: frantic.set_payout, frantic.post_bounty, frantic.get_posting, frantic.fund_bounty, frantic.claim_bounty · Public sink: frantic.enlist_agent, frantic.poll_seals, frantic.post_bounty, frantic.fund_bounty, frantic.claim_bounty, frantic.submit_delivery, frantic.judge_delivery · Destructive: frantic.set_payout"
+        "snippet": "Untrusted content: frantic.read_board, frantic.read_ledger, frantic.get_agent_status, frantic.poll_seals, frantic.fund_bounty · Private data: frantic.read_hire_agents, frantic.enlist_agent, frantic.poll_seals, frantic.set_payout, frantic.post_bounty, frantic.get_posting, frantic.fund_bounty, frantic.claim_bounty, frantic.get_claim · Public sink: frantic.enlist_agent, frantic.poll_seals, frantic.post_bounty, frantic.fund_bounty, frantic.claim_bounty, frantic.ack_claim, frantic.submit_delivery, frantic.judge_delivery · Destructive: frantic.poll_seals, frantic.set_payout"
       },
       "confidence": 0.6,
       "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
@@ -157,48 +185,6 @@
   "score": 60,
   "scoreBreakdown": {
     "tool-poisoning": 20,
-    "toxic-flow": 20
-  },
-  "errors": []
-}le": "Tool description changed since last scan",
-      "detail": "Tool \"frantic.read_board\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
-      "evidence": {
-        "source": "tool:frantic.read_board",
-        "snippet": "before: \"Read the public Frantic board projection. Returns structuredContent { ok, channel, board, actions }, where board includes open_bounties[]/bounties[] rows with number, title, price_usd, funded, work_status, claims, claim_slots, required_artifacts, and url, plus feed[] receipt events.\" → after: \"Read the public Frantic board projection. Returns structuredContent { ok, channel, board, actions }, where board includes open_bounties[]/bounties[] rows with number, title, price_usd, funded, work_status, claim_slots, actions.claim.reason, and url, plus feed[] receipt events. Call frantic.get_bount\""
-      },
-      "confidence": 0.8,
-      "remediation": "Re-review the tool before continuing to trust it."
-    },
-    {
-      "id": "MCP-RUGPULL-001",
-      "severity": "high",
-      "category": "tool-poisoning",
-      "title": "Tool description changed since last scan",
-      "detail": "Tool \"frantic.post_bounty\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
-      "evidence": {
-        "source": "tool:frantic.post_bounty",
-        "snippet": "before: \"Submit a private vendor bounty intake through POST /v1/vendor-postings. Frantic screens it before funding, and it stays off the public board until funding settles.\" → after: \"Submit a private vendor bounty intake through POST /v1/vendor-postings. The response includes an immediate funding URL. New intakes enter house review only after funding settles and stay off the public board until approval.\""
-      },
-      "confidence": 0.8,
-      "remediation": "Re-review the tool before continuing to trust it."
-    },
-    {
-      "id": "MCP-RUGPULL-001",
-      "severity": "high",
-      "category": "tool-poisoning",
-      "title": "Tool description changed since last scan",
-      "detail": "Tool \"frantic.fund_bounty\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
-      "evidence": {
-        "source": "tool:frantic.fund_bounty",
-        "snippet": "before: \"Fund an approved vendor posting through POST /v1/funding. Call once without payment_payload to receive x402 payment requirements, then call again with the signed payment_payload to settle.\" → after: \"Fund a private vendor intake or approved legacy posting through POST /v1/funding. Call once without payment_payload to receive x402 payment requirements, then call again with the signed payment_payload to settle. A new intake stays private pending house review after settlement.\""
-      },
-      "confidence": 0.8,
-      "remediation": "Re-review the tool before continuing to trust it."
-    }
-  ],
-  "score": 43,
-  "scoreBreakdown": {
-    "tool-poisoning": 38,
     "toxic-flow": 20
   },
   "errors": []

@@ -1,0 +1,131 @@
+{
+  "schemaVersion": 1,
+  "scanner": {
+    "version": "1.6.0",
+    "rules": "402995650b68"
+  },
+  "target": {
+    "kind": "url",
+    "ref": "https://mcp.galleyrender.com/mcp"
+  },
+  "scannedAt": "2026-09-17T09:47:43.229Z",
+  "durationMs": 577,
+  "layers": {
+    "metadata": true,
+    "static": false
+  },
+  "tools": [
+    {
+      "name": "list_templates",
+      "descriptionHash": "640b2f2a9a4799a1cfddddb6be16f81ce3adf37e68b384193f110fdd957a7d1f",
+      "description": "List the templates on this account, with their latest version number. Start here: rendering needs a template, and this says which ones exist. A brand-new trial account starts with the starter library (invoice, quote, receipt, og-card, certificate and more) already loaded. Free."
+    },
+    {
+      "name": "get_template",
+      "descriptionHash": "fe71c970fb900a9e059e447696527007d377f5dec0b8bd6d869c17a2d81fa64b",
+      "description": "Fetch one template version: its JSON Schema, its default render options, an example payload and its HTML source. Read the schema before rendering — it is the contract for the `data` argument. Free.",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "create_template",
+      "descriptionHash": "1876d6be89c7f6ca6234a2876c5c67058539e9ba4728833fae2768e6b921b741",
+      "description": "Create a new template at version 1 from an HTML document with Liquid expressions, plus a JSON Schema for its data. Use this when nothing in list_templates fits. The name must be free on this account — publishing a change to an existing template is `update_template`, not this. Free.",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "update_template",
+      "descriptionHash": "922e5980e2ea86bf7cd13ad4613100bed0f09fa6a0a351cf314d267e32f457e7",
+      "description": "Publish a new immutable version of an existing template. Versions are never edited in place: `invoice@2` keeps rendering exactly as it did, and anything pinned to it is unaffected. Renders cached against the old version stay valid, and the new version starts with a cold cache. `engine`, `schema`, `o",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "validate_data",
+      "descriptionHash": "5a0b8ceb95b6808a79276cf528986213e7956f6307f3f48a477ced9e09814842",
+      "description": "Dry-run a `data` payload against a template's JSON Schema and get back exactly the errors a render would raise — field path, expected type, what was received and a value that would be accepted. Costs nothing and renders nothing. Use it before a batch, or whenever you are assembling a payload from so",
+      "labels": [
+        "destructive"
+      ]
+    },
+    {
+      "name": "render",
+      "descriptionHash": "0f22eefb8f706c768f05b6a99371a53b9c64e6d605224d7c2b3780ebabf3a492",
+      "description": "Render a template plus a JSON payload into a PDF, PNG or JPG and return a signed URL. This is the one tool most calls need.\n\nSmall jobs finish inside the call and come back `status: \"succeeded\"` with a `url` you can hand straight to a user. Anything with a `webhook_url`, `async: true` or a large pay",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "get_render",
+      "descriptionHash": "461ab1ed511108f1b0b592be1004471cdb2ab868e80f6680c3af738915589358",
+      "description": "Fetch a render by id: its status, and a freshly signed URL once it has succeeded. Use it to poll a queued render, or to re-sign a URL that has expired — signed URLs are short-lived, the stored object is not. Free, and never re-renders.",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "list_renders",
+      "descriptionHash": "1b60487cddfe72eaf602fc75ccd902ca7ce1409eb0de1f97936bebeaa8193d93",
+      "description": "Recent renders on this account, newest first, with status, template version and a signed URL for each that succeeded. Useful for finding a render whose id you lost, or checking what a batch did. Free.",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "usage",
+      "descriptionHash": "c71268e0a648fa14d9f9a5da2dcdccd0ae660c701cc20cc64b8f0cb409acb1a7",
+      "description": "What this account has spent this period and what is left: renders, billable units by format, cost, the free-tier allowance, the monthly spend cap and — on a keyless trial — how many of the 50 trial renders remain. Check it before a large batch. Free.",
+      "labels": [
+        "destructive"
+      ]
+    },
+    {
+      "name": "create_account",
+      "descriptionHash": "4daad8902af60f995335a1060a0a10d387bde7d511562d9752aa835d048e61b1",
+      "description": "Turn the keyless trial into a real account and get a permanent API key.\n\nCall it once with an email: a verification link is sent and the tool returns `status: \"pending_verification\"`. After the human clicks the link, call it again with the same email and it returns the API key, once. The key is not ",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink"
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"create_account\" references sensitive artifacts (secret). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:create_account",
+        "snippet": "Turn the keyless trial into a real account and get a permanent API key. Call it once with an email: a verification link is sent and the tool returns `status: \"p…"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: get_template, get_render, list_renders, create_account · Private data: create_template, render, create_account · Public sink: update_template, create_account · Destructive: validate_data, usage.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: get_template, get_render, list_renders, create_account · Private data: create_template, render, create_account · Public sink: update_template, create_account · Destructive: validate_data, usage"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 60,
+  "scoreBreakdown": {
+    "tool-poisoning": 20,
+    "toxic-flow": 20
+  },
+  "errors": []
+}

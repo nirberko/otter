@@ -8,8 +8,8 @@
     "kind": "url",
     "ref": "https://pronto.stream/mcp"
   },
-  "scannedAt": "2026-08-28T16:52:58.780Z",
-  "durationMs": 1389,
+  "scannedAt": "2026-09-17T09:43:07.047Z",
+  "durationMs": 1218,
   "layers": {
     "metadata": true,
     "static": false
@@ -17,13 +17,13 @@
   "tools": [
     {
       "name": "get_billing_profile",
-      "descriptionHash": "ba8d9f5c2a1f57bbfa3916b42b1f577ba2a23f322a3ec128296c4a133f296472",
+      "descriptionHash": "cc86877e97a472a8e2accd944e5f0e0273f37b99a8847bfc49ec2dbd2bd3a096",
       "description": "Report who you are resolved as and what your plan grants: the agent identity behind this call, the funded account it acts for, the plan, the per-minute call ceiling, the per-response row budget, and which indicator set you may compute. Returns a CWF BILL line, a CREDIT line when a metering balance e"
     },
     {
       "name": "register_agent",
-      "descriptionHash": "778dfca5795b64d84ebe676a8be00af514702601fa43aa3964ebf193141c2edf",
-      "description": "Create your own identity on pronto and receive an API key, with no human present. Send the key back as an Authorization header on later calls and you will be recognised across sessions.\n\nRegistering grants no plan. A new identity has exactly the limits an unauthenticated caller has; what raises them",
+      "descriptionHash": "2f2e89649f4570ebaf3564a90320a68d8e3bf559119a2aa094b93d391c8c7caa",
+      "description": "Create your own identity on pronto and receive an API key, with no human present. Send the key back as an Authorization header on later calls and you will be recognised across sessions.\n\nRegistering grants no plan. A new identity has exactly the limits an unauthenticated caller has. There are two wa",
       "labels": [
         "untrusted-content",
         "private-data",
@@ -31,9 +31,26 @@
       ]
     },
     {
+      "name": "open_payment",
+      "descriptionHash": "037ae79c5a577125e162d66b033b170ce74e72838c7f089c45a118d738bd7fe0",
+      "description": "Buy a plan for yourself, with no human involved. Step one of two: this quotes the exact amount and binds the purchase to the wallet you will pay from.\n\nYou must already have an identity — call register_agent first and send the key as an Authorization header. Call get_plans for the ladder and what ea",
+      "labels": [
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "settle_payment",
+      "descriptionHash": "8ac98fd33ead3ff0177063d2a2b46da5c1852ad31778851739037ac274eb8dc9",
+      "description": "Redeem a payment you have made and activate your plan. Step two of two, after open_payment and the transfer.\n\nThe payment is verified by reading Base: the transfer must have reached the settlement address, from the wallet this purchase was opened with, for at least the amount owed, and be five block",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
       "name": "get_plans",
-      "descriptionHash": "cba03f0d2a2a2a6a5c23ecc9738ee9a862b76c8ca1311ac424dedab59f0d2880",
-      "description": "List the plans, what each costs, and what each raises — the call ceiling, the row budget, and whether the commercial indicator set is included. Machine-readable, so you can decide whether a refusal is worth escalating to your principal instead of parsing a pricing page. Returns one CWF PLAN line per"
+      "descriptionHash": "aac4a870e1dee18897b4f387bbe3401371818def0243bb81a0806196e1fdfe9c",
+      "description": "List the plans, what each costs, and what each raises — the call ceiling, the row budget, and whether the commercial indicator set is included. Machine-readable, so you can decide what to do about a refusal without parsing a pricing page: buy the plan yourself with open_payment, or escalate to whoev"
     },
     {
       "name": "get_latest_signals",
@@ -114,6 +131,18 @@
       "confidence": 0.65
     },
     {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"open_payment\" references sensitive artifacts (authorization). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:open_payment",
+        "snippet": "Buy a plan for yourself, with no human involved. Step one of two: this quotes the exact amount and binds the purchase to the wallet you will pay from. You must …"
+      },
+      "confidence": 0.65
+    },
+    {
       "id": "MCP-TOOL-POISON-002",
       "severity": "high",
       "category": "tool-poisoning",
@@ -130,18 +159,57 @@
       "severity": "high",
       "category": "toxic-flow",
       "title": "Lethal trifecta: untrusted input + private data + external sink",
-      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: register_agent · Private data: register_agent, get_latest_signals, list_facets, get_related_signals · Public sink: register_agent, get_latest_signals, scope_signals · Destructive: get_latest_signals.",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: register_agent · Private data: register_agent, open_payment, settle_payment, get_latest_signals, list_facets, get_related_signals · Public sink: register_agent, open_payment, get_latest_signals, scope_signals · Destructive: get_latest_signals.",
       "evidence": {
         "source": "server:mcp",
-        "snippet": "Untrusted content: register_agent · Private data: register_agent, get_latest_signals, list_facets, get_related_signals · Public sink: register_agent, get_latest_signals, scope_signals · Destructive: get_latest_signals"
+        "snippet": "Untrusted content: register_agent · Private data: register_agent, open_payment, settle_payment, get_latest_signals, list_facets, get_related_signals · Public sink: register_agent, open_payment, get_latest_signals, scope_signals · Destructive: get_latest_signals"
       },
       "confidence": 0.6,
       "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"get_billing_profile\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:get_billing_profile",
+        "snippet": "before: \"Report who you are resolved as and what your plan grants: the agent identity behind this call, the funded account it acts for, the plan, the per-minute call ceiling, the per-response row budget, and which indicator set you may compute. Returns a CWF BILL line, a CREDIT line when a metering balance e\" → after: \"Report who you are resolved as and what your plan grants: the agent identity behind this call, the funded account it acts for, the plan, the per-minute call ceiling, the per-response row budget, and which indicator set you may compute. Returns a CWF BILL line, a CREDIT line when a metering balance e\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"register_agent\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:register_agent",
+        "snippet": "before: \"Create your own identity on pronto and receive an API key, with no human present. Send the key back as an Authorization header on later calls and you will be recognised across sessions.\n\nRegistering grants no plan. A new identity has exactly the limits an unauthenticated caller has; what raises them\" → after: \"Create your own identity on pronto and receive an API key, with no human present. Send the key back as an Authorization header on later calls and you will be recognised across sessions.\n\nRegistering grants no plan. A new identity has exactly the limits an unauthenticated caller has. There are two wa\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"get_plans\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:get_plans",
+        "snippet": "before: \"List the plans, what each costs, and what each raises — the call ceiling, the row budget, and whether the commercial indicator set is included. Machine-readable, so you can decide whether a refusal is worth escalating to your principal instead of parsing a pricing page. Returns one CWF PLAN line per\" → after: \"List the plans, what each costs, and what each raises — the call ceiling, the row budget, and whether the commercial indicator set is included. Machine-readable, so you can decide what to do about a refusal without parsing a pricing page: buy the plan yourself with open_payment, or escalate to whoev\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
     }
   ],
-  "score": 50,
+  "score": 40,
   "scoreBreakdown": {
-    "tool-poisoning": 30,
+    "tool-poisoning": 40,
     "toxic-flow": 20
   },
   "errors": []

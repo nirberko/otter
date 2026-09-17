@@ -1,0 +1,114 @@
+{
+  "schemaVersion": 1,
+  "scanner": {
+    "version": "1.6.0",
+    "rules": "402995650b68"
+  },
+  "target": {
+    "kind": "url",
+    "ref": "https://api.hlaverify.com/mcp"
+  },
+  "scannedAt": "2026-09-17T09:47:54.479Z",
+  "durationMs": 420,
+  "layers": {
+    "metadata": true,
+    "static": false
+  },
+  "tools": [
+    {
+      "name": "verify_text",
+      "descriptionHash": "c4393e3af6b401a9bc4f4213c4bd928aab30e838eeb5d6d74c653a1607821c70",
+      "description": "Scan HLA typing report text, or model output about HLA, for allele-shaped tokens and classify each one: valid / legacy (with modern form) / deleted (with successor) / fabricated. Nomenclature checking against a pinned IPD-IMGT/HLA release, not interpretation of a case. Use on any AI-generated or tra",
+      "labels": [
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "normalize_allele",
+      "descriptionHash": "f345c344fe610e0b5dfa42ff5d8073e20d00c70890081b41314bc793607cb82d",
+      "description": "Normalize one reported HLA allele name (any era) to current 2-field form, with G group, P group, serologic equivalent, and flags."
+    },
+    {
+      "name": "allele_info",
+      "descriptionHash": "2ca686335abd53392d0fa3bb451edef44657b90a5b7c8a8c176ac48680bca445",
+      "description": "Look up one exact name in the pinned release and return what it is: assigned (G/P group, first release, confirmed status, WMDA serology, null flag), valid_prefix (member count and sample), or deleted (successor). Not found if the name has never existed in any release."
+    },
+    {
+      "name": "match_score",
+      "descriptionHash": "001a94cb107b695ba2043057df789a8af8441efd042c54e49d981bc6d9138d54",
+      "description": "Count a donor-recipient HLA match by the published counting rules (R1-R6): allele arithmetic over chromosomes, not a donor recommendation. recipient/donor: {\"A\": [\"A*01:01\",\"A*02:01\"], \"B\": [...], ...} (two reported alleles per locus, any nomenclature era; allele strings only, no patient identifiers"
+    },
+    {
+      "name": "check_typing",
+      "descriptionHash": "81ecf4003d2eddce55e921a8a6622e4d4328a9950fc52666af2019813aa2e8f6",
+      "description": "QC-check one HLA typing (all loci) against the pinned release: resolves every reported allele, flags unresolvable/outdated/locus-mismatched/null alleles, flags too-many/single/homozygous per locus, computes the B-leader (-21 M/T) and KIR-ligand (C1/C2/Bw4) profile, and DRB3/4/5 expected-vs-reported."
+    },
+    {
+      "name": "donor_compat",
+      "descriptionHash": "756c118f880ea1b1cf5021265f727d711831f9351c6f0d0f3636ee5da59ad47f",
+      "description": "Donor/recipient immunogenetic compatibility under two published rule sets: HLA-B leader match (-21 M/T, Petersdorf 2020) for a single HLA-B mismatch, and KIR ligand (C1/C2/Bw4) class comparison, computed over each side's full typing QC. Rule checking against published frameworks; it does not rank or"
+    },
+    {
+      "name": "validate_gl_string",
+      "descriptionHash": "98f42994020f7520a7de1f1df55982de89cfefecb835002d40252a7022c01c8b",
+      "description": "Validate and normalize a GL String (Genotype List, ^ | + ~ / grammar): resolves every allele token, flags outdated/unresolvable names and structural problems (mixed loci within a slash-list, a repeated locus within a haplotype or across ^ blocks, more than two haplotypes, differing loci across a gen",
+      "labels": [
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "beta_signup",
+      "descriptionHash": "cb1ed80058614e8b05d649696e2d8ce7f2171eb3f7d4267c7856523731c1a2df",
+      "description": "Put a user on the free public beta's notification list for paid API keys. Ask before calling: it records the address they give you. Re-signing the same address is safe (status already_recorded). Someone who needs a higher rate limit today should email hello@hlaverify.com for a beta key instead of wa",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "about",
+      "descriptionHash": "d1b33659248dcf43c6cb3fc6a4ca14a54ad822f5eccddb532e0c962f766623eb",
+      "description": "What this server is and is not, what to send it, benchmark evidence for why to use it, the beta state, and terms.",
+      "labels": [
+        "public-sink"
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOOL-POISON-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description issues instructions to the model",
+      "detail": "Description of \"beta_signup\" contains imperative instructions directed at the AI assistant rather than describing the tool. This is the core tool-poisoning technique.",
+      "evidence": {
+        "source": "tool:beta_signup",
+        "snippet": "Put a user on the free public beta's notification list for paid API keys. Ask before calling: it records the address they give you. Re-signing the same address …"
+      },
+      "confidence": 0.7,
+      "remediation": "Treat the server as untrusted; the model may obey embedded instructions."
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: beta_signup · Private data: verify_text, validate_gl_string, beta_signup · Public sink: verify_text, validate_gl_string, beta_signup, about.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: beta_signup · Private data: verify_text, validate_gl_string, beta_signup · Public sink: verify_text, validate_gl_string, beta_signup, about"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 60,
+  "scoreBreakdown": {
+    "tool-poisoning": 20,
+    "toxic-flow": 20
+  },
+  "errors": []
+}
