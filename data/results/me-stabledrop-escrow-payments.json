@@ -1,0 +1,119 @@
+{
+  "schemaVersion": 1,
+  "scanner": {
+    "version": "1.6.0",
+    "rules": "402995650b68"
+  },
+  "target": {
+    "kind": "url",
+    "ref": "https://api.stabledrop.me/api/ap2/mcp"
+  },
+  "scannedAt": "2026-09-23T09:48:49.568Z",
+  "durationMs": 1333,
+  "layers": {
+    "metadata": true,
+    "static": false
+  },
+  "tools": [
+    {
+      "name": "read_published_page",
+      "descriptionHash": "2e069e3ed313874a6b6e50d320b43e513c492df46a48f6f0be31c105525728ab",
+      "description": "Read one of the published pages, for answering questions about how any of this works.\n\nUse it rather than guessing. What the fees are, how a dispute is decided and who decides it,\nwhat a buyer is agreeing to — all of it is written down, and none of it is safe to invent.\n\n    how-it-works         How"
+    },
+    {
+      "name": "prepare_escrow_payment",
+      "descriptionHash": "2283c477f41a3a9b8ed5c7d491bee3de63449026eea876d90d80ebb74f3b1807",
+      "description": "Work out where a payment must go, before anybody signs or sends anything.\n\n`seller` and `nominal_buyer` may each be a wallet address OR AN EMAIL ADDRESS — an email is\nconverted to the wallet that person owns, so you never need to know a wallet to use this.\n\nThe parties are checked against the sancti",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "settle_escrow_payment",
+      "descriptionHash": "3a887eca606dbb440e1d5b46f19d99438245629183fad8fbc112dbaf145c17eb",
+      "description": "Create the escrow around the money and return a signed receipt.\n\n`seller` and `nominal_buyer` may be wallet addresses OR EMAIL ADDRESSES, exactly as in\n`prepare_escrow_payment`; an email converts to the same wallet it did there.\n\nWorks both ways, and which one runs is decided by whether you pass a s",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "payment_qr",
+      "descriptionHash": "7c8c3f774b1d9991f431c8ebe74e4cb75b74a9139292ca94ae21c357ff6375dd",
+      "description": "A scannable code for a payment request, so nobody retypes an address.\n\nPass the `payment_uri` from `prepare_escrow_payment`. Returns a QR a phone wallet can scan,\nwith the token, network, destination and amount already in it.\n\n⚠️ A SEPARATE TOOL RATHER THAN PART OF `prepare`, because the two have di",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "check_escrow_payment",
+      "descriptionHash": "e8f852ab36e31ccad9783d9d53c6d49f4e44e72c3262eecf5bc1dbb90f8cf819",
+      "description": "What has happened to a settled payment, from the `status_url` on its receipt."
+    },
+    {
+      "name": "verify_escrow_receipt",
+      "descriptionHash": "a9bc1060a27ed1bf13af2ccc3d6c2c41b39d43683a79f9ba7a0735a5d087063b",
+      "description": "Check a receipt's signature against the key its issuer publishes.\n\n⚠️ THE KEY IS FETCHED FROM THE RECEIPT'S OWN `iss`, NOT FROM WHOEVER HANDED IT OVER.\n   Otherwise anything that can serve a receipt can also serve the key that vouches for it,\n   and the signature stops meaning anything.\n\nUse this on"
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"prepare_escrow_payment\" references sensitive artifacts (authorization). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:prepare_escrow_payment",
+        "snippet": "Work out where a payment must go, before anybody signs or sends anything. `seller` and `nominal_buyer` may each be a wallet address OR AN EMAIL ADDRESS — an ema…"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOOL-POISON-007",
+      "severity": "low",
+      "category": "tool-poisoning",
+      "title": "Description uses pressure/override language",
+      "detail": "Description of \"prepare_escrow_payment\" stacks urgency/override words (always, never). Legitimate tool descriptions rarely pressure the model to act or ignore prior guidance.",
+      "evidence": {
+        "source": "tool:prepare_escrow_payment",
+        "snippet": "Work out where a payment must go, before anybody signs or sends anything. `seller` and `nominal_buyer` may each be a wallet address OR AN EMAIL ADDRESS — an ema…"
+      },
+      "confidence": 0.3
+    },
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"settle_escrow_payment\" references sensitive artifacts (authorization). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:settle_escrow_payment",
+        "snippet": "Create the escrow around the money and return a signed receipt. `seller` and `nominal_buyer` may be wallet addresses OR EMAIL ADDRESSES, exactly as in `prepare_…"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: prepare_escrow_payment, settle_escrow_payment · Private data: prepare_escrow_payment, settle_escrow_payment, payment_qr · Public sink: prepare_escrow_payment, settle_escrow_payment.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: prepare_escrow_payment, settle_escrow_payment · Private data: prepare_escrow_payment, settle_escrow_payment, payment_qr · Public sink: prepare_escrow_payment, settle_escrow_payment"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 49,
+  "scoreBreakdown": {
+    "tool-poisoning": 31,
+    "toxic-flow": 20
+  },
+  "errors": []
+}

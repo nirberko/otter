@@ -1,0 +1,114 @@
+{
+  "schemaVersion": 1,
+  "scanner": {
+    "version": "1.6.0",
+    "rules": "402995650b68"
+  },
+  "target": {
+    "kind": "url",
+    "ref": "https://api.codepostalpro.com/mcp"
+  },
+  "scannedAt": "2026-09-23T09:31:33.963Z",
+  "durationMs": 693,
+  "layers": {
+    "metadata": true,
+    "static": false
+  },
+  "tools": [
+    {
+      "name": "lookup_postal_code",
+      "descriptionHash": "b8cb4306f269af01b23ae3d424ab56f79feb75943ec31c2cc51739ac7a65be76",
+      "description": "Look up a postal code or US ZIP code. Returns every locality that carries the code with its city, county/administrative division, region (state, département, wilaya…), coordinates, IANA time zone, US telephone area codes, USDA 2023 plant hardiness / planting zone (e.g. 7b with its temperature band),",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "search_places",
+      "descriptionHash": "0b09155c39ab907d86646844351f15d46f7314af45157c15769b92d8af856f6b",
+      "description": "Find localities by name, city name, or the beginning of a postal code. Use this when the user gives a place name and wants its postal code(s), or has a partial code. Results are ranked exact-name-first, then by population. Returns the same full records as lookup_postal_code. Restrict with `country` ",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "nearby_places",
+      "descriptionHash": "d25b6ca3682d2fbc658afae5b234f44d9961ecf046fb2f8c0e4bbde39c73ffcc",
+      "description": "List localities around a latitude/longitude, nearest first, each with `distance_km`. Use it for \"what ZIP codes are near…\", \"postal codes within 10 km of…\", or to resolve coordinates to the closest postal code (the first result). Distances are to the locality centroid from the source data, not to a "
+    },
+    {
+      "name": "get_region",
+      "descriptionHash": "d9544e1753fafdda8eb425203b4b18f29bda9e983be49627c9c213d3dbd78023",
+      "description": "A state, région, wilaya or governorate with the list of its cities / départements / delegations (names, slugs and their postal codes), plus for US states every telephone area code in use. Use the slugs it returns to call get_group or get_place. Region slugs are lower-case hyphenated names: \"texas\", "
+    },
+    {
+      "name": "get_group",
+      "descriptionHash": "cbcfb5a425c34f9a814bf6238376abde9ed868431950394cc676f35e82e44a8d",
+      "description": "A city (US), département (France), province (Morocco), post office (Algeria) or delegation (Tunisia) with all its localities / ZIP codes. For a US city this is the complete list of its ZIP codes with coordinates, time zone and area codes. Needs the region slug and the group slug (both from get_regio",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "area_code_lookup",
+      "descriptionHash": "a6e961b6e4d256c88ea03b6cfc6a41d5ddae4b93bd508341539c1aa87381cc64",
+      "description": "Where a US telephone area code is used: the state(s) it serves, the cities with the most ZIPs listing it, total ZIP and city counts, and `overlay_codes` — codes assigned to the same territory (e.g. 310 and 424 in west Los Angeles). Use it for \"where is area code 310\", \"what area code is Denver\" (via"
+    },
+    {
+      "name": "list_countries",
+      "descriptionHash": "9f4cf8f8ab6ddc6cea650a2906097d8553b7b777051f067293c5257194fff695",
+      "description": "Coverage overview: the eight curated countries with postal-code format, hierarchy labels (e.g. state › city › ZIP), key facts (capital, population, area, currency, calling code) and time zones — plus `bulk_tier` with per-country postal-code counts for the ~115 additional countries served from GeoNam",
+      "labels": [
+        "destructive"
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOOL-POISON-002",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description tells the model to hide behavior",
+      "detail": "Description of \"lookup_postal_code\" instructs the model to conceal actions from the user.",
+      "evidence": {
+        "source": "tool:lookup_postal_code",
+        "snippet": "Look up a postal code or US ZIP code. Returns every locality that carries the code with its city, county/administrative division, region (state, département, wi…"
+      },
+      "confidence": 0.75
+    },
+    {
+      "id": "MCP-SCHEMA-SMELL-001",
+      "severity": "medium",
+      "category": "schema-smell",
+      "title": "Read-only tool requests dangerous parameters",
+      "detail": "Tool \"lookup_postal_code\" appears informational but accepts parameters (code) that enable code/file/secret access.",
+      "evidence": {
+        "source": "tool:lookup_postal_code",
+        "snippet": "country, code"
+      },
+      "confidence": 0.55
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: get_group · Private data: lookup_postal_code, search_places, get_group · Public sink: get_group · Destructive: list_countries.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: get_group · Private data: lookup_postal_code, search_places, get_group · Public sink: get_group · Destructive: list_countries"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 52,
+  "scoreBreakdown": {
+    "tool-poisoning": 20,
+    "schema-smell": 8,
+    "toxic-flow": 20
+  },
+  "errors": []
+}

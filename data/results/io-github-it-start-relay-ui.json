@@ -1,0 +1,102 @@
+{
+  "schemaVersion": 1,
+  "scanner": {
+    "version": "1.6.0",
+    "rules": "402995650b68"
+  },
+  "target": {
+    "kind": "url",
+    "ref": "https://relay.zae.life/api/mcp"
+  },
+  "scannedAt": "2026-09-23T09:34:43.856Z",
+  "durationMs": 1479,
+  "layers": {
+    "metadata": true,
+    "static": false
+  },
+  "tools": [
+    {
+      "name": "wait_for_relay",
+      "descriptionHash": "666bbdb576b31d3b04ebebb13ee9118fd8c6d097e0ca3d69ea923f1de1e49ed1",
+      "description": "Reads only; it deposits nothing. **Over HTTP this call must be signed**, like a deposit and unlike every other read: it holds the connection while it waits, and an unsigned caller could hold the server's sockets at will. Over stdio no credential exists or is needed. Block until a record appears with",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "append_relay",
+      "descriptionHash": "cba13f75bab5b57bfc9ad2669ed8c83ccdfe7370a9459515b6baac5f74bd2e47",
+      "description": "Append one record. Never overwrites: a proposed id already held is refused. Omit id and the store assigns the next free one. Stored as provenance: as-received and deposited-by: mcp — or mcp/<agent> when the transport verified a credential, which records WHICH credential the bytes arrived under and s",
+      "labels": [
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "get_relay",
+      "descriptionHash": "a026e9bee17006b8ab7bd882a6ccab3dff730b09ff1e7e34ebbaa87610ffa477",
+      "description": "Exact bytes of one relay record, or a refusal naming its state. Never a summary and never a reconstruction. Reads only; it deposits nothing. The bytes come back with the store's own deposit header above a `---` separator — provenance, who deposited them, and the digest of what follows — because a re",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "exists",
+      "descriptionHash": "92f0d4c3864c169249d9a8f88e9ff6dc7311709706ba3c2f568e80e628f7e1d9",
+      "description": "Say what this store knows about one id, without fetching bytes: PRESENT, KNOWN_MISSING (a held record names this id and the bytes are absent), or UNKNOWN (nothing here mentions it). UNKNOWN is not a weaker KNOWN_MISSING — it is the absence of testimony, and a store that has never seen an id answers ",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "list_relays",
+      "descriptionHash": "2151959de9b234fce22629b40fd4a0bc4f109b3b9b67ef53157697c54efc32b8",
+      "description": "Reads only; it deposits nothing. Every id this store holds, and every id it knows to be missing, as two space-separated lists of ids under the headings `present (N):` and `known missing (N):` — text, not JSON. Gaps between ids are reported and never closed: an id nobody here has is simply absent fro",
+      "labels": [
+        "untrusted-content",
+        "private-data"
+      ]
+    },
+    {
+      "name": "list_replies",
+      "descriptionHash": "19183041027a4076b5828a8cdeb46fabeea1b4ff26ce15e2f8a3b92f2349b026",
+      "description": "Records that name the given id in their `parent:` or `ref:` header — one level, not a traversal. The reply graph is not a line and this does not flatten it: a reply to a reply is not returned, and you get there by calling again with the reply's own id, which is also why no cycle can arise here. Read",
+      "labels": [
+        "private-data"
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"append_relay\" references sensitive artifacts (authorization). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:append_relay",
+        "snippet": "Append one record. Never overwrites: a proposed id already held is refused. Omit id and the store assigns the next free one. Stored as provenance: as-received a…"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: list_relays · Private data: wait_for_relay, append_relay, get_relay, exists, list_relays, list_replies · Public sink: append_relay.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: list_relays · Private data: wait_for_relay, append_relay, get_relay, exists, list_relays, list_replies · Public sink: append_relay"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 60,
+  "scoreBreakdown": {
+    "tool-poisoning": 20,
+    "toxic-flow": 20
+  },
+  "errors": []
+}

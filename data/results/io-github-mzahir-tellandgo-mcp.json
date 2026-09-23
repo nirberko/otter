@@ -1,0 +1,127 @@
+{
+  "schemaVersion": 1,
+  "scanner": {
+    "version": "1.6.0",
+    "rules": "402995650b68"
+  },
+  "target": {
+    "kind": "url",
+    "ref": "https://mcp.tellandgo.com/mcp"
+  },
+  "scannedAt": "2026-09-23T09:46:47.467Z",
+  "durationMs": 400,
+  "layers": {
+    "metadata": true,
+    "static": false
+  },
+  "tools": [
+    {
+      "name": "search_stays",
+      "descriptionHash": "e48ec3cfbc25256292c4839ae523dc8cefe94eec0ef1e3d6a7f5431e4f94c245",
+      "description": "Search Tell & Go's live inventory of hotels & resorts. No account or API key required. Pass dates + adults for live pricing; omitting dates returns catalogue-only results. budget_min/budget_max filter by per-night USD (enforced server-side). If properties comes back empty, read results_note before c",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "get_stay_details",
+      "descriptionHash": "7e38bb55da085d412561f580ea33505f32cfcd763ac07e0f873a95c27b9257c9",
+      "description": "Retrieve full details for a specific Tell & Go property by its ID or slug. Returns description, amenities, dining, activities, images, check-in/out times, and a booking_url. Only claim transfer-inclusive pricing if the returned data explicitly indicates it. The description, amenities and other prose"
+    },
+    {
+      "name": "get_quote",
+      "descriptionHash": "c6f71cf83142562588bce71ef590d12439fb269bc933f6bab44640e0cfd48a59",
+      "description": "Check real-time availability and get a firm price quote for a property, dates, and occupancy. Returns ONE best-available room with the exact all-in total (matching tellandgo.com) and cancellation policy. meal_plan is included only when the supplier provides it; rate_plan_requested/rate_plan_matched "
+    },
+    {
+      "name": "prebook_stay",
+      "descriptionHash": "0198c5518f2d5c9ae86bfeeef5f2ee856b7cbd615d29731daffb76ee3517ff4a",
+      "description": "Verify and lock the quoted rate with the supplier before payment. Returns prebook_id (required for start_booking), current total, cancellation, taxes, and terms_digest. If status is PRICE_CHANGED, show the guest the new terms and call again with accepted_terms_digest set to terms_digest. If the quot"
+    },
+    {
+      "name": "start_booking",
+      "descriptionHash": "5c986fec828080ba10b4d999d9036d504c9f94bdc089c1fc5e44572909412d34",
+      "description": "Initiate a booking from a valid quote. Returns a hosted checkout URL that the human must open in their browser to enter payment details and confirm the reservation. IMPORTANT: This tool never handles or requests payment card data. The checkout URL is a hosted Stripe Checkout page (checkout.stripe.co",
+      "labels": [
+        "untrusted-content",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "get_booking",
+      "descriptionHash": "d649682501d5012111ac1608713acde2a1d6d70db6128bfd297b45c3701d6649",
+      "description": "Look up the status of a booking that was created in this MCP connection. Requires the same active MCP session that created the booking. For a booking outside this session, use the secure link in the confirmation email. Only bookings made through this connector can be looked up.",
+      "labels": [
+        "untrusted-content",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "cancel_booking",
+      "descriptionHash": "5e78f664bbe5fb3162026578a474e2b035748d4d89a64698761d9b805f107fbf",
+      "description": "For security, this tool never cancels a booking and never accepts a cancellation token. Open the secure cancellation link in the booking confirmation email in a browser. That link shows the real cancellation policy and refund consequence before it asks for confirmation.",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink"
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOOL-POISON-007",
+      "severity": "low",
+      "category": "tool-poisoning",
+      "title": "Description uses pressure/override language",
+      "detail": "Description of \"search_stays\" stacks urgency/override words (never, ignore). Legitimate tool descriptions rarely pressure the model to act or ignore prior guidance.",
+      "evidence": {
+        "source": "tool:search_stays",
+        "snippet": "Search Tell & Go's live inventory of hotels & resorts. No account or API key required. Pass dates + adults for live pricing; omitting dates returns catalogue-on…"
+      },
+      "confidence": 0.3
+    },
+    {
+      "id": "MCP-TOOL-POISON-007",
+      "severity": "low",
+      "category": "tool-poisoning",
+      "title": "Description uses pressure/override language",
+      "detail": "Description of \"get_stay_details\" stacks urgency/override words (never, ignore). Legitimate tool descriptions rarely pressure the model to act or ignore prior guidance.",
+      "evidence": {
+        "source": "tool:get_stay_details",
+        "snippet": "Retrieve full details for a specific Tell & Go property by its ID or slug. Returns description, amenities, dining, activities, images, check-in/out times, and a…"
+      },
+      "confidence": 0.3
+    },
+    {
+      "id": "MCP-TOOL-POISON-007",
+      "severity": "low",
+      "category": "tool-poisoning",
+      "title": "Description uses pressure/override language",
+      "detail": "Description of \"start_booking\" stacks urgency/override words (important, never). Legitimate tool descriptions rarely pressure the model to act or ignore prior guidance.",
+      "evidence": {
+        "source": "tool:start_booking",
+        "snippet": "Initiate a booking from a valid quote. Returns a hosted checkout URL that the human must open in their browser to enter payment details and confirm the reservat…"
+      },
+      "confidence": 0.3
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: start_booking, get_booking, cancel_booking · Private data: search_stays, cancel_booking · Public sink: start_booking, get_booking, cancel_booking.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: start_booking, get_booking, cancel_booking · Private data: search_stays, cancel_booking · Public sink: start_booking, get_booking, cancel_booking"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 75,
+  "scoreBreakdown": {
+    "tool-poisoning": 5,
+    "toxic-flow": 20
+  },
+  "errors": []
+}

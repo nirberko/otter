@@ -8,8 +8,8 @@
     "kind": "url",
     "ref": "https://fluxproof.neoaethel.workers.dev/mcp"
   },
-  "scannedAt": "2026-09-12T09:05:13.010Z",
-  "durationMs": 244,
+  "scannedAt": "2026-09-23T09:44:25.113Z",
+  "durationMs": 446,
   "layers": {
     "metadata": true,
     "static": false
@@ -17,30 +17,31 @@
   "tools": [
     {
       "name": "fluxproof_preflight",
-      "descriptionHash": "f84afae169cadaabb1277fba4fa015f305f2eed63e7668a25da720f8e8a45066",
-      "description": "Fetch a public URL and return fetchability, size, final URL, title, and content hash without page content or payment.",
+      "descriptionHash": "504f7692d79e07163c00088e4d2b4e1623c28c903e96057938935c288bebb5f4",
+      "description": "Fetch a public URL and return fetchability, size, final URL, title, and content hash without page content or payment. Start here before creating a monitor. Example: {\"url\":\"https://example.com/\"}.",
       "labels": [
         "untrusted-content"
       ]
     },
     {
       "name": "fluxproof_offer",
-      "descriptionHash": "98365338784fe03b0f753d5d1a716b597a443c0268a19020679844ebd5d486ba",
-      "description": "Return free and paid boundaries and purchase routes without charging."
+      "descriptionHash": "af6ca6d5b0180249d5fd71d7be87c7433d27ec5076fa6a7a54f3f6304d892df1",
+      "description": "Return free and paid boundaries and purchase routes without charging. Read this for the free daily plan, $9 paid pass, human checkout and agent payment route. Example: {}. A returned offer is not purchase authorization."
     },
     {
       "name": "fluxproof_create_monitor",
-      "descriptionHash": "f076b2e3398c5b14f1eb3260651cfa13fbeb78cea47c3fa681c45b76b23f4eb4",
-      "description": "Create a monitor using a buyer-owned FluxProof API key.",
+      "descriptionHash": "1b009c5978e601eb4091cd2134eef25c5d82245d978aa111c97550674b0f6c06",
+      "description": "Create a monitor using a buyer-owned FluxProof API key. Creates persistent state and performs a baseline check, consuming quota. Not idempotent; do not retry blindly after an uncertain result.",
       "labels": [
         "private-data"
       ]
     },
     {
       "name": "fluxproof_check_now",
-      "descriptionHash": "f8866fd023ffbe1e1d0737b5183e757caeeea10d7c3ac89d4317ee9f85cce48c",
-      "description": "Run a monitor now and return a source- and hash-bound change receipt.",
+      "descriptionHash": "163a4c1565fe57d096058c28e46bd8ceaf33644c12744542acc4a0a9cd017f22",
+      "description": "Run a monitor now and return a source- and hash-bound change receipt. Consumes check quota, stores a receipt and may deliver a configured webhook. Not an idempotent read.",
       "labels": [
+        "public-sink",
         "destructive"
       ]
     },
@@ -50,8 +51,89 @@
       "description": "List recent evidence receipts for a monitor."
     }
   ],
-  "findings": [],
-  "score": 100,
-  "scoreBreakdown": {},
+  "findings": [
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"fluxproof_offer\" references sensitive artifacts (authorization). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:fluxproof_offer",
+        "snippet": "Return free and paid boundaries and purchase routes without charging. Read this for the free daily plan, $9 paid pass, human checkout and agent payment route. E…"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: fluxproof_preflight · Private data: fluxproof_create_monitor · Public sink: fluxproof_check_now · Destructive: fluxproof_check_now.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: fluxproof_preflight · Private data: fluxproof_create_monitor · Public sink: fluxproof_check_now · Destructive: fluxproof_check_now"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"fluxproof_preflight\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:fluxproof_preflight",
+        "snippet": "before: \"Fetch a public URL and return fetchability, size, final URL, title, and content hash without page content or payment.\" → after: \"Fetch a public URL and return fetchability, size, final URL, title, and content hash without page content or payment. Start here before creating a monitor. Example: {\"url\":\"https://example.com/\"}.\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"fluxproof_offer\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:fluxproof_offer",
+        "snippet": "before: \"Return free and paid boundaries and purchase routes without charging.\" → after: \"Return free and paid boundaries and purchase routes without charging. Read this for the free daily plan, $9 paid pass, human checkout and agent payment route. Example: {}. A returned offer is not purchase authorization.\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"fluxproof_create_monitor\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:fluxproof_create_monitor",
+        "snippet": "before: \"Create a monitor using a buyer-owned FluxProof API key.\" → after: \"Create a monitor using a buyer-owned FluxProof API key. Creates persistent state and performs a baseline check, consuming quota. Not idempotent; do not retry blindly after an uncertain result.\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"fluxproof_check_now\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:fluxproof_check_now",
+        "snippet": "before: \"Run a monitor now and return a source- and hash-bound change receipt.\" → after: \"Run a monitor now and return a source- and hash-bound change receipt. Consumes check quota, stores a receipt and may deliver a configured webhook. Not an idempotent read.\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    }
+  ],
+  "score": 41,
+  "scoreBreakdown": {
+    "tool-poisoning": 39,
+    "toxic-flow": 20
+  },
   "errors": []
 }

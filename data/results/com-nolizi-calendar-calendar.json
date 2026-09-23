@@ -1,0 +1,86 @@
+{
+  "schemaVersion": 1,
+  "scanner": {
+    "version": "1.6.0",
+    "rules": "402995650b68"
+  },
+  "target": {
+    "kind": "url",
+    "ref": "https://calendar.nolizi.com/mcp"
+  },
+  "scannedAt": "2026-09-23T09:32:29.309Z",
+  "durationMs": 334,
+  "layers": {
+    "metadata": true,
+    "static": false
+  },
+  "tools": [
+    {
+      "name": "list_event_types",
+      "descriptionHash": "c5d0ab24b5a8734ac8ca98892ebdca4423f0b257cf7710825d259fc7dfe749ca",
+      "description": "List the bookable event types owned by the configured Nolizi Calendar account. Start here: the returned slug is what every other tool needs. Never guess a slug. Events with required custom questions or email verification cannot be booked through this API — send the person to the event’s public booki",
+      "labels": [
+        "untrusted-content",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "list_available_slots",
+      "descriptionHash": "79a19dc9507fd6668952a54779eb8cb561c00e49fe59ce1657e3e262ff816f71",
+      "description": "Return the live available start/end pairs for one event type. These are real times on a real calendar: show them to the person and let them choose. Do not invent, extrapolate or round a time that is not in this response. Convert times for display only — pass the original values back to create_bookin"
+    },
+    {
+      "name": "list_upcoming_bookings",
+      "descriptionHash": "c3c7d908fe71c958013a3bb202b4b45aee2c69b4896f3e091f0f64acf5f481aa",
+      "description": "List up to 100 upcoming confirmed bookings. This is the only way to verify that a booking exists. Use it after every create or cancel, and use it first whenever a write returned an uncertain outcome."
+    },
+    {
+      "name": "create_booking",
+      "descriptionHash": "872244995589de0c71610fb6f27544d361b803cd9355a51049e23299af0e03ec",
+      "description": "Book a real meeting. This sends invitations and writes to connected calendars, and it cannot be undone except by cancelling. Ask the person to confirm the event, the exact time and the attendee details before calling it, and use their real name and email — never a placeholder. The start and end must",
+      "labels": [
+        "untrusted-content",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "cancel_booking",
+      "descriptionHash": "271afda8c03406ae7f7b57a1e96ba07d638b17c6cbf79758c881d18e2b2acdd0",
+      "description": "Cancel a confirmed booking. This notifies the attendee and removes the meeting from connected calendars, and it cannot be undone. Use an exact booking_id taken from list_upcoming_bookings — never a guessed or reconstructed one. Cancelling one occurrence of a grouped or recurring booking can affect s"
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOOL-POISON-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description issues instructions to the model",
+      "detail": "Description of \"create_booking\" contains imperative instructions directed at the AI assistant rather than describing the tool. This is the core tool-poisoning technique.",
+      "evidence": {
+        "source": "tool:create_booking",
+        "snippet": "Book a real meeting. This sends invitations and writes to connected calendars, and it cannot be undone except by cancelling. Ask the person to confirm the event…"
+      },
+      "confidence": 0.7,
+      "remediation": "Treat the server as untrusted; the model may obey embedded instructions."
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "medium",
+      "category": "toxic-flow",
+      "title": "Toxic flow: untrusted input can reach an external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: list_event_types, create_booking · Public sink: list_event_types, create_booking.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: list_event_types, create_booking · Public sink: list_event_types, create_booking"
+      },
+      "confidence": 0.45,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 72,
+  "scoreBreakdown": {
+    "tool-poisoning": 20,
+    "toxic-flow": 8
+  },
+  "errors": []
+}

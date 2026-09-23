@@ -1,0 +1,119 @@
+{
+  "schemaVersion": 1,
+  "scanner": {
+    "version": "1.6.0",
+    "rules": "402995650b68"
+  },
+  "target": {
+    "kind": "url",
+    "ref": "https://getroomproof.com/mcp"
+  },
+  "scannedAt": "2026-09-23T09:32:16.887Z",
+  "durationMs": 1966,
+  "layers": {
+    "metadata": true,
+    "static": false
+  },
+  "tools": [
+    {
+      "name": "read_product",
+      "descriptionHash": "821a072f943ef8d4fdfed07c23c7ae9cf533e6f5865940385a79bca6b02ed24c",
+      "description": "Free, no key. Turns a product link (IKEA, any furniture shop) or the pasted text of a product page into real dimensions: name, width_mm, depth_mm, height_mm, price, link. Call it as soon as the user gives a furniture link. On success pass name, width_mm, depth_mm, height_mm, price and link unchanged"
+    },
+    {
+      "name": "create_room",
+      "descriptionHash": "2d13831ac4b16f887df73d3536fa22c13a7a758a47439cd0232d222f520675e6",
+      "description": "Free, no key. Creates a new plan at scale 1:50 and returns its project id plus purchase_url. Send name, plus either width_m and depth_m (rectangle) or rectangles (L-shape, alcove, bay), never both. Always send openings in this same call; without openings the checker treats the room as having no door",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "place_furniture",
+      "descriptionHash": "a7cd35f4895f1b45813bcfe514022af11c36f22eeb892fc3ee437bdfc81150d4",
+      "description": "Places furniture and returns the checked plan as an image plus placed, rejected, issues and image_prompt. Send exactly one of spots, placement, or wish. Prefer spots: you name each piece and a rough position (at), the server finds the exact spot, snaps to a 5 cm grid and avoids walls, doors and othe",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "set_door",
+      "descriptionHash": "1f3dbf6ea5c797e6ecc45530f1d9f1b6ebc93806a1c0f28f7243e58a4d5a589d",
+      "description": "Replaces the full openings list of a project you created (an empty list removes all). Windows have no hinge. Until openings exist, door-swing clearance is not checked. Saved layouts may get new issues afterwards; run check_plan. Needs key; not available on beispiel-wohnzimmer.",
+      "labels": [
+        "untrusted-content",
+        "destructive"
+      ]
+    },
+    {
+      "name": "show_catalog",
+      "descriptionHash": "2c48456e32417927924ba8f601a2f8d95410537fd3b291e0dcfc3c495a285659",
+      "description": "Free, no key. Lists every piece Roomproof knows: catalog id (ASCII slug, copy it exactly), display name, width_mm, depth_mm, group. Call it with no group first. Custom pieces (name plus width_mm and depth_mm, e.g. from read_product) do not need the catalog."
+    },
+    {
+      "name": "move_furniture",
+      "descriptionHash": "730efa7e166222a87c16c97b6ee4bbe37638ca0d2bc3f25b53604081d14b8f7a",
+      "description": "Moves, rotates or removes one piece in the saved layout and returns the re-checked plan as an image with issues. Send x and y together (piece center, meters), rot, or remove true. The result is saved even with issues, so read them and move again if needed. Needs key on your own project, free on beis",
+      "labels": [
+        "untrusted-content",
+        "public-sink",
+        "destructive"
+      ]
+    },
+    {
+      "name": "show_plan",
+      "descriptionHash": "b849a9cab3882b46f6905d224d176649cbf20c93fd55c59316e0556314808da4",
+      "description": "Returns the saved plan as an image drawn to scale, plus image_prompt and image_positions. For a photo of the room copy image_prompt verbatim into your own image generator; Roomproof does not render photos. Needs key on your own project, free on beispiel-wohnzimmer."
+    },
+    {
+      "name": "check_plan",
+      "descriptionHash": "35cb56bf479ef17fe3c32bf48e2a1b67e0fa035bed551cd0a66f8b17e90244fe",
+      "description": "Re-checks the saved layout only: pieces sticking out, overlaps, blocked areas including door swings, and a 0.9 m path to every piece. Does not place, move or spend a wish. Call it after move_furniture or when issues are unclear; ok true with an empty issues list is the condition for open_plan. Needs",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "open_plan",
+      "descriptionHash": "2e6a606657fde767beb33eb3bbf084e279a486858c791d318c55bf699e42f3b6",
+      "description": "Call only after the last check_plan returned no issues. Returns view_url (read-only, to share) and edit_url (for the owner, with the scaled PDF download). Needs key; not available on beispiel-wohnzimmer.",
+      "labels": [
+        "untrusted-content",
+        "public-sink"
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOOL-POISON-007",
+      "severity": "low",
+      "category": "tool-poisoning",
+      "title": "Description uses pressure/override language",
+      "detail": "Description of \"create_room\" stacks urgency/override words (always, never). Legitimate tool descriptions rarely pressure the model to act or ignore prior guidance.",
+      "evidence": {
+        "source": "tool:create_room",
+        "snippet": "Free, no key. Creates a new plan at scale 1:50 and returns its project id plus purchase_url. Send name, plus either width_m and depth_m (rectangle) or rectangle…"
+      },
+      "confidence": 0.3
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "medium",
+      "category": "toxic-flow",
+      "title": "Toxic flow: untrusted input can reach an external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: set_door, move_furniture, check_plan, open_plan · Public sink: create_room, place_furniture, move_furniture, open_plan · Destructive: set_door, move_furniture.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: set_door, move_furniture, check_plan, open_plan · Public sink: create_room, place_furniture, move_furniture, open_plan · Destructive: set_door, move_furniture"
+      },
+      "confidence": 0.45,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 89,
+  "scoreBreakdown": {
+    "tool-poisoning": 3,
+    "toxic-flow": 8
+  },
+  "errors": []
+}

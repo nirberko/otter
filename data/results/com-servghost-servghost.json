@@ -1,0 +1,121 @@
+{
+  "schemaVersion": 1,
+  "scanner": {
+    "version": "1.6.0",
+    "rules": "402995650b68"
+  },
+  "target": {
+    "kind": "url",
+    "ref": "https://servghost.com/mcp"
+  },
+  "scannedAt": "2026-09-23T09:32:39.211Z",
+  "durationMs": 3205,
+  "layers": {
+    "metadata": true,
+    "static": false
+  },
+  "tools": [
+    {
+      "name": "list_plans",
+      "descriptionHash": "95661452102ff78dfddc82ed27c9912aabb252709c426da366bfcaba86e2d828",
+      "description": "List all VPS, dedicated, RDP or GPU plans with prices per location. RDP is only available in NL/RO/MD/RU. GPU is only available in IS/NL/RO/MD (Russia excluded due to NVIDIA export controls)."
+    },
+    {
+      "name": "list_locations",
+      "descriptionHash": "df74c0423673e88f9c34f6ed784d3d29c8936abed84e3fad1da634baf8723b56",
+      "description": "List the 7 offshore jurisdictions ServGhost operates in, with privacy/legal features."
+    },
+    {
+      "name": "quote",
+      "descriptionHash": "b993bf03a261df8f4d822418e187f92a066c3dd5259a5a1ebf2de202eeb375e9",
+      "description": "Calculate the final price (USD) for a plan + location + billing period, including discounts and any RAM / disk / extra-IP upgrades."
+    },
+    {
+      "name": "create_order",
+      "descriptionHash": "c28a7fd574d7ce6e7544e885122428d8b9d8f5ea315c007449f77a9e6a2eeb5d",
+      "description": "Deploy a server from your USD balance. BALANCE-ONLY: you must topup_create first (min $30, see topup_bonus for free credit tiers), wait for the topup to confirm, then call this. If your balance is short, returns {insufficient_balance: true, topup_required: true, deficit_usd, topup: {suggested_usd, s",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "topup_create",
+      "descriptionHash": "f5a613f167462525292aa2452b4d40b0843b00af5fe866d8e628fea1841ee448",
+      "description": "Top up your USD balance with crypto. Minimum $30, maximum $2000 per top-up. Bonus credit is applied automatically on confirmation: $100 → +$25, $250 → +$75, $500 → +$200, $1000 → +$500, $1500 → +$1000, $2000 → +$2000 (linear interpolation between anchors, no bonus below $100). Call topup_bonus first",
+      "labels": [
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "topup_bonus",
+      "descriptionHash": "cdada83815c840895fdb9eff390737ea459ddf9ec1e2dc1723ba3ec812780e4c",
+      "description": "Return the bonus credit tiers applied to top-ups. Use this BEFORE topup_create so you can pick an amount that maximises free credit. No auth required."
+    },
+    {
+      "name": "account_balance",
+      "descriptionHash": "a40d3890609b1e3a494232b8e32f19888fb7925fcc63a4a89b14a985ef5b8b27",
+      "description": "Return the current USD balance for an account. Use this to decide whether you can call create_order or need to topup_create first."
+    },
+    {
+      "name": "payment_status",
+      "descriptionHash": "74ecbad89d8201d604c4a4bcda69e68f12cac3f347311a2f5c257194b501546f",
+      "description": "Poll the status of a top-up (or legacy crypto-direct order). pending → confirmed (balance credited + bonus applied) for topups; pending → confirmed → active for legacy orders. After a topup confirms, call create_order to deploy."
+    },
+    {
+      "name": "server_credentials",
+      "descriptionHash": "830f422869f7cfac818439e8f3aa05844a2e5cae03d6df38860021c3c46d566e",
+      "description": "Fetch IP, root password and console URL for a server, once status is active.",
+      "labels": [
+        "untrusted-content",
+        "private-data"
+      ]
+    },
+    {
+      "name": "server_action",
+      "descriptionHash": "9afc659cd92ec83f980e7ba08a46af0cb74c29d0a9be0e2ee3d643168c0cbef6",
+      "description": "Send a lifecycle command to a server: reboot, shutdown, start, reinstall, or console_link.",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "agent_help",
+      "descriptionHash": "8bd0221f4f3689cb0cfe974903cc6bfbd14b5088525886e7b15a0e67d87423f7",
+      "description": "Return the canonical 4-call recipe for buying a server, with examples. Call this first if you are unsure how to use the tools."
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"server_credentials\" references sensitive artifacts (password). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:server_credentials",
+        "snippet": "Fetch IP, root password and console URL for a server, once status is active."
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: server_credentials · Private data: create_order, topup_create, server_credentials · Public sink: topup_create, server_action.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: server_credentials · Private data: create_order, topup_create, server_credentials · Public sink: topup_create, server_action"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 60,
+  "scoreBreakdown": {
+    "tool-poisoning": 20,
+    "toxic-flow": 20
+  },
+  "errors": []
+}

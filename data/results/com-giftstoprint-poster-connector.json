@@ -1,0 +1,87 @@
+{
+  "schemaVersion": 1,
+  "scanner": {
+    "version": "1.6.0",
+    "rules": "402995650b68"
+  },
+  "target": {
+    "kind": "url",
+    "ref": "https://mcp.giftstoprint.com/mcp"
+  },
+  "scannedAt": "2026-09-23T09:31:52.731Z",
+  "durationMs": 256,
+  "layers": {
+    "metadata": true,
+    "static": false
+  },
+  "tools": [
+    {
+      "name": "find_posters",
+      "descriptionHash": "482543039e861f4b69bdeba73856ddb426ee6d253d4eadf1871233f0ad8c3d3a",
+      "description": "Search GiftsToPrint's personalised newspaper-style posters. Each poster shows real headlines and events from one year, personalised with a name, photo and message, and is delivered as a print-ready digital file (nothing is posted). Birthday posters and wedding-anniversary posters exist per milestone",
+      "labels": [
+        "untrusted-content",
+        "private-data"
+      ]
+    },
+    {
+      "name": "get_poster_form",
+      "descriptionHash": "1fc51c3d187837c546f7cb23ba769892b991e88b770c48db83809d4ccee94824",
+      "description": "List exactly what to collect from the user for one poster: names, dates, optional message, and the photo, plus the turnaround options and prices. Ask the user for anything you don't already know. Don't invent names or dates. Next step: upload_photo, then create_poster_checkout.",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "upload_photo",
+      "descriptionHash": "18f8c5d985c15a9ad254febeda39f27f538391473d65a4ac26d3761346c71da8",
+      "description": "Store the photo that will be printed on the poster. Give either image_url (a public https link to the image) or image_base64. JPEG, PNG or WebP, up to 20MB. Returns photo_url, which you then pass to create_poster_checkout. Photos are kept for 12 months so the poster can be made and revised, then del",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "create_poster_checkout",
+      "descriptionHash": "d1a476931ccbbe438fc08c38851d0ba72d799206232c432bfae7e620c0e496a0",
+      "description": "Validate every detail and create a Shopify checkout for one personalised poster with all the details attached. Returns checkout_url. Nothing is charged: open checkout_url for the user to review the order and pay on GiftsToPrint's own checkout. Before calling, read the details back to the user and co",
+      "labels": [
+        "untrusted-content",
+        "private-data"
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOOL-POISON-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description issues instructions to the model",
+      "detail": "Description of \"create_poster_checkout\" contains imperative instructions directed at the AI assistant rather than describing the tool. This is the core tool-poisoning technique.",
+      "evidence": {
+        "source": "tool:create_poster_checkout",
+        "snippet": "Validate every detail and create a Shopify checkout for one personalised poster with all the details attached. Returns checkout_url. Nothing is charged: open ch…"
+      },
+      "confidence": 0.7,
+      "remediation": "Treat the server as untrusted; the model may obey embedded instructions."
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: find_posters, get_poster_form, create_poster_checkout · Private data: find_posters, create_poster_checkout · Public sink: upload_photo.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: find_posters, get_poster_form, create_poster_checkout · Private data: find_posters, create_poster_checkout · Public sink: upload_photo"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 60,
+  "scoreBreakdown": {
+    "tool-poisoning": 20,
+    "toxic-flow": 20
+  },
+  "errors": []
+}

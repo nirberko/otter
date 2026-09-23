@@ -8,8 +8,8 @@
     "kind": "url",
     "ref": "https://app.ravn.exchange/api/mcp"
   },
-  "scannedAt": "2026-09-12T09:03:57.898Z",
-  "durationMs": 1551,
+  "scannedAt": "2026-09-23T09:43:23.173Z",
+  "durationMs": 949,
   "layers": {
     "metadata": true,
     "static": false
@@ -17,8 +17,8 @@
   "tools": [
     {
       "name": "ravn_quote",
-      "descriptionHash": "734e4f0827a05ee6781c0e04153b310287bf65e4f836bb0ffc0dbd0d3e185996",
-      "description": "Get a swap quote from RAVN — same-chain or cross-chain, across 16 chains including native (non-wrapped) Bitcoin and Solana as source or destination. Free, no API key or payment required. Returns a quoteToken; pass it to ravn_execute to get a signable/broadcastable execution payload.",
+      "descriptionHash": "f145da7dce5cb376895d1bd9babf94a8d95da461d8caae38e16ea41a7458ecad",
+      "description": "Get a swap quote from RAVN — same-chain or cross-chain, across 17 chains including native (non-wrapped) Bitcoin and Solana as source or destination. Free, no API key or payment required. Returns a quoteToken; pass it to ravn_execute to get a signable/broadcastable execution payload.",
       "labels": [
         "private-data"
       ]
@@ -34,14 +34,57 @@
       ]
     },
     {
+      "name": "ravn_submit_signature",
+      "descriptionHash": "905af716cb4840dd6e77e72a473776b23e29cd4076061ac81f6a5446db67f4ab",
+      "description": "For a SIGNATURE-type ravn_execute result only: submit the signature(s) you collected (over typedData, and approvalData if present) to actually place the order. RAVN decodes the venue from quoteToken and routes to the right venue-specific submit path — you never touch a per-venue endpoint. Returns a ",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
       "name": "ravn_status",
-      "descriptionHash": "795c2a05e742a3bfb9e078afad38f7625202368d54ae80d4fbdb2bc81715884d",
-      "description": "Poll the status of a swap by its quoteToken and the ref returned by ravn_execute (deposit address for DEPOSIT venues, statusRef for SIGNATURE venues). Status is authoritative where the venue exposes it; Jupiter is the one live venue that reports 'unknown' honestly rather than guessing."
+      "descriptionHash": "892bcc122f2f429d7391691a75f98a4ff8a262b2c5cab02064145fa49c6d0b8d",
+      "description": "Poll the status of a swap by its quoteToken and ref from ravn_execute (statusRef, deposit address, or origin tx hash). Use the quoteToken execute returned — compose rebinds hop 1 onto hop 2's deposit. Status is authoritative where the venue exposes it; Jupiter is the one live venue that reports 'unk",
+      "labels": [
+        "destructive"
+      ]
     },
     {
       "name": "ravn_health",
       "descriptionHash": "548299e96fd4e2706b5c3cf1bb6654bc0033ab949fd89d5e6218f1e97cdf2019",
       "description": "Liveness check across every venue RAVN routes through — call before a swap if you want to know whether a route is degraded ahead of time."
+    },
+    {
+      "name": "ravn_tokens",
+      "descriptionHash": "1cc051ec4e976d015ec66f44e0338d679dd31b91b8412defefd8c6281f0abe87",
+      "description": "RAVN's own listed token registry for one chain — populate a token picker without hardcoding one. This is \"what RAVN knows about and might route\", not a per-pair routability guarantee for any specific pair; call ravn_quote to check that.",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "ravn_tokens_resolve",
+      "descriptionHash": "fed6bcc68a4bd4e9f964689d87da1e178056fd81585d1fc350de34396d25cd89",
+      "description": "Resolve an arbitrary token address to its metadata (symbol, name, decimals) via an on-chain read — for a paste-any-address flow, when the token isn't necessarily on ravn_tokens's list.",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "ravn_btc_coverage",
+      "descriptionHash": "bb1335b37357270679f647da15a8163f680bd3aa91b0dd7d3aa372fd39eb4f6d",
+      "description": "For a swap where native BTC is the source, not every token on the destination chain is reachable. Returns which of ravn_tokens's list on `chainId` a BTC venue can actually route to, and how many venues serve each, so you can build a token list that matches what will really quote instead of discoveri",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "ravn_chains",
+      "descriptionHash": "96d289a5f53b5cb3f6a2964ab66e5bb176df8c14dde2f0b729264c920697304d",
+      "description": "Every chain RAVN lists a token registry for (see ravn_tokens). Static, doesn't change per request, safe to cache instead of hardcoding a chain table.",
+      "labels": [
+        "private-data"
+      ]
     },
     {
       "name": "ravn_btc_prepare_send",
@@ -89,11 +132,37 @@
         "snippet": "Turns a DEPOSIT-type ravn_execute result (depositAddress + depositAmount) into a ready-to-sign PSBT, so you don't have to write your own UTXO selection and fee-…"
       },
       "confidence": 0.65
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"ravn_quote\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:ravn_quote",
+        "snippet": "before: \"Get a swap quote from RAVN — same-chain or cross-chain, across 16 chains including native (non-wrapped) Bitcoin and Solana as source or destination. Free, no API key or payment required. Returns a quoteToken; pass it to ravn_execute to get a signable/broadcastable execution payload.\" → after: \"Get a swap quote from RAVN — same-chain or cross-chain, across 17 chains including native (non-wrapped) Bitcoin and Solana as source or destination. Free, no API key or payment required. Returns a quoteToken; pass it to ravn_execute to get a signable/broadcastable execution payload.\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"ravn_status\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:ravn_status",
+        "snippet": "before: \"Poll the status of a swap by its quoteToken and the ref returned by ravn_execute (deposit address for DEPOSIT venues, statusRef for SIGNATURE venues). Status is authoritative where the venue exposes it; Jupiter is the one live venue that reports 'unknown' honestly rather than guessing.\" → after: \"Poll the status of a swap by its quoteToken and ref from ravn_execute (statusRef, deposit address, or origin tx hash). Use the quoteToken execute returned — compose rebinds hop 1 onto hop 2's deposit. Status is authoritative where the venue exposes it; Jupiter is the one live venue that reports 'unk\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
     }
   ],
-  "score": 69,
+  "score": 62,
   "scoreBreakdown": {
-    "tool-poisoning": 31
+    "tool-poisoning": 38
   },
   "errors": []
 }
