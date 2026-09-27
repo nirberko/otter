@@ -1,0 +1,112 @@
+{
+  "schemaVersion": 1,
+  "scanner": {
+    "version": "1.6.0",
+    "rules": "402995650b68"
+  },
+  "target": {
+    "kind": "url",
+    "ref": "https://mcp.zovo.one/mcp/credit-note-ics"
+  },
+  "scannedAt": "2026-09-27T10:21:17.208Z",
+  "durationMs": 134,
+  "layers": {
+    "metadata": true,
+    "static": false
+  },
+  "tools": [
+    {
+      "name": "credit_note_create",
+      "descriptionHash": "756e447ef6ad56e9483d39665c72adc9265cf9851898506c8329825134527961",
+      "description": "Issue a credit note against an invoice, or standalone: the recipient, the reason (returned goods, overcharge, discount correction, service issue, other), line items with quantity, unit price and tax rate, and the currency. Returns a draft you can still revise; credit_note_finalize burns the final CN",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "credit_note_update",
+      "descriptionHash": "8c6d862edb6579035725170754c9845ca768f1012464dd052676b053dcd21b1f",
+      "description": "Change a draft credit note while it is still a draft: recipient, reason, lines, currency, invoice reference, issue date or notes. Pass only what changes; new lines replace all old ones. A finalized note is immutable and is refused by name."
+    },
+    {
+      "name": "credit_note_finalize",
+      "descriptionHash": "53600958a9cda7faefbf9338876336ca28d2d86f12567a3095d4c1349994ede3",
+      "description": "Finalize a draft: burn the final CN-YYYY-NNNN number and freeze the note. From here it cannot be edited or deleted, only rendered and listed, because it is now the document the client sees. Free tier: 10 finalized credit notes; Pro removes the limit.",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "credit_note_list",
+      "descriptionHash": "f94550187ab4466aa1adfb21e4e774f295a24805680aa1e9f6f267ebc221ace7",
+      "description": "List credit notes: number or draft id, recipient, reason, status, issue date and total. Filter by recipient (a part of the name is enough), by reason, by status draft or final, and by issue-date period with from and to.",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "credit_note_get",
+      "descriptionHash": "0b1f29cbef3c6f108790b3e4b891411200d2f5452dc8c958f07c275ef9f10175",
+      "description": "Return one credit note by its CN number or draft id: every line with quantity, unit price and tax, the totals per tax rate, the reason, the invoice it credits, and the notes. Reads only; use credit_note_list for the ids."
+    },
+    {
+      "name": "credit_note_delete",
+      "descriptionHash": "45020b07dff975d414684a0972c16c539e6a570b9ec092ce081b357768fbcd2b",
+      "description": "Delete a draft credit note entered wrongly, by its draft id. A finalized note is refused by name: it is a document the client may have seen, and deleting it would leave their copy pointing at nothing.",
+      "labels": [
+        "private-data",
+        "destructive"
+      ]
+    },
+    {
+      "name": "credit_note_render",
+      "descriptionHash": "17fd15374ce073f8779b726a14f8ec93af245f52c72107f9b11297faa57f705d",
+      "description": "Turn a credit note into the document: Markdown to paste into an email or ticket, or a self-contained printable HTML page with every style inline. Drafts render with a DRAFT banner so a half-finished credit cannot be sent by mistake. Writes nothing. Free; the free tier stamps a one-line footer.",
+      "labels": [
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "credit_note_summary",
+      "descriptionHash": "90afff9411fd4b8214fb7277ba2801c0221489f3bf94e3b2a325503677cd7943",
+      "description": "How much you have credited: totals per currency over finalized credit notes, broken down by reason and by month, in an optional issue-date period. Drafts count for nothing until they are finalized. Currencies are never added together."
+    },
+    {
+      "name": "license_status",
+      "descriptionHash": "080db3942d81171fa77a72289f6338e4aab1b5a6a401c70f296efefa7ffa9d42",
+      "description": "Report this endpoint's licence state for your token as JSON: the product, the tier free or pro, why it is not Pro, and the checkout URL. Call it to explain a free-tier refusal. No arguments, nothing changes.",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "license_activate",
+      "descriptionHash": "d60c700c3d49cdf2f6f76878c58ffdd1108f7684c5702c94e23b791b038a860e",
+      "description": "Turn Pro on for this connection with key, an MCPL1.<payload>.<signature> issued at checkout for this server or the bundle. Data under your token stays; a wrong or expired key changes nothing. license_status confirms it.",
+      "labels": [
+        "private-data"
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"credit-note-ics\" exposes tools that together enable an exfiltration flow. Untrusted content: credit_note_list · Private data: credit_note_finalize, credit_note_delete, credit_note_render, license_status, license_activate · Public sink: credit_note_create, credit_note_render · Destructive: credit_note_delete.",
+      "evidence": {
+        "source": "server:credit-note-ics",
+        "snippet": "Untrusted content: credit_note_list · Private data: credit_note_finalize, credit_note_delete, credit_note_render, license_status, license_activate · Public sink: credit_note_create, credit_note_render · Destructive: credit_note_delete"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 80,
+  "scoreBreakdown": {
+    "toxic-flow": 20
+  },
+  "errors": []
+}

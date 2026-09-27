@@ -8,8 +8,8 @@
     "kind": "url",
     "ref": "https://mcp.nsgoods.org/mcp"
   },
-  "scannedAt": "2026-09-17T09:44:37.732Z",
-  "durationMs": 1099,
+  "scannedAt": "2026-09-27T10:12:48.414Z",
+  "durationMs": 1269,
   "layers": {
     "metadata": true,
     "static": false
@@ -22,8 +22,8 @@
     },
     {
       "name": "find_endpoints",
-      "descriptionHash": "7422d302389d118a972028209a7ef24dd7206fa5854c3c71c8ab66cd69f38f55",
-      "description": "Search the catalogue by host or URL substring. Returns up to `limit` endpoints with their latest\n    verdict, plus the total match count. Use this first when you do not know the exact resource URL.",
+      "descriptionHash": "47e8ba1538995206754dbf01ad2db973b05a067130454a593b38959c6d184390",
+      "description": "Search the catalogue by host or URL substring. Returns up to `limit` endpoints with their latest\n    verdict, plus the total match count. Use this first when you do not know the exact resource URL.\n    Optional network filter (for example eip155:8453 or solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp) and\n ",
       "labels": [
         "untrusted-content"
       ]
@@ -45,14 +45,15 @@
     },
     {
       "name": "drift_status",
-      "descriptionHash": "8545b0aac76ca3c06b127254232ed07a67c6b326d989c6c4ef1fd22025c40ba2",
-      "description": "Declared-model drift watch. With a host, that host's tracked resources; otherwise a summary."
+      "descriptionHash": "b00cc7d3fdd39dc3a1e887d0e720f0d4e91b676059e8e129f1f972828613f6ba",
+      "description": "Verdict changes between the two latest full scans (catalogue wide, or for one host), plus the\n    declared model drift watch."
     },
     {
       "name": "verify_signature",
-      "descriptionHash": "7a9c4e86c191d2dc011db685b18c31c57135a8180f697b3c74fd8da6c930e1af",
-      "description": "Offline EIP-191 verify of a signed nsgoods response. Strips preview/demo post-sign fields,\n    canonicalises (JCS, trying both ASCII escaping modes), recovers the signer, and checks it against\n    the published manifest signers.",
+      "descriptionHash": "833792a4f7ae95bf84abe209a34fba2cb16afa93e669fe13483de4bab2de94e6",
+      "description": "Offline EIP-191 verify of a signed nsgoods response. Identifies the service from the\n    manifest (or the optional `service` arg), strips exactly that service's post-sign fields,\n    canonicalises (JCS, both ASCII modes), recovers the signer and checks it against the\n    published manifest signers. ",
       "labels": [
+        "untrusted-content",
         "public-sink"
       ]
     },
@@ -64,21 +65,73 @@
   ],
   "findings": [
     {
+      "id": "MCP-TOOL-POISON-006",
+      "severity": "low",
+      "category": "tool-poisoning",
+      "title": "Anomalously long tool description",
+      "detail": "Description of \"verify_signature\" is 1399 chars, far longer than this server's median (163). Overlong descriptions are a common place to bury instructions.",
+      "evidence": {
+        "source": "tool:verify_signature",
+        "snippet": "Offline EIP-191 verify of a signed nsgoods response. Identifies the service from the manifest (or the optional `service` arg), strips exactly that service's pos…"
+      },
+      "confidence": 0.4
+    },
+    {
       "id": "MCP-TOXIC-FLOW-001",
       "severity": "medium",
       "category": "toxic-flow",
       "title": "Toxic flow: untrusted input can reach an external sink",
-      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: find_endpoints · Public sink: verify_signature.",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: find_endpoints, verify_signature · Public sink: verify_signature.",
       "evidence": {
         "source": "server:mcp",
-        "snippet": "Untrusted content: find_endpoints · Public sink: verify_signature"
+        "snippet": "Untrusted content: find_endpoints, verify_signature · Public sink: verify_signature"
       },
       "confidence": 0.45,
       "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"find_endpoints\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:find_endpoints",
+        "snippet": "before: \"Search the catalogue by host or URL substring. Returns up to `limit` endpoints with their latest\n    verdict, plus the total match count. Use this first when you do not know the exact resource URL.\" → after: \"Search the catalogue by host or URL substring. Returns up to `limit` endpoints with their latest\n    verdict, plus the total match count. Use this first when you do not know the exact resource URL.\n    Optional network filter (for example eip155:8453 or solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp) and\n \""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"drift_status\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:drift_status",
+        "snippet": "before: \"Declared-model drift watch. With a host, that host's tracked resources; otherwise a summary.\" → after: \"Verdict changes between the two latest full scans (catalogue wide, or for one host), plus the\n    declared model drift watch.\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"verify_signature\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:verify_signature",
+        "snippet": "before: \"Offline EIP-191 verify of a signed nsgoods response. Strips preview/demo post-sign fields,\n    canonicalises (JCS, trying both ASCII escaping modes), recovers the signer, and checks it against\n    the published manifest signers.\" → after: \"Offline EIP-191 verify of a signed nsgoods response. Identifies the service from the\n    manifest (or the optional `service` arg), strips exactly that service's post-sign fields,\n    canonicalises (JCS, both ASCII modes), recovers the signer and checks it against the\n    published manifest signers. \""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
     }
   ],
-  "score": 92,
+  "score": 57,
   "scoreBreakdown": {
+    "tool-poisoning": 35,
     "toxic-flow": 8
   },
   "errors": []

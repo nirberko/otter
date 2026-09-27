@@ -8,8 +8,8 @@
     "kind": "url",
     "ref": "https://erikbethke.com/api/mcp"
   },
-  "scannedAt": "2026-08-12T05:49:40.221Z",
-  "durationMs": 1233,
+  "scannedAt": "2026-09-27T10:04:54.789Z",
+  "durationMs": 581,
   "layers": {
     "metadata": true,
     "static": false
@@ -25,8 +25,18 @@
     },
     {
       "name": "get_blog_post",
-      "descriptionHash": "bde08810c73ab4dd6235fd1999ea501269eb9c34a858200187dc9133d4ab0e52",
-      "description": "Retrieve a specific blog post from erikbethke.com by its ID or slug. Returns title, author, date, tags, summary, full content, and URL.",
+      "descriptionHash": "223c7b09be788c47b9f2d3c4e79f444db213f2f6e6871c668be82a5692be1a1c",
+      "description": "Retrieve a specific blog post from erikbethke.com by its ID or slug. Resolves ids from BOTH stores — database posts and the hand-authored MDX essays — so any id search_blog_posts returns will resolve here. Returns title, author, authorSource, date, tags, summary, full content, source, and URL. autho",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "browse_archive",
+      "descriptionHash": "b6edc92dd31905115b791b689ecaccd2fff8340ba9a8c0519175962b571df94b",
+      "description": "Reach the DEEP catalogue — every post back to 1993, not just the recent feed. Order by oldest, newest, or random, optionally narrowed to one year or tag. Use this when you want to know what is actually IN the archive: every other listing surface is date-descending, so an agent that does not already ",
       "labels": [
         "untrusted-content",
         "public-sink"
@@ -52,8 +62,8 @@
     },
     {
       "name": "verify_quote",
-      "descriptionHash": "bbf41074030be6479bbea7f1c580b45e09e321cf2b61c6a36d41b15d90998137",
-      "description": "Provenance check: verify that a quoted passage actually appears in a post on erikbethke.com. Returns exact / near (with edit distance) / not_found, plus the canonical URL and a sha256 fingerprint of the matched passage. Use this BEFORE attributing a quote to Erik — honesty-by-construction beats trus",
+      "descriptionHash": "3cfcec983031c770cabfb67b612b33d870e19a907b8fe919d88d5ee28b9abe7b",
+      "description": "Provenance check: verify that a quoted passage actually appears in a post on erikbethke.com. Unscoped, it sweeps titles, summaries AND the full body of every published post — the archive back to 1993 included — and reports which field matched (matchedField); summaries are what search_blog_posts and ",
       "labels": [
         "untrusted-content",
         "public-sink"
@@ -91,21 +101,72 @@
   ],
   "findings": [
     {
+      "id": "MCP-TOOL-POISON-006",
+      "severity": "low",
+      "category": "tool-poisoning",
+      "title": "Anomalously long tool description",
+      "detail": "Description of \"verify_quote\" is 1640 chars, far longer than this server's median (266). Overlong descriptions are a common place to bury instructions.",
+      "evidence": {
+        "source": "tool:verify_quote",
+        "snippet": "Provenance check: verify that a quoted passage actually appears in a post on erikbethke.com. Unscoped, it sweeps titles, summaries AND the full body of every pu…"
+      },
+      "confidence": 0.4
+    },
+    {
+      "id": "MCP-TOOL-POISON-007",
+      "severity": "low",
+      "category": "tool-poisoning",
+      "title": "Description uses pressure/override language",
+      "detail": "Description of \"verify_quote\" stacks urgency/override words (always, never). Legitimate tool descriptions rarely pressure the model to act or ignore prior guidance.",
+      "evidence": {
+        "source": "tool:verify_quote",
+        "snippet": "Provenance check: verify that a quoted passage actually appears in a post on erikbethke.com. Unscoped, it sweeps titles, summaries AND the full body of every pu…"
+      },
+      "confidence": 0.3
+    },
+    {
       "id": "MCP-TOXIC-FLOW-001",
       "severity": "high",
       "category": "toxic-flow",
       "title": "Lethal trifecta: untrusted input + private data + external sink",
-      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: search_blog_posts, get_blog_post, get_series, get_related, verify_quote, sign_guestbook, list_projects · Private data: get_site_info · Public sink: get_blog_post, get_series, get_related, verify_quote.",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: search_blog_posts, get_blog_post, browse_archive, get_series, get_related, verify_quote, sign_guestbook, list_projects · Private data: get_blog_post, get_site_info · Public sink: get_blog_post, browse_archive, get_series, get_related, verify_quote.",
       "evidence": {
         "source": "server:mcp",
-        "snippet": "Untrusted content: search_blog_posts, get_blog_post, get_series, get_related, verify_quote, sign_guestbook, list_projects · Private data: get_site_info · Public sink: get_blog_post, get_series, get_related, verify_quote"
+        "snippet": "Untrusted content: search_blog_posts, get_blog_post, browse_archive, get_series, get_related, verify_quote, sign_guestbook, list_projects · Private data: get_blog_post, get_site_info · Public sink: get_blog_post, browse_archive, get_series, get_related, verify_quote"
       },
       "confidence": 0.6,
       "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"get_blog_post\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:get_blog_post",
+        "snippet": "before: \"Retrieve a specific blog post from erikbethke.com by its ID or slug. Returns title, author, date, tags, summary, full content, and URL.\" → after: \"Retrieve a specific blog post from erikbethke.com by its ID or slug. Resolves ids from BOTH stores — database posts and the hand-authored MDX essays — so any id search_blog_posts returns will resolve here. Returns title, author, authorSource, date, tags, summary, full content, source, and URL. autho\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"verify_quote\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:verify_quote",
+        "snippet": "before: \"Provenance check: verify that a quoted passage actually appears in a post on erikbethke.com. Returns exact / near (with edit distance) / not_found, plus the canonical URL and a sha256 fingerprint of the matched passage. Use this BEFORE attributing a quote to Erik — honesty-by-construction beats trus\" → after: \"Provenance check: verify that a quoted passage actually appears in a post on erikbethke.com. Unscoped, it sweeps titles, summaries AND the full body of every published post — the archive back to 1993 included — and reports which field matched (matchedField); summaries are what search_blog_posts and \""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
     }
   ],
-  "score": 80,
+  "score": 49,
   "scoreBreakdown": {
+    "tool-poisoning": 31,
     "toxic-flow": 20
   },
   "errors": []

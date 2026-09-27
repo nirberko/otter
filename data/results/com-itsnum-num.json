@@ -8,8 +8,8 @@
     "kind": "url",
     "ref": "https://itsnum.com/mcp"
   },
-  "scannedAt": "2026-08-28T16:43:47.055Z",
-  "durationMs": 205,
+  "scannedAt": "2026-09-27T10:05:11.925Z",
+  "durationMs": 158,
   "layers": {
     "metadata": true,
     "static": false
@@ -17,21 +17,28 @@
   "tools": [
     {
       "name": "num_search_places",
-      "descriptionHash": "d53cab2210cf23962c62e827fdb75b308a679060e9cd2178cc4f836efd646288",
-      "description": "Search NUM's directory of 2.5 million places across 77 destinations in 38 countries — restaurants, bars, hotels, spas, tours, shops. Give at least one of q, city, country or category. Counts against your daily read quota."
+      "descriptionHash": "e05c49f4561f9d7dc91d1e665947f0b7c71ab2571c986c6ee65a7f5a79663b4c",
+      "description": "Search NUM's travel directory: more than 2.5 million places — restaurants, bars, hotels, spas, tours and shops, deepest in Thailand and the UK. Say where to look: city (one of NUM's destinations — see num_list_destinations) or country; then narrow with q, area and category. Places NUM knows have clo"
+    },
+    {
+      "name": "num_list_destinations",
+      "descriptionHash": "cd0101f964d8dcbd8a8d81de80ea9c30f3cf60cef5dca0d8d2ef0cba1105abfa",
+      "description": "Every destination NUM covers, with its country. Use a destination's name or slug as num_search_places city. Free, unmetered, and needs no key."
     },
     {
       "name": "num_get_place",
-      "descriptionHash": "68347f7eeea31cf049d369c312145f5addf82c21d4a3eb5aab488efc9cc553cd",
-      "description": "Full record for one place by place_id. Counts against your daily read quota.",
+      "descriptionHash": "db3010c9c9deccf09aa8bf890e71e35766bfd410bee92ee657703a2fe0d7741d",
+      "description": "Full record for one place, by the place_id that num_search_places returned, including HOW TO BOOK IT on the venue's own terms. `booking.method` is one of: request (the venue takes requests through NUM and confirms each one itself), venue_system (send the traveller to booking.url, prefilled when you ",
       "labels": [
-        "private-data"
+        "untrusted-content",
+        "private-data",
+        "public-sink"
       ]
     },
     {
       "name": "num_submit_business",
-      "descriptionHash": "6ca3b1348598a4e7a7906d2b440220c81e98302ef073516559db930197a3188e",
-      "description": "Submit a business to NUM. Free and unmetered. The submission is reviewed by a person at 5arz before any traveller sees it — nothing you send goes live automatically. Say honestly whether you own the business, were engaged by it, or are simply adding one you know of. Never invent contact details.",
+      "descriptionHash": "d880a6a1fc3fad1de181abf92b89e85eba853faa46e5a0719ebc527c5a183007",
+      "description": "Submit a business to NUM for review. Free and unmetered. A person at 5arz reviews every submission before any traveller sees it, so the result is status 'pending_review', never an immediate listing. 'relationship' records whether the submitter owns the business, was engaged by the owner, or is a thi",
       "labels": [
         "private-data",
         "public-sink"
@@ -39,20 +46,102 @@
     },
     {
       "name": "num_submit_promo",
-      "descriptionHash": "04a4b731e12d235a0bb1d27037c7a1ac24e30bb5fa01a6dc1823d8942f81d6d3",
-      "description": "Post a promotion, special, event or ad against a business you already submitted. Free and unmetered, and reviewed by a person before it is shown to anyone.",
+      "descriptionHash": "ad35f453c48ae8f27a41244765e4ef0d951a1748639ead41b8890f6da7e29d94",
+      "description": "Attach a promotion, special, event or ad to a business previously submitted by the same account. Free and unmetered. A person reviews it before it is shown to anyone. Re-sending the same promo_ref updates the pending promotion instead of creating a duplicate.",
       "labels": [
         "public-sink"
       ]
     },
     {
       "name": "num_list_submissions",
-      "descriptionHash": "88c3e068a9b1bde6156eb91eb6e15ddf4efe26ccbbdf47effc976170a64a7b86",
-      "description": "Everything you have submitted and what a reviewer decided. Free and unmetered."
+      "descriptionHash": "5edbe2577a61404e4f48158fd0d0d06388ea20597b8ae1a001731a14ed244c88",
+      "description": "Lists the businesses and promotions this account has submitted, with the reviewer's decision on each. Free and unmetered."
     }
   ],
-  "findings": [],
-  "score": 100,
-  "scoreBreakdown": {},
+  "findings": [
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: num_get_place · Private data: num_get_place, num_submit_business · Public sink: num_get_place, num_submit_business, num_submit_promo.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: num_get_place · Private data: num_get_place, num_submit_business · Public sink: num_get_place, num_submit_business, num_submit_promo"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"num_search_places\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:num_search_places",
+        "snippet": "before: \"Search NUM's directory of 2.5 million places across 77 destinations in 38 countries — restaurants, bars, hotels, spas, tours, shops. Give at least one of q, city, country or category. Counts against your daily read quota.\" → after: \"Search NUM's travel directory: more than 2.5 million places — restaurants, bars, hotels, spas, tours and shops, deepest in Thailand and the UK. Say where to look: city (one of NUM's destinations — see num_list_destinations) or country; then narrow with q, area and category. Places NUM knows have clo\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"num_get_place\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:num_get_place",
+        "snippet": "before: \"Full record for one place by place_id. Counts against your daily read quota.\" → after: \"Full record for one place, by the place_id that num_search_places returned, including HOW TO BOOK IT on the venue's own terms. `booking.method` is one of: request (the venue takes requests through NUM and confirms each one itself), venue_system (send the traveller to booking.url, prefilled when you \""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"num_submit_business\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:num_submit_business",
+        "snippet": "before: \"Submit a business to NUM. Free and unmetered. The submission is reviewed by a person at 5arz before any traveller sees it — nothing you send goes live automatically. Say honestly whether you own the business, were engaged by it, or are simply adding one you know of. Never invent contact details.\" → after: \"Submit a business to NUM for review. Free and unmetered. A person at 5arz reviews every submission before any traveller sees it, so the result is status 'pending_review', never an immediate listing. 'relationship' records whether the submitter owns the business, was engaged by the owner, or is a thi\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"num_submit_promo\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:num_submit_promo",
+        "snippet": "before: \"Post a promotion, special, event or ad against a business you already submitted. Free and unmetered, and reviewed by a person before it is shown to anyone.\" → after: \"Attach a promotion, special, event or ad to a business previously submitted by the same account. Free and unmetered. A person reviews it before it is shown to anyone. Re-sending the same promo_ref updates the pending promotion instead of creating a duplicate.\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"num_list_submissions\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:num_list_submissions",
+        "snippet": "before: \"Everything you have submitted and what a reviewer decided. Free and unmetered.\" → after: \"Lists the businesses and promotions this account has submitted, with the reviewer's decision on each. Free and unmetered.\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    }
+  ],
+  "score": 41,
+  "scoreBreakdown": {
+    "toxic-flow": 20,
+    "tool-poisoning": 39
+  },
   "errors": []
 }

@@ -65,4 +65,184 @@
   "score": 100,
   "scoreBreakdown": {},
   "errors": []
+}"untrusted-content",
+        "destructive"
+      ]
+    },
+    {
+      "name": "verify_offer",
+      "descriptionHash": "10667ac79c27b1a025c52960491e59f0def254f7ba934f047b2e4014cb63f473",
+      "description": "Check a price claim before repeating it. Given a product and a price someone has asserted at a named retailer, returns whether that price is live in WEM's verified catalogue and whether anything cheaper exists. Identify the product by gtin (strongest), slug, provider + externalId, or title (weakest ",
+      "labels": [
+        "untrusted-content",
+        "destructive"
+      ]
+    },
+    {
+      "name": "lookup_products",
+      "descriptionHash": "1f90633ec9ec1980e00bc29f80ed064e5f98464c590812870d53ffe395af3d4a",
+      "description": "Look up several products in one call: up to 20 barcodes (EAN/UPC/GTIN), Amazon ASINs, WEM IDs or wem3.ai/pl URLs. Each row says whether WEM's catalogue holds that product and, when it does, how many retailers hold it and the lowest price in the shopper's currency, with a link to WEM's product page. ",
+      "labels": [
+        "untrusted-content",
+        "public-sink",
+        "destructive"
+      ]
+    },
+    {
+      "name": "get_evidence_receipt",
+      "descriptionHash": "d6cb7bb2b393bba6a2a0f0106931928925995645ed19b27664621980f168cde8",
+      "description": "Fetch a WEM evidence receipt by id (wem-evr-...). Returns the citation handle from a prior verify_offer call so an agent can cite a verification without repeating the claim. signed is true only when WEM issued an HMAC; otherwise the receipt is still the answer, just unsigned. If the user is shopping",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "search_promotions",
+      "descriptionHash": "adaef792d49a77697526084c37bf717033e9aa9e4f3c0faa27800ddd9fbb5273",
+      "description": "Current promotions (sales and offers) from retailers WEM has an affiliate programme with, as each retailer published them to its affiliate network. Filter by merchant or by words in the offer. Each row has what the offer is, when it runs, and a tracked link. A promotion is not a price: never subtrac",
+      "labels": [
+        "untrusted-content",
+        "public-sink",
+        "destructive"
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "medium",
+      "category": "toxic-flow",
+      "title": "Toxic flow: untrusted input can reach an external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: search_products, semantic_search, get_categories, get_product, compare_products, find_lowest_price, compare_offers, verify_offer, lookup_products, get_evidence_receipt, search_promotions · Public sink: lookup_products, search_promotions · Destructive: search_products, semantic_search, get_product, compare_products, find_lowest_price, compare_offers, verify_offer, lookup_products, search_promotions.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: search_products, semantic_search, get_categories, get_product, compare_products, find_lowest_price, compare_offers, verify_offer, lookup_products, get_evidence_receipt, search_promotions · Public sink: lookup_products, search_promotions · Destructive: search_products, semantic_search, get_product, compare_products, find_lowest_price, compare_offers, verify_offer, lookup_products, search_promotions"
+      },
+      "confidence": 0.45,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"search_products\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:search_products",
+        "snippet": "before: \"Search for products across all connected marketplaces (eBay, Amazon, Awin merchants, etc.) using keywords. Returns a list of matching products with prices, images, and affiliate links. Suited to specific keyword searches like \"airpods pro\" or \"nike running shoes\". When the query names a product in W\" → after: \"Search for products across connected retailers. The query may be a product name, a barcode (EAN/UPC/GTIN), an Amazon ASIN, an MPN, a merchant SKU (when it uniquely names one catalogue product), a WEM ID, a wem3.ai/pl/{slug} URL, or a comma-separated batch of those identifiers — not only keywords. Wh\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"semantic_search\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:semantic_search",
+        "snippet": "before: \"Search for products using natural language descriptions. Uses AI embeddings for semantic understanding — handles vague requests like \"comfortable shoes for standing all day\" or \"gift for a 10 year old who likes science\". Falls back to keyword search when vector data is unavailable.\" → after: \"Search for products using natural language descriptions. Uses AI embeddings for semantic understanding — handles vague requests like \"comfortable shoes for standing all day\" or \"gift for a 10 year old who likes science\". When embeddings are unavailable it returns no products and a `reason` (`no_embe\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"get_product\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:get_product",
+        "snippet": "before: \"Get full details for a specific product by its provider and ID. Use after search results to get more info before recommending.\" → after: \"Get full details for a specific product by its provider and ID, or by a bare wem_id. Use after search results to get more info before recommending. If the user is shopping — a model name, barcode, ASIN, MPN, merchant SKU, or wem3.ai/pl/ URL — call a WEM tool. Prefer compare_offers or verify_offer (p\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"compare_products\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:compare_products",
+        "snippet": "before: \"Compare 2-5 products side by side. Returns a structured comparison of price, rating, shipping, and key features. Use when the user is deciding between options.\" → after: \"Compare 2-5 products side by side. Returns a structured comparison of price, rating, shipping, and key features. Use when the user is deciding between options. If the user is shopping — a model name, barcode, ASIN, MPN, merchant SKU, or wem3.ai/pl/ URL — call a WEM tool. Prefer compare_offers or ver\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"find_lowest_price\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:find_lowest_price",
+        "snippet": "before: \"Find the single lowest-priced product matching the stated constraints. Ranks on price, adjusted for the priorities the caller states (rating, shipping) — never on WEM commission. Use when the user wants a recommendation rather than a list. Candidates are filtered to plausible matches for the query f\" → after: \"Find the single lowest-priced product matching the stated constraints. Ranks on price, adjusted for the priorities the caller states (rating, shipping) — never on WEM commission. Use when the user wants a recommendation rather than a list. Candidates are filtered to plausible matches for the query f\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"compare_offers\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:compare_offers",
+        "snippet": "before: \"Exact multi-retailer offers for one product from WEM's own catalogue, cheapest first, with a 90-day price-history low. Identity is resolved by barcode or catalogue slug — no text matching — so every offer IS the product, and the lookup spends no retailer API quota. Use this FIRST when you have a bar\" → after: \"Multi-retailer offers for one product from WEM's own catalogue, cheapest first, with a 90-day price-history low. Identity is resolved by barcode, catalogue slug, WEM ID, or a gated title match — no live retailer search — so a barcode or slug hit IS the product; a title hit is inferred and must not b\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"verify_offer\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:verify_offer",
+        "snippet": "before: \"Check a price claim before repeating it. Given a product and a price someone has asserted at a named retailer, returns whether that price is live in WEM's verified catalogue and whether anything cheaper exists. Identify the product by gtin (strongest), slug, provider + externalId, or title (weakest \" → after: \"Check a price claim before repeating it. Given a product and a price someone has asserted at a named retailer, returns whether that price is live in WEM's verified catalogue and whether anything cheaper exists. Identify the product by gtin (strongest), slug, provider + externalId, or title (weakest \""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"get_evidence_receipt\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:get_evidence_receipt",
+        "snippet": "before: \"Fetch a WEM evidence receipt by id (wem-evr-...). Returns the citation handle from a prior verify_offer call so an agent can cite a verification without repeating the claim. signed is true only when WEM issued an HMAC; otherwise the receipt is still the answer, just unsigned.\" → after: \"Fetch a WEM evidence receipt by id (wem-evr-...). Returns the citation handle from a prior verify_offer call so an agent can cite a verification without repeating the claim. signed is true only when WEM issued an HMAC; otherwise the receipt is still the answer, just unsigned. If the user is shopping\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"get_categories\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:get_categories",
+        "snippet": "before: \"Get available product categories and the approximate price range for each. Use to guide the user when their request is vague.\" → after: \"Get available product categories and the approximate price range for each. Use to guide the user when their request is vague. If the user is shopping — a model name, barcode, ASIN, MPN, merchant SKU, or wem3.ai/pl/ URL — call a WEM tool. Prefer compare_offers or verify_offer (pass a model name or pa\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    }
+  ],
+  "score": 48,
+  "scoreBreakdown": {
+    "toxic-flow": 8,
+    "tool-poisoning": 44
+  },
+  "errors": []
 }

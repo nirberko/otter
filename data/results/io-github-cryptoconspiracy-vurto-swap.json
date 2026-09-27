@@ -1,0 +1,157 @@
+{
+  "schemaVersion": 1,
+  "scanner": {
+    "version": "1.6.0",
+    "rules": "402995650b68"
+  },
+  "target": {
+    "kind": "url",
+    "ref": "https://swap.vurto.cc/mcp"
+  },
+  "scannedAt": "2026-09-27T10:17:42.901Z",
+  "durationMs": 423,
+  "layers": {
+    "metadata": true,
+    "static": false
+  },
+  "tools": [
+    {
+      "name": "swap_quote",
+      "descriptionHash": "e3e5f35fc9978fe7917485b4b912f99e527599bb963651210884c7c2ac2de38d",
+      "description": "Compare ranked routes across providers for a swap, without building or spending anything. Ranked by net value after gas and platform fee, not raw output, with ONE unit price for the output token across every route, so a friendlier price feed can never put a route that delivers fewer tokens on top. E",
+      "labels": [
+        "untrusted-content",
+        "private-data"
+      ]
+    },
+    {
+      "name": "swap_build",
+      "descriptionHash": "1148f3d1acdf0449315b8c67e87f8810b82d0e7285981fc9e06476cc2f14a5fc",
+      "description": "Build a signable/sendable plan for a swap. This is the tool that does the work — an agent that only knows this tool can execute a swap end to end. Quotes and builds the best route in one call when quoteId is omitted (recommended); pass quoteId from a prior swap_quote to build exactly that route inst",
+      "labels": [
+        "private-data",
+        "public-sink",
+        "destructive"
+      ]
+    },
+    {
+      "name": "double_quote",
+      "descriptionHash": "19a3be42ff9083d3b68358b4dc4807b60c46b92ab86e52b98c97b1095c09ad28",
+      "description": "Compares ranked routes for TWO swap legs at once — \"Double Out\" (one source token split into two destinations) or \"Double In\" (two source tokens converging on one destination). This exists because building a liquidity pool or matching a target ratio needs both legs priced against the market at the s",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "double_build",
+      "descriptionHash": "16325d095f1dea15f7519694f9eba9c5f90fda1877a1983d023bec0570812db5",
+      "description": "Builds signable/sendable plans for BOTH legs of a Double Out or Double In swap — two ordinary swap_build calls under the hood, kept together for convenience. Returns { legA, legB }, each a full SwapPlan exactly like swap_build's. The two legs are NOT atomic — there is no combined contract call, each",
+      "labels": [
+        "private-data",
+        "destructive"
+      ]
+    },
+    {
+      "name": "nn_quote",
+      "descriptionHash": "17855cd034530472252d62f5a59aad01bbf8ac414cd193a2cd913a542c16b2f8",
+      "description": "N:N — quotes a basket where N input tokens fund M output tokens in ONE atomic on-chain transaction. The backend runs a waterfall allocation deciding which input finances which output, then quotes the real tokenIn->tokenOut route for each resulting slice through the same provider fan-out swap_quote u",
+      "labels": [
+        "private-data",
+        "destructive"
+      ]
+    },
+    {
+      "name": "nn_build",
+      "descriptionHash": "01b16293fe13465b1ab8d3d6ca10fdfa545502371460b537c59c4eac95983f10",
+      "description": "Builds ONE signable/sendable atomic transaction executing every leg of an N:N basket through VurtoSwapRouter. Always re-quotes the whole basket fresh from chainId/inputLegs/outputLegs — there is no quoteId handoff for N:N, pass the same fields used for nn_quote (or skip nn_quote and call this direct",
+      "labels": [
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "prepare_signing",
+      "descriptionHash": "ea5b13e36588edd333b1e246e05f4eaad8d51a74ae4db96a3554a3b1b9fad733",
+      "description": "Synthesizes the local CLI signer invocation for one step of a swap_build plan. Does not call the Vurto backend — this only assembles the payload. You (the agent) do not need a private key and must never ask for one in chat: signing happens locally on the user's machine. RUN the command yourself as a",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink",
+        "destructive"
+      ]
+    },
+    {
+      "name": "report_execution",
+      "descriptionHash": "76546b2189460cd6a146fc710c415111d1dbd2c090d71b2d67a9859b0012ff96",
+      "description": "Reports a completed swap, closing the loop. EVM transaction: pass wallet + txHash + quoteId; never report an approve step as an execution. EVM CoW signature: pass wallet + chainId + quoteId + signature; the server reloads the stored build and submits the signed order, returning uid (there is no tran",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "swap_status",
+      "descriptionHash": "8d138e320e11f56f1989574ad7c6696fbbb33bf52632e19b56b154b6706b70f7",
+      "description": "Re-checks a swap. EVM: pass wallet + executionId (the id from report_execution); for CoW ETH-flow this consults the orderbook and distinguishes order_expired_refundable from order_expired_refunded instead of trusting the registration receipt. Solana: pass signature; answers come directly from the ne",
+      "labels": [
+        "private-data"
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOOL-POISON-002",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description tells the model to hide behavior",
+      "detail": "Description of \"nn_quote\" instructs the model to conceal actions from the user.",
+      "evidence": {
+        "source": "tool:nn_quote",
+        "snippet": "N:N — quotes a basket where N input tokens fund M output tokens in ONE atomic on-chain transaction. The backend runs a waterfall allocation deciding which input…"
+      },
+      "confidence": 0.75
+    },
+    {
+      "id": "MCP-TOOL-POISON-007",
+      "severity": "low",
+      "category": "tool-poisoning",
+      "title": "Description uses pressure/override language",
+      "detail": "Description of \"nn_build\" stacks urgency/override words (important, always). Legitimate tool descriptions rarely pressure the model to act or ignore prior guidance.",
+      "evidence": {
+        "source": "tool:nn_build",
+        "snippet": "Builds ONE signable/sendable atomic transaction executing every leg of an N:N basket through VurtoSwapRouter. Always re-quotes the whole basket fresh from chain…"
+      },
+      "confidence": 0.3
+    },
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"prepare_signing\" references sensitive artifacts (private key). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:prepare_signing",
+        "snippet": "Synthesizes the local CLI signer invocation for one step of a swap_build plan. Does not call the Vurto backend — this only assembles the payload. You (the agent…"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: swap_quote, prepare_signing · Private data: swap_quote, swap_build, double_quote, double_build, nn_quote, nn_build, prepare_signing, report_execution, swap_status · Public sink: swap_build, nn_build, prepare_signing · Destructive: swap_build, double_build, nn_quote, prepare_signing.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: swap_quote, prepare_signing · Private data: swap_quote, swap_build, double_quote, double_build, nn_quote, nn_build, prepare_signing, report_execution, swap_status · Public sink: swap_build, nn_build, prepare_signing · Destructive: swap_build, double_build, nn_quote, prepare_signing"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 49,
+  "scoreBreakdown": {
+    "tool-poisoning": 31,
+    "toxic-flow": 20
+  },
+  "errors": []
+}

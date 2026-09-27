@@ -8,22 +8,42 @@
     "kind": "url",
     "ref": "https://api.onsa.ai/api/mcp"
   },
-  "scannedAt": "2026-09-10T09:15:06.187Z",
-  "durationMs": 786,
+  "scannedAt": "2026-09-27T10:13:27.701Z",
+  "durationMs": 906,
   "layers": {
     "metadata": true,
     "static": false
   },
   "tools": [
     {
+      "name": "preview_shortlist",
+      "descriptionHash": "4c2f96ca115a393361451836d6734eae6a6debdc922e48980abfd630018bb691",
+      "description": "Prepares a preview of 1–50 selected prospects from a campaign the user takes part in, and publishes nothing. The snapshot holds a list title, which is the campaign's name, the note, and for each person only a name, role, company, LinkedIn profile and, when includeRationale is true, a fit rating and "
+    },
+    {
+      "name": "create_shortlist",
+      "descriptionHash": "43a905fa24ed180c26e427b9d65bb5c78ed5a3cf5629d4fcd78adc5375383667",
+      "description": "Publishes a preview_shortlist snapshot as a link. It requires the previewKey that preview_shortlist returned, and confirmPublic: true. The server itself requests no confirmation from the user: confirmPublic: true records the caller's statement that the user reviewed this snapshot and confirmed publi",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "revoke_shortlist",
+      "descriptionHash": "9ff825a4a485aff2ea2cff9924920fb19e343f4cf1dd8f8326e898b6236c606e",
+      "description": "Revokes a list link by the id create_shortlist returned; only the user who created the link can revoke it. Future views stop immediately; previously copied or downloaded information cannot be recalled."
+    },
+    {
       "name": "find_leads",
-      "descriptionHash": "57217862a41e92683564762ea8822ddc6f8d3f6c655f316888540ce779e76a13",
-      "description": "Starts a live B2B lead search with Onsa's agent, matching real people (with LinkedIn profiles) against the workspace's ICP. Takes a natural-language brief - titles, company type, geography, e.g. 'find 5 fintech founders in NYC'. Returns a jobId immediately; the search itself usually takes 3-10 minut"
+      "descriptionHash": "673bf9b049bf01388111b3c3cf1ae0e03d66ba8fc35a6c2d3bb4068780c319e9",
+      "description": "Starts a live B2B lead search with Onsa's agent, matching real people (with LinkedIn profiles) against the workspace's ICP. Takes a natural-language brief - titles, company type, geography, e.g. 'find 5 fintech founders in NYC'. Returns a jobId immediately, with campaignUrl and a `progress` note. Th"
     },
     {
       "name": "fetch_leads",
-      "descriptionHash": "cfd4d8bacbdc7ed8d3ca87b1d4ab0352fabba47b8f47e606d741dc0bc464d120",
-      "description": "Returns the status and any results of a find_leads job, by jobId. Status values: \"pending\" - the search is still running, though `leads` may already hold a partial list; \"completed\" - the agent delivered a batch, which is not a guarantee that no more will arrive, and `total` may still rise; \"stalled",
+      "descriptionHash": "35572ffd7f75f01b907c1733a94f994704cdd3566e9ace37d7267702b27ee9a1",
+      "description": "Returns the status and any results of a find_leads or continue_campaign job, by jobId. Status values are \"pending\", \"completed\" and \"stalled\", and `leads` can hold a partial list while \"pending\". For a find_leads job: \"pending\" while it has no leads, the agent has not answered and it is under about ",
       "labels": [
         "untrusted-content",
         "public-sink"
@@ -60,8 +80,8 @@
     },
     {
       "name": "list_pending_outreach",
-      "descriptionHash": "db442cbc6f0e5f867c4129513d9c10e5517215b7fbe41da51863f3ea0de6acfd",
-      "description": "Lists outreach messages the agent has drafted that are waiting for a human to approve - the 'a message for X is ready' queue. Each entry carries the draft text, the lead it is for, and why that lead scored as it did. Omitting campaignId covers the whole workspace. This tool sends nothing: rewrite_ou",
+      "descriptionHash": "a47bb1a183c2834468f88a1cf011ed36134059bd8bf200c1a906fe341d21a4ce",
+      "description": "Lists outreach messages the agent has drafted that are waiting for a human to approve - the 'a message for X is ready' queue. Each entry carries the draft text, the lead it is for, and why that lead scored as it did. Without campaignId, the list covers every campaign in this workspace that the user ",
       "labels": [
         "untrusted-content"
       ]
@@ -95,8 +115,8 @@
     },
     {
       "name": "list_next_steps",
-      "descriptionHash": "1f56f1ae75202e92e113cdfe3f201467c79b698e21e1dae55e8450407600ff68",
-      "description": "Returns what this campaign still needs from a human, as a ranked to-do list: people who replied, people who accepted an invite but were never messaged, drafts waiting for approval, leads found but never contacted, and setup that is missing. It answers 'what should I do about this campaign today', wh",
+      "descriptionHash": "903b3c88ea3e4a3f04143dc06e764ce5ad9cd5e6fdd8e3f6b1c2a16238346b69",
+      "description": "Returns read-only guidance for what to do next. Without campaignId, it returns the first-search question, active search progress, or campaign names and statuses to choose from. A single accessible campaign is resolved automatically. With campaignId, it returns a ranked to-do list: people who replied",
       "labels": [
         "untrusted-content",
         "private-data"
@@ -114,21 +134,87 @@
   ],
   "findings": [
     {
+      "id": "MCP-TOOL-POISON-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description issues instructions to the model",
+      "detail": "Description of \"fetch_leads\" contains imperative instructions directed at the AI assistant rather than describing the tool. This is the core tool-poisoning technique.",
+      "evidence": {
+        "source": "tool:fetch_leads",
+        "snippet": "Returns the status and any results of a find_leads or continue_campaign job, by jobId. Status values are \"pending\", \"completed\" and \"stalled\", and `leads` can h…"
+      },
+      "confidence": 0.7,
+      "remediation": "Treat the server as untrusted; the model may obey embedded instructions."
+    },
+    {
       "id": "MCP-TOXIC-FLOW-001",
       "severity": "high",
       "category": "toxic-flow",
       "title": "Lethal trifecta: untrusted input + private data + external sink",
-      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: fetch_leads, get_campaign, list_pending_outreach, list_replies, list_next_steps, get_campaign_stats · Private data: list_next_steps · Public sink: fetch_leads, list_campaigns, send_outreach, list_replies, get_campaign_stats · Destructive: continue_campaign.",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: create_shortlist, fetch_leads, get_campaign, list_pending_outreach, list_replies, list_next_steps, get_campaign_stats · Private data: create_shortlist, list_next_steps · Public sink: create_shortlist, fetch_leads, list_campaigns, send_outreach, list_replies, get_campaign_stats · Destructive: continue_campaign.",
       "evidence": {
         "source": "server:mcp",
-        "snippet": "Untrusted content: fetch_leads, get_campaign, list_pending_outreach, list_replies, list_next_steps, get_campaign_stats · Private data: list_next_steps · Public sink: fetch_leads, list_campaigns, send_outreach, list_replies, get_campaign_stats · Destructive: continue_campaign"
+        "snippet": "Untrusted content: create_shortlist, fetch_leads, get_campaign, list_pending_outreach, list_replies, list_next_steps, get_campaign_stats · Private data: create_shortlist, list_next_steps · Public sink: create_shortlist, fetch_leads, list_campaigns, send_outreach, list_replies, get_campaign_stats · Destructive: continue_campaign"
       },
       "confidence": 0.6,
       "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"find_leads\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:find_leads",
+        "snippet": "before: \"Starts a live B2B lead search with Onsa's agent, matching real people (with LinkedIn profiles) against the workspace's ICP. Takes a natural-language brief - titles, company type, geography, e.g. 'find 5 fintech founders in NYC'. Returns a jobId immediately; the search itself usually takes 3-10 minut\" → after: \"Starts a live B2B lead search with Onsa's agent, matching real people (with LinkedIn profiles) against the workspace's ICP. Takes a natural-language brief - titles, company type, geography, e.g. 'find 5 fintech founders in NYC'. Returns a jobId immediately, with campaignUrl and a `progress` note. Th\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"fetch_leads\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:fetch_leads",
+        "snippet": "before: \"Returns the status and any results of a find_leads job, by jobId. Status values: \"pending\" - the search is still running, though `leads` may already hold a partial list; \"completed\" - the agent delivered a batch, which is not a guarantee that no more will arrive, and `total` may still rise; \"stalled\" → after: \"Returns the status and any results of a find_leads or continue_campaign job, by jobId. Status values are \"pending\", \"completed\" and \"stalled\", and `leads` can hold a partial list while \"pending\". For a find_leads job: \"pending\" while it has no leads, the agent has not answered and it is under about \""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"list_pending_outreach\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:list_pending_outreach",
+        "snippet": "before: \"Lists outreach messages the agent has drafted that are waiting for a human to approve - the 'a message for X is ready' queue. Each entry carries the draft text, the lead it is for, and why that lead scored as it did. Omitting campaignId covers the whole workspace. This tool sends nothing: rewrite_ou\" → after: \"Lists outreach messages the agent has drafted that are waiting for a human to approve - the 'a message for X is ready' queue. Each entry carries the draft text, the lead it is for, and why that lead scored as it did. Without campaignId, the list covers every campaign in this workspace that the user \""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"list_next_steps\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:list_next_steps",
+        "snippet": "before: \"Returns what this campaign still needs from a human, as a ranked to-do list: people who replied, people who accepted an invite but were never messaged, drafts waiting for approval, leads found but never contacted, and setup that is missing. It answers 'what should I do about this campaign today', wh\" → after: \"Returns read-only guidance for what to do next. Without campaignId, it returns the first-search question, active search progress, or campaign names and statuses to choose from. A single accessible campaign is resolved automatically. With campaignId, it returns a ranked to-do list: people who replied\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
     }
   ],
-  "score": 80,
+  "score": 41,
   "scoreBreakdown": {
+    "tool-poisoning": 39,
     "toxic-flow": 20
   },
   "errors": []

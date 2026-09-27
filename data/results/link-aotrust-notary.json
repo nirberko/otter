@@ -1,0 +1,77 @@
+{
+  "schemaVersion": 1,
+  "scanner": {
+    "version": "1.6.0",
+    "rules": "402995650b68"
+  },
+  "target": {
+    "kind": "url",
+    "ref": "https://api.aotrust.link/mcp"
+  },
+  "scannedAt": "2026-09-27T10:21:58.404Z",
+  "durationMs": 1223,
+  "layers": {
+    "metadata": true,
+    "static": false
+  },
+  "tools": [
+    {
+      "name": "notary_quote",
+      "descriptionHash": "bc8907debf538e97d752f205cf06260c4a679550ec5833b6cfcca3ae714b56dc",
+      "description": "Request a notarisation quote for a work artifact. Returns the cost ($0.01 USDC or NEAR equivalent), a quote_id valid for 600 seconds, the sink account to send payment to, and the PDR schema version. Step 1 of the notarisation flow: quote -> pay -> notarize -> verify.",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "notary_free",
+      "descriptionHash": "6d3d396525489d83a51b33f382cced1c858d05b50c9f08e08065f7ecc3a659b3",
+      "description": "Create a free cryptographic proof of existence (PDR) for a digital artifact without payment. Dual mode: pass work_hash (Mode A, client-computed SHA-256 hex) OR content (Mode B, raw text/code ≤60KB — server hashes it, zero retention). Subject to rate limits (5/IP/day, 1000/day global). Returns shield"
+    },
+    {
+      "name": "notary_notarize",
+      "descriptionHash": "2db81513a60eebcb4b5c3b79ef6e620b9c71b785a2531ed7ac46741d1fa26dfd",
+      "description": "Submit a work artifact for on-chain notarisation (NEAR_DIRECT payment path). PREREQUISITE: Send the NEAR amount from notary_quote to the sink account, then provide the resulting tx_hash here. The server verifies the on-chain payment and submits the notarisation. Returns job_id — use notary_verify to",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "notary_verify",
+      "descriptionHash": "fdc8f1cd3fe45f80fc5ce24091d120fbfbd3442396527abef1e796b96062c757",
+      "description": "Verify a notarisation by job_id. Returns status (pending/anchored/error). If anchored, returns the full PDR record (base64, 239 bytes) with Ed25519 signature verification. Step 4 of the notarisation flow: quote -> pay -> notarize -> verify. Can be polled repeatedly until status changes from 'pending",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "notary_notarize_paid",
+      "descriptionHash": "de0c7b6510cc6439bf8697f3b7bb79d70dfe7394a4cfcc915daa2928d6e30ad7",
+      "description": "Notarize a work hash on AOTrust (mainnet NEAR + Base USDC receipt). $0.01 USDC via x402-over-MCP: call without payment to receive PaymentRequired; retry with params._meta['x402/payment'] = signed PaymentPayload (EIP-3009, scheme exact, eip155:8453). HTTP clients: POST /notarize with x-payment header",
+      "labels": [
+        "untrusted-content",
+        "public-sink"
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: notary_notarize_paid · Private data: notary_verify · Public sink: notary_quote, notary_notarize, notary_notarize_paid.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: notary_notarize_paid · Private data: notary_verify · Public sink: notary_quote, notary_notarize, notary_notarize_paid"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 80,
+  "scoreBreakdown": {
+    "toxic-flow": 20
+  },
+  "errors": []
+}

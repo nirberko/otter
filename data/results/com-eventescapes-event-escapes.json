@@ -8,8 +8,8 @@
     "kind": "url",
     "ref": "https://mcp.eventescapes.com"
   },
-  "scannedAt": "2026-08-12T05:49:41.134Z",
-  "durationMs": 13356,
+  "scannedAt": "2026-09-27T10:04:55.329Z",
+  "durationMs": 22212,
   "layers": {
     "metadata": true,
     "static": false
@@ -17,7 +17,7 @@
   "tools": [
     {
       "name": "search_events",
-      "descriptionHash": "c33097fc258065a197dab832331b2f8571750b5b5d979636ec147e0f534cfa9d",
+      "descriptionHash": "4d3c024ec562e129cb199d56d2d39cf4fe932935a809796c2bf618cf73a58953",
       "description": "Search upcoming sporting and music events bookable on Event Escapes. Covers F1, MotoGP, all major soccer leagues, NFL, NHL, MLB, NBA, tennis Grand Slams, rugby, cricket, golf, volleyball, boxing, MMA, horse racing, athletics, and major concerts. Filter by sport, city, country, or date range. Returns",
       "labels": [
         "untrusted-content"
@@ -25,7 +25,7 @@
     },
     {
       "name": "search_packages",
-      "descriptionHash": "3d68a2db390b11a4dd37c6cb8ceb7f5f3d60bd7a4e18fab7c2c79e67e094f3a5",
+      "descriptionHash": "bcbd7a7542f8aa4586afc61bcb1372c553c68eb8d3b921e0503e5034e3be9ddf",
       "description": "Search hand-curated trip packages bundling event tickets + hotel + experiences with savings vs DIY booking. Packages live on dedicated /packages/ pages and include preview hotel, ticket category, and (sometimes) experience list. Filter by category (concerts, f1, world_cup, tennis, nfl, etc.), city, ",
       "labels": [
         "untrusted-content"
@@ -48,7 +48,7 @@
     },
     {
       "name": "build_event_link",
-      "descriptionHash": "66e6db5dfb98a58c38c1823e61a24a8e6a9d2c9726d68dd521ca81b3f8c1b6f1",
+      "descriptionHash": "396042eee7f85c4fdf702ab101af7d4d9f87f8771299e781b4430a5516d8c69d",
       "description": "Generate a deep link to the Event Escapes event detail page. The user lands on a page where they can review ticket categories, see hotels near the venue (auto-loaded), and complete booking themselves. Optionally pass hotel_id to pin a recommended hotel at the top of the hotels-near-venue list. This ",
       "labels": [
         "untrusted-content"
@@ -56,12 +56,90 @@
     },
     {
       "name": "build_package_link",
-      "descriptionHash": "50ab0f69e45ba929c3bbf3ab26f8c83aabf118c568a04dcfb2ec3e5510f0b3a7",
-      "description": "Generate a deep link to a curated Event Escapes PACKAGE detail page (/packages/{slug}). Packages are hand-curated bundles of event tickets + hotel + experiences with savings vs DIY booking. Use this AFTER calling search_packages to surface a specific package to the user. This does NOT make a reserva"
+      "descriptionHash": "7922899d8be393b899fe734db781b2e766f990ab041009e6b332c87e4d269940",
+      "description": "Generate a deep link to a curated Event Escapes PACKAGE detail page (/packages/{slug}). Packages are hand-curated bundles of event tickets + hotel + experiences with savings vs DIY booking. Takes a package_id or slug returned by search_packages. This does not make a reservation: the user reviews tie"
+    },
+    {
+      "name": "create_payment_link",
+      "descriptionHash": "7d23bc24578f0ec982d93cc34f7a0d47279581e94329175c298f2733826636c2",
+      "description": "Creates a booking cart and returns a secure payment URL the customer uses to pay. Locks live prices for up to 4 items (a hotel room from search_hotels_near_event, event tickets from search_events, or an experience from search_experiences, which comes back as a site link for the customer to complete)",
+      "labels": [
+        "private-data",
+        "public-sink"
+      ]
     }
   ],
-  "findings": [],
-  "score": 100,
-  "scoreBreakdown": {},
+  "findings": [
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp.eventescapes.com\" exposes tools that together enable an exfiltration flow. Untrusted content: search_events, search_packages, build_event_link · Private data: create_payment_link · Public sink: create_payment_link.",
+      "evidence": {
+        "source": "server:mcp.eventescapes.com",
+        "snippet": "Untrusted content: search_events, search_packages, build_event_link · Private data: create_payment_link · Public sink: create_payment_link"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"search_events\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:search_events",
+        "snippet": "before: \"Search upcoming sporting and music events bookable on Event Escapes. Covers F1, MotoGP, all major soccer leagues, NFL, NHL, MLB, NBA, tennis Grand Slams, rugby, cricket, golf, volleyball, boxing, MMA, horse racing, athletics, and major concerts. Filter by sport, city, country, or date range. Returns\" → after: \"Search upcoming sporting and music events bookable on Event Escapes. Covers F1, MotoGP, all major soccer leagues, NFL, NHL, MLB, NBA, tennis Grand Slams, rugby, cricket, golf, volleyball, boxing, MMA, horse racing, athletics, and major concerts. Filter by sport, city, country, or date range. Returns\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"search_packages\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:search_packages",
+        "snippet": "before: \"Search hand-curated trip packages bundling event tickets + hotel + experiences with savings vs DIY booking. Packages live on dedicated /packages/ pages and include preview hotel, ticket category, and (sometimes) experience list. Filter by category (concerts, f1, world_cup, tennis, nfl, etc.), city, \" → after: \"Search hand-curated trip packages bundling event tickets + hotel + experiences with savings vs DIY booking. Packages live on dedicated /packages/ pages and include preview hotel, ticket category, and (sometimes) experience list. Filter by category (concerts, f1, world_cup, tennis, nfl, etc.), city, \""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"build_event_link\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:build_event_link",
+        "snippet": "before: \"Generate a deep link to the Event Escapes event detail page. The user lands on a page where they can review ticket categories, see hotels near the venue (auto-loaded), and complete booking themselves. Optionally pass hotel_id to pin a recommended hotel at the top of the hotels-near-venue list. This \" → after: \"Generate a deep link to the Event Escapes event detail page. The user lands on a page where they can review ticket categories, see hotels near the venue (auto-loaded), and complete booking themselves. Optionally pass hotel_id to pin a recommended hotel at the top of the hotels-near-venue list. This \""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"build_package_link\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:build_package_link",
+        "snippet": "before: \"Generate a deep link to a curated Event Escapes PACKAGE detail page (/packages/{slug}). Packages are hand-curated bundles of event tickets + hotel + experiences with savings vs DIY booking. Use this AFTER calling search_packages to surface a specific package to the user. This does NOT make a reserva\" → after: \"Generate a deep link to a curated Event Escapes PACKAGE detail page (/packages/{slug}). Packages are hand-curated bundles of event tickets + hotel + experiences with savings vs DIY booking. Takes a package_id or slug returned by search_packages. This does not make a reservation: the user reviews tie\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    }
+  ],
+  "score": 43,
+  "scoreBreakdown": {
+    "toxic-flow": 20,
+    "tool-poisoning": 38
+  },
   "errors": []
 }

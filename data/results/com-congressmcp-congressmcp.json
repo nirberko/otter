@@ -1,0 +1,125 @@
+{
+  "schemaVersion": 1,
+  "scanner": {
+    "version": "1.6.0",
+    "rules": "402995650b68"
+  },
+  "target": {
+    "kind": "url",
+    "ref": "https://www.congressmcp.com/mcp"
+  },
+  "scannedAt": "2026-09-27T10:14:49.767Z",
+  "durationMs": 786,
+  "layers": {
+    "metadata": true,
+    "static": false
+  },
+  "tools": [
+    {
+      "name": "list_subscription_plans",
+      "descriptionHash": "24d970d318694ca6356442e2375f3731fbee376a30e52ea0c639ff51de5e7f5f",
+      "description": "Use this before checkout to show the current CongressMCP plans and exact server-configured prices. Amounts are integer minor currency units, such as cents, and listing plans never starts a checkout or charge. Do not guess a price or use a plan identifier that is not returned here."
+    },
+    {
+      "name": "start_email_signup",
+      "descriptionHash": "9eef4e5ac2a508a7ca17306f86e66335ca04589785a82578a50224fcc932d503",
+      "description": "Use this when the user wants to create or recover a CongressMCP account in chat. It sends a six-digit, 15-minute code to the supplied email after explicit acceptance of the terms and privacy policy. It does not start a subscription, expose whether an account already exists, or charge anything.",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "verify_email_signup",
+      "descriptionHash": "b11328940edf3d6efa3371cb517ec77d6e3ddb07facdd272c6e47fd38ba71611",
+      "description": "Use this after start_email_signup when the user provides the six-digit code from their email. It verifies email control, activates the free account when needed, and returns a short-lived onboarding token for checkout and status calls. The token is not an OAuth token or API key and cannot access Cong",
+      "labels": [
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "create_subscription_checkout",
+      "descriptionHash": "827b5306fec6a0960e218351be1d686870a7233793c8f5db7d039e8e42dbaa9a",
+      "description": "Use this only after email verification, a plan selection from list_subscription_plans, and explicit user confirmation. It creates an idempotent Stripe-hosted subscription Checkout tied to the verified account and returns the external checkout URL. Stripe collects card details outside chat, and creat",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "get_subscription_status",
+      "descriptionHash": "c3247d21fc9fb5a4cf859b687dbf2c379cbc2acfa550322240ad1c880ea54979",
+      "description": "Use this after checkout to check whether Stripe’s signed webhook has activated the verified account. It reads the current server-side entitlement and never retries payment or changes billing. When paid is true, use connect_congressmcp_account to authorize this chat.",
+      "labels": [
+        "untrusted-content",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "connect_congressmcp_account",
+      "descriptionHash": "6c832d7b90b3bd80d556b53e921390682e71d2f876010f693f94a36de4b34111",
+      "description": "Use this after subscription activation when the user wants this chat to access CongressMCP. It returns the MCP OAuth challenge so the host can open CongressMCP’s authorization and consent flow. Never ask the user to paste a password, API key, access token, or refresh token into chat.",
+      "labels": [
+        "untrusted-content",
+        "private-data"
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"verify_email_signup\" references sensitive artifacts (auth token). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:verify_email_signup",
+        "snippet": "Use this after start_email_signup when the user provides the six-digit code from their email. It verifies email control, activates the free account when needed,…"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-SCHEMA-SMELL-001",
+      "severity": "medium",
+      "category": "schema-smell",
+      "title": "Read-only tool requests dangerous parameters",
+      "detail": "Tool \"verify_email_signup\" appears informational but accepts parameters (code) that enable code/file/secret access.",
+      "evidence": {
+        "source": "tool:verify_email_signup",
+        "snippet": "email, code"
+      },
+      "confidence": 0.55
+    },
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"connect_congressmcp_account\" references sensitive artifacts (password, authorization). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:connect_congressmcp_account",
+        "snippet": "Use this after subscription activation when the user wants this chat to access CongressMCP. It returns the MCP OAuth challenge so the host can open CongressMCP’…"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: get_subscription_status, connect_congressmcp_account · Private data: verify_email_signup, connect_congressmcp_account · Public sink: start_email_signup, verify_email_signup, create_subscription_checkout, get_subscription_status.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: get_subscription_status, connect_congressmcp_account · Private data: verify_email_signup, connect_congressmcp_account · Public sink: start_email_signup, verify_email_signup, create_subscription_checkout, get_subscription_status"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 42,
+  "scoreBreakdown": {
+    "tool-poisoning": 30,
+    "schema-smell": 8,
+    "toxic-flow": 20
+  },
+  "errors": []
+}

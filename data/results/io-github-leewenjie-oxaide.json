@@ -1,0 +1,82 @@
+{
+  "schemaVersion": 1,
+  "scanner": {
+    "version": "1.6.0",
+    "rules": "402995650b68"
+  },
+  "target": {
+    "kind": "url",
+    "ref": "https://oxaide.com/mcp"
+  },
+  "scannedAt": "2026-09-27T10:09:11.838Z",
+  "durationMs": 1817,
+  "layers": {
+    "metadata": true,
+    "static": false
+  },
+  "tools": [
+    {
+      "name": "create_audit",
+      "descriptionHash": "40e1f4c4e5bc95a6da7ebcd628a291448be003a7fce350421677a6159fafd79f",
+      "description": "Create a private research job (Oxaide). Returns a job id immediately; the AI quote (S$49 Quick check / S$390 Pack / S$1500 Board pack) is emailed within ~15m. Pay with pay_audit before any work starts.",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "ping_check",
+      "descriptionHash": "6c8adda641569410a7534b42d47893ff30fa758feb61be005a5b3f3432a48e94",
+      "description": "Run one prepaid registry ping (Quick check, ~5 min, result by email + status page). Needs a pack_id from a ping-pack purchase (100 pings S$150, 90d) — the delivery email must match the purchase email (+tags ok). No pack? POST /api/brief/ping-pack first (see https://oxaide.com/pricing#pings).",
+      "labels": [
+        "untrusted-content",
+        "public-sink",
+        "destructive"
+      ]
+    },
+    {
+      "name": "get_audit",
+      "descriptionHash": "60e182c21cab86b120369cd8eb1925d8d341322f2efc8a18d1d327a7df0c51ba",
+      "description": "Get one job: status, quoted tier/price, payment state, delivery state. Poll after create_audit."
+    },
+    {
+      "name": "pay_audit",
+      "descriptionHash": "c71a79cd775759a850ef8ec3db7ff9219190e697e06cbb32c52e7cd1635c3834",
+      "description": "Pay a quoted job. method=stripe returns a Stripe Checkout URL (cards + PayNow). method=x402 (default) returns x402 v2 payment requirements (USDC on Base); pay, then call again with the PAYMENT-SIGNATURE header or _meta[\"x402/payment\"] to settle. Work starts only after payment is verified AND settled"
+    },
+    {
+      "name": "get_audit_result",
+      "descriptionHash": "7f82fb18a2e2da194a45acd77c54419419f01140bb6274afe75402ad363dca5a",
+      "description": "Get the delivered answer/pack for a job (markdown summary; files arrive by email + status page).",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "list_audits",
+      "descriptionHash": "ee5e6cbe7dec09374696af8586e7befa55b83a483887efb8c5606de9431d443d",
+      "description": "Admin only: list recent jobs. Requires admin_token matching the server MCP_ADMIN_TOKEN (disabled when unset). Never open to the public."
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: ping_check, get_audit_result · Private data: create_audit, get_audit_result · Public sink: ping_check, get_audit_result · Destructive: ping_check.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: ping_check, get_audit_result · Private data: create_audit, get_audit_result · Public sink: ping_check, get_audit_result · Destructive: ping_check"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 80,
+  "scoreBreakdown": {
+    "toxic-flow": 20
+  },
+  "errors": []
+}

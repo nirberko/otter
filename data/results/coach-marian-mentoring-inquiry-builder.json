@@ -8,13 +8,30 @@
     "kind": "url",
     "ref": "https://www.marian.coach/mcp/mentoring"
   },
-  "scannedAt": "2026-08-11T05:31:33.276Z",
-  "durationMs": 1984,
+  "scannedAt": "2026-09-27T10:04:18.155Z",
+  "durationMs": 1310,
   "layers": {
     "metadata": true,
     "static": false
   },
   "tools": [
+    {
+      "name": "get_started",
+      "descriptionHash": "5999a13ad04d0b73701b881b7c3067bbd424d9ff65fadee94d9df6051d6e7443",
+      "description": "Call this for a greeting (hi, hello), a connectivity/liveness test, 'what can you do', or any message too general to match a specific tool below. Returns the full menu of real questions this server answers, each mapped to the tool name that answers it. For someone actually considering mentoring, ski",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "get_more_tools",
+      "descriptionHash": "5a8ee601913b287aab24daa4118f870b3d493456fb1d6900ad64c3ad24536272",
+      "description": "Check for additional tools whenever your task might benefit from specialized capabilities, even if existing tools could work as a fallback. Also the right tool for a bare greeting (hi, hello), a connectivity/liveness test, or any message too general to match a specific tool below — pass it as `conte",
+      "labels": [
+        "untrusted-content",
+        "public-sink"
+      ]
+    },
     {
       "name": "get_mentoring_options",
       "descriptionHash": "e5226cf1717be3a6968e2740dca77ebe117907e43fab9676c7ada03ee9df96d4",
@@ -37,8 +54,21 @@
     },
     {
       "name": "book_intro_call",
-      "descriptionHash": "d01d825ad9e362412b0841d20c945617390c0e1bfd492a6f12794a4ec9638a4c",
-      "description": "The human step, and the one that makes the AI-channel discount real: a direct booking link for the free 30-minute intro with Marian. Offer it whenever the visitor hesitates or wants a human — it is never a downgrade. If an offer was already sent, remind them to paste their claim code into the bookin"
+      "descriptionHash": "a06bd78e7b78b3789cacaaeef957285831665b43cd5756982842ca115fb9e5fe",
+      "description": "THE DEFAULT EXIT for anyone who has not decided. A direct booking link for the free 30-minute intro with Marian. Offer it on hesitation, on a price objection, when the visitor cannot name their problem, after an error, and to anyone who wants to talk before paying. It is never a downgrade, and a boo"
+    },
+    {
+      "name": "book_first_session",
+      "descriptionHash": "1f215f5a636759f1fe92bb766a6e0b51664de0372a60f24b749b5070b27df90b",
+      "description": "THE CLOSE, for someone who has already decided. Returns the direct booking link for a paid 60-minute first session, plus the payment terms. Call this INSTEAD of book_intro_call once send_mentoring_offer has succeeded and the visitor has agreed the exact price — it removes a step from a buyer who is "
+    },
+    {
+      "name": "check_booking",
+      "descriptionHash": "e451444f321ebde0ca91792889ef32ce73613215e655a76dc0b4a2d9ffdb3e99",
+      "description": "Confirms, from the CRM rather than from what the visitor says, whether their booking landed. Call it after handing over a booking link and the visitor says they have booked — a booking is only real once Reclaim's webhook has written it, which takes a few seconds. Returns the pipeline stage and wheth",
+      "labels": [
+        "public-sink"
+      ]
     },
     {
       "name": "send_mentoring_offer",
@@ -53,22 +83,61 @@
   ],
   "findings": [
     {
+      "id": "MCP-SCHEMA-SMELL-001",
+      "severity": "medium",
+      "category": "schema-smell",
+      "title": "Read-only tool requests dangerous parameters",
+      "detail": "Tool \"compose_mentoring_brief\" appears informational but accepts parameters (context) that enable code/file/secret access.",
+      "evidence": {
+        "source": "tool:compose_mentoring_brief",
+        "snippet": "audience, role_band, motivation, focus_area_ids, success_definition, offer_id, leaders_count, company_context, visibility, context"
+      },
+      "confidence": 0.55
+    },
+    {
+      "id": "MCP-SCHEMA-SMELL-001",
+      "severity": "medium",
+      "category": "schema-smell",
+      "title": "Read-only tool requests dangerous parameters",
+      "detail": "Tool \"send_mentoring_offer\" appears informational but accepts parameters (context) that enable code/file/secret access.",
+      "evidence": {
+        "source": "tool:send_mentoring_offer",
+        "snippet": "name, email, audience, role_band, motivation, focus_area_ids, success_definition, offer_id, price_agreed, company, leaders_count, free_sessions_requested, start_date, visibility, notes, context"
+      },
+      "confidence": 0.55
+    },
+    {
       "id": "MCP-TOXIC-FLOW-001",
       "severity": "high",
       "category": "toxic-flow",
       "title": "Lethal trifecta: untrusted input + private data + external sink",
-      "detail": "Server \"mentoring\" exposes tools that together enable an exfiltration flow. Untrusted content: send_mentoring_offer · Private data: send_mentoring_offer · Public sink: send_mentoring_offer.",
+      "detail": "Server \"mentoring\" exposes tools that together enable an exfiltration flow. Untrusted content: get_started, get_more_tools, send_mentoring_offer · Private data: send_mentoring_offer · Public sink: get_more_tools, check_booking, send_mentoring_offer.",
       "evidence": {
         "source": "server:mentoring",
-        "snippet": "Untrusted content: send_mentoring_offer · Private data: send_mentoring_offer · Public sink: send_mentoring_offer"
+        "snippet": "Untrusted content: get_started, get_more_tools, send_mentoring_offer · Private data: send_mentoring_offer · Public sink: get_more_tools, check_booking, send_mentoring_offer"
       },
       "confidence": 0.6,
       "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"book_intro_call\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:book_intro_call",
+        "snippet": "before: \"The human step, and the one that makes the AI-channel discount real: a direct booking link for the free 30-minute intro with Marian. Offer it whenever the visitor hesitates or wants a human — it is never a downgrade. If an offer was already sent, remind them to paste their claim code into the bookin\" → after: \"THE DEFAULT EXIT for anyone who has not decided. A direct booking link for the free 30-minute intro with Marian. Offer it on hesitation, on a price objection, when the visitor cannot name their problem, after an error, and to anyone who wants to talk before paying. It is never a downgrade, and a boo\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
     }
   ],
-  "score": 80,
+  "score": 48,
   "scoreBreakdown": {
-    "toxic-flow": 20
+    "schema-smell": 12,
+    "toxic-flow": 20,
+    "tool-poisoning": 20
   },
   "errors": []
 }

@@ -23,4 +23,116 @@
       "message": "Streamable HTTP error: Error POSTing to endpoint: {\"error\":\"unauthorized\",\"message\":\"API-key auth required\",\"retryable\":false}"
     }
   ]
+}ier AI models in parallel and extracts typed reactions (KEEP/EXPLORE/CHALLENGE/CORE/SHIFT) into a claim map of where they agree and diverge.\n\n**Returns immediately (async).** The response is a compa",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "append_round",
+      "descriptionHash": "e0d86eeb6b993cc20ffb16f06f8d633a374af599cb185946774f4c55db298ec6",
+      "description": "Add a follow-up round to an existing deliberation session.\n\nUse after reading the previous round's claim_map and responses to steer the conversation. The `snippets` array lets you forward specific quotes from the prior round's responses with a typed reaction:\n- KEEP: this point is strong, preserve i",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "wait_for_round",
+      "descriptionHash": "e31cf4a9068f19547e1cd20e15289d44311fe2f95b09b122e3aee2a76e84bb67",
+      "description": "Wait for a deliberation round to finish, then return the full session.\n\nThis is the agent-friendly follow-up to `create_deliberation` and `append_round`: those tools return a fast ack; this tool polls the lightweight progress endpoint internally and fetches the full transcript only once terminal sta",
+      "labels": [
+        "untrusted-content",
+        "private-data"
+      ]
+    },
+    {
+      "name": "get_session",
+      "descriptionHash": "5e6826cfb1db0098a4310c3a92f4b94914e2d0c2b7c7c14a0cf2ae9c3b803d3b",
+      "description": "Fetch the full state of a deliberation session including all rounds, responses, snippets, and claim maps.\n\nUse to re-read completed session state. While a round is running, prefer `wait_for_round` so you do not repeatedly fetch the full transcript.\n\nThe claim_map on each round is the highest-signal ",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "list_sessions",
+      "descriptionHash": "bb9fbe280c108979c88b0957ca5485abbc00b161cb3fd89dc82ed74c18fcf5fc",
+      "description": "List the caller's deliberation sessions, optionally filtered by status.\n\nMost useful for agents managing multiple concurrent sessions — use `status: 'ready'` to find sessions awaiting your next round. Returns a lightweight list (no response bodies); call `get_session` for full content."
+    },
+    {
+      "name": "list_models",
+      "descriptionHash": "efb0633d3f6ce5cbe919d3620131ce32f1d9b335f19a725c2eba3c8590d35f23",
+      "description": "List the full model catalog. Returns id, provider, display name, context window, max output tokens, pricing, and a per-model `available` verdict for your account (with `unavailable_reason` when false). Nothing is filtered out — `available` is what varies by caller.\n\nCall before `create_deliberation`",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "share_session",
+      "descriptionHash": "53e95828c54db9a7d95aaa7633ffe55f5398696546ec4121e29207de1af264ee",
+      "description": "Share a deliberation session at a public URL — anyone with the link can view it in the read-only reader deck.\n\nReturns the public `share_url` plus two machine-readable twins: `markdown_url` (the full transcript with per-round claim maps — the review/audit surface) and `brief_url` (synthesis-only tri",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "get_credit",
+      "descriptionHash": "5b516c6f4863fd1860b7726ad4b77bf3da12f0fa33e86efeb722a4437e012333",
+      "description": "Fetch the caller's current credit wallet balance.\n\nReturns `effective_balance_usd` (markup-included, what's left to spend). Rounds are admitted while that balance is above zero, so this is the preflight check outside the write-op flow: above zero means the next round will run; at or below zero means",
+      "labels": [
+        "private-data",
+        "destructive"
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOOL-POISON-007",
+      "severity": "low",
+      "category": "tool-poisoning",
+      "title": "Description uses pressure/override language",
+      "detail": "Description of \"append_round\" stacks urgency/override words (immediately, attention). Legitimate tool descriptions rarely pressure the model to act or ignore prior guidance.",
+      "evidence": {
+        "source": "tool:append_round",
+        "snippet": "Add a follow-up round to an existing deliberation session. Use after reading the previous round's claim_map and responses to steer the conversation. The `snippe…"
+      },
+      "confidence": 0.3
+    },
+    {
+      "id": "MCP-TOOL-POISON-007",
+      "severity": "low",
+      "category": "tool-poisoning",
+      "title": "Description uses pressure/override language",
+      "detail": "Description of \"get_session\" stacks urgency/override words (immediately, never). Legitimate tool descriptions rarely pressure the model to act or ignore prior guidance.",
+      "evidence": {
+        "source": "tool:get_session",
+        "snippet": "Fetch the full state of a deliberation session including all rounds, responses, snippets, and claim maps. Use to re-read completed session state. While a round …"
+      },
+      "confidence": 0.3
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: create_deliberation, append_round, wait_for_round, get_session, share_session · Private data: append_round, wait_for_round, get_session, list_models, share_session, get_credit · Public sink: append_round, get_session, share_session · Destructive: get_credit.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: create_deliberation, append_round, wait_for_round, get_session, share_session · Private data: append_round, wait_for_round, get_session, list_models, share_session, get_credit · Public sink: append_round, get_session, share_session · Destructive: get_credit"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 76,
+  "scoreBreakdown": {
+    "tool-poisoning": 5,
+    "toxic-flow": 20
+  },
+  "errors": []
 }

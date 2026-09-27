@@ -6,26 +6,45 @@
   },
   "target": {
     "kind": "url",
-    "ref": "https://agent-ledger-production-0ff8.up.railway.app/mcp/"
+    "ref": "https://aiagentscity.com/mcp/"
   },
-  "scannedAt": "2026-09-10T09:06:52.154Z",
-  "durationMs": 287,
+  "scannedAt": "2026-09-27T10:07:54.406Z",
+  "durationMs": 365,
   "layers": {
     "metadata": true,
     "static": false
   },
   "tools": [
     {
-      "name": "ledger_track",
-      "descriptionHash": "fe529f84a816d39dedb167f7f2144934fa100ed3d2528e5b557a6ba4850b44b2",
-      "description": "Record a spend entry for an AI agent on any payment rail, with optional token counts.\n\nNo signup: the first call for a new agent_id mints an agent_secret and\nreturns it in the response — save it, every later call for that same\nagent_id must pass it back or the write is rejected. Amounts are capped\na",
+      "name": "ledger_rotate_secret",
+      "descriptionHash": "7452eb0b24fbd957329e9aeee983878046877ee83e82e3e9199ed1ee5f9aa158",
+      "description": "Mint a NEW agent_secret for an agent_id your workspace already owns, invalidating the old one.\n\nUse this to RECOVER an agent whose secret was lost: the previous credential\nstops working immediately. Requires the workspace_key that owns agent_id —\nan agent's own agent_secret cannot rotate itself, bec",
+      "labels": [
+        "private-data",
+        "destructive"
+      ]
+    },
+    {
+      "name": "ledger_revoke_secret",
+      "descriptionHash": "71a5d1b2aab001669224e7ee43ccec600c830e0d0ad9ef8d0ae62fda352c2166",
+      "description": "Invalidate an agent_id's agent_secret WITHOUT deleting its spend history.\n\nUse when a credential may have leaked, or to stop an agent writing.\nSubsequent writes to that agent fail with agent_secret_mismatch until you\nrotate a new secret in. The agent_id stays claimed, so no other workspace\ncan claim",
       "labels": [
         "private-data"
       ]
     },
     {
+      "name": "ledger_track",
+      "descriptionHash": "022c9f1f08740600003f6ef79ec1cd5ac89f99c51ec4c61d20d45a6093c9b7e4",
+      "description": "Record a spend entry for an AI agent on any payment rail, with optional token counts.\n\nClaiming a brand-new agent_id requires your workspace_key (get one via\nx402 at POST /v1/billing/x402 — no human, no login — or at /start).\nThat first call mints an\nagent_secret and returns it in the response — sav",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
       "name": "ledger_set_budget",
-      "descriptionHash": "0264528f9c1bbe27bb1ada047a94ce4cc71fe99bcabb1698251df41685e4be73",
+      "descriptionHash": "6e3fafdc2956a4166c63d2954b267fc89fec1b5904e72fa0af0e91c5660b3752",
       "description": "Set spending caps for an agent. Warns at 80%, blocks spend when exceeded\n— enforced: a ledger_track call that would cross the cap is rejected.\n\nDollar caps (monthly_cents/daily_cents) and token caps (monthly_tokens/\ndaily_tokens) are independent dimensions: dollar caps only cover\nnon-\"tokens\" rails,",
       "labels": [
         "private-data"
@@ -33,20 +52,51 @@
     },
     {
       "name": "ledger_report",
-      "descriptionHash": "11de2556f22f616680c6cd55fdb4a10a1cafb4aa0e4034f468d2b51f52de542d",
-      "description": "Spend report for an agent over a rolling window.\n\nReturns total spend, breakdown by rail and by service, budget status\n(ok/warning/exceeded), detected anomalies, and entry count."
+      "descriptionHash": "15b90d3fb21f01266a1c88e493453573f25405e3a5288c1ea4b9b85106d684e1",
+      "description": "Spend report for an agent over a rolling window.\n\nReturns total spend, breakdown by rail and by service, budget status\n(ok/warning/exceeded), detected anomalies, and entry count.\n\nRequires a credential: either the agent's own agent_secret or its\nworkspace's workspace_key (same rule as GET /v1/report",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "ledger_proxy_attach",
+      "descriptionHash": "9dbdcdbfe10b7f0c638eca9f8d33da50245a0461942608fd84edfcf11142ea8a",
+      "description": "Point your provider traffic at the proxy so budget caps are enforced\nBEFORE the provider is contacted, instead of being reported afterwards.\n\nThis closes the gap where the brake was unreachable from MCP: an agent\nconnected over MCP could record spend (ledger_track) but nothing could\nrefuse a call. W",
+      "labels": [
+        "private-data",
+        "public-sink"
+      ]
     },
     {
       "name": "ledger_alerts",
-      "descriptionHash": "d4a7e4ad403041a79329beb13c801a8155333d3f6bd0c7ca923c004423dbc4f1",
-      "description": "Alert history for an agent: budget warnings (80% threshold) and spending spikes."
-    },
-    {
-      "name": "ledger_list_agents",
-      "descriptionHash": "42fa832fecdf3bc14118c003aa923809597e88e626fb27461eae44a000044ecd",
-      "description": "Owner-only: full cross-tenant listing of every agent ever claimed on\nthis instance, with totals. Requires the operator's admin_secret — this\nis a portfolio-wide view, not a per-agent report (use ledger_report for\nthat, which needs no secret).",
+      "descriptionHash": "1a10190cb8bcca8a7a6d2d3fd2203468a775cbd4f4da800fdd3eddab01889998",
+      "description": "Alert history for an agent: budget warnings (80% threshold) and spending spikes.\n\nRequires a credential: either the agent's own agent_secret or its\nworkspace's workspace_key (same rule as GET /v1/alerts).",
       "labels": [
         "private-data"
+      ]
+    },
+    {
+      "name": "ledger_check_spend",
+      "descriptionHash": "112e7960772d30442b3a413f267b172176cba7ffee4f89ad7769a3d2ac1c64b8",
+      "description": "Ask BEFORE you spend: may this agent spend this much right now?\n\nReturns allowed (true/false), a stable reason code (within_budget,\nover_monthly_cap, over_daily_cap, over_monthly_token_cap,\nover_daily_token_cap, no_budget_set, unpriced_model), a one-line message,\nthe cost estimate, the price used (w",
+      "labels": [
+        "untrusted-content",
+        "private-data"
+      ]
+    },
+    {
+      "name": "ledger_price",
+      "descriptionHash": "87a01b7b111083f3c914666a42b54114e329a6d67544f4ff7bc75bf447d5d581",
+      "description": "What will this call cost? Priced from the same table the caps use.\n\nExists because ledger_track requires the CALLER to supply amount_cents, so an\nagent whose spend is capped could under-report its own cost and stay under\nthe cap. This returns the number the enforcement path would use, so an agent\nca"
+    },
+    {
+      "name": "ledger_start",
+      "descriptionHash": "ee57831b6f02101392563c0e1148dc8a76e60a33ba219429f200dad408c36ffa",
+      "description": "Get a FREE AgentLedger workspace with no credential and no arguments —\nthe MCP equivalent of opening POST /start in a browser.\n\nCall this FIRST if you have no credentials yet. Every other tool here\n(ledger_track, ledger_set_budget, ledger_report, ledger_alerts) needs a\nworkspace_key or an agent_secr",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink"
       ]
     },
     {
@@ -58,52 +108,18 @@
       "name": "ledger_examples",
       "descriptionHash": "90cc8a1c539ba4912b8b59acc2fff5d80201ec98b3ff503e244685871cadc05a",
       "description": "Complete, runnable Python recipe for a common AgentLedger integration\npattern."
-    }
-  ],
-  "findings": [
-    {
-      "id": "MCP-TOOL-POISON-003",
-      "severity": "high",
-      "category": "tool-poisoning",
-      "title": "Description references secrets/credentials",
-      "detail": "Description of \"ledger_track\" references sensitive artifacts (secret). A tool description has no reason to mention credentials.",
-      "evidence": {
-        "source": "tool:ledger_track",
-        "snippet": "Record a spend entry for an AI agent on any payment rail, with optional token counts. No signup: the first call for a new agent_id mints an agent_secret and ret…"
-      },
-      "confidence": 0.65
     },
     {
-      "id": "MCP-TOOL-POISON-003",
-      "severity": "high",
-      "category": "tool-poisoning",
-      "title": "Description references secrets/credentials",
-      "detail": "Description of \"ledger_set_budget\" references sensitive artifacts (secret). A tool description has no reason to mention credentials.",
-      "evidence": {
-        "source": "tool:ledger_set_budget",
-        "snippet": "Set spending caps for an agent. Warns at 80%, blocks spend when exceeded — enforced: a ledger_track call that would cross the cap is rejected. Dollar caps (mont…"
-      },
-      "confidence": 0.65
+      "name": "skills_list_tool",
+      "descriptionHash": "e1c6a72055bbddfaedcd480966299d7d9c3a3963450a967d5bf18d12d075a7e6",
+      "description": "List this product's skills. Each entry carries the SKILL.md URI,\nits name and description, verbatim frontmatter, and a per-file\nsha256 manifest. Read a body with `read_skill`.",
+      "labels": [
+        "private-data"
+      ]
     },
     {
-      "id": "MCP-TOOL-POISON-003",
-      "severity": "high",
-      "category": "tool-poisoning",
-      "title": "Description references secrets/credentials",
-      "detail": "Description of \"ledger_list_agents\" references sensitive artifacts (secret). A tool description has no reason to mention credentials.",
-      "evidence": {
-        "source": "tool:ledger_list_agents",
-        "snippet": "Owner-only: full cross-tenant listing of every agent ever claimed on this instance, with totals. Requires the operator's admin_secret — this is a portfolio-wide…"
-      },
-      "confidence": 0.65
-    }
-  ],
-  "score": 65,
-  "scoreBreakdown": {
-    "tool-poisoning": 35
-  },
-  "errors": []
-}3f2e8b6cf12c38abbf1ed497e1767",
+      "name": "read_skill",
+      "descriptionHash": "23dcf471719b10ad924a29d5638802bec613f2e8b6cf12c38abbf1ed497e1767",
       "description": "Read a product skill file by its skill:// URI.",
       "labels": [
         "private-data"
@@ -188,6 +204,18 @@
       "severity": "high",
       "category": "tool-poisoning",
       "title": "Description references secrets/credentials",
+      "detail": "Description of \"ledger_proxy_attach\" references sensitive artifacts (authorization). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:ledger_proxy_attach",
+        "snippet": "Point your provider traffic at the proxy so budget caps are enforced BEFORE the provider is contacted, instead of being reported afterwards. This closes the gap…"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
       "detail": "Description of \"ledger_alerts\" references sensitive artifacts (secret). A tool description has no reason to mention credentials.",
       "evidence": {
         "source": "tool:ledger_alerts",
@@ -200,10 +228,10 @@
       "severity": "high",
       "category": "tool-poisoning",
       "title": "Description references secrets/credentials",
-      "detail": "Description of \"ledger_list_agents\" references sensitive artifacts (secret). A tool description has no reason to mention credentials.",
+      "detail": "Description of \"ledger_start\" references sensitive artifacts (credentials, secret). A tool description has no reason to mention credentials.",
       "evidence": {
-        "source": "tool:ledger_list_agents",
-        "snippet": "Owner-only: full cross-tenant listing of every agent ever claimed on this instance, with totals. Requires the operator's admin_secret — this is a portfolio-wide…"
+        "source": "tool:ledger_start",
+        "snippet": "Get a FREE AgentLedger workspace with no credential and no arguments — the MCP equivalent of opening POST /start in a browser. Call this FIRST if you have no cr…"
       },
       "confidence": 0.65
     },
@@ -212,83 +240,18 @@
       "severity": "high",
       "category": "toxic-flow",
       "title": "Lethal trifecta: untrusted input + private data + external sink",
-      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: ledger_track · Private data: ledger_rotate_secret, ledger_revoke_secret, ledger_track, ledger_set_budget, ledger_report, ledger_alerts, skills_list_tool, read_skill · Public sink: ledger_track · Destructive: ledger_rotate_secret.",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: ledger_track, ledger_check_spend, ledger_start · Private data: ledger_rotate_secret, ledger_revoke_secret, ledger_track, ledger_set_budget, ledger_report, ledger_proxy_attach, ledger_alerts, ledger_check_spend, ledger_start, skills_list_tool, read_skill · Public sink: ledger_track, ledger_proxy_attach, ledger_start · Destructive: ledger_rotate_secret.",
       "evidence": {
         "source": "server:mcp",
-        "snippet": "Untrusted content: ledger_track · Private data: ledger_rotate_secret, ledger_revoke_secret, ledger_track, ledger_set_budget, ledger_report, ledger_alerts, skills_list_tool, read_skill · Public sink: ledger_track · Destructive: ledger_rotate_secret"
+        "snippet": "Untrusted content: ledger_track, ledger_check_spend, ledger_start · Private data: ledger_rotate_secret, ledger_revoke_secret, ledger_track, ledger_set_budget, ledger_report, ledger_proxy_attach, ledger_alerts, ledger_check_spend, ledger_start, skills_list_tool, read_skill · Public sink: ledger_track, ledger_proxy_attach, ledger_start · Destructive: ledger_rotate_secret"
       },
       "confidence": 0.6,
       "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
-    },
-    {
-      "id": "MCP-RUGPULL-001",
-      "severity": "high",
-      "category": "tool-poisoning",
-      "title": "Tool description changed since last scan",
-      "detail": "Tool \"ledger_track\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
-      "evidence": {
-        "source": "tool:ledger_track",
-        "snippet": "before: \"Record a spend entry for an AI agent on any payment rail, with optional token counts.\n\nNo signup: the first call for a new agent_id mints an agent_secret and\nreturns it in the response — save it, every later call for that same\nagent_id must pass it back or the write is rejected. Amounts are capped\na\" → after: \"Record a spend entry for an AI agent on any payment rail, with optional token counts.\n\nClaiming a brand-new agent_id requires your workspace_key (get one via\nx402 at POST /v1/billing/x402 — no human, no login — or at /start).\nThat first call mints an\nagent_secret and returns it in the response — sav\""
-      },
-      "confidence": 0.8,
-      "remediation": "Re-review the tool before continuing to trust it."
-    },
-    {
-      "id": "MCP-RUGPULL-001",
-      "severity": "high",
-      "category": "tool-poisoning",
-      "title": "Tool description changed since last scan",
-      "detail": "Tool \"ledger_set_budget\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
-      "evidence": {
-        "source": "tool:ledger_set_budget",
-        "snippet": "before: \"Set spending caps for an agent. Warns at 80%, blocks spend when exceeded\n— enforced: a ledger_track call that would cross the cap is rejected.\n\nDollar caps (monthly_cents/daily_cents) and token caps (monthly_tokens/\ndaily_tokens) are independent dimensions: dollar caps only cover\nnon-\"tokens\" rails,\" → after: \"Set spending caps for an agent. Warns at 80%, blocks spend when exceeded\n— enforced: a ledger_track call that would cross the cap is rejected.\n\nDollar caps (monthly_cents/daily_cents) and token caps (monthly_tokens/\ndaily_tokens) are independent dimensions: dollar caps only cover\nnon-\"tokens\" rails,\""
-      },
-      "confidence": 0.8,
-      "remediation": "Re-review the tool before continuing to trust it."
-    },
-    {
-      "id": "MCP-RUGPULL-001",
-      "severity": "high",
-      "category": "tool-poisoning",
-      "title": "Tool description changed since last scan",
-      "detail": "Tool \"ledger_report\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
-      "evidence": {
-        "source": "tool:ledger_report",
-        "snippet": "before: \"Spend report for an agent over a rolling window.\n\nReturns total spend, breakdown by rail and by service, budget status\n(ok/warning/exceeded), detected anomalies, and entry count.\" → after: \"Spend report for an agent over a rolling window.\n\nReturns total spend, breakdown by rail and by service, budget status\n(ok/warning/exceeded), detected anomalies, and entry count.\n\nRequires a credential: either the agent's own agent_secret or its\nworkspace's workspace_key (same rule as GET /v1/report\""
-      },
-      "confidence": 0.8,
-      "remediation": "Re-review the tool before continuing to trust it."
-    },
-    {
-      "id": "MCP-RUGPULL-001",
-      "severity": "high",
-      "category": "tool-poisoning",
-      "title": "Tool description changed since last scan",
-      "detail": "Tool \"ledger_alerts\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
-      "evidence": {
-        "source": "tool:ledger_alerts",
-        "snippet": "before: \"Alert history for an agent: budget warnings (80% threshold) and spending spikes.\" → after: \"Alert history for an agent: budget warnings (80% threshold) and spending spikes.\n\nRequires a credential: either the agent's own agent_secret or its\nworkspace's workspace_key (same rule as GET /v1/alerts).\""
-      },
-      "confidence": 0.8,
-      "remediation": "Re-review the tool before continuing to trust it."
-    },
-    {
-      "id": "MCP-RUGPULL-001",
-      "severity": "high",
-      "category": "tool-poisoning",
-      "title": "Tool description changed since last scan",
-      "detail": "Tool \"ledger_list_agents\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
-      "evidence": {
-        "source": "tool:ledger_list_agents",
-        "snippet": "before: \"Owner-only: full cross-tenant listing of every agent ever claimed on\nthis instance, with totals. Requires the operator's admin_secret — this\nis a portfolio-wide view, not a per-agent report (use ledger_report for\nthat, which needs no secret).\" → after: \"Owner-only: full cross-tenant listing of every agent ever claimed on\nthis instance, with totals. Requires the operator's admin_secret — this\nis a portfolio-wide view, not a per-agent report (use ledger_report for\nthat — it requires that agent's agent_secret or its workspace_key).\""
-      },
-      "confidence": 0.8,
-      "remediation": "Re-review the tool before continuing to trust it."
     }
   ],
-  "score": 32,
+  "score": 37,
   "scoreBreakdown": {
-    "tool-poisoning": 48,
+    "tool-poisoning": 43,
     "toxic-flow": 20
   },
   "errors": []

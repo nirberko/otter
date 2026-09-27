@@ -1,0 +1,118 @@
+{
+  "schemaVersion": 1,
+  "scanner": {
+    "version": "1.6.0",
+    "rules": "402995650b68"
+  },
+  "target": {
+    "kind": "url",
+    "ref": "https://livermore.club/mcp"
+  },
+  "scannedAt": "2026-09-27T10:06:49.200Z",
+  "durationMs": 3190,
+  "layers": {
+    "metadata": true,
+    "static": false
+  },
+  "tools": [
+    {
+      "name": "search",
+      "descriptionHash": "065d1bf5922062a3661c4b85bba376dbdd4e3cb370963678d66619e6ff606798",
+      "description": "Find US stocks, 13F institutions (including the curated superinvestors, matched by fund or manager name, e.g. 'Buffett' or 'Pershing', and large asset managers matched by their common name, e.g. 'Fidelity' finds FMR LLC and 'Capital Group' its three 13F filers) and corporate insiders (Form 4 reporti",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "get_stock",
+      "descriptionHash": "e9b43666c6933bc4368927cb1f1a2ebf03dfbd5d23b3b90e4d78f177543e252e",
+      "description": "Overview of one US-listed stock: company facts (SEC name, CIK, exchange, SIC industry, other share classes), open-market insider activity in the last 90 days (Form 4 codes P and S, non-derivative: number of filings and total USD), institutional ownership from 13F for the latest complete quarter (num",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "get_stock_13f_holders",
+      "descriptionHash": "121aa2253c5392c4dc6a914c7c18975581fc2e2146141ebe4b06b823e0d16669",
+      "description": "Institutions that reported holding a stock in their 13F-HR filings for one calendar quarter (default: the latest complete quarter, or for a ticker that is no longer listed its last quarter with a full set of 13F holders; 13F is filed up to 45 days after quarter end and covers long positions in US-li",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "get_insider_trades",
+      "descriptionHash": "e0101e06f72416329930b0bb1c6e70c5f45b557cb3b2efda1852f8c54e6d650c",
+      "description": "Insider transactions from SEC Form 4 filings (coverage starts July 2021; updated daily). One row per filing and transaction type: same-day lots are combined, avg_price_usd is value-weighted, value_usd is the USD total, shares_owned_after is the holding after the last lot, ownership_change_pct is the",
+      "labels": [
+        "untrusted-content",
+        "private-data"
+      ]
+    },
+    {
+      "name": "get_insider_lists",
+      "descriptionHash": "55dd6b0195ce3d7b2e432d96d07945af446aa0b969c468eb637c98783a0e7eda",
+      "description": "Ready-made insider trading screens, the same lists as livermore.club/en/insiders: cluster-buys (companies where 3 or more different insiders bought on the open market in the last 30 days, ranked by total value; returned in `companies`), ceo-cfo-buys (CEO or CFO open-market purchases of $25,000 or mo"
+    },
+    {
+      "name": "get_institution",
+      "descriptionHash": "fc8c96b2caf188d1f1edf86c2393884c53dadfd5f6dfc768ed4b14a185ea8bf3",
+      "description": "One 13F filer (an institution or a curated superinvestor) by SEC CIK: names (and the superinvestor's manager and style), the quarters it filed (newest 12, with quarters_total: number of positions, portfolio value in USD, filing time, amendments), and its holdings for one quarter (default: the latest",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "list_superinvestors",
+      "descriptionHash": "a33ea676d1086952ff54136c0512244579a2def3863399a1944529305a5e85d5",
+      "description": "The curated list of superinvestors (well-known long-term investors such as Warren Buffett's Berkshire Hathaway, Bill Ackman's Pershing Square, Li Lu's Himalaya Capital) with their latest 13F quarter: portfolio value in USD (long positions, excluding options), number of positions, filing date, and th"
+    },
+    {
+      "name": "get_superinvestor_activity",
+      "descriptionHash": "e74e661f6449ec09f8023e5d24f101f9cb50f4bb5e72a38a751c3125f8478027",
+      "description": "What the curated superinvestors bought and sold in one quarter according to 13F, compared with the previous calendar quarter (default: the latest complete quarter). Without superinvestor_cik: most_bought (stocks the most superinvestors opened or added to), most_sold (reduced or sold out) and per-sup",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "get_data_coverage",
+      "descriptionHash": "2b5450f920f721b3a930e2be6bad1b184150d37445c9dee6bb9c1c9df2d92707",
+      "description": "What data Livermore has and how fresh it is: the Form 4 filing-date range, the 13F quarters loaded (with the number of filers), the latest complete 13F quarter, the number of curated superinvestors, the last successful data updates (ISO 8601 UTC), the update schedule, datasets not available yet (13D"
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-SHADOW-001",
+      "severity": "medium",
+      "category": "shadowing",
+      "title": "Generic tool name can shadow trusted tools",
+      "detail": "Tool \"search\" uses a generic high-value name. When multiple servers load together, this can intercept calls meant for a trusted server.",
+      "evidence": {
+        "source": "tool:search",
+        "snippet": "search"
+      },
+      "confidence": 0.4
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: search, get_insider_trades, get_institution · Private data: get_insider_trades, get_institution · Public sink: get_stock, get_stock_13f_holders, get_institution, get_superinvestor_activity.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: search, get_insider_trades, get_institution · Private data: get_insider_trades, get_institution · Public sink: get_stock, get_stock_13f_holders, get_institution, get_superinvestor_activity"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 72,
+  "scoreBreakdown": {
+    "shadowing": 8,
+    "toxic-flow": 20
+  },
+  "errors": []
+}

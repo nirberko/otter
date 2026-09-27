@@ -1,0 +1,86 @@
+{
+  "schemaVersion": 1,
+  "scanner": {
+    "version": "1.6.0",
+    "rules": "402995650b68"
+  },
+  "target": {
+    "kind": "url",
+    "ref": "https://neuronsystems.org/mcp"
+  },
+  "scannedAt": "2026-09-27T10:09:55.396Z",
+  "durationMs": 792,
+  "layers": {
+    "metadata": true,
+    "static": false
+  },
+  "tools": [
+    {
+      "name": "check_neuron_inventory",
+      "descriptionHash": "86a2817ff25b21a12d5aace784967e47408717224ad75c52844e6fa2c7862674",
+      "description": "Query live sports advertising inventory: formats, list CPM, the biddable hard floor, and REAL remaining capacity from the booking ledger. Start here to see what is actually available. Each format reports list_cpm_usd (published rate) and floor_cpm_usd (lowest price a bid can win at).",
+      "labels": [
+        "destructive"
+      ]
+    },
+    {
+      "name": "estimate_ad_cost",
+      "descriptionHash": "d1dc3ed6fc9fb25c8e477dfea2ab7b1f14627cf61059e4ffd21dd3ab2990d998",
+      "description": "Issue a BINDING quote for a slot. Returns a quote_id valid for 30 minutes and the exact price. You MUST call this before create_ad_order or create_checkout_session — the quote_id is the only thing that authorizes a charge."
+    },
+    {
+      "name": "create_ad_order",
+      "descriptionHash": "7301d7284746024bc833e559cf34b09aff1659ebb2c37651100dbd7499c1d930",
+      "description": "Book a flight against a quote_id from estimate_ad_cost, with creative assets. Price and impressions come from the stored quote — anything you send that contradicts it is ignored. Returns an order_id and a Stripe checkout URL for the exact quoted amount. Pass idempotency_key to make retries safe.",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "create_checkout_session",
+      "descriptionHash": "c2831800577a9e7c08a801c5a1cb791e08138d839e41ad15351cdc5f59603b01",
+      "description": "Generate a live Stripe Checkout URL for an existing quote_id or order_id, settling to @neuronsystems. The amount is read from the stored quote; it cannot be supplied by the caller. Call estimate_ad_cost first.",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "get_campaign_telemetry",
+      "descriptionHash": "443bb414938c1179e04c38c2f55d3e8a4083865845ce9403cf5030a27fe2bc5a",
+      "description": "Retrieve real delivery for an order: impressions served, clicks, audio completes, pacing, and settlement status."
+    },
+    {
+      "name": "list_open_tenders",
+      "descriptionHash": "80e8ee44b8e4bcf34d1eac9e540b0eee004151c80449951c54cb830f5b231ca0",
+      "description": "List slots with real unsold capacity right now, ordered by how close they are to selling out. Each carries list_cpm_usd (published rate), floor_cpm_usd (biddable hard floor), an indicative price at volume, and the exact estimate_ad_cost call to quote it."
+    },
+    {
+      "name": "submit_programmatic_bid",
+      "descriptionHash": "397d31dfa178f38a7fe328c6a1bb3655e9df64bd0c9e64f458f7110812f63f5e",
+      "description": "Bid a CPM against a slot. The broker evaluates it against floor_cpm_usd (the hard floor) and the authorized discount band, then auto-accepts (returning a spendable quote_id), counters with a price, or rejects. Bid at or above min_acceptable_cpm_usd from check_neuron_inventory or a prior response to ",
+      "labels": [
+        "public-sink"
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "medium",
+      "category": "toxic-flow",
+      "title": "Toxic flow: untrusted input can reach an external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: create_checkout_session · Public sink: create_ad_order, submit_programmatic_bid · Destructive: check_neuron_inventory.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: create_checkout_session · Public sink: create_ad_order, submit_programmatic_bid · Destructive: check_neuron_inventory"
+      },
+      "confidence": 0.45,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 92,
+  "scoreBreakdown": {
+    "toxic-flow": 8
+  },
+  "errors": []
+}

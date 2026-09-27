@@ -1,0 +1,144 @@
+{
+  "schemaVersion": 1,
+  "scanner": {
+    "version": "1.6.0",
+    "rules": "402995650b68"
+  },
+  "target": {
+    "kind": "url",
+    "ref": "https://invoicebloom.io/mcp"
+  },
+  "scannedAt": "2026-09-27T10:12:02.409Z",
+  "durationMs": 1148,
+  "layers": {
+    "metadata": true,
+    "static": false
+  },
+  "tools": [
+    {
+      "name": "get_account",
+      "descriptionHash": "e74d452030aeee12a846c7a063c91b87690cb1d22f045ec98d971b745cae4072",
+      "description": "Returns the signed-in user's profile: business name, address, saved payment instructions, whether their email is confirmed (required before sending invoices), whether they can take card payments, and client/invoice counts. Call this first to know who you are acting for.",
+      "labels": [
+        "untrusted-content",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "list_clients",
+      "descriptionHash": "a34c1386a7b9e573b37eecbed9d6adbb4f1be99b00cbfce0198a5e5e3b9e3c96",
+      "description": "Lists the user's clients (people or companies they invoice), optionally filtered by a search term matched against name, email and company. Use it to find a client_id before creating an invoice.",
+      "labels": [
+        "untrusted-content",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "create_client",
+      "descriptionHash": "3b42cae9a30c47f08b80787c3bc514c8ae1e329a735ebad913dd7a480621acf0",
+      "description": "Creates a new client to invoice. Name and email are required; the email is where invoices are sent. Check list_clients first so you do not create duplicates.",
+      "labels": [
+        "untrusted-content",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "update_client",
+      "descriptionHash": "080f05d1b5373fc114d0f1378cef45b669dc844594f1ff6d814593360061bd9f",
+      "description": "Updates an existing client's details. Only the fields you pass are changed."
+    },
+    {
+      "name": "list_invoices",
+      "descriptionHash": "ac3ee75a00c48731e037c878a433a72628b4a1e371713bbce2af465b32800d41",
+      "description": "Lists the user's invoices, newest first, without line items. Filter by status (draft, sent, paid), by client, or overdue_only for unpaid invoices past their due date (there is no 'overdue' status; use overdue_only). Use get_invoice for full detail."
+    },
+    {
+      "name": "get_invoice",
+      "descriptionHash": "94fd2a99f498463bdce897308ab0d1f99eecc13116292d5b3f839c6ccd5a50b9",
+      "description": "Returns one invoice with its line items, totals, status, the client it is for, a public_url the client can open, and a payment link if one exists."
+    },
+    {
+      "name": "create_invoice",
+      "descriptionHash": "9e5645ac41fbc69432e05c12c637dabcd620946d4d6776b20cebcbccf77a0175",
+      "description": "Creates a draft invoice with line items for an existing client. Identify the client by client_id or client_email (must already exist; use create_client otherwise). Totals are computed server-side: subtotal + tax% + late_fee. Nothing is emailed until you call send_invoice. Returns the invoice, includ"
+    },
+    {
+      "name": "update_invoice",
+      "descriptionHash": "ca26073bf8a22348366d0cb7385bec7cc0f5727477dff6f36976145f527f3fce",
+      "description": "Updates an invoice. Only fields you pass change. If you pass line_items, they REPLACE the existing line items entirely, so include every item that should remain. Works on draft and sent invoices; re-send with send_invoice if the client needs the new version.",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "send_invoice",
+      "descriptionHash": "ad08fd4a563bb9ab41a7de44e08e7bb3bcee49b2b36665be9a037e7ce770fcd7",
+      "description": "Emails the invoice (with a PDF attached) to the client's email address and marks it as sent. This contacts a real person: confirm with the user before calling. Requires at least one line item and a confirmed user email. If the user takes card payments, a Stripe payment link is added first.",
+      "labels": [
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "mark_invoice_paid",
+      "descriptionHash": "ef99e7ca53cfd0c35e828c7a616b7554a1fb48e255e3a314566d22dedaabb3dd",
+      "description": "Marks an invoice as paid, for payments received outside InvoiceBloom (bank transfer, cash, cheque). Card payments through the payment link are recorded automatically."
+    },
+    {
+      "name": "delete_invoice",
+      "descriptionHash": "8a06f5e32d3567b7931a30de5e63e3d71891b2eb28d8c9f90687248acb5818e9",
+      "description": "Permanently deletes an invoice and its line items. Cannot be undone. Confirm with the user before calling; prefer leaving paid invoices in place for their records.",
+      "labels": [
+        "private-data",
+        "destructive"
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOOL-POISON-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description issues instructions to the model",
+      "detail": "Description of \"send_invoice\" contains imperative instructions directed at the AI assistant rather than describing the tool. This is the core tool-poisoning technique.",
+      "evidence": {
+        "source": "tool:send_invoice",
+        "snippet": "Emails the invoice (with a PDF attached) to the client's email address and marks it as sent. This contacts a real person: confirm with the user before calling. …"
+      },
+      "confidence": 0.7,
+      "remediation": "Treat the server as untrusted; the model may obey embedded instructions."
+    },
+    {
+      "id": "MCP-TOOL-POISON-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description issues instructions to the model",
+      "detail": "Description of \"delete_invoice\" contains imperative instructions directed at the AI assistant rather than describing the tool. This is the core tool-poisoning technique.",
+      "evidence": {
+        "source": "tool:delete_invoice",
+        "snippet": "Permanently deletes an invoice and its line items. Cannot be undone. Confirm with the user before calling; prefer leaving paid invoices in place for their recor…"
+      },
+      "confidence": 0.7,
+      "remediation": "Treat the server as untrusted; the model may obey embedded instructions."
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: get_account, list_clients, create_client · Private data: send_invoice, delete_invoice · Public sink: get_account, list_clients, create_client, update_invoice, send_invoice · Destructive: delete_invoice.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: get_account, list_clients, create_client · Private data: send_invoice, delete_invoice · Public sink: get_account, list_clients, create_client, update_invoice, send_invoice · Destructive: delete_invoice"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 50,
+  "scoreBreakdown": {
+    "tool-poisoning": 30,
+    "toxic-flow": 20
+  },
+  "errors": []
+}

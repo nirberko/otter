@@ -161,56 +161,74 @@
       "severity": "high",
       "category": "toxic-flow",
       "title": "Lethal trifecta: untrusted input + private data + external sink",
-      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: agent_organization, agent_report_issue · Private data: agent_create, agent_authenticate, order_execute · Public sink: agent_organization, agent_notify, agent_outreach · Destructive: agent_authenticate, supply_details, order_execute.",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: agent_organization, agent_report_issue · Private data: agent_create, agent_authenticate, order_execute · Public sink: agent_organization, agent_notify, agent_outreach · Dtems in your own system, the vendors on file and what you last paid, so a quote can be compared against history. Needs inventory permission. Does not contact any vendor.",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "supply_availability",
+      "descriptionHash": "e6cac6af767f9cbf4cd29a09c3f16f3eb11bb6e4cbd6b2e1c1551fed540daf92",
+      "description": "Whether one offer can fill a quantity: verdict can_fill | split | out_now | unknown, with what is on hand, what is inbound, and as_of + basis. Suppliers choose how precisely they share stock, so the verdict may come from a band or a yes/no rather than a number. fresh=true asks the supplier now (need",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "inventory_purchase_order",
+      "descriptionHash": "fda2fdf419bb5cad4a7e171b12a597f24a8a395d2328b2b47851987fa24d1e96",
+      "description": "After order_execute confirms a supplier order, record the matching DRAFT purchase order in your own system so the books match. Always a draft: a person confirms it there. Idempotent per order_id — calling twice returns the same draft, never a second one. Needs both inventory and checkout permission.",
+      "labels": [
+        "private-data"
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"agent_authenticate\" references sensitive artifacts (credentials). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:agent_authenticate",
+        "snippet": "Two-step re-auth. Call with agent_id only → ES256-sign nonce → call again with nonce+signature. Prefer keys from ~/.conduit ({handle}.credentials.json or legacy…"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOOL-POISON-007",
+      "severity": "low",
+      "category": "tool-poisoning",
+      "title": "Description uses pressure/override language",
+      "detail": "Description of \"inventory_purchase_order\" stacks urgency/override words (always, never). Legitimate tool descriptions rarely pressure the model to act or ignore prior guidance.",
+      "evidence": {
+        "source": "tool:inventory_purchase_order",
+        "snippet": "After order_execute confirms a supplier order, record the matching DRAFT purchase order in your own system so the books match. Always a draft: a person confirms…"
+      },
+      "confidence": 0.3
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: agent_organization, agent_report_issue · Private data: agent_create, agent_authenticate, order_execute, inventory_suppliers, inventory_purchase_order · Public sink: agent_organization, agent_notify, agent_outreach, supply_availability · Destructive: agent_authenticate, supply_details, order_execute.",
       "evidence": {
         "source": "server:mcp",
-        "snippet": "Untrusted content: agent_organization, agent_report_issue · Private data: agent_create, agent_authenticate, order_execute · Public sink: agent_organization, agent_notify, agent_outreach · Destructive: agent_authenticate, supply_details, order_execute"
+        "snippet": "Untrusted content: agent_organization, agent_report_issue · Private data: agent_create, agent_authenticate, order_execute, inventory_suppliers, inventory_purchase_order · Public sink: agent_organization, agent_notify, agent_outreach, supply_availability · Destructive: agent_authenticate, supply_details, order_execute"
       },
       "confidence": 0.6,
       "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
-    },
-    {
-      "id": "MCP-RUGPULL-001",
-      "severity": "high",
-      "category": "tool-poisoning",
-      "title": "Tool description changed since last scan",
-      "detail": "Tool \"agent_create\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
-      "evidence": {
-        "source": "tool:agent_create",
-        "snippet": "before: \"Register an agent (ES256 P-256 public JWK JSON string + optional payment rails + destination). BEFORE: read ~/.conduit/credentials.json — if it exists, reuse agent_id (do NOT register again). AFTER: write credentials (version, agent_id, public_key, private_key as JWKs; recommend handle; chmod 0600).\" → after: \"Register an agent (ES256 P-256 public JWK JSON string + optional payment rails + destination). BEFORE: list ~/.conduit identity files — if any exist, reuse agent_id (do NOT register again unless the human asked for a new agent). AFTER: write persist.path (version, agent_id, public_key, private_key a\""
-      },
-      "confidence": 0.8,
-      "remediation": "Re-review the tool before continuing to trust it."
-    },
-    {
-      "id": "MCP-RUGPULL-001",
-      "severity": "high",
-      "category": "tool-poisoning",
-      "title": "Tool description changed since last scan",
-      "detail": "Tool \"agent_authenticate\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
-      "evidence": {
-        "source": "tool:agent_authenticate",
-        "snippet": "before: \"Two-step re-auth. Call with agent_id only → ES256-sign nonce → call again with nonce+signature. Prefer keys from ~/.conduit/credentials.json. Do not agent_create if credentials already exist.\" → after: \"Two-step re-auth. Call with agent_id only → ES256-sign nonce → call again with nonce+signature. Prefer keys from ~/.conduit ({handle}.credentials.json or legacy credentials.json; CONDUIT_CREDENTIALS_PATH pins one file). After success, merge name/role/description into that file; never overwrite priva\""
-      },
-      "confidence": 0.8,
-      "remediation": "Re-review the tool before continuing to trust it."
-    },
-    {
-      "id": "MCP-RUGPULL-001",
-      "severity": "high",
-      "category": "tool-poisoning",
-      "title": "Tool description changed since last scan",
-      "detail": "Tool \"agent_update\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
-      "evidence": {
-        "source": "tool:agent_update",
-        "snippet": "before: \"Patch handle, rails, default_destination (postcode required for ships-to), friendly_name, human_description, role_description, business profile, or preferences.\" → after: \"Patch handle, rails, default_destination (postcode required for ships-to), friendly_name, human_description, role_description, avatar (glyph+gradient or small image), business profile, or preferences. Set avatar only if the human chose it. Does not accept permissions — a human enables capabilities i\""
-      },
-      "confidence": 0.8,
-      "remediation": "Re-review the tool before continuing to trust it."
-    },
-    {
-      "id": "MCP-RUGPULL-001",
-      "severity": "high",
+    }
+  ],
+  "score": 59,
+  "scoreBreakdown": {
+    "tool-poisoning": 22,
+    "toxic-flow": 20
+  },
+  "errors": []
+}     "severity": "high",
       "category": "tool-poisoning",
       "title": "Tool description changed since last scan",
       "detail": "Tool \"agent_organization\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",

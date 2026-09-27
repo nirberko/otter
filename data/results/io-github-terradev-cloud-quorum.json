@@ -1,0 +1,101 @@
+{
+  "schemaVersion": 1,
+  "scanner": {
+    "version": "1.6.0",
+    "rules": "402995650b68"
+  },
+  "target": {
+    "kind": "url",
+    "ref": "https://quorum-mcp.terradev.cloud/mcp"
+  },
+  "scannedAt": "2026-09-27T10:21:15.103Z",
+  "durationMs": 86,
+  "layers": {
+    "metadata": true,
+    "static": false
+  },
+  "tools": [
+    {
+      "name": "register",
+      "descriptionHash": "80813cb3181899cd5a3c433962307f39c81f9008fd6ecdfe863bb5aa8fda286a",
+      "description": "OPTIONAL one-time setup -- only needed if you want proposal telemetry (OTLP spans) pushed to your Telinea account. Call once before propose: it binds an api_key you choose to your Telinea API key. Afterwards, pass the same api_key on propose and every span for that proposal is pushed to your Telinea",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "propose",
+      "descriptionHash": "17ca4dea2fb03cda6b07416135a23aa084c38baaaf8fe7041b942d2cc6b7499f",
+      "description": "Open a new proposal: a question, named options, expected voter identities, an aggregation algorithm, a deadline, and a quorum threshold. Returns the proposal id, the creation attestation, and the deadline. All later operations key off the proposal id."
+    },
+    {
+      "name": "write",
+      "descriptionHash": "efa775b7e948c084e3889ec7db668a64154297d240e82a66304aa86518343544",
+      "description": "Append a key-value entry to a proposal's blackboard. Any agent may write; writes are appended, never replaced -- the full ordered history is preserved and attested."
+    },
+    {
+      "name": "read",
+      "descriptionHash": "67f37055a0878a28088df63045ab07b4582a00620acf00ef8c1a4a7158177452",
+      "description": "Read a proposal's blackboard: every write in order with timestamp, author, and attestation id -- the complete deliberation record, or filtered to one key.",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "vote",
+      "descriptionHash": "828158d8a2a5246b962fd9f18e5774a763eb676071f10a4290c17a6d62098a94",
+      "description": "Submit a vote from an expected voter identity, with optional reasoning stored in the attested record. Vote shape depends on the algorithm: plurality/supermajority take an option string; approval takes an option or list of options; borda takes a ranking of all options; condorcet takes a ranking or a ",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "resolve",
+      "descriptionHash": "e6c023844b7ad31d68447212162138d697ff2e25ce2601c3456b3c61596f4438",
+      "description": "Compute and attest the outcome once quorum is met (or the deadline has passed). Idempotent: resolving twice returns the recorded outcome. Condorcet cycles and missed supermajority thresholds return co_winners with status unresolved rather than an arbitrary tiebreak."
+    },
+    {
+      "name": "history",
+      "descriptionHash": "4eb66327c04680cbe0bc9f21417f54cfeccd76dcf00f912410b7794118b10a82",
+      "description": "The complete attested record of a proposal in chronological order: creation, every blackboard write, every vote with reasoning, the outcome. Optional filter: all | writes | votes | outcome.",
+      "labels": [
+        "private-data"
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"register\" references sensitive artifacts (api_key, bearer). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:register",
+        "snippet": "OPTIONAL one-time setup -- only needed if you want proposal telemetry (OTLP spans) pushed to your Telinea account. Call once before propose: it binds an api_key…"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: vote · Private data: register, read, vote, history · Public sink: vote.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: vote · Private data: register, read, vote, history · Public sink: vote"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 60,
+  "scoreBreakdown": {
+    "tool-poisoning": 20,
+    "toxic-flow": 20
+  },
+  "errors": []
+}

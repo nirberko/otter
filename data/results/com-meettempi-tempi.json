@@ -1,0 +1,98 @@
+{
+  "schemaVersion": 1,
+  "scanner": {
+    "version": "1.6.0",
+    "rules": "402995650b68"
+  },
+  "target": {
+    "kind": "url",
+    "ref": "https://meettempi.com/mcp"
+  },
+  "scannedAt": "2026-09-27T10:05:39.783Z",
+  "durationMs": 1129,
+  "layers": {
+    "metadata": true,
+    "static": false
+  },
+  "tools": [
+    {
+      "name": "get_public_profile",
+      "descriptionHash": "9e41ab5b2dafd2b923aebdc31203e197f94a1c124ae27cfc58a0a02e21a59bd0",
+      "description": "Takes a handle, the first path segment of a booking link (https://host/acme/demo → \"acme\"). Returns the person or team and their bookable event types, with duration, price and hosts. A handle from before a rename also works. Next: call get_available_slots with one of the event type slugs."
+    },
+    {
+      "name": "get_available_slots",
+      "descriptionHash": "8456653c27ce27d1ad5c3d9de553cf24b053d623e9f68af15a42deffce7a8cec",
+      "description": "Returns the start times that can be booked, with the hosts' calendars, buffers and limits already applied. Pass `date` (YYYY-MM-DD in `timezone`) or `from` and `to` (ISO, at most 62 days apart). With neither, it covers the next 7 days. `days` groups the slots by date in `timezone` (default UTC). For",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "check_series",
+      "descriptionHash": "9dff88ac53542d457e3dac5017dc0c3c09c5f26ccffa1bd7d14d806b8758f463",
+      "description": "For event types with `repeatMax` (from get_public_profile): lists each meeting of a series that starts at `start` (one of the slots) and repeats `every` 1, 2 or 4 weeks at the same local time, and whether each is free. Book it with create_booking and `repeat` when `bookable` is true. A series is boo"
+    },
+    {
+      "name": "create_booking",
+      "descriptionHash": "22177fb3a6b0d05b758d703be7080139f294fa6a3c490cc9fd198008d3f5104a",
+      "description": "Books `start`, which must be one of the `slots` from get_available_slots. Free events are confirmed at once. Paid events return status=pending_payment and a `paymentUrl`. Give it to the human to pay before `holdExpiresAt`, or the slot is released. Once confirmed, the event is added to the host's cal",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "get_booking",
+      "descriptionHash": "a263db8b6ed0e6dd1ead367b3d93c23c01986d5155f762a1568d4ce38d0c4e2a",
+      "description": "Returns a booking by its id and token (from create_booking or its manageUrl), with `changeableUntil`, `refundableUntil`, `canCancel` and `cancelReasonRequired`. For a series, `series` lists every meeting with its own manageUrl.",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "reschedule_booking_as_invitee",
+      "descriptionHash": "afb1389bf5df7978e6f38f70c7a44251edde4e669e7463af9b1f6185fdf7be11",
+      "description": "Moves a confirmed booking to `start` with the same hosts. Get valid times from get_available_slots with this `bookingId` and `token`. The calendar event is updated and its provider notifies attendees. Payment carries over. Not possible after `changeableUntil` (409 change_too_late).",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "cancel_booking_as_invitee",
+      "descriptionHash": "666ed82bd96d4f142f6435c15a5a6f56deda7c927e35cdf9d4e16d501cecbfd0",
+      "description": "Cancels a booking by its id and token. The event is removed from the host's calendar. Paid bookings cancelled before `refundableUntil` are refunded in full. Later cancellations get no refund. The event type sets the rules, which get_booking shows: no changes after `changeableUntil` (409 change_too_l",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "join_waitlist",
+      "descriptionHash": "739e6cde35ed7e873aa72d175a6e01e34f5c0a03fc79c1c372e5ff9e131da3ac",
+      "description": "Requests access to host on Tempi (create event types, share a booking page). Not needed to book meetings, since booking pages are public. Returns the status: pending, approved (sign in at APP_URL/login), rejected, or open (no waitlist, sign in directly). Joining again with the same email returns the",
+      "labels": [
+        "untrusted-content",
+        "public-sink"
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: join_waitlist · Private data: get_available_slots, create_booking, get_booking, reschedule_booking_as_invitee, cancel_booking_as_invitee · Public sink: join_waitlist.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: join_waitlist · Private data: get_available_slots, create_booking, get_booking, reschedule_booking_as_invitee, cancel_booking_as_invitee · Public sink: join_waitlist"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 80,
+  "scoreBreakdown": {
+    "toxic-flow": 20
+  },
+  "errors": []
+}

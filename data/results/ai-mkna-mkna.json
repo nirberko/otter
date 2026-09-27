@@ -1,0 +1,140 @@
+{
+  "schemaVersion": 1,
+  "scanner": {
+    "version": "1.6.0",
+    "rules": "402995650b68"
+  },
+  "target": {
+    "kind": "url",
+    "ref": "https://mcp.mkna.ai/mcp"
+  },
+  "scannedAt": "2026-09-27T10:03:46.539Z",
+  "durationMs": 169,
+  "layers": {
+    "metadata": true,
+    "static": false
+  },
+  "tools": [
+    {
+      "name": "companies",
+      "descriptionHash": "a98ba5776c7af3d825aa200ae502c75cf92adf20315ac389985ab9d28a6b0c7c",
+      "description": "Count, filter and rank SCVS company financial statements; use this for company numbers.\n\nAll filters are optional. Amounts are USD, employees is a count. `ciiu` accepts a code prefix\n('A0119') or a Spanish sector word ('flores'); word matches report the matched codes. CIIU\ndescribes activity, not ex",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "search",
+      "descriptionHash": "5de76c384dc0ebada6d32193ac2b858c3be70d48022b472dd0508034f69e928e",
+      "description": "Find passages in every document Ecuadorian public institutions publish. Start research here.\n\nFor company counts, rankings, revenue, size or employees call `companies` and cite its `source`.\n\n`query`: words or a question, best in Spanish, as the documents are (\"inversión extranjera en\nminería\", \"Dec",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "fetch",
+      "descriptionHash": "558b718f5a2b17189bfb5b295df08c023b46d7422b1f5b6cf10a1258d8b2b775",
+      "description": "Read one document, or one passage in its context, by the id `search`, `documents` or `citations` gave.\n\nA passage id (the `id` of a search result) returns the document's card and that passage with\nthe one before and after it. A document id (`document_id`) returns the document's text,\nverbatim, with ",
+      "labels": [
+        "untrusted-content",
+        "private-data"
+      ]
+    },
+    {
+      "name": "read",
+      "descriptionHash": "3d0884b4d723fb46ed8e2c05f88580407897659ff7bec5b2cc17c3cd8e11888d",
+      "description": "Read part of a long document: a range of pages, or one article.\n\nPass `document_id` and either `page_from` (and optionally `page_to`), as `fetch`'s `next`\nsuggests, or `article` ('15', 'Art. 15', 'primero', 'único') for that article's full text,\nhowever many pages it spans. `max_chars` is at most 40",
+      "labels": [
+        "untrusted-content",
+        "private-data"
+      ]
+    },
+    {
+      "name": "citations",
+      "descriptionHash": "6787c4e8169684f7c8d5605f19ed8d6b28c6c5877f00fb918f53d6da4bf6fded",
+      "description": "What a document cites, amends or repeals, or which documents cite, amend or repeal it.\n\n`direction`: 'out' (default) for the instruments this document refers to - the law it applies,\nthe articles it amends, what it repeals, the rulings it cites; 'in' for the documents in the\ncorpus that refer to thi",
+      "labels": [
+        "untrusted-content",
+        "private-data"
+      ]
+    },
+    {
+      "name": "documents",
+      "descriptionHash": "43074f309438097679a94b92c54c5e48c9395b47da1081a8ab8491662cb71de0",
+      "description": "List documents newest first, without a query: \"the latest resolutions of the SRI\", \"what\ndid the Registro Oficial publish in March 2024\", \"recent ordinances on mining\".\n\nFilters as in `search`, each optional, one value or several comma-separated: `family`,\n`kind`, `category` (normativa | comunicacio",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "catalog",
+      "descriptionHash": "9b8bed23a5f03e4bf9e3332f67adea735c7a95f0f94cb7f7c0d753d22e76962f",
+      "description": "What exists: every publisher (family) with how many documents it has and how many have text.\n\nCall it to learn the valid `family` keys and the kinds each publisher prints before filtering\n`search` or `documents`, or to judge whether a missing answer means a gap in the corpus.\n`sector` narrows to one",
+      "labels": [
+        "private-data"
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-SCHEMA-SMELL-001",
+      "severity": "medium",
+      "category": "schema-smell",
+      "title": "Read-only tool requests dangerous parameters",
+      "detail": "Tool \"companies\" appears informational but accepts parameters (history) that enable code/file/secret access.",
+      "evidence": {
+        "source": "tool:companies",
+        "snippet": "year, revenue_min, revenue_max, assets_min, employees_min, employees_max, ciiu, province, ruc, name, sort, limit, offset, history"
+      },
+      "confidence": 0.55
+    },
+    {
+      "id": "MCP-SHADOW-001",
+      "severity": "medium",
+      "category": "shadowing",
+      "title": "Generic tool name can shadow trusted tools",
+      "detail": "Tool \"search\" uses a generic high-value name. When multiple servers load together, this can intercept calls meant for a trusted server.",
+      "evidence": {
+        "source": "tool:search",
+        "snippet": "search"
+      },
+      "confidence": 0.4
+    },
+    {
+      "id": "MCP-SHADOW-001",
+      "severity": "medium",
+      "category": "shadowing",
+      "title": "Generic tool name can shadow trusted tools",
+      "detail": "Tool \"fetch\" uses a generic high-value name. When multiple servers load together, this can intercept calls meant for a trusted server.",
+      "evidence": {
+        "source": "tool:fetch",
+        "snippet": "fetch"
+      },
+      "confidence": 0.4
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: search, fetch, read, citations, documents · Private data: companies, search, fetch, read, citations, documents, catalog · Public sink: search, documents.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: search, fetch, read, citations, documents · Private data: companies, search, fetch, read, citations, documents, catalog · Public sink: search, documents"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 60,
+  "scoreBreakdown": {
+    "schema-smell": 8,
+    "shadowing": 12,
+    "toxic-flow": 20
+  },
+  "errors": []
+}

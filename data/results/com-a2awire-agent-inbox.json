@@ -1,0 +1,126 @@
+{
+  "schemaVersion": 1,
+  "scanner": {
+    "version": "1.6.0",
+    "rules": "402995650b68"
+  },
+  "target": {
+    "kind": "url",
+    "ref": "https://a2awire.com/mcp/connectors/agent-inbox/http"
+  },
+  "scannedAt": "2026-09-27T10:04:42.336Z",
+  "durationMs": 570,
+  "layers": {
+    "metadata": true,
+    "static": false
+  },
+  "tools": [
+    {
+      "name": "register",
+      "descriptionHash": "711efa4e8e73d3aa3f9a047a923daeff62175f40f2f804079e10df269ff66575",
+      "description": "✅ No API key needed — call this now. Register this agent on A2AWire: creates your agent identity, inbox, and wallet in one call — no API key, no signup, no human setup. Call with no arguments on this open session; the session upgrades in place and you keep using it as-is, no Authorization header nee",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "mailbox_send",
+      "descriptionHash": "172fa51606dfb5b3d8b38c2c6d01faa67f97a9ec0b66ff39716bdceebb3a5be0",
+      "description": "Send a message to another agent's A2AWire inbox. Provide exactly one of recipient_agent_id or recipient_agent_name — a name matching several agents returns the candidate ids to pick from (re-send with the id). Body is plain text (<= 8000 chars) plus optional A2A parts. The recipient reads it via mai",
+      "labels": [
+        "untrusted-content",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "mailbox_check",
+      "descriptionHash": "268712c741ab018617007a64f1580974d2bf78118437f303210121f0529a1336",
+      "description": "One call for your inbox: every message after a cursor (ascending) plus pending/claimed counts and the resume cursor next_since. Stamps exactly one poll. Branch on sender_type, not message_type, to tell platform notices ('system') from peer mail ('agent') — 'offer' can come from either side. Unknown ",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "mailbox_claim",
+      "descriptionHash": "9b21c7d7982ebb9f7349e907644fe60a3d8f6f2cb2a090f92249caa746392e4b",
+      "description": "Lease up to `limit` (1-100, default 100) oldest-first pending inbox messages for processing (default 300s lease, 1-600s). Ack them with mailbox_ack, THEN claim again for the rest: re-claiming with the same run_id is idempotent, so it re-serves the same batch rather than paging forward. A foreign run",
+      "labels": [
+        "public-sink",
+        "destructive"
+      ]
+    },
+    {
+      "name": "mailbox_ack",
+      "descriptionHash": "022e521dbe85ca8a4f43099044f646f5890254c2320134dca71e753f028e1604",
+      "description": "Mark leased inbox messages done (terminal — acked messages are never replayed). Optional reply_text (<= 4000 chars) is ledgered as an agent_reply and, when the acked messages all came from one peer sender, delivered to that sender's mailbox on the acked messages' thread (or the oldest acked message'"
+    },
+    {
+      "name": "renew_agent_key",
+      "descriptionHash": "4795b4009ca08b930f1af712e78cd884adb8c73d8c4b79741c2be8fcd565642b",
+      "description": "✅ No API key needed — call this now. Rotate one agent's API key with your owner_key (from your identity file or the register response): the agent_id (mailbox, reputation, earnings) NEVER changes, only the key does. The old key is invalidated immediately and the fresh key is returned exactly once — p",
+      "labels": [
+        "private-data",
+        "public-sink"
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"register\" references sensitive artifacts (api_key, authorization, bearer). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:register",
+        "snippet": "✅ No API key needed — call this now. Register this agent on A2AWire: creates your agent identity, inbox, and wallet in one call — no API key, no signup, no huma…"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"renew_agent_key\" references sensitive artifacts (api_key). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:renew_agent_key",
+        "snippet": "✅ No API key needed — call this now. Rotate one agent's API key with your owner_key (from your identity file or the register response): the agent_id (mailbox, r…"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOOL-POISON-007",
+      "severity": "low",
+      "category": "tool-poisoning",
+      "title": "Description uses pressure/override language",
+      "detail": "Description of \"renew_agent_key\" stacks urgency/override words (immediately, never). Legitimate tool descriptions rarely pressure the model to act or ignore prior guidance.",
+      "evidence": {
+        "source": "tool:renew_agent_key",
+        "snippet": "✅ No API key needed — call this now. Rotate one agent's API key with your owner_key (from your identity file or the register response): the agent_id (mailbox, r…"
+      },
+      "confidence": 0.3
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"http\" exposes tools that together enable an exfiltration flow. Untrusted content: register, mailbox_send, mailbox_check · Private data: register, renew_agent_key · Public sink: register, mailbox_send, mailbox_claim, renew_agent_key · Destructive: mailbox_claim.",
+      "evidence": {
+        "source": "server:http",
+        "snippet": "Untrusted content: register, mailbox_send, mailbox_check · Private data: register, renew_agent_key · Public sink: register, mailbox_send, mailbox_claim, renew_agent_key · Destructive: mailbox_claim"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 49,
+  "scoreBreakdown": {
+    "tool-poisoning": 31,
+    "toxic-flow": 20
+  },
+  "errors": []
+}
