@@ -1,0 +1,117 @@
+{
+  "schemaVersion": 1,
+  "scanner": {
+    "version": "1.6.0",
+    "rules": "402995650b68"
+  },
+  "target": {
+    "kind": "url",
+    "ref": "https://mcp.mailvakt.com/mcp"
+  },
+  "scannedAt": "2026-10-03T09:57:22.815Z",
+  "durationMs": 1870,
+  "layers": {
+    "metadata": true,
+    "static": false
+  },
+  "tools": [
+    {
+      "name": "diagnose_domain",
+      "descriptionHash": "ce8b0674283fccd17ce4d0aa54b89f6a103ea8c05ae21320b29ab7eb6d29496e",
+      "description": "Audit a domain's SPF, DKIM, DMARC, MX, alignment, BIMI, MTA-STS and TLS-RPT configuration when troubleshooting email authentication or spam delivery. Takes a domain, optional checks and DKIM selectors, and fresh=true to bypass cached results. Returns a graded scorecard, findings, proposed DNS fixes ",
+      "labels": [
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "analyze_email_headers",
+      "descriptionHash": "4467924e7a5a8cb1fb835b5bd995b682199673bc4b2c3d8184e20cde0ccda342",
+      "description": "Analyze raw email headers supplied by the user to investigate authentication or delivery issues. Returns the SPF, DKIM and DMARC results reported in those headers, alignment, sending IP and detected issues. Parses the supplied text without external DNS or HTTP lookups; it does not independently veri",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "generate_dns_records",
+      "descriptionHash": "4cd75eb2cdeb668063b1d1043399e1e5c393466f32d50a2d63915f3bed16aa2a",
+      "description": "Propose email-authentication DNS records and policy files for a domain using its DNS configuration and optional provider names or IDs. Supports baseline (monitoring) or enforce goals; baseline is the default. Returns typed SPF, DKIM, DMARC, MTA-STS and TLS-RPT proposals or provider setup instruction",
+      "labels": [
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "start_inbox_test",
+      "descriptionHash": "ac8d29fbe38804856702539746eeff5631c9209d58b8fa18ae3eca291ac7d1fe",
+      "description": "Create an email-receipt test in MailVakt. Takes an optional expected sender domain; returns a test ID, unique recipient address and expiry time. The user must send a test message to that address before expiry, then use get_inbox_test to read the result. Creates a new test on each call. Does not send",
+      "labels": [
+        "untrusted-content",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "get_inbox_test",
+      "descriptionHash": "11e3906c4e379d7b7e5306c31330cbe22fc398b7deba9c02e23579e7c4655334",
+      "description": "Read a MailVakt email-receipt test using the ID returned by start_inbox_test. Returns pending, received or expired status and, when processed, the received message's authentication, unsubscribe, content and deliverability findings. Reports processing failures as errors. Anyone with the test ID can r",
+      "labels": [
+        "untrusted-content",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "add_domain",
+      "descriptionHash": "04f8d7a62a7593965f14fe856f6705417fc551ed0981aa0d20711a9617ccfca3",
+      "description": "Add a domain to the signed-in user's MailVakt account for DMARC report collection. Takes a domain; returns its DMARC reporting (rua) address and account entry. Repeated calls for the same account and domain return the existing entry. Requires domains:write permission. Does not verify domain ownershi",
+      "labels": [
+        "destructive"
+      ]
+    },
+    {
+      "name": "list_domains",
+      "descriptionHash": "594a1d7cdd82eb1426cd9c8aa6bf6f8e81c9e8d7eb115da4220c0d41f7bf2fc3",
+      "description": "List domains in the signed-in user's MailVakt account, including each domain's DMARC reporting address. Takes no input and requires domains:read permission. Returns an empty list if the account has no domains. Use to find the account's available domains before requesting DMARC summaries; does not en"
+    },
+    {
+      "name": "get_dmarc_summary",
+      "descriptionHash": "23e210d3a4e02625b5c08d5fb3a3fc356e434c2b32dc343497c6f0782c9ff0c5",
+      "description": "Summarize received DMARC aggregate reports for a domain already in the signed-in user's MailVakt account. Takes the domain and a 1-to-90-day window (default 7); returns report and message totals, DMARC pass/fail counts, and per-source SPF/DKIM alignment and receiver actions. Requires domains:read an",
+      "labels": [
+        "untrusted-content"
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOOL-POISON-007",
+      "severity": "low",
+      "category": "tool-poisoning",
+      "title": "Description uses pressure/override language",
+      "detail": "Description of \"diagnose_domain\" stacks urgency/override words (never, bypass). Legitimate tool descriptions rarely pressure the model to act or ignore prior guidance.",
+      "evidence": {
+        "source": "tool:diagnose_domain",
+        "snippet": "Audit a domain's SPF, DKIM, DMARC, MX, alignment, BIMI, MTA-STS and TLS-RPT configuration when troubleshooting email authentication or spam delivery. Takes a do…"
+      },
+      "confidence": 0.3
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: start_inbox_test, get_inbox_test, get_dmarc_summary · Private data: diagnose_domain, generate_dns_records · Public sink: diagnose_domain, analyze_email_headers, generate_dns_records, start_inbox_test, get_inbox_test · Destructive: add_domain.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: start_inbox_test, get_inbox_test, get_dmarc_summary · Private data: diagnose_domain, generate_dns_records · Public sink: diagnose_domain, analyze_email_headers, generate_dns_records, start_inbox_test, get_inbox_test · Destructive: add_domain"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 77,
+  "scoreBreakdown": {
+    "tool-poisoning": 3,
+    "toxic-flow": 20
+  },
+  "errors": []
+}

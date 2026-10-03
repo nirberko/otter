@@ -1,0 +1,127 @@
+{
+  "schemaVersion": 1,
+  "scanner": {
+    "version": "1.6.0",
+    "rules": "402995650b68"
+  },
+  "target": {
+    "kind": "url",
+    "ref": "https://www.menloinsurance.com/mcp"
+  },
+  "scannedAt": "2026-10-03T10:09:03.216Z",
+  "durationMs": 1088,
+  "layers": {
+    "metadata": true,
+    "static": false
+  },
+  "tools": [
+    {
+      "name": "list_products",
+      "descriptionHash": "718b2a06cf15216494139633fb8cb6b2fcc891b0284d207a0e719b90dd1dde66",
+      "description": "Lists Menlo’s published quote forms with the states each serves, its website quote link and how requests are processed. Availability does not guarantee eligibility or a carrier quote."
+    },
+    {
+      "name": "get_quote_link",
+      "descriptionHash": "ad107a5a7e832d79ae7f914227e5ddde5ed07769721d5a02a5f014c608a60604",
+      "description": "Returns the website quote form link for a published formId. Does not create or submit an application or read private quotes.",
+      "labels": [
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "start_quote",
+      "descriptionHash": "74af33a2c59f51d806f20467ad9892399010923bda644dbb9015775aa0a84396",
+      "description": "Creates one empty quote draft for a published formId selected from the customer's stated need, or resumes the one existing connected quote. Requires website OAuth consent first. Repeated calls return the same quote; a different product cannot replace it. Returns the current application page. Does no",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "get_current_page",
+      "descriptionHash": "d66b26ab0718c118f713c1976e8ea379e485a041f37ae1b3e85fe0e9a5d14eaa",
+      "description": "Returns the connected quote’s current page: grouped questions, visibility conditions, ZIP/state prefills, and whether the page must be completed on Menlo’s website (coverage choices and protected questions). Reading does not start carrier processing."
+    },
+    {
+      "name": "answer_quote_page",
+      "descriptionHash": "557f5242530b8f3dc88be8930afa531f4e6b44419561dc3a0475f16af7c818ab",
+      "description": "Saves answers to ordinary questions on the connected quote’s current application page and returns the updated page. A save can overwrite earlier answers and can start or resume eligible carrier processing under the website’s existing rules; it is not final submission. Protected information, coverage",
+      "labels": [
+        "destructive"
+      ]
+    },
+    {
+      "name": "review_quote_application",
+      "descriptionHash": "9867886994f97e67a19c0cb36a62ffae542f4c11bacb96b47f200ca188e6fda8",
+      "description": "Returns the connected application's ordinary answers, exact quote-authorization consent, Terms link and a short-lived revision-bound reviewToken when ready. Protected values are excluded. Reading does not request carrier quotes or accept terms."
+    },
+    {
+      "name": "submit_quote_request",
+      "descriptionHash": "cd651ee71bcb19b6ac1e626198eea46c0ce4ec9184882533ad7e6c5ed0b6110a",
+      "description": "Accepts the customer's explicitly confirmed application review and displayed quote consent, records acceptance of Menlo's Terms and requests eligible carrier quotes through Menlo's existing workflow. Sends application information to carriers and may authorize consumer reports. Requires separate quot",
+      "labels": [
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "get_quote_status",
+      "descriptionHash": "9fe7ff367cba5d97b9b2e101950e9c820cf288bf24b1a4f81c5a0dd1422997c2",
+      "description": "Returns the connected quote’s stage, carrier outcomes and available quotes. Premiums are indicative carrier results and nothing is bound. Includes a waiting-on-carriers message and whether an MCP Events quote.updated subscription is active. Reading does not activate notifications, start carrier proc",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "get_missing_questions",
+      "descriptionHash": "73822e83d13c69d15609c00c00dd3e70de03b6d9166b107ad208f4f07c437ac4",
+      "description": "Returns the connected quote’s outstanding follow-up questions and correction requests, deduplicated across carriers, with the current baseRevision. Questions marked for the website (protected information) cannot be answered through this connection."
+    },
+    {
+      "name": "answer_additional_questions",
+      "descriptionHash": "d417849b640247c1be1185f8c4685d47adf64ef2dcaab07b77652b24f2245290",
+      "description": "Saves answers to the connected quote’s outstanding follow-up questions and returns the updated status. A save can overwrite earlier answers and resume affected carrier processing. Coverage limits, deductibles, consent, attestations and protected information are not accepted; they are completed on Me",
+      "labels": [
+        "destructive"
+      ]
+    },
+    {
+      "name": "get_connected_quote_profile",
+      "descriptionHash": "95d00003935015aada6276547fb9cfee81b6f38cd2728e045b8814d4e4cdcffc",
+      "description": "Returns the identifier and display name of the one connected quote, or a new-quote connection label before its draft is started. The connection covers one quote, not a customer account."
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"review_quote_application\" references sensitive artifacts (authorization). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:review_quote_application",
+        "snippet": "Returns the connected application's ordinary answers, exact quote-authorization consent, Terms link and a short-lived revision-bound reviewToken when ready. Pro…"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: get_quote_status · Private data: get_quote_link, submit_quote_request · Public sink: get_quote_link, start_quote, submit_quote_request · Destructive: answer_quote_page, answer_additional_questions.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: get_quote_status · Private data: get_quote_link, submit_quote_request · Public sink: get_quote_link, start_quote, submit_quote_request · Destructive: answer_quote_page, answer_additional_questions"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 60,
+  "scoreBreakdown": {
+    "tool-poisoning": 20,
+    "toxic-flow": 20
+  },
+  "errors": []
+}

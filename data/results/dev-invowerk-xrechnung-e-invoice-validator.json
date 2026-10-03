@@ -1,0 +1,119 @@
+{
+  "schemaVersion": 1,
+  "scanner": {
+    "version": "1.6.0",
+    "rules": "402995650b68"
+  },
+  "target": {
+    "kind": "url",
+    "ref": "https://api.invowerk.dev/mcp/"
+  },
+  "scannedAt": "2026-10-03T09:58:22.917Z",
+  "durationMs": 1601,
+  "layers": {
+    "metadata": true,
+    "static": false
+  },
+  "tools": [
+    {
+      "name": "validate_invoice",
+      "descriptionHash": "6f406b37c8d716d7cacf8a1547a1367b5ad6f53c57cf7dfda00b46ef8dc57ea9",
+      "description": "Check an e-invoice against EN 16931 and German rules.\n\nInput: `invoice_base64` is the base64 of an XML invoice (UBL or CII) or a\nZUGFeRD / Factur-X PDF, at most 4 MB decoded; or pass the file as a download\nlink in `file`. `explain=true` adds an explanation to findings whose rule\nhas one, in `lang` (",
+      "labels": [
+        "untrusted-content",
+        "private-data"
+      ]
+    },
+    {
+      "name": "render_invoice",
+      "descriptionHash": "4ca0dc287fc4eb5227469168901090dd905ca0fc0270a27b3f50ec5fd33fb6da",
+      "description": "Render an XML e-invoice (UBL or CII, e.g. XRechnung) as a readable HTML page.\n\ninvowerk uses the KoSIT XRechnung visualization. Use it to show a person what\nan e-invoice contains.\n\nInput: `invoice_base64` is the base64 of the XML, at most 4 MB decoded, or pass\nthe file as a download link in `file`. ",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "explain_errors",
+      "descriptionHash": "e7fec1214b149858adf9f55f845ac7c4dfd5793d3d15ee542c91fec312e32812",
+      "description": "Explain rule codes in plain language. Works without an API key.\n\nCovers the codes of `validate_invoice` findings and hints: EN 16931,\nXRechnung, ZUGFeRD and invowerk's own hint codes (IW-*).\n\nInput: `codes` is a list of one or more codes, e.g. [\"BR-CO-18\", \"BR-DE-21\"].\nDuplicates are removed. `lang`",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "generate_invoice",
+      "descriptionHash": "9acdea62c939d5a170e61c4f43a32018f9516fe03886a862ad42e92d25646370",
+      "description": "Create a valid EN 16931 e-invoice (UBL or CII XML) from JSON.\n\nInput: `invoice` is a JSON object keyed on EN 16931 Business Terms, the same\nschema as `POST /v1/generate`, at most 4 MB. Main fields: `syntax` (\"ubl\"\ndefault, or \"cii\"), `flavor` (\"en16931\" default, or \"xrechnung\", which\nrequires `buyer",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "parse_invoice",
+      "descriptionHash": "2e8a9ac97e6eca5fef59dd89dcc0c5f9681e272072c7515445a4d996ec505bbc",
+      "description": "Read an existing e-invoice into JSON keyed on EN 16931 Business Terms.\n\nThe JSON is the input format of `generate_invoice`, so you can edit it and\ncreate the invoice again.\n\nInput: `invoice_base64` is the base64 of an XML invoice (UBL or CII) or a\nZUGFeRD / Factur-X PDF, at most 4 MB decoded; or pas",
+      "labels": [
+        "private-data",
+        "destructive"
+      ]
+    },
+    {
+      "name": "convert_invoice",
+      "descriptionHash": "fd1cbec72f8d1e703e0ea2006f8c1eed9a114f52ac04eb6b70c65d08a7aedfd4",
+      "description": "Convert an e-invoice to UBL or CII. The result is checked before it is returned.\n\nInput: `invoice_base64` is the base64 of an XML invoice or a ZUGFeRD /\nFactur-X PDF, at most 4 MB decoded; or pass the file as a download link in\n`file`. `target_syntax` is \"ubl\" or \"cii\". `target_flavor` is optional,\n",
+      "labels": [
+        "untrusted-content",
+        "private-data"
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOOL-POISON-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description issues instructions to the model",
+      "detail": "Description of \"generate_invoice\" contains imperative instructions directed at the AI assistant rather than describing the tool. This is the core tool-poisoning technique.",
+      "evidence": {
+        "source": "tool:generate_invoice",
+        "snippet": "Create a valid EN 16931 e-invoice (UBL or CII XML) from JSON. Input: `invoice` is a JSON object keyed on EN 16931 Business Terms, the same schema as `POST /v1/g…"
+      },
+      "confidence": 0.7,
+      "remediation": "Treat the server as untrusted; the model may obey embedded instructions."
+    },
+    {
+      "id": "MCP-TOOL-POISON-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description issues instructions to the model",
+      "detail": "Description of \"convert_invoice\" contains imperative instructions directed at the AI assistant rather than describing the tool. This is the core tool-poisoning technique.",
+      "evidence": {
+        "source": "tool:convert_invoice",
+        "snippet": "Convert an e-invoice to UBL or CII. The result is checked before it is returned. Input: `invoice_base64` is the base64 of an XML invoice or a ZUGFeRD / Factur-X…"
+      },
+      "confidence": 0.7,
+      "remediation": "Treat the server as untrusted; the model may obey embedded instructions."
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: validate_invoice, generate_invoice, convert_invoice · Private data: validate_invoice, render_invoice, explain_errors, generate_invoice, parse_invoice, convert_invoice · Public sink: generate_invoice · Destructive: parse_invoice.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: validate_invoice, generate_invoice, convert_invoice · Private data: validate_invoice, render_invoice, explain_errors, generate_invoice, parse_invoice, convert_invoice · Public sink: generate_invoice · Destructive: parse_invoice"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 50,
+  "scoreBreakdown": {
+    "tool-poisoning": 30,
+    "toxic-flow": 20
+  },
+  "errors": []
+}

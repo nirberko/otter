@@ -1,0 +1,120 @@
+{
+  "schemaVersion": 1,
+  "scanner": {
+    "version": "1.6.0",
+    "rules": "402995650b68"
+  },
+  "target": {
+    "kind": "url",
+    "ref": "https://api.arcgate.dev/trade/v1/mcp"
+  },
+  "scannedAt": "2026-10-03T09:58:37.005Z",
+  "durationMs": 1027,
+  "layers": {
+    "metadata": true,
+    "static": false
+  },
+  "tools": [
+    {
+      "name": "tradeSearch",
+      "descriptionHash": "23f63f0a7630da5e2718ce57722636c964eec857c831cce121ce72b0638e4e86",
+      "description": "Resolves a ticker, name, prefix or `0x` address to candidate ERC-20 tokens on Arc.\n\n- **Cost:** 0.005 USDC per call over x402: the first call gets a 402 with payment requirements in the `PAYMENT-REQUIRED` header (base64 JSON); sign them and retry with a `PAYMENT-SIGNATURE` header carrying the paymen",
+      "labels": [
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "tradeQuote",
+      "descriptionHash": "de17dd80539d4c76830a7d22c83d7b4a2bc46a49e0b0009d16271bbe1294042d",
+      "description": "Prices a swap between `sell` and `buy` across the indexed venues and stores it under a `quoteId`.\n\n- **Cost:** 0.01 USDC per call over x402: the first call gets a 402 with payment requirements in the `PAYMENT-REQUIRED` header (base64 JSON); sign them and retry with a `PAYMENT-SIGNATURE` header carry",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink",
+        "destructive"
+      ]
+    },
+    {
+      "name": "tradeSwap",
+      "descriptionHash": "3b055e222864d9badae197bf7505ab35e6522661cd6cc8af56d4a50632a4126c",
+      "description": "Turns a stored quote into unsigned transactions for the taker to sign and send. arcgate never signs, broadcasts or holds funds.\n\n- **Cost:** 0.01 USDC under $1,000; 0.05 USDC from $1,000 to $10,000; above that 0.05 USDC plus 0.5 bps of the amount over $10,000, capped at 5 USDC, size-tiered by the qu",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink",
+        "destructive"
+      ]
+    },
+    {
+      "name": "tradeSwapTx",
+      "descriptionHash": "1740617e64b944e747b05d54f8ecfc6729e7f79db4ca382cc147989180400370",
+      "description": "The free Permit2 second round: finishes a POST /trade/v1/swap call whose `signatures` asked the taker to sign a Permit2 `PermitSingle`.\n\n- **Cost:** free, never x402-gated - a payment header, if one is sent anyway, is ignored and nobody is charged. Only reachable once, right after the paid call that",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "tradeReceipt",
+      "descriptionHash": "d3738078a58d9fe22476c6134549d2f99e1844626c96f6273770e62e52842435",
+      "description": "Tells you whether the transactions POST /trade/v1/swap returned did what the quote promised, once you've sent them. It only reads the chain.\n\n- **Cost:** free, never x402-gated.\n- **Key inputs:** `quoteId` (the one you called POST /trade/v1/swap with) and `txHashes`, the 1 to 4 transactions you sent",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "tradeVenues",
+      "descriptionHash": "89bfc97b6ce7af2f36bd2137c3afd3e1fcfeb39222af4b8bfbe4f5f1ab325312",
+      "description": "Lists the DEX venues, hub tokens and launchpads this deployment indexes.\n\n- **Cost:** free, never x402-gated.\n- **Returns:** each venue with an `executable` flag, hubs and launchpads.\n- **Next:** use venue ids in POST /trade/v1/quote's `venues` / `excludeVenues`.",
+      "labels": [
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "health",
+      "descriptionHash": "7fc96d2d5c2fc6251537a5c32e72572a4f2a270a42cabea592f2f5cfdfab11ff",
+      "description": "Reports whether the service is up, with its diagnostics.\n\n- **Cost:** free, never x402-gated.\n- **Returns:** DB import health, rule set version, the deployed commit, cache/RPC/spend counters and the payer-identity mode.\n- **Next:** call before search/quote/swap to check the service is up.",
+      "labels": [
+        "private-data"
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOOL-POISON-007",
+      "severity": "low",
+      "category": "tool-poisoning",
+      "title": "Description uses pressure/override language",
+      "detail": "Description of \"tradeSwap\" stacks urgency/override words (always, never, warning). Legitimate tool descriptions rarely pressure the model to act or ignore prior guidance.",
+      "evidence": {
+        "source": "tool:tradeSwap",
+        "snippet": "Turns a stored quote into unsigned transactions for the taker to sign and send. arcgate never signs, broadcasts or holds funds. - **Cost:** 0.01 USDC under $1,0…"
+      },
+      "confidence": 0.3
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: tradeQuote, tradeSwap, tradeSwapTx, tradeReceipt · Private data: tradeSearch, tradeQuote, tradeSwap, tradeSwapTx, tradeReceipt, tradeVenues, health · Public sink: tradeSearch, tradeQuote, tradeSwap, tradeSwapTx, tradeReceipt, tradeVenues · Destructive: tradeQuote, tradeSwap.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: tradeQuote, tradeSwap, tradeSwapTx, tradeReceipt · Private data: tradeSearch, tradeQuote, tradeSwap, tradeSwapTx, tradeReceipt, tradeVenues, health · Public sink: tradeSearch, tradeQuote, tradeSwap, tradeSwapTx, tradeReceipt, tradeVenues · Destructive: tradeQuote, tradeSwap"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 77,
+  "scoreBreakdown": {
+    "tool-poisoning": 3,
+    "toxic-flow": 20
+  },
+  "errors": []
+}

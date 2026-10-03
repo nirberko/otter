@@ -1,0 +1,117 @@
+{
+  "schemaVersion": 1,
+  "scanner": {
+    "version": "1.6.0",
+    "rules": "402995650b68"
+  },
+  "target": {
+    "kind": "url",
+    "ref": "https://threshold.rentals/api/mcp"
+  },
+  "scannedAt": "2026-10-03T10:04:55.299Z",
+  "durationMs": 1703,
+  "layers": {
+    "metadata": true,
+    "static": false
+  },
+  "tools": [
+    {
+      "name": "search_stays",
+      "descriptionHash": "85baa80e0945e15cecc43e1b292f0c331fc3c8b77a749fcbc9bcac40ab5c8f14",
+      "description": "Find verified independent vacation rentals. Filters are strict: every listed amenity must be present. With dates, results include a cached availability signal and an indicative all-in total (no guest service fee). Maps to GET /v1/search."
+    },
+    {
+      "name": "get_property",
+      "descriptionHash": "242c4c9d16d6b0d1d1357d771d9f17d86d60cf3c3f1a2a5397b23ef2098af3dd",
+      "description": "Full record for one property: beds by room, amenities with details, access and stairs, rules, host FAQ, policies, and verification status. Maps to GET /v1/properties/{id}.",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "check_availability",
+      "descriptionHash": "2edc3b66b6f82be1f3a7fc11b78ee6ac89aea0cec89cc7250fe44481e60d6db9",
+      "description": "Day-by-day availability and indicative nightly prices for up to 180 days. Cached; use get_quote to confirm. Useful when the guest's dates are flexible. Maps to GET /v1/properties/{id}/availability."
+    },
+    {
+      "name": "get_quote",
+      "descriptionHash": "203b95d44385a123c71c72c9e9576f7f8420487b202ac2d5b20b94c41bd6c098",
+      "description": "Itemized, binding price for exact dates and party, after re-checking the host's live calendars. Valid 10 minutes. Returns house rules and an exact refund schedule to show the guest. Does not reserve the dates. Maps to POST /v1/properties/{id}/quotes.",
+      "labels": [
+        "untrusted-content",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "get_booking",
+      "descriptionHash": "287dacb483ebc4e34eb58f6e2b6f2d5b67e46aaf7ce7914fa10785e1951488e4",
+      "description": "Status, amounts, refund schedule, guest ID verification link, and when arrival details will be sent. Maps to GET /v1/bookings/{id}."
+    },
+    {
+      "name": "ask_host",
+      "descriptionHash": "f4c7174970c1e34cd5d81906b848835545e6672c78f60c67b3fd6202295cf56c",
+      "description": "Send a question the property record and FAQ don't answer. The answer arrives later; tell the guest you'll follow up. Don't include the guest's contact details. Maps to POST /v1/properties/{id}/questions.",
+      "labels": [
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "get_messages",
+      "descriptionHash": "f1e6692166441984d726ef73d3777e65ad4c9d9e6d6c5cedefca46c185c36439",
+      "description": "The conversation between the guest and the host about a booking, oldest first (including the guest's note with the request and the host's note when accepting or declining). Use it to relay the host's replies. Pass guest_email (the email the booking was made with) unless you connect with an agent tok",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "send_message",
+      "descriptionHash": "c2f7aa697faa3520f81496325e8d6d03b2e0e7874a0cca3592e82e4153177c45",
+      "description": "Send a message to the host on the guest's behalf, e.g. a question about check-in or a late arrival. Only send what the guest asked you to say. The host is emailed and replies appear in get_messages. Open from the request until two weeks after check-out.",
+      "labels": [
+        "untrusted-content",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "cancel_booking",
+      "descriptionHash": "0fc66334e060fea94737bd2684cabd066820b14bb1d9792a2f20f2dc54a8bb11",
+      "description": "Two-step. First call with confirm=false to see what the guest gets back if they cancel now (nothing changes). Tell the guest that refund and get their go-ahead, then call again with confirm=true and expected_refund_cents set to the refund amount from the first call. If the refund changed in between,",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "request_booking",
+      "descriptionHash": "563a25de0cdc0cb99e4c2f94bec753da23ebdce944288e95dd43b984869d9f90",
+      "description": "Request a stay from a quote. Set house_rules_accepted only after the guest has seen and agreed to the quote's house_rules. If the quote's payment.collected_by is \"threshold\", the booking starts as awaiting_payment and the response includes payment_url (and agent_payment when you can pay with a share",
+      "labels": [
+        "private-data"
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: get_quote, get_messages, send_message, cancel_booking · Private data: get_property, ask_host, get_messages, cancel_booking, request_booking · Public sink: get_quote, ask_host, get_messages, send_message, cancel_booking.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: get_quote, get_messages, send_message, cancel_booking · Private data: get_property, ask_host, get_messages, cancel_booking, request_booking · Public sink: get_quote, ask_host, get_messages, send_message, cancel_booking"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 80,
+  "scoreBreakdown": {
+    "toxic-flow": 20
+  },
+  "errors": []
+}

@@ -1,0 +1,94 @@
+{
+  "schemaVersion": 1,
+  "scanner": {
+    "version": "1.6.0",
+    "rules": "402995650b68"
+  },
+  "target": {
+    "kind": "url",
+    "ref": "https://powerline.ai/mcp"
+  },
+  "scannedAt": "2026-10-03T09:55:37.096Z",
+  "durationMs": 470,
+  "layers": {
+    "metadata": true,
+    "static": false
+  },
+  "tools": [
+    {
+      "name": "check_domain",
+      "descriptionHash": "cc80bc737354124955e12bf9f516dcd51374000aabe604c2fe58acac7c306917",
+      "description": "Run every email-authentication check on a domain (SPF, DKIM, DMARC, MX, MTA-STS, TLS-RPT, BIMI, plus domain and mail-server blacklists) and return a score out of 100, per-check findings and a prioritized fix list. Use this first when asked whether a domain is set up correctly to send email.",
+      "labels": [
+        "untrusted-content",
+        "public-sink",
+        "destructive"
+      ]
+    },
+    {
+      "name": "check_record",
+      "descriptionHash": "a2c34bd4f26d804ffeb781d0008da4195ccc3e5b79405e1877c1dbe8ff4a50b8",
+      "description": "Look up and validate a single email DNS record for a domain, explaining each tag. record is one of spf, dmarc, dkim, bimi, mta-sts, tls-rpt, mx. SPF counts the 10-lookup limit; DMARC checks policy, reporting and external report authorization; DKIM sizes the key; MTA-STS fetches the policy file and c",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "check_blacklists",
+      "descriptionHash": "0164dffa06cdcf890443616ca58bf45181c53ae7bd5d3bf606d7a8806b832528",
+      "description": "Check an IPv4 address against about 18 IP blacklists (SpamCop, Barracuda, UCEPROTECT, PSBL, Mailspike, ...) or a domain against domain blacklists. Each list is verified with its test entries first, so lists that refuse public resolvers (such as Spamhaus) are reported as unavailable rather than clean"
+    },
+    {
+      "name": "analyze_headers",
+      "descriptionHash": "72f00a09f64f635df0255838014f03350091d74b3a49b6c9c4e3d8a6e532c1a1",
+      "description": "Parse raw email headers: the Received delivery path with per-hop delays, the receiving server's SPF/DKIM/DMARC verdicts, DMARC alignment of the From domain, DKIM signatures, the sending IP, and bulk-sender requirements such as one-click unsubscribe.",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "check_spam_words",
+      "descriptionHash": "7166547daf63e4825a7dcc55f9a56d49d57b0e9d7a02e653a3e6edef8ac97e57",
+      "description": "Scan an email subject and body (plain text or HTML) for spam-trigger phrases by category, ALL-CAPS, exclamation runs, emoji, URL shorteners and image-heavy HTML. Returns a low/medium/high risk reading and, optionally, a rule-based rewrite.",
+      "labels": [
+        "untrusted-content",
+        "public-sink"
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"check_record\" references sensitive artifacts (authorization). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:check_record",
+        "snippet": "Look up and validate a single email DNS record for a domain, explaining each tag. record is one of spf, dmarc, dkim, bimi, mta-sts, tls-rpt, mx. SPF counts the …"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: check_domain, check_record, check_spam_words · Private data: check_record · Public sink: check_domain, check_record, analyze_headers, check_spam_words · Destructive: check_domain.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: check_domain, check_record, check_spam_words · Private data: check_record · Public sink: check_domain, check_record, analyze_headers, check_spam_words · Destructive: check_domain"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 60,
+  "scoreBreakdown": {
+    "tool-poisoning": 20,
+    "toxic-flow": 20
+  },
+  "errors": []
+}

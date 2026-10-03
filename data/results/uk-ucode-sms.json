@@ -8,8 +8,8 @@
     "kind": "url",
     "ref": "https://mcp.ucodesim.com/mcp"
   },
-  "scannedAt": "2026-09-27T10:13:13.766Z",
-  "durationMs": 2570,
+  "scannedAt": "2026-10-03T10:05:14.515Z",
+  "durationMs": 2291,
   "layers": {
     "metadata": true,
     "static": false
@@ -49,8 +49,8 @@
     },
     {
       "name": "ucode_agent_billing",
-      "descriptionHash": "4d0359bdd365e3c9c7e0c9b129b720e4a5ec9c0250016ca4beb58a195fb81e9c",
-      "description": "No login. Lists prepaid USDC (Base) credit packs for autonomous agents/bots and how to pay with x402. ChatGPT humans should use **ucode_render_credits** and https://ucode.uk/app/credits instead."
+      "descriptionHash": "15fa1f4aae084295004b44bb7f14d90a8a86f323cc0fc0f31ef0abad94673d38",
+      "description": "No login. Lists prepaid credit packs priced in USDC on Base for autonomous agents/bots (packageId, credits, usd, payTo). Buy one with **ucode_agent_buy_credits**. Signed-in humans pay by card at https://ucode.uk/app/credits instead (**ucode_render_credits**)."
     },
     {
       "name": "ucode_instructions",
@@ -140,8 +140,8 @@
     },
     {
       "name": "ucode_credit_referral_redeem",
-      "descriptionHash": "43869ae1dbecca668ea6e83f32d1458dc9d2da136eb5d2508026982e14f77969",
-      "description": "Redeem a 6-character referral code for bonus credits."
+      "descriptionHash": "957db4e20b7737c33031ef841eb63444c0892f0a37e062fa8b6a443118fb71fb",
+      "description": "Apply a friend's referral code (once per account, only if the referral program is active). Never guess, generate or loop over codes."
     },
     {
       "name": "ucode_payments_stripe_prices",
@@ -289,6 +289,67 @@
       "name": "ucode_app_init_snapshot",
       "descriptionHash": "44345626e40bbc4ff5d9f9e3b563c755ccf2334f6ba4ddb99affd045318b5044",
       "description": "Combined snapshot (packages, rentals, credit status, settings). Use platform web for ChatGPT (Stripe/crypto web packages); ios/android for native."
+    },
+    {
+      "name": "ucode_find_numbers",
+      "descriptionHash": "1b4120c05e1ec6750597ec5d82d5feb2a1faf11f7b65e2d2eb3b6262fc03a07f",
+      "description": "No sign-in needed. Search which apps/services (Telegram, WhatsApp, Google, OpenAI…) have virtual numbers in stock, by country, with the price in Ucode credits. Use this first whenever someone asks for a number or a price. Then: signed-in humans rent with ucode_sms_rent_packages → ucode_sms_rent_with"
+    },
+    {
+      "name": "ucode_agent_quote",
+      "descriptionHash": "cc157f9621eee68b442288849509a685212e556deca0dc9c039d1ca422e599a6",
+      "description": "Exact USDC (Base) price to rent ONE number for a service/country without prepaid credits. Use the 'service' code from ucode_find_numbers and a countryId."
+    },
+    {
+      "name": "ucode_agent_buy_credits",
+      "descriptionHash": "e94e844bf9d6c6ef7e61749aa9dd811819ab8e2db201b2e037fc47571de556b4",
+      "description": "Autonomous agents: buy a prepaid credit pack with USDC on Base using the x402 protocol — no account or card needed. Step 1: call with {pack, acceptLawfulUse:true} (no paymentHeader) → returns PAYMENT_REQUIRED with exact x402 requirements. Step 2: sign that payment with your x402 wallet and call agai",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "ucode_agent_rent",
+      "descriptionHash": "770a94ec66811bb461861fdb7509ce80716941b2da9cdc1a4442ac9ffbf6bb59",
+      "description": "Rent one virtual number for a lawful SMS verification. Pays from the agent wallet when a uc_live_ API key is active (from ucode_agent_buy_credits, ucode_agent_use_api_key, or an Authorization: Bearer uc_live_… header on the MCP connection). Without a key it uses pay-per-SMS: first call returns PAYME",
+      "labels": [
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "ucode_agent_check_sms",
+      "descriptionHash": "e49df249dd73df2bca6098b30b5bfecb942e457477201b613595435bbf889b50",
+      "description": "Poll an agent rental for the SMS/OTP. Pass id and pollToken from ucode_agent_rent (or rely on the session API key).",
+      "labels": [
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "ucode_agent_wallet",
+      "descriptionHash": "e671b075b6cf719db73938c3e27ff3029f6f8c030682b6cb43ab4363c95b266f",
+      "description": "Credit balance of the agent wallet behind the active uc_live_ API key.",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "ucode_agent_use_api_key",
+      "descriptionHash": "3f7dda6847c398a0ef5f6207856f3a1d210d90fc1aff0d8eed9b777f5daefca9",
+      "description": "Activate a previously issued uc_live_ agent API key for this MCP session (for clients that cannot set an Authorization header).",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "ucode_agent_cancel",
+      "descriptionHash": "8633f7b62b161c96a4f39343d55e4bacabd2bf68bb53c47eb99e0b3c3bf4a5a7",
+      "description": "Cancel an agent rental when no SMS arrived; credits return to the agent wallet. Requires the uc_live_ API key.",
+      "labels": [
+        "private-data",
+        "public-sink"
+      ]
     }
   ],
   "findings": [
@@ -341,22 +402,72 @@
       "confidence": 0.3
     },
     {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"ucode_agent_rent\" references sensitive artifacts (api_key, authorization, bearer). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:ucode_agent_rent",
+        "snippet": "Rent one virtual number for a lawful SMS verification. Pays from the agent wallet when a uc_live_ API key is active (from ucode_agent_buy_credits, ucode_agent_u…"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"ucode_agent_use_api_key\" references sensitive artifacts (authorization). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:ucode_agent_use_api_key",
+        "snippet": "Activate a previously issued uc_live_ agent API key for this MCP session (for clients that cannot set an Authorization header)."
+      },
+      "confidence": 0.65
+    },
+    {
       "id": "MCP-TOXIC-FLOW-001",
       "severity": "high",
       "category": "toxic-flow",
       "title": "Lethal trifecta: untrusted input + private data + external sink",
-      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: ucode_render_services, ucode_session_status, ucode_instructions · Private data: ucode_login_poll, ucode_authenticate, ucode_credits_status, ucode_render_credits, ucode_services_catalog · Public sink: ucode_sms_services, ucode_sms_countries, ucode_sms_prices, ucode_sms_summary, ucode_sms_service_detail, ucode_sms_rent_packages, ucode_sms_rent_with_credits, ucode_sms_rent_provider_direct, ucode_sms_active_rentals, ucode_sms_get_code, ucode_sms_cancel_rental, ucode_sms_refund_expired, ucode_sms_transactions · Destructive: ucode_session_status, ucode_render_credits.",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: ucode_render_services, ucode_session_status, ucode_instructions · Private data: ucode_login_poll, ucode_authenticate, ucode_credits_status, ucode_render_credits, ucode_services_catalog, ucode_agent_buy_credits, ucode_agent_rent, ucode_agent_check_sms, ucode_agent_wallet, ucode_agent_use_api_key, ucode_agent_cancel · Public sink: ucode_sms_services, ucode_sms_countries, ucode_sms_prices, ucode_sms_summary, ucode_sms_service_detail, ucode_sms_rent_packages, ucode_sms_rent_with_credits, ucode_sms_rent_provider_direct, ucode_sms_active_rentals, ucode_sms_get_code, ucode_sms_cancel_rental, ucode_sms_refund_expired, ucode_sms_transactions, ucode_agent_rent, ucode_agent_check_sms, ucode_agent_cancel · Destructive: ucode_session_status, ucode_render_credits.",
       "evidence": {
         "source": "server:mcp",
-        "snippet": "Untrusted content: ucode_render_services, ucode_session_status, ucode_instructions · Private data: ucode_login_poll, ucode_authenticate, ucode_credits_status, ucode_render_credits, ucode_services_catalog · Public sink: ucode_sms_services, ucode_sms_countries, ucode_sms_prices, ucode_sms_summary, ucode_sms_service_detail, ucode_sms_rent_packages, ucode_sms_rent_with_credits, ucode_sms_rent_provider_direct, ucode_sms_active_rentals, ucode_sms_get_code, ucode_sms_cancel_rental, ucode_sms_refund_expired, ucode_sms_transactions · Destructive: ucode_session_status, ucode_render_credits"
+        "snippet": "Untrusted content: ucode_render_services, ucode_session_status, ucode_instructions · Private data: ucode_login_poll, ucode_authenticate, ucode_credits_status, ucode_render_credits, ucode_services_catalog, ucode_agent_buy_credits, ucode_agent_rent, ucode_agent_check_sms, ucode_agent_wallet, ucode_agent_use_api_key, ucode_agent_cancel · Public sink: ucode_sms_services, ucode_sms_countries, ucode_sms_prices, ucode_sms_summary, ucode_sms_service_detail, ucode_sms_rent_packages, ucode_sms_rent_with_credits, ucode_sms_rent_provider_direct, ucode_sms_active_rentals, ucode_sms_get_code, ucode_sms_cancel_rental, ucode_sms_refund_expired, ucode_sms_transactions, ucode_agent_rent, ucode_agent_check_sms, ucode_agent_cancel · Destructive: ucode_session_status, ucode_render_credits"
       },
       "confidence": 0.6,
       "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"ucode_agent_billing\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:ucode_agent_billing",
+        "snippet": "before: \"No login. Lists prepaid USDC (Base) credit packs for autonomous agents/bots and how to pay with x402. ChatGPT humans should use **ucode_render_credits** and https://ucode.uk/app/credits instead.\" → after: \"No login. Lists prepaid credit packs priced in USDC on Base for autonomous agents/bots (packageId, credits, usd, payTo). Buy one with **ucode_agent_buy_credits**. Signed-in humans pay by card at https://ucode.uk/app/credits instead (**ucode_render_credits**).\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"ucode_credit_referral_redeem\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:ucode_credit_referral_redeem",
+        "snippet": "before: \"Redeem a 6-character referral code for bonus credits.\" → after: \"Apply a friend's referral code (once per account, only if the referral program is active). Never guess, generate or loop over codes.\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
     }
   ],
-  "score": 49,
+  "score": 40,
   "scoreBreakdown": {
-    "tool-poisoning": 31,
+    "tool-poisoning": 40,
     "toxic-flow": 20
   },
   "errors": []

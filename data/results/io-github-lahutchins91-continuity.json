@@ -1,0 +1,135 @@
+{
+  "schemaVersion": 1,
+  "scanner": {
+    "version": "1.6.0",
+    "rules": "402995650b68"
+  },
+  "target": {
+    "kind": "url",
+    "ref": "https://continuitywriter.com/mcp"
+  },
+  "scannedAt": "2026-10-03T10:13:48.258Z",
+  "durationMs": 957,
+  "layers": {
+    "metadata": true,
+    "static": false
+  },
+  "tools": [
+    {
+      "name": "list_story_projects",
+      "descriptionHash": "c350645a59cd8ec968e52c3dea895b6e2f137e60d592f623a66998a0e41cd440",
+      "description": "Find the user’s saved story projects before starting or resuming a story. Use the returned ID; do not guess projects. Page with offset."
+    },
+    {
+      "name": "create_story_project",
+      "descriptionHash": "f0c6363cffbcc711803a8389369508916c2d0c6c603cc74b13f3c7359db0c209",
+      "description": "Create a new private story project when the user asks. Does not save canon or scenes.",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "get_continuity_context",
+      "descriptionHash": "40d9816e66e9c89c7f71cf983bc7c5af2b4ff77b01d3daf80262cef01649c4f8",
+      "description": "Retrieve relevant canon, recent approved scenes, and the latest provisional checkpoint before continuing a saved story or recovering it in a new chat. request is a brief scene/topic query, never a chat transcript. Results are a selection; use search_story_canon for specific missing facts.",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "search_story_canon",
+      "descriptionHash": "22fa44b472c23d909e13bec81d35f58474f7b624c1ae8869a3e6cacd673388b1",
+      "description": "Search saved canon by literal title/content text, or browse every entry with an empty query and offset. Use to verify details before revising an entry or when context retrieval omits something."
+    },
+    {
+      "name": "upsert_canon_entry",
+      "descriptionHash": "39e704dc27b64525f7d06d9681c4b34fde97f2231aa5e1fdc982dc66059496b8",
+      "description": "Save a fact or revise canon only after the user approves it. Preserve the existing title/kind. LOCKED requires approval as established fact; brainstorming is not approval. Existing entries require expectedRevision from retrieval; conflicting edits fail without overwriting. Identical retries leave re"
+    },
+    {
+      "name": "get_canon_history",
+      "descriptionHash": "064a6d9643cfca5f250f318fef523b1625220b9909255bef0b75049267f5aa05",
+      "description": "Read previous and new content for a saved canon entry, newest first. No changes are made."
+    },
+    {
+      "name": "list_approved_scenes",
+      "descriptionHash": "af8c14b28933208fc64060c326890915d334cdace32d96785c94532beb79e55d",
+      "description": "Read approved scene summaries in story order. Page with offset to inspect older scenes or verify a scene number before saving."
+    },
+    {
+      "name": "record_approved_scene",
+      "descriptionHash": "564c70563f9102146864e6fe652cc04eb25ba0be11095ce7bc85fffdf1511f49",
+      "description": "Store a concise summary of a scene the user has approved. Never record an unapproved draft. An occupied scene number is preserved unless replaceExisting is true and the user requested replacement. Identical retries return the saved scene.",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "save_story_checkpoint",
+      "descriptionHash": "b52ca307eb30345861650c67b28db72a1e623b4041ff92c9c4048da80928bdff",
+      "description": "Preserve a concise story-session handoff when the user asks to save progress or has authorized ongoing checkpoints for this story. Stores provisional notes, not canon or an approved scene. Separate established progress from unresolved ideas. Send only focused story state, never a full transcript, cr",
+      "labels": [
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "list_story_checkpoints",
+      "descriptionHash": "5e153058804f14ab1595aa20998b6e9d17062e0f14258c77f4e884090dd00f35",
+      "description": "Retrieve provisional story handoffs to recover progress across chats. These notes never override approved canon. Page with offset for older checkpoints.",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "continuity_audit",
+      "descriptionHash": "fd1d48171506a60388a30302826c53a66f431f73d9006165c9abfc65e40df397",
+      "description": "Retrieve locked canon for the assistant to compare against a short proposed scene. This tool supplies evidence; the assistant must identify contradictions. Does not save or approve the scene."
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"save_story_checkpoint\" references sensitive artifacts (credentials). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:save_story_checkpoint",
+        "snippet": "Preserve a concise story-session handoff when the user asks to save progress or has authorized ongoing checkpoints for this story. Stores provisional notes, not…"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOOL-POISON-007",
+      "severity": "low",
+      "category": "tool-poisoning",
+      "title": "Description uses pressure/override language",
+      "detail": "Description of \"list_story_checkpoints\" stacks urgency/override words (never, override). Legitimate tool descriptions rarely pressure the model to act or ignore prior guidance.",
+      "evidence": {
+        "source": "tool:list_story_checkpoints",
+        "snippet": "Retrieve provisional story handoffs to recover progress across chats. These notes never override approved canon. Page with offset for older checkpoints."
+      },
+      "confidence": 0.3
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: get_continuity_context, list_story_checkpoints · Private data: create_story_project, record_approved_scene, save_story_checkpoint · Public sink: save_story_checkpoint.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: get_continuity_context, list_story_checkpoints · Private data: create_story_project, record_approved_scene, save_story_checkpoint · Public sink: save_story_checkpoint"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 59,
+  "scoreBreakdown": {
+    "tool-poisoning": 22,
+    "toxic-flow": 20
+  },
+  "errors": []
+}

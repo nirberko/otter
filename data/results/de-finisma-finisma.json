@@ -1,0 +1,82 @@
+{
+  "schemaVersion": 1,
+  "scanner": {
+    "version": "1.6.0",
+    "rules": "402995650b68"
+  },
+  "target": {
+    "kind": "url",
+    "ref": "https://finisma.de/api/mcp"
+  },
+  "scannedAt": "2026-10-03T10:09:21.358Z",
+  "durationMs": 1840,
+  "layers": {
+    "metadata": true,
+    "static": false
+  },
+  "tools": [
+    {
+      "name": "verify_zugferd",
+      "descriptionHash": "c273170160705ea981f0154c9cf78ea35fa02a9ca802acb32e38532056742da9",
+      "description": "Prüft eine ZUGFeRD-/Factur-X-PDF: Struktur, EN-16931-Regeln, PDF/A-3-Anhänge."
+    },
+    {
+      "name": "create_zugferd",
+      "descriptionHash": "23cb3ce842a11d7135bd41be10e1df34c9aa00f0ddd62b9eb145157e95b34d74",
+      "description": "Erzeugt eine ZUGFeRD-PDF aus visueller PDF und strukturierten EN-16931-Daten (kein LLM). Verletzen die Daten EN-16931-Geschäftsregeln, liefert der Remote-Kanal (Chat-Connector) strukturierte Issues statt einer Datei zurück — invoice korrigieren (siehe extract_invoice) und mit denselben Quelldaten (u",
+      "labels": [
+        "destructive"
+      ]
+    },
+    {
+      "name": "request_upload_link",
+      "descriptionHash": "717904b90813b6eec6c489b143a117a48f968af7984ebfeab654c7c04f81dc57",
+      "description": "Erzeugt einen kurzlebigen Upload-Link für eine PDF-Rechnung. Nötig für Chat-Clients (ChatGPT, Claude), die eine angehängte Datei nicht zuverlässig als pdf_base64 an ein Tool übergeben können. Zwei Wege: Der Nutzer lädt die PDF über upload_url im Browser hoch, ODER der Client mit Shell und Netzzugrif",
+      "labels": [
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "extract_invoice",
+      "descriptionHash": "2f9870280e7632a3cfea3c21186a6dce31625e177017edc6e71c6287717788e0",
+      "description": "Extrahiert EN-16931-Rechnungsdaten aus einer hochgeladenen PDF (Formularfelder) plus Validierungs-Issues, als Korrekturschritt vor create_zugferd: Felder und Issues dem Nutzer zeigen, korrigieren lassen, danach create_zugferd mit dem korrigierten invoice und derselben upload_id aufrufen. Unsichere F"
+    },
+    {
+      "name": "check_vat_id",
+      "descriptionHash": "dd4496c78cd0e6bc2e2797cb8605d13e8c8e45b5cc530e3bec69913829155c4b",
+      "description": "Prüft eine USt-IdNr. live gegen VIES (EU-Bestätigungsverfahren): Gültigkeit plus Firmenname, sofern der Mitgliedsstaat ihn herausgibt. Antwort-Status ist valid, invalid oder unavailable (VIES nicht erreichbar — keine Aussage). Kostenlos.",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "check_peppol_participant",
+      "descriptionHash": "3dcc20c543194c8eaf208b1178b398326904f21b74ec75dabf130c8efb2c427c",
+      "description": "Prüft per SML/SMP-Lookup, ob ein Geschäftspartner im Peppol-Netz erreichbar ist, und listet seine registrierten Dokumenttypen. Akzeptiert eine volle Kennung (\"0088:4399901550926\"), eine nackte GLN, eine deutsche USt-IdNr. oder eine Leitweg-ID. registered:false ist ein normales Ergebnis, kein Fehler.",
+      "labels": [
+        "untrusted-content"
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: check_vat_id, check_peppol_participant · Private data: request_upload_link · Public sink: request_upload_link · Destructive: create_zugferd.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: check_vat_id, check_peppol_participant · Private data: request_upload_link · Public sink: request_upload_link · Destructive: create_zugferd"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 80,
+  "scoreBreakdown": {
+    "toxic-flow": 20
+  },
+  "errors": []
+}

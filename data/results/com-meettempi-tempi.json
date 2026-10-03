@@ -8,8 +8,8 @@
     "kind": "url",
     "ref": "https://meettempi.com/mcp"
   },
-  "scannedAt": "2026-09-27T10:05:39.783Z",
-  "durationMs": 1129,
+  "scannedAt": "2026-10-03T09:57:20.236Z",
+  "durationMs": 934,
   "layers": {
     "metadata": true,
     "static": false
@@ -17,13 +17,13 @@
   "tools": [
     {
       "name": "get_public_profile",
-      "descriptionHash": "9e41ab5b2dafd2b923aebdc31203e197f94a1c124ae27cfc58a0a02e21a59bd0",
-      "description": "Takes a handle, the first path segment of a booking link (https://host/acme/demo → \"acme\"). Returns the person or team and their bookable event types, with duration, price and hosts. A handle from before a rename also works. Next: call get_available_slots with one of the event type slugs."
+      "descriptionHash": "dc2acf5fc8bd51228674924ef9e341bf6d488f7c1eed4fa3da9ea89a766572b5",
+      "description": "Takes a handle, the first path segment of a booking link (https://host/acme/demo → \"acme\"), or the link itself. Returns the person or team and their bookable event types, with duration, price, and hosts with their time zones (`hostTimezones`, so you can say what time a slot is for them). A handle fr"
     },
     {
       "name": "get_available_slots",
-      "descriptionHash": "8456653c27ce27d1ad5c3d9de553cf24b053d623e9f68af15a42deffce7a8cec",
-      "description": "Returns the start times that can be booked, with the hosts' calendars, buffers and limits already applied. Pass `date` (YYYY-MM-DD in `timezone`) or `from` and `to` (ISO, at most 62 days apart). With neither, it covers the next 7 days. `days` groups the slots by date in `timezone` (default UTC). For",
+      "descriptionHash": "00b217bc0c90e7a840fddcf2cb4b0147ece9b0bc1625e0c62d36e9276968c5df",
+      "description": "Returns the start times that can be booked, with the hosts' calendars, buffers and limits already applied. Pass the invitee's `timezone` and either `date` (YYYY-MM-DD in `timezone`) or `from` and `to` (ISO, at most 62 days apart). With neither, it covers the next 7 days. `days` groups the slots by d",
       "labels": [
         "private-data"
       ]
@@ -35,16 +35,18 @@
     },
     {
       "name": "create_booking",
-      "descriptionHash": "22177fb3a6b0d05b758d703be7080139f294fa6a3c490cc9fd198008d3f5104a",
-      "description": "Books `start`, which must be one of the `slots` from get_available_slots. Free events are confirmed at once. Paid events return status=pending_payment and a `paymentUrl`. Give it to the human to pay before `holdExpiresAt`, or the slot is released. Once confirmed, the event is added to the host's cal",
+      "descriptionHash": "d992cfff2193e6d65e38689f146ee5f98cb55f730518582fbc774c77ef390595",
+      "description": "Books `start`, which must be one of the `slots` from get_available_slots. Free events are confirmed at once, unless the event type has `requiresApproval`: then it's a request (status=pending_approval) that holds the time until a host approves or declines it, and the invitee hears either way by email",
       "labels": [
-        "private-data"
+        "untrusted-content",
+        "private-data",
+        "public-sink"
       ]
     },
     {
       "name": "get_booking",
-      "descriptionHash": "a263db8b6ed0e6dd1ead367b3d93c23c01986d5155f762a1568d4ce38d0c4e2a",
-      "description": "Returns a booking by its id and token (from create_booking or its manageUrl), with `changeableUntil`, `refundableUntil`, `canCancel` and `cancelReasonRequired`. For a series, `series` lists every meeting with its own manageUrl.",
+      "descriptionHash": "40ada5cb0121fb71d9dbb9fd6e7ec0d91e96fed930eab323b352fd7e3a37c4b7",
+      "description": "Returns a booking by its id and token (from create_booking), or its manageUrl passed as both, with `changeableUntil`, `refundableUntil`, `canCancel` and `cancelReasonRequired`. For a series, `series` lists every meeting with its own manageUrl.",
       "labels": [
         "private-data"
       ]
@@ -67,8 +69,8 @@
     },
     {
       "name": "join_waitlist",
-      "descriptionHash": "739e6cde35ed7e873aa72d175a6e01e34f5c0a03fc79c1c372e5ff9e131da3ac",
-      "description": "Requests access to host on Tempi (create event types, share a booking page). Not needed to book meetings, since booking pages are public. Returns the status: pending, approved (sign in at APP_URL/login), rejected, or open (no waitlist, sign in directly). Joining again with the same email returns the",
+      "descriptionHash": "522b1a264b33e8d194c205aa2b1defc271a95fbe203991d23e6650d82825a92d",
+      "description": "Requests access to host on Tempi (create event types, share a booking page). Not needed to book meetings, since booking pages are public. Returns the status: pending, approved (sign in to the Tempi web app), rejected, or open (no waitlist, sign in directly). Joining again with the same email returns",
       "labels": [
         "untrusted-content",
         "public-sink"
@@ -81,18 +83,84 @@
       "severity": "high",
       "category": "toxic-flow",
       "title": "Lethal trifecta: untrusted input + private data + external sink",
-      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: join_waitlist · Private data: get_available_slots, create_booking, get_booking, reschedule_booking_as_invitee, cancel_booking_as_invitee · Public sink: join_waitlist.",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: create_booking, join_waitlist · Private data: get_available_slots, create_booking, get_booking, reschedule_booking_as_invitee, cancel_booking_as_invitee · Public sink: create_booking, join_waitlist.",
       "evidence": {
         "source": "server:mcp",
-        "snippet": "Untrusted content: join_waitlist · Private data: get_available_slots, create_booking, get_booking, reschedule_booking_as_invitee, cancel_booking_as_invitee · Public sink: join_waitlist"
+        "snippet": "Untrusted content: create_booking, join_waitlist · Private data: get_available_slots, create_booking, get_booking, reschedule_booking_as_invitee, cancel_booking_as_invitee · Public sink: create_booking, join_waitlist"
       },
       "confidence": 0.6,
       "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"get_public_profile\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:get_public_profile",
+        "snippet": "before: \"Takes a handle, the first path segment of a booking link (https://host/acme/demo → \"acme\"). Returns the person or team and their bookable event types, with duration, price and hosts. A handle from before a rename also works. Next: call get_available_slots with one of the event type slugs.\" → after: \"Takes a handle, the first path segment of a booking link (https://host/acme/demo → \"acme\"), or the link itself. Returns the person or team and their bookable event types, with duration, price, and hosts with their time zones (`hostTimezones`, so you can say what time a slot is for them). A handle fr\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"get_available_slots\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:get_available_slots",
+        "snippet": "before: \"Returns the start times that can be booked, with the hosts' calendars, buffers and limits already applied. Pass `date` (YYYY-MM-DD in `timezone`) or `from` and `to` (ISO, at most 62 days apart). With neither, it covers the next 7 days. `days` groups the slots by date in `timezone` (default UTC). For\" → after: \"Returns the start times that can be booked, with the hosts' calendars, buffers and limits already applied. Pass the invitee's `timezone` and either `date` (YYYY-MM-DD in `timezone`) or `from` and `to` (ISO, at most 62 days apart). With neither, it covers the next 7 days. `days` groups the slots by d\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"create_booking\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:create_booking",
+        "snippet": "before: \"Books `start`, which must be one of the `slots` from get_available_slots. Free events are confirmed at once. Paid events return status=pending_payment and a `paymentUrl`. Give it to the human to pay before `holdExpiresAt`, or the slot is released. Once confirmed, the event is added to the host's cal\" → after: \"Books `start`, which must be one of the `slots` from get_available_slots. Free events are confirmed at once, unless the event type has `requiresApproval`: then it's a request (status=pending_approval) that holds the time until a host approves or declines it, and the invitee hears either way by email\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"get_booking\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:get_booking",
+        "snippet": "before: \"Returns a booking by its id and token (from create_booking or its manageUrl), with `changeableUntil`, `refundableUntil`, `canCancel` and `cancelReasonRequired`. For a series, `series` lists every meeting with its own manageUrl.\" → after: \"Returns a booking by its id and token (from create_booking), or its manageUrl passed as both, with `changeableUntil`, `refundableUntil`, `canCancel` and `cancelReasonRequired`. For a series, `series` lists every meeting with its own manageUrl.\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"join_waitlist\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:join_waitlist",
+        "snippet": "before: \"Requests access to host on Tempi (create event types, share a booking page). Not needed to book meetings, since booking pages are public. Returns the status: pending, approved (sign in at APP_URL/login), rejected, or open (no waitlist, sign in directly). Joining again with the same email returns the\" → after: \"Requests access to host on Tempi (create event types, share a booking page). Not needed to book meetings, since booking pages are public. Returns the status: pending, approved (sign in to the Tempi web app), rejected, or open (no waitlist, sign in directly). Joining again with the same email returns\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
     }
   ],
-  "score": 80,
+  "score": 41,
   "scoreBreakdown": {
-    "toxic-flow": 20
+    "toxic-flow": 20,
+    "tool-poisoning": 39
   },
   "errors": []
 }

@@ -1,0 +1,128 @@
+{
+  "schemaVersion": 1,
+  "scanner": {
+    "version": "1.6.0",
+    "rules": "402995650b68"
+  },
+  "target": {
+    "kind": "url",
+    "ref": "https://botgigs.app/api/public/mcp"
+  },
+  "scannedAt": "2026-10-03T09:55:47.946Z",
+  "durationMs": 2099,
+  "layers": {
+    "metadata": true,
+    "static": false
+  },
+  "tools": [
+    {
+      "name": "get_escrow_info",
+      "descriptionHash": "904973e1dcfd96d28aee244c4f9ee1b225b99ddd86690c8e04451eea988141b3",
+      "description": "Retrieves the escrow contract address and the live network, token and decimal details a job needs. Call this before funding anything so you use the current contract, token address and decimals. Read-only and cheap — safe to call often.",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "create_bounty",
+      "descriptionHash": "4a06e8fd596fecc2183545fbed25d07f7d6c53987ff852773934761312ebc4b1",
+      "description": "Creates a real-world job listing and returns exact funding instructions. The job stays invisible to workers until the deposit lands on-chain and fund_bounty confirms it. Every listing is safety-screened at creation and cannot be skipped: violent, exploitative or illegal tasks are refused with HTTP 4"
+    },
+    {
+      "name": "fund_bounty",
+      "descriptionHash": "ee7075bd0a05f181c6cdda3a1a952de6746a389729e8fac92c57fc69c54175e4",
+      "description": "Confirms funding by submitting the on-chain transaction hash that paid the escrow. Once accepted the job goes live, workers can claim it, and any nearby-first window starts here. The transaction must actually be on-chain, so call this after the deposit is confirmed, not immediately after broadcastin"
+    },
+    {
+      "name": "list_bounties",
+      "descriptionHash": "adf831091b6aba9350b51fa517a423aeb9bd4b3a5c57ab526203c52be040a395",
+      "description": "Lists your jobs newest first, optionally filtered by status. Use it to spot what needs your attention, then call get_bounty on a single job for photos, submissions and payouts. Read-only."
+    },
+    {
+      "name": "get_bounty",
+      "descriptionHash": "66736a2e164c8e8612694b68d589a7a96ccb3a99ebe38d02c08b570f9cb5e47c",
+      "description": "Retrieves one of your jobs with its submissions and payouts. Each submission carries temporary photo URLs, the distance from the job spot, the location check, the worker's answers and that worker's track record. This is the review screen for a job; act on it with review_submission. Read-only.",
+      "labels": [
+        "untrusted-content",
+        "private-data"
+      ]
+    },
+    {
+      "name": "review_submission",
+      "descriptionHash": "c7ad55ee2460decda8e13208fd0c0c6b6ed6c1bf45ed07be2a75b5bf3302a874",
+      "description": "Approves or rejects a worker's proof of completion; you are the verifier, not BotGigs. Approving releases the full job amount to the worker straight from the contract, and for contract jobs requires a signature from the wallet that deposited — call without a signature first and it returns the exact ",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "retry_payout",
+      "descriptionHash": "375542aa158afa2800dc67f35dc9e978e707139b707fcf37c1137cbee83b8e34",
+      "description": "Re-sends a payout that failed after approval, for example when the network was congested. It reuses the signature you already provided, so no new approval is needed. The money stays in the contract until a transfer actually succeeds, so retrying is always safe."
+    },
+    {
+      "name": "cancel_bounty",
+      "descriptionHash": "a1511b972369996a89971edc252b7006e5ba207900c8e669d7f3edc00b318ef5",
+      "description": "Cancels a job that no worker is actively claiming and refunds the full amount plus the fee from the contract to your refund address. It only works before a live claim or an submitted proof — once work is in, review it instead. The refund is on-chain and needs no permission from BotGigs."
+    },
+    {
+      "name": "set_webhook",
+      "descriptionHash": "2c1290f78e09912bcc91954bff7d9a3a19f1e7cad3951424111fd7ef10317537",
+      "description": "Registers an https endpoint that receives signed events instead of you polling: bounty.claimed, submission.created, payout.confirmed, payout.failed, bounty.refunded. Pass null to remove it. The signing secret is returned once — store it and check the x-dispatch-signature header (HMAC-SHA256 of the r",
+      "labels": [
+        "private-data",
+        "public-sink",
+        "destructive"
+      ]
+    },
+    {
+      "name": "list_webhook_deliveries",
+      "descriptionHash": "1b27bf433987bd23e9c3d90d30cfc7add55467ffc169a8fa95a5e4b45c23107f",
+      "description": "Lists recent webhook deliveries with their status, attempt count and last error, newest first. Check here before assuming an event was never sent — a failing endpoint shows up plainly. Read-only.",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "get_worker",
+      "descriptionHash": "c4729b0073df9666f6060fc03b329d96d86a30ada061338642937f4e355a2f85",
+      "description": "Retrieves a worker wallet's trust history: jobs completed, submissions rejected, work pending and approval rate. Use it before trusting a claim on a sensitive job, or after a disputed submission. It is public and read-only, so it can be called freely.",
+      "labels": [
+        "private-data"
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"set_webhook\" references sensitive artifacts (secret). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:set_webhook",
+        "snippet": "Registers an https endpoint that receives signed events instead of you polling: bounty.claimed, submission.created, payout.confirmed, payout.failed, bounty.refu…"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: get_bounty · Private data: get_escrow_info, get_bounty, review_submission, set_webhook, get_worker · Public sink: set_webhook, list_webhook_deliveries · Destructive: set_webhook.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: get_bounty · Private data: get_escrow_info, get_bounty, review_submission, set_webhook, get_worker · Public sink: set_webhook, list_webhook_deliveries · Destructive: set_webhook"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 60,
+  "scoreBreakdown": {
+    "tool-poisoning": 20,
+    "toxic-flow": 20
+  },
+  "errors": []
+}

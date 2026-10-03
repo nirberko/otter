@@ -1,0 +1,100 @@
+{
+  "schemaVersion": 1,
+  "scanner": {
+    "version": "1.6.0",
+    "rules": "402995650b68"
+  },
+  "target": {
+    "kind": "url",
+    "ref": "https://mcp.multiservicios.ai/mcp"
+  },
+  "scannedAt": "2026-10-03T09:55:37.235Z",
+  "durationMs": 879,
+  "layers": {
+    "metadata": true,
+    "static": false
+  },
+  "tools": [
+    {
+      "name": "list_services",
+      "descriptionHash": "360851e262e7c3fd75e2a54dc977c531c4aa265b1b5329602f47a91a94d51622",
+      "description": "The services that are live right now, with the `slug` to pass to request_service. Call it before asking the customer anything: a service that is not in this list cannot be requested, and offering one that is not there costs the customer a wait for a call that never comes.\n\nNo price, fee or coverage "
+    },
+    {
+      "name": "request_service",
+      "descriptionHash": "d1c1d260e77e1aece875c15bb22087651307ab02dcdd14b0b915ead95324ae40",
+      "description": "Leaves the customer's name and phone number with Multiservicios so an affiliate calls them about one service. It does not quote, price, sell, take payment or bind anything, and it confirms no coverage.\n\nAsk for consent in the customer's own words before calling this — \"is it alright if an affiliate ",
+      "labels": [
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "apply_as_provider",
+      "descriptionHash": "2ef084cde53f364eafcd6bc613bb91a2bd60b2d0e9bc92f658c074005f946771",
+      "description": "For a BUSINESS that wants to offer its own services through the Multiservicios affiliate network — not for a customer looking for a service (use request_service) and not for someone who wants to refer customers as an affiliate. It sends an application that a person reviews; it does not list the busi",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "my_account",
+      "descriptionHash": "aa3eaa709c832dd281a65537697224895a7884e4d901a5237ce5293d0084f69a",
+      "description": "The affiliate's own profile: the referral code their links carry, the state of their account, and their public affiliate page. Needs the affiliate's own token; it answers for nobody else, and it holds nothing about a customer.",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "my_service_links",
+      "descriptionHash": "76eb1cdfe8a2f22ec79611bdebb144cc35b724f07f42be80d21e54ced39f5e64",
+      "description": "Each service this affiliate holds, with their own referral link and an HTML snippet to embed it. A service the affiliate has switched off is reported as disabled: sharing it credits no referral. No price, fee or coverage is returned, and there is none here to look up."
+    },
+    {
+      "name": "my_referrals",
+      "descriptionHash": "6854c1fc31c45c9a80b8e5b5690b80d51e50dc2d5e5b4e78d35ac9504a461c6d",
+      "description": "The referrals credited to this affiliate, with the milestone each one reached and where its review stands. Every referral is reviewed by a person, so a pending one is not an earned reward. Nothing identifies the customer: the connector cannot show who was referred, because that data is not on this s"
+    },
+    {
+      "name": "my_earnings",
+      "descriptionHash": "81e7c080c19910afdf8ec16e74b39d289a8ed18d3799982ea07bceaa1c6c60a6",
+      "description": "Clicks, referrals and rewards for this affiliate over a date range, per service and in total. Approved and in-review rewards are two separate numbers and must stay that way: a reward in review has not been approved and is not owed, because a person reviews every referral and may decide against it. N"
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOOL-POISON-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description issues instructions to the model",
+      "detail": "Description of \"request_service\" contains imperative instructions directed at the AI assistant rather than describing the tool. This is the core tool-poisoning technique.",
+      "evidence": {
+        "source": "tool:request_service",
+        "snippet": "Leaves the customer's name and phone number with Multiservicios so an affiliate calls them about one service. It does not quote, price, sell, take payment or bi…"
+      },
+      "confidence": 0.7,
+      "remediation": "Treat the server as untrusted; the model may obey embedded instructions."
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: apply_as_provider · Private data: request_service, apply_as_provider, my_account · Public sink: request_service, apply_as_provider.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: apply_as_provider · Private data: request_service, apply_as_provider, my_account · Public sink: request_service, apply_as_provider"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 60,
+  "scoreBreakdown": {
+    "tool-poisoning": 20,
+    "toxic-flow": 20
+  },
+  "errors": []
+}

@@ -1,0 +1,106 @@
+{
+  "schemaVersion": 1,
+  "scanner": {
+    "version": "1.6.0",
+    "rules": "402995650b68"
+  },
+  "target": {
+    "kind": "url",
+    "ref": "https://thrustlab.com/mcp"
+  },
+  "scannedAt": "2026-10-03T09:57:25.223Z",
+  "durationMs": 1592,
+  "layers": {
+    "metadata": true,
+    "static": false
+  },
+  "tools": [
+    {
+      "name": "search_components",
+      "descriptionHash": "66adac45d23da7ac1ce17edeec84ab64d2e8ca2895d761089621f0feb80d8c66",
+      "description": "Find motors, propellers or batteries in the ThrustLab database.\n\n`component_type` is \"motor\", \"propeller\" or \"battery\". `query` is a\ncase-insensitive substring of the part name or its maker (\"APC\", \"T-Motor\",\n\"13x6.5\"). The maker sits under `spec.brand` for motors and batteries and under\n`spec.type`",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "get_component",
+      "descriptionHash": "6448f2c74cbf03757e802dae64d3c11b65f994f429a52decbf0ce5df895936bb",
+      "description": "Read one database row by its id (`comp_…`), with provenance.\n\n    Propeller rows give diameter, pitch, blade count, weight and maximum rpm.\n    Blade station geometry is never returned.",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "estimate_propeller",
+      "descriptionHash": "2a64cbe464879ed577519821a22d3706eb902c2ca8659b231aa174defba165bf",
+      "description": "Thrust, torque and shaft power for one propeller, from its printed size.\n\n    A closed-form momentum plus blade-element equation — no motor, no battery,\n    no account. Give the size as it is printed: a 10x5 is `diameter_in=10`,\n    `pitch_in=5`. `chord_ratio` is the chord at 75 % radius over the di"
+    },
+    {
+      "name": "simulate_powertrain",
+      "descriptionHash": "ef7f7cb009d7b9805e981398d5e118cd803f70b2d9f7451a17aad6ee05e7e350",
+      "description": "Solve one operating point of a whole powertrain on the Fast model.\n\n    Battery, ESC, motor and propeller are solved together, so the answer is a\n    real thrust and current, not a propeller curve. The numbers come back in\n    `result` (`result.All` = system totals in SI units: thrust N, current A,\n",
+      "labels": [
+        "untrusted-content",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "sweep_powertrain",
+      "descriptionHash": "eb33f27dc81402ac6248f19317bb034383f1bd8f82106f133f77d074a0da8021",
+      "description": "Solve a powertrain across a throttle or airspeed range, up to 25 points.\n\n    `sweep.steps` is the NUMBER OF POINTS, not a step size: start 40, stop 100,\n    steps 4 gives 40, 60, 80 and 100. One sweep beats a loop of single points.\n    The points come back in `result.points` with the share URL; no ",
+      "labels": [
+        "untrusted-content",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "get_result",
+      "descriptionHash": "ad2113c273d2890faf82a2bd6bba35690e33c098efaed360005ee73ce7e33b5b",
+      "description": "Read a stored result: a share `token` from a run, or a `simulation_id`.\n\n    `simulation_id` needs a ThrustLab API key in `Authorization: Bearer` and\n    reads only that account's own runs.",
+      "labels": [
+        "private-data",
+        "public-sink",
+        "destructive"
+      ]
+    },
+    {
+      "name": "get_validation_summary",
+      "descriptionHash": "f731c51d321d5eb4954ee15424da3ab0b6376ac3cf8ea6d6dc6346b26a72b304",
+      "description": "How accurate a model is, measured against wind-tunnel and bench data.\n\n    `model` is \"fast\", \"full\", or an exact report slug such as \"prom-5.3\". The\n    numbers are error against measured data by partition and channel, with the\n    envelope they were measured inside. Quote the model name with the n"
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"get_result\" references sensitive artifacts (authorization, bearer). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:get_result",
+        "snippet": "Read a stored result: a share `token` from a run, or a `simulation_id`. `simulation_id` needs a ThrustLab API key in `Authorization: Bearer` and reads only that…"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: simulate_powertrain, sweep_powertrain · Private data: search_components, get_component, get_result · Public sink: simulate_powertrain, sweep_powertrain, get_result · Destructive: get_result.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: simulate_powertrain, sweep_powertrain · Private data: search_components, get_component, get_result · Public sink: simulate_powertrain, sweep_powertrain, get_result · Destructive: get_result"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 60,
+  "scoreBreakdown": {
+    "tool-poisoning": 20,
+    "toxic-flow": 20
+  },
+  "errors": []
+}
