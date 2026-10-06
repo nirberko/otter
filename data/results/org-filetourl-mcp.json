@@ -8,17 +8,35 @@
     "kind": "url",
     "ref": "https://filetourl.org/api/mcp"
   },
-  "scannedAt": "2026-07-28T06:48:37.844Z",
-  "durationMs": 1921,
+  "scannedAt": "2026-10-06T11:40:07.037Z",
+  "durationMs": 2140,
   "layers": {
     "metadata": true,
     "static": false
   },
   "tools": [
     {
+      "name": "create_upload_url",
+      "descriptionHash": "af5a510882568aec11e13975b897a41254903ff85e865d9b573a9d86986ff6b1",
+      "description": "Preferred way to host a file. Reserves a link and returns a short-lived upload_url on filetourl.org itself, safe for AI agent sandboxes that only allow egress to trusted domains, since the upload never has to leave filetourl.org. Send the raw file bytes yourself with a single HTTP PUT to that URL (d",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "confirm_upload",
+      "descriptionHash": "c947df27b12902f5103445f0ddb9740312cfac4e10bd890959cf9ecf125eda19",
+      "description": "Optional. Confirm that the PUT to a create_upload_url upload_url finished, and get the final size and link back. The link also activates without this call, this just verifies it.",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
       "name": "upload_file",
-      "descriptionHash": "4f159a717090652d910b5a5a837e65040bf7b85dd748d475e805d12f9650fb52",
-      "description": "Host a file publicly and receive a shareable link back. For a user's own files only. Needs a FileToUrl Developer API key.",
+      "descriptionHash": "188e630c467a55868aa1ee84b26f4386cd0d00264144fdaedf7324b5bf7441ba",
+      "description": "Host a small file by sending its bytes inline as base64. Prefer create_upload_url instead: inline base64 is slow and costly above roughly 100KB. For a user's own files only. Needs a FileToUrl Developer API key.",
       "labels": [
         "private-data",
         "public-sink"
@@ -26,10 +44,11 @@
     },
     {
       "name": "get_file_status",
-      "descriptionHash": "98309fb92a8b9c0f5e38ee64e377bfc624782863fd7babe34e13d5d2ea8b6aca",
-      "description": "Look up whether a link created earlier by upload_file is still active.",
+      "descriptionHash": "f45b263806b9003de6486312efd45d1ac7c672cd69c1243f651abe45c8f65d9c",
+      "description": "Look up whether a link created earlier is still active. Reports 'pending' for a reserved upload whose bytes have not arrived yet, and 'expired' once its upload window has passed.",
       "labels": [
-        "private-data"
+        "private-data",
+        "public-sink"
       ]
     },
     {
@@ -60,8 +79,51 @@
       ]
     }
   ],
-  "findings": [],
-  "score": 100,
-  "scoreBreakdown": {},
+  "findings": [
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: create_upload_url · Private data: create_upload_url, upload_file, get_file_status, start_upload, upload_chunk, finish_upload · Public sink: create_upload_url, confirm_upload, upload_file, get_file_status, start_upload, upload_chunk, finish_upload.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: create_upload_url · Private data: create_upload_url, upload_file, get_file_status, start_upload, upload_chunk, finish_upload · Public sink: create_upload_url, confirm_upload, upload_file, get_file_status, start_upload, upload_chunk, finish_upload"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"upload_file\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:upload_file",
+        "snippet": "before: \"Host a file publicly and receive a shareable link back. For a user's own files only. Needs a FileToUrl Developer API key.\" → after: \"Host a small file by sending its bytes inline as base64. Prefer create_upload_url instead: inline base64 is slow and costly above roughly 100KB. For a user's own files only. Needs a FileToUrl Developer API key.\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"get_file_status\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:get_file_status",
+        "snippet": "before: \"Look up whether a link created earlier by upload_file is still active.\" → after: \"Look up whether a link created earlier is still active. Reports 'pending' for a reserved upload whose bytes have not arrived yet, and 'expired' once its upload window has passed.\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    }
+  ],
+  "score": 50,
+  "scoreBreakdown": {
+    "toxic-flow": 20,
+    "tool-poisoning": 30
+  },
   "errors": []
 }

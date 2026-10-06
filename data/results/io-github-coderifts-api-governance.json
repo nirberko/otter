@@ -8,19 +8,85 @@
     "kind": "url",
     "ref": "https://app.coderifts.com/mcp"
   },
-  "scannedAt": "2026-07-28T06:45:57.265Z",
-  "durationMs": 338,
+  "scannedAt": "2026-10-06T11:33:46.567Z",
+  "durationMs": 1233,
   "layers": {
-    "metadata": false,
+    "metadata": true,
     "static": false
   },
-  "findings": [],
-  "score": 100,
-  "scoreBreakdown": {},
-  "errors": [
+  "tools": [
     {
-      "scanner": "metadata",
-      "message": "[\n  {\n    \"code\": \"invalid_union\",\n    \"errors\": [\n      [\n        {\n          \"expected\": \"string\",\n          \"code\": \"invalid_type\",\n          \"path\": [\n            \"method\"\n          ],\n          \"message\": \"Invalid input: expected string, received undefined\"\n        },\n        {\n          \"code\": \"unrecognized_keys\",\n          \"keys\": [\n            \"result\",\n            \"correlation_id\"\n          ],\n          \"path\": [],\n          \"message\": \"Unrecognized keys: \\\"result\\\", \\\"correlation_id\\\"\"\n        }\n      ],\n      [\n        {\n          \"expected\": \"string\",\n          \"code\": \"invalid_type\",\n          \"path\": [\n            \"method\"\n          ],\n          \"message\": \"Invalid input: expected string, received undefined\"\n        },\n        {\n          \"code\": \"unrecognized_keys\",\n          \"keys\": [\n            \"id\",\n            \"result\",\n            \"correlation_id\"\n          ],\n          \"path\": [],\n          \"message\": \"Unrecognized keys: \\\"id\\\", \\\"result\\\", \\\"correlation_id\\\"\"\n        }\n      ],\n      [\n        {\n          \"code\": \"unrecognized_keys\",\n          \"keys\": [\n            \"correlation_id\"\n          ],\n          \"path\": [],\n          \"message\": \"Unrecognized key: \\\"correlation_id\\\"\"\n        }\n      ],\n      [\n        {\n          \"expected\": \"object\",\n          \"code\": \"invalid_type\",\n          \"path\": [\n            \"error\"\n          ],\n          \"message\": \"Invalid input: expected object, received undefined\"\n        },\n        {\n          \"code\": \"unrecognized_keys\",\n          \"keys\": [\n            \"result\",\n            \"correlation_id\"\n          ],\n          \"path\": [],\n          \"message\": \"Unrecognized keys: \\\"result\\\", \\\"correlation_id\\\"\"\n        }\n      ]\n    ],\n    \"path\": [],\n    \"message\": \"Invalid input\"\n  }\n]"
+      "name": "preflight_change_set",
+      "descriptionHash": "4e871b4c22dff2e2968a8fdc34867cd6e8ad4bed3f37e39c8a7449c6549055e3",
+      "description": "Use this when: a contract artifact (OpenAPI, GraphQL, protobuf, AsyncAPI, MCP manifests, or agent tool schemas) changes before merge, deploy, publish, or tool registration; AND any agent-executed operation with no supported contract type — send type agent_operation. Do not call for documentation-onl",
+      "labels": [
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "verify_receipt",
+      "descriptionHash": "70ea4b646b10c9e7881d6fd27b806663f855d5864945f0c1de764ca628a677d4",
+      "description": "Verify a CodeRifts signed chain-receipt you ALREADY HOLD: cryptographic\nauthenticity (signature + key id), body binding, and — when lifecycle indices\nare available — whether it is currently valid authorization (not expired,\nsuperseded, or revoked) for a stated operation/target.\n\nUse this when:\n- You",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "get_decision_details",
+      "descriptionHash": "fd924b65d00ced408568b80b1d099cbe972f49a58ee1f34419576e7fbd3f9b30",
+      "description": "Retrieve a PAST CodeRifts decision by exactly one identifier\n(case_id | decision_id | fingerprint): full report, breaking changes, scores,\nand linked receipt metadata if stored.\n\nUse this when:\n- You have a decision_id (or fingerprint) from a previous preflight, PR\n  comment, or CI log and need to i",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "destructive"
+      ]
     }
-  ]
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"verify_receipt\" references sensitive artifacts (authorization). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:verify_receipt",
+        "snippet": "Verify a CodeRifts signed chain-receipt you ALREADY HOLD: cryptographic authenticity (signature + key id), body binding, and — when lifecycle indices are availa…"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-SCHEMA-SMELL-001",
+      "severity": "medium",
+      "category": "schema-smell",
+      "title": "Read-only tool requests dangerous parameters",
+      "detail": "Tool \"verify_receipt\" appears informational but accepts parameters (environment) that enable code/file/secret access.",
+      "evidence": {
+        "source": "tool:verify_receipt",
+        "snippet": "token, operation, target_id, environment, fingerprint, audience, repository, branch, pull_request, base, head, decision_result"
+      },
+      "confidence": 0.55
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: get_decision_details · Private data: preflight_change_set, verify_receipt, get_decision_details · Public sink: preflight_change_set · Destructive: get_decision_details.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: get_decision_details · Private data: preflight_change_set, verify_receipt, get_decision_details · Public sink: preflight_change_set · Destructive: get_decision_details"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 52,
+  "scoreBreakdown": {
+    "tool-poisoning": 20,
+    "schema-smell": 8,
+    "toxic-flow": 20
+  },
+  "errors": []
 }

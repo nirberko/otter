@@ -8,8 +8,8 @@
     "kind": "url",
     "ref": "https://polystrike.xyz/mcp"
   },
-  "scannedAt": "2026-07-28T06:46:13.778Z",
-  "durationMs": 3154,
+  "scannedAt": "2026-10-06T11:34:06.923Z",
+  "durationMs": 2017,
   "layers": {
     "metadata": true,
     "static": false
@@ -17,17 +17,19 @@
   "tools": [
     {
       "name": "get_market_metadata",
-      "descriptionHash": "5565d8e4a8deac415ed2565fbe3653b2ce809f9a7856c2c2f941824857e68686",
-      "description": "Get metadata for active Elon tweet markets. No authentication required. Returns market IDs, questions, and basic info.",
+      "descriptionHash": "b7cc4a510eb20c0f2fb41c2c0409103bce165cca9bd306211124176c5921220b",
+      "description": "Get metadata for active tweet/post-count markets (elon, cruz, or trump). No authentication required. FREE counts are ~5 min delayed. Returns market IDs, questions, and counters.",
       "labels": [
+        "untrusted-content",
         "public-sink"
       ]
     },
     {
       "name": "get_trading_signals",
-      "descriptionHash": "87bb178bdb562958990c069ba755e2b4e9389e9a2c087485e5d9f4306fbc3174",
-      "description": "Get EV-based trading signals for Elon tweet markets with Kelly criterion sizing. Requires PRO tier API key. Use when you need actionable trading recommendations.",
+      "descriptionHash": "03bd3554331d3e5a2e30d243370c44f6111a48dc8ab391f91f79f6aa92dff001",
+      "description": "Get EV-based trading signals for tweet/post-count markets (elon, cruz, or trump) with Kelly criterion sizing. Requires PRO tier API key or x402. Use when you need actionable trading recommendations.",
       "labels": [
+        "untrusted-content",
         "private-data",
         "public-sink"
       ]
@@ -39,17 +41,18 @@
     },
     {
       "name": "get_recent_tweets",
-      "descriptionHash": "7d9fdb433c3074ede90c35e3a8465b4621967d091150ff3566ff39f07beb693a",
-      "description": "Get recent Elon tweets with metadata. FREE tier limited to 15 tweets, PRO tier gets up to 100. Use for understanding recent tweet context.",
+      "descriptionHash": "dbad7adf36c523715032d6c2adfa2cb8cbe30a39901da843dff3cbd26069398b",
+      "description": "Get recent posts for elon/cruz (X tweets) or trump (Truth Social). FREE tier limited to 15, is_counted hidden. PRO or x402: up to 100 with is_counted.",
       "labels": [
-        "public-sink"
+        "untrusted-content"
       ]
     },
     {
       "name": "get_predictions",
-      "descriptionHash": "9190e6c11148c6c446c4f3e046630b65bcd3f81183ef361a870c9501dcdd8a5e",
-      "description": "Get predictions for active Elon tweet markets with forecast percentiles. FREE tier gets limited data, PRO tier gets full predictions. Use for market analysis.",
+      "descriptionHash": "fa2af9ed1a60bf9b8b9b2f4fecb8381cd2b55cb536ae44b784f07a547d86f184",
+      "description": "Get predictions for active tweet/post-count markets (elon, cruz, or trump). FREE: delayed counters + market prices. PRO / x402: live forecast percentiles and edge.",
       "labels": [
+        "untrusted-content",
         "public-sink"
       ]
     },
@@ -75,8 +78,77 @@
       "description": "Check Polystrike API health status. No authentication required. Use for debugging or verifying API availability."
     }
   ],
-  "findings": [],
-  "score": 100,
-  "scoreBreakdown": {},
+  "findings": [
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: get_market_metadata, get_trading_signals, get_recent_tweets, get_predictions · Private data: get_trading_signals, analyze_portfolio, get_rebalancing_recommendations · Public sink: get_market_metadata, get_trading_signals, get_predictions.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: get_market_metadata, get_trading_signals, get_recent_tweets, get_predictions · Private data: get_trading_signals, analyze_portfolio, get_rebalancing_recommendations · Public sink: get_market_metadata, get_trading_signals, get_predictions"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"get_market_metadata\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:get_market_metadata",
+        "snippet": "before: \"Get metadata for active Elon tweet markets. No authentication required. Returns market IDs, questions, and basic info.\" → after: \"Get metadata for active tweet/post-count markets (elon, cruz, or trump). No authentication required. FREE counts are ~5 min delayed. Returns market IDs, questions, and counters.\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"get_trading_signals\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:get_trading_signals",
+        "snippet": "before: \"Get EV-based trading signals for Elon tweet markets with Kelly criterion sizing. Requires PRO tier API key. Use when you need actionable trading recommendations.\" → after: \"Get EV-based trading signals for tweet/post-count markets (elon, cruz, or trump) with Kelly criterion sizing. Requires PRO tier API key or x402. Use when you need actionable trading recommendations.\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"get_recent_tweets\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:get_recent_tweets",
+        "snippet": "before: \"Get recent Elon tweets with metadata. FREE tier limited to 15 tweets, PRO tier gets up to 100. Use for understanding recent tweet context.\" → after: \"Get recent posts for elon/cruz (X tweets) or trump (Truth Social). FREE tier limited to 15, is_counted hidden. PRO or x402: up to 100 with is_counted.\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"get_predictions\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:get_predictions",
+        "snippet": "before: \"Get predictions for active Elon tweet markets with forecast percentiles. FREE tier gets limited data, PRO tier gets full predictions. Use for market analysis.\" → after: \"Get predictions for active tweet/post-count markets (elon, cruz, or trump). FREE: delayed counters + market prices. PRO / x402: live forecast percentiles and edge.\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    }
+  ],
+  "score": 43,
+  "scoreBreakdown": {
+    "toxic-flow": 20,
+    "tool-poisoning": 38
+  },
   "errors": []
 }

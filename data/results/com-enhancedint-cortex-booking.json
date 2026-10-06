@@ -1,0 +1,91 @@
+{
+  "schemaVersion": 1,
+  "scanner": {
+    "version": "1.6.0",
+    "rules": "402995650b68"
+  },
+  "target": {
+    "kind": "url",
+    "ref": "https://book.enhancedint.com/{business}/mcp"
+  },
+  "scannedAt": "2026-10-06T11:43:11.161Z",
+  "durationMs": 3684,
+  "layers": {
+    "metadata": true,
+    "static": false
+  },
+  "tools": [
+    {
+      "name": "get_business",
+      "descriptionHash": "be4e606b9898ab82c9e41b01850586b485c209c05a4e207b15eabe0ce8a2ce2b",
+      "description": "Read the business card: what it is, where the work happens, its hours and time zone, its services with prices and lengths, what a booking needs (the customer's details and the questions to answer), whether a booking is confirmed at once or sent as a request, the limits and the cancel rule. Call it f"
+    },
+    {
+      "name": "find_times",
+      "descriptionHash": "5f658f1bc2ae71a7d4cbad83dda3e4b8e827db3edafded1d70ccedd1ed6aed20",
+      "description": "Find the start times that are open for what is being booked, between two dates (at most 14 days). Pass `windows` (the customer's free time from their calendar) to get only the starts that fit both calendars. Returns ISO 8601 times with offsets. Only open times are ever shown."
+    },
+    {
+      "name": "check_address",
+      "descriptionHash": "d50c19fe3b7fb9c5183d93e4264edd6873e1a2603a64fb0a295c8f54cf7d4b21",
+      "description": "For a business that comes to the customer: check the service address before booking. Send it as one line, as fields, or as a place_id saved from an earlier check. The answer says whether Google confirmed it (`verdict`), the address to book with (send it as answers.address), its place_id (save both f",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "book",
+      "descriptionHash": "bf755cd2b8fa3871d7313a847b6605682ff7c161896c76bf048f780eff6df978",
+      "description": "Book one of the open times for the customer. The business then either confirms it at once or receives it as a request it approves (or, for a business that takes its bookings by email, confirms with the customer itself); the answer says which, what happens next, and a `manage.token` to check or cance",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "get_booking",
+      "descriptionHash": "842abbae78916290cddf8a493f6484a7f35af953ebf1eaf6908e801ab4b521c5",
+      "description": "Check a booking made through this door: whether it is requested, confirmed, declined or cancelled, and whether it can still be cancelled here."
+    },
+    {
+      "name": "cancel_booking",
+      "descriptionHash": "b6ee0edfdd312e9f068e58941e4ce2fc426ed6e26b023868921eb2b3accde2a5",
+      "description": "Cancel a booking made through this door: withdraws a request still waiting, or cancels a booking the business confirmed at once. A booking the business has approved must be changed with the business directly (the answer says how). Ask the customer first."
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOOL-POISON-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description issues instructions to the model",
+      "detail": "Description of \"book\" contains imperative instructions directed at the AI assistant rather than describing the tool. This is the core tool-poisoning technique.",
+      "evidence": {
+        "source": "tool:book",
+        "snippet": "Book one of the open times for the customer. The business then either confirms it at once or receives it as a request it approves (or, for a business that takes…"
+      },
+      "confidence": 0.7,
+      "remediation": "Treat the server as untrusted; the model may obey embedded instructions."
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: book · Private data: book · Public sink: check_address, book.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: book · Private data: book · Public sink: check_address, book"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 60,
+  "scoreBreakdown": {
+    "tool-poisoning": 20,
+    "toxic-flow": 20
+  },
+  "errors": []
+}

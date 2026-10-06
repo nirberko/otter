@@ -1,0 +1,83 @@
+{
+  "schemaVersion": 1,
+  "scanner": {
+    "version": "1.6.0",
+    "rules": "402995650b68"
+  },
+  "target": {
+    "kind": "url",
+    "ref": "https://mcp.welanda.com/mcp"
+  },
+  "scannedAt": "2026-10-06T11:31:51.639Z",
+  "durationMs": 2331,
+  "layers": {
+    "metadata": true,
+    "static": false
+  },
+  "tools": [
+    {
+      "name": "list_personalizable_products",
+      "descriptionHash": "3273ed185371c2871a4b4d02cbf8151e782a8f96a6a62d20ebf3e65979f3d43a",
+      "description": "List WELANDA products that can be personalized, with live pricing and the full engraving template (zones + constraints). Call this FIRST so you know each zone's size, allowed fonts, character limits and minimum text size before building a design."
+    },
+    {
+      "name": "upload_asset",
+      "descriptionHash": "9ad4b3f6f70d2a477b7b0b33c0170322850284d8d9a4bd45906d8e1a8c8371fc",
+      "description": "Upload a logo/image (base64, PNG/JPEG/WebP/SVG, max 5 MB) for use in a design. Returns an assetId; reference it in an image object as { origin:\"minio\", bucket:\"draft\", key:\"<assetId>\" }. Images are re-encoded to PNG server-side (metadata stripped). No URLs — base64 only.",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "create_design",
+      "descriptionHash": "ab959f706f0e94dbd67c354768f9aba2cf82eabb22d1763e5a8bef477e99976b",
+      "description": "Create a design draft for a product from a DesignDocumentV3. Returns status \"valid\" with a signed handoffUrl, or status \"invalid\" with a list of {path, code, message} errors you can fix and resubmit via update_design. Invalid drafts are still saved so you can iterate.",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "render_preview",
+      "descriptionHash": "d96f1a0bdb52e7bede614be86f1fa0bb8e449a6ef4174e35f83f43b0c9f7d9f5",
+      "description": "Render watermarked PNG preview(s) of a VALID design (all zones, or one via zoneId). Returns preview image URLs plus the watermarked preview as inline image content (one per zone) - show it to the user. If the render queue is busy it returns {status:\"pending\", retryAfterSec} - retry after that delay."
+    },
+    {
+      "name": "get_design",
+      "descriptionHash": "314681893d63969b43348eb9b4808c55e258cf350fa867b5b795241485d97c93",
+      "description": "Fetch a draft's current document, status, version, claimed flag, handoff link and previews by its designId.",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "update_design",
+      "descriptionHash": "5fe3e71b32d3cf6cf1210a37c9e9982470a8f8291a409abfe4775a937feae857",
+      "description": "Replace a draft's design with a new full DesignDocumentV3 (version increments, previews invalidated). Same validation as create_design. Fails with CLAIMED once the customer has opened and claimed the draft in the editor."
+    },
+    {
+      "name": "get_handoff_link",
+      "descriptionHash": "bfcc9a5cec7409c1e10073c6cba576bceb489f57039b8d1e9cb95110537b090e",
+      "description": "Get the signed handoff deeplink plus a short English summary to present to the customer (\"Engraving … on … Personalization +…€\"). The customer fine-tunes and checks out themselves."
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: create_design · Private data: get_design · Public sink: upload_asset.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: create_design · Private data: get_design · Public sink: upload_asset"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 80,
+  "scoreBreakdown": {
+    "toxic-flow": 20
+  },
+  "errors": []
+}

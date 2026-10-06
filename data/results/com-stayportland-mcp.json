@@ -8,22 +8,44 @@
     "kind": "url",
     "ref": "https://www.stayportland.com/mcp"
   },
-  "scannedAt": "2026-09-10T09:17:10.370Z",
-  "durationMs": 2254,
+  "scannedAt": "2026-10-06T11:44:25.801Z",
+  "durationMs": 5032,
   "layers": {
     "metadata": true,
     "static": false
   },
   "tools": [
     {
+      "name": "prepare_booking",
+      "descriptionHash": "4342590666a04e267130261175531714b69cb024fc7809b8469cf40df9799355",
+      "description": "Create a fresh exact-date quote and secure hosted checkout link. Share the link with the guest for price review, details and payment approval. This tool never books, charges, or accepts card details. Its capability lets this agent check only this quote's booking status.",
+      "labels": [
+        "untrusted-content",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "get_booking_status",
+      "descriptionHash": "22323d382dee631d2d2efe7ba51d6775aa9a1ac0cad7cfa9e6568160ee13ad06",
+      "description": "Read the coarse status of the exact checkout prepared by this agent. Requires its private booking capability. Returns no guest, card, PaymentIntent, or reservation identifiers.",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "complete_booking",
+      "descriptionHash": "9324b13146fc6074010ee14866713e1ed9a8d6b7ffa74651f053a7f2fa4e669f",
+      "description": "Resume the site's existing reservation finalizer only after the guest approved and authorized payment in hosted checkout. This cannot create or authorize a payment. Completion is controlled by a server flag; check status to follow an in-progress checkout."
+    },
+    {
       "name": "search_properties",
-      "descriptionHash": "b41e059dbf8da74ddeafbc61f554e3b6916b09d54c08ee4958636cab38ce7a89",
-      "description": "Search 275+ Portland rentals across up to five date windows with verified layout, amenity, traveler-fit, accommodation-only price, rating, and neighborhood evidence. Dated results are live-bookable only. Use search_priced_availability when a traveler provides one date range and needs exact all-in pr"
+      "descriptionHash": "2fb00d5d9aac2c00cc28878c0b188376ce96c083120f08ea2fcdb2ff59b6959e",
+      "description": "Search Portland rentals across up to five date windows with verified layout, amenity, traveler-fit, accommodation-only price, rating, and neighborhood evidence. Dated results are live-bookable only. Use search_priced_availability when a traveler provides one date range and needs confirmed base price"
     },
     {
       "name": "search_priced_availability",
-      "descriptionHash": "aac5e65b3ec15623d5d401969b3937be995b6211231d79044f4e65601a8bcb02",
-      "description": "Search Stay Portland's live availability for one required date range and return up to six exact all-in quotes per page. Use this first when a traveler provides dates and asks for options, full prices, fees, taxes, a budget comparison, or checkout links. Each result includes the home, accommodation, ",
+      "descriptionHash": "747af20900e40f932da7994fa95bd7ea7933ae6ee25601adb026d41822555b31",
+      "description": "Search Stay Portland's live availability for one required date range and return up to six exact base quotes per page. Use this first when a traveler provides dates and asks for options, full prices, fees, taxes, a budget comparison, or checkout links. Each result includes the home, accommodation, cl",
       "labels": [
         "untrusted-content"
       ]
@@ -84,8 +106,51 @@
       "description": "Canonical Stay Portland policies: fees, cancellation, pets, check-in, taxes, parking, house rules."
     }
   ],
-  "findings": [],
-  "score": 100,
-  "scoreBreakdown": {},
+  "findings": [
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: prepare_booking, search_priced_availability, get_quote, get_reviews · Private data: get_booking_status, shortlist_property · Public sink: prepare_booking · Destructive: shortlist_property.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: prepare_booking, search_priced_availability, get_quote, get_reviews · Private data: get_booking_status, shortlist_property · Public sink: prepare_booking · Destructive: shortlist_property"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"search_properties\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:search_properties",
+        "snippet": "before: \"Search 275+ Portland rentals across up to five date windows with verified layout, amenity, traveler-fit, accommodation-only price, rating, and neighborhood evidence. Dated results are live-bookable only. Use search_priced_availability when a traveler provides one date range and needs exact all-in pr\" → after: \"Search Portland rentals across up to five date windows with verified layout, amenity, traveler-fit, accommodation-only price, rating, and neighborhood evidence. Dated results are live-bookable only. Use search_priced_availability when a traveler provides one date range and needs confirmed base price\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"search_priced_availability\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:search_priced_availability",
+        "snippet": "before: \"Search Stay Portland's live availability for one required date range and return up to six exact all-in quotes per page. Use this first when a traveler provides dates and asks for options, full prices, fees, taxes, a budget comparison, or checkout links. Each result includes the home, accommodation, \" → after: \"Search Stay Portland's live availability for one required date range and return up to six exact base quotes per page. Use this first when a traveler provides dates and asks for options, full prices, fees, taxes, a budget comparison, or checkout links. Each result includes the home, accommodation, cl\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    }
+  ],
+  "score": 50,
+  "scoreBreakdown": {
+    "toxic-flow": 20,
+    "tool-poisoning": 30
+  },
   "errors": []
 }

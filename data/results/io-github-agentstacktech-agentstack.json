@@ -1,0 +1,87 @@
+{
+  "schemaVersion": 1,
+  "scanner": {
+    "version": "1.6.0",
+    "rules": "402995650b68"
+  },
+  "target": {
+    "kind": "url",
+    "ref": "https://agentstack.tech/mcp"
+  },
+  "scannedAt": "2026-10-06T11:33:01.328Z",
+  "durationMs": 1818,
+  "layers": {
+    "metadata": true,
+    "static": false
+  },
+  "tools": [
+    {
+      "name": "agentstack.execute",
+      "descriptionHash": "1d9539411b19cf345f2a450813ddf4f54ca2a2a3ee7eefc7f1d6f3ac4a06480b",
+      "description": "Mandatory session order: authenticate -> session probe auth.get_profile (alias auth.me) -> select/create project -> set context.project_id on every batch -> domain work. Playbook GET /mcp/prompts/get?name=agentstack_session_setup (recipe mcp_session_setup). Execute AgentStack operations as steps: id",
+      "labels": [
+        "untrusted-content",
+        "public-sink",
+        "destructive"
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-SCHEMA-SMELL-001",
+      "severity": "medium",
+      "category": "schema-smell",
+      "title": "Read-only tool requests dangerous parameters",
+      "detail": "Tool \"agentstack.execute\" appears informational but accepts parameters (context) that enable code/file/secret access.",
+      "evidence": {
+        "source": "tool:agentstack.execute",
+        "snippet": "steps, context, options"
+      },
+      "confidence": 0.55
+    },
+    {
+      "id": "MCP-TOOL-POISON-002",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description tells the model to hide behavior",
+      "detail": "Description of \"prompt:agentstack_write_modes\" instructs the model to conceal actions from the user.",
+      "evidence": {
+        "source": "tool:prompt:agentstack_write_modes",
+        "snippet": "REST-parity write_mode for MCP: merge|patch|replace|append|delete so collection and document writes cannot silently wipe siblings"
+      },
+      "confidence": 0.75
+    },
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"prompt:agentstack_read_bootstrap\" references sensitive artifacts (api_key, apikey). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:prompt:agentstack_read_bootstrap",
+        "snippet": "Read-only MCP bootstrap with continueOnError; omit apikeys.list without api_keys cap"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "medium",
+      "category": "toxic-flow",
+      "title": "Toxic flow: untrusted input can reach an external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: agentstack.execute · Public sink: agentstack.execute · Destructive: agentstack.execute.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: agentstack.execute · Public sink: agentstack.execute · Destructive: agentstack.execute"
+      },
+      "confidence": 0.45,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 54,
+  "scoreBreakdown": {
+    "schema-smell": 8,
+    "tool-poisoning": 30,
+    "toxic-flow": 8
+  },
+  "errors": []
+}

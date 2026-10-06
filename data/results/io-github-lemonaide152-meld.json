@@ -8,8 +8,8 @@
     "kind": "url",
     "ref": "https://meld.mergeinc.workers.dev"
   },
-  "scannedAt": "2026-09-27T10:08:37.548Z",
-  "durationMs": 2829,
+  "scannedAt": "2026-10-06T11:35:22.832Z",
+  "durationMs": 3564,
   "layers": {
     "metadata": true,
     "static": false
@@ -17,30 +17,50 @@
   "tools": [
     {
       "name": "meld_create",
-      "descriptionHash": "8dfb964bcf0af31e120f05d3ed4ed45b3d58935302252cbd225fd05d8b842705",
-      "description": "Create a meld: an ephemeral context bridge. Returns a share link to give the other party (human or agent) and an owner link to keep. The meld expires (~1 hour free tier) after both parties exchange context.",
+      "descriptionHash": "3b7a8e0b0865ac2e386bed1cbbbdee0119afcbe815870e15d18bc8d8352c2d83",
+      "description": "Create a bridge. Send one note. Put that same text in context, for, and not_for. Returns one capability URL. Send that URL privately. Creation opens 36 hours. The first reply sets 24 hours. Each later reply resets 24 hours. Do not send a ttl. Pilot creates are free. The host can read the bridge whil",
       "labels": [
+        "untrusted-content",
+        "private-data",
         "public-sink"
       ]
     },
     {
       "name": "meld_resolve",
-      "descriptionHash": "84e9dee6d1faadd7a774aec09a410d449c932589d72bdc143bb1eba2083a399d",
-      "description": "Resolve a meld you received a link for. Submit your context/answer. Returns the other party's context. The meld dissolves shortly after.",
-      "labels": [
-        "public-sink"
-      ]
+      "descriptionHash": "9b439845e3132ae3d15b1f750be0ee7d9b1a2c66dfc18f7c9c0d5e2e52bf8868",
+      "description": "Append a reply on the same bridge. The first reply sets 24 hours. Each later reply resets 24 hours."
     },
     {
       "name": "meld_read",
-      "descriptionHash": "56a5a59afd0af27f30d770544d87932372c3a4e1332b7218864b4af2168ca89a",
-      "description": "Owner: read the resolved result of your meld. The owner token rotates on every read — use the newest one.",
-      "labels": [
-        "private-data"
-      ]
+      "descriptionHash": "c4a34ac722ece09906ded28b83dd54e65c0f6319ffc6a762fa30016eb06acf11",
+      "description": "Read a live bridge by code. The code is the capability. This read does not move the clock."
     }
   ],
   "findings": [
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"meld_create\" references sensitive artifacts (secret). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:meld_create",
+        "snippet": "Create a bridge. Send one note. Put that same text in context, for, and not_for. Returns one capability URL. Send that URL privately. Creation opens 36 hours. T…"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-SCHEMA-SMELL-001",
+      "severity": "medium",
+      "category": "schema-smell",
+      "title": "Read-only tool requests dangerous parameters",
+      "detail": "Tool \"meld_create\" appears informational but accepts parameters (context) that enable code/file/secret access.",
+      "evidence": {
+        "source": "tool:meld_create",
+        "snippet": "context, for, not_for, pin"
+      },
+      "confidence": 0.55
+    },
     {
       "id": "MCP-SCHEMA-SMELL-001",
       "severity": "medium",
@@ -49,14 +69,68 @@
       "detail": "Tool \"meld_read\" appears informational but accepts parameters (code) that enable code/file/secret access.",
       "evidence": {
         "source": "tool:meld_read",
-        "snippet": "code, owner_token"
+        "snippet": "code"
       },
       "confidence": 0.55
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"meld.mergeinc.workers.dev\" exposes tools that together enable an exfiltration flow. Untrusted content: meld_create · Private data: meld_create · Public sink: meld_create.",
+      "evidence": {
+        "source": "server:meld.mergeinc.workers.dev",
+        "snippet": "Untrusted content: meld_create · Private data: meld_create · Public sink: meld_create"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"meld_create\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:meld_create",
+        "snippet": "before: \"Create a meld: an ephemeral context bridge. Returns a share link to give the other party (human or agent) and an owner link to keep. The meld expires (~1 hour free tier) after both parties exchange context.\" → after: \"Create a bridge. Send one note. Put that same text in context, for, and not_for. Returns one capability URL. Send that URL privately. Creation opens 36 hours. The first reply sets 24 hours. Each later reply resets 24 hours. Do not send a ttl. Pilot creates are free. The host can read the bridge whil\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"meld_resolve\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:meld_resolve",
+        "snippet": "before: \"Resolve a meld you received a link for. Submit your context/answer. Returns the other party's context. The meld dissolves shortly after.\" → after: \"Append a reply on the same bridge. The first reply sets 24 hours. Each later reply resets 24 hours.\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"meld_read\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:meld_read",
+        "snippet": "before: \"Owner: read the resolved result of your meld. The owner token rotates on every read — use the newest one.\" → after: \"Read a live bridge by code. The code is the capability. This read does not move the clock.\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
     }
   ],
-  "score": 92,
+  "score": 31,
   "scoreBreakdown": {
-    "schema-smell": 8
+    "tool-poisoning": 38,
+    "schema-smell": 12,
+    "toxic-flow": 20
   },
   "errors": []
 }

@@ -8,15 +8,15 @@
     "kind": "url",
     "ref": "https://api.scoopkit.dev/mcp"
   },
-  "scannedAt": "2026-09-10T09:17:39.819Z",
-  "durationMs": 538,
+  "scannedAt": "2026-10-06T11:45:09.351Z",
+  "durationMs": 581,
   "layers": {
     "metadata": true,
     "static": false
   },
   "tools": [
     {
-      "name": "post_magic_link_v1_auth_magic_link_post",
+      "name": "request_magic_link",
       "descriptionHash": "77bf55ff55a0ee634b41dc2954b3e9bb2d4fb6fd93788d65709611906a5478d1",
       "description": "Request a free API key by email\n\nStep 1 of self-serve signup — no key required. Sends a one-time link to `email`; always returns 202 with the same accepted:true body whether or not that address already has a key (prevents account enumeration).\n\n**For agents helping a human get set up:** this endpoin",
       "labels": [
@@ -26,7 +26,7 @@
       ]
     },
     {
-      "name": "list_events_route_v1_events_get",
+      "name": "list_events",
       "descriptionHash": "37ea22693ac79a5c6df80cd2605bd18a72a8fe380b59606c8e73bf8b00290d48",
       "description": "List events, newest first\n\nThe primary resource — one structured event per underlying story, already deduplicated from many source articles. Cursor-paginated (`next_cursor`/`has_more`), newest `reported_at` first. Free tier omits paid-only fields by omission (never null) and excludes paid-primary su",
       "labels": [
@@ -34,7 +34,7 @@
       ]
     },
     {
-      "name": "get_event_route_v1_events__event_id__get",
+      "name": "get_event",
       "descriptionHash": "41fa0230a6e87fa878d95f995a1a2ad643777368dc8db727639eddee74945e1a",
       "description": "Get a single event by ID\n\n404s if the event doesn't exist, is unpublished, is beyond your tier's archive window, or was soft-deleted — never distinguishes which, to avoid leaking data existence beyond what the tier allows.\n\n### Responses:\n\n**200**: Successful Response (Success Response)\nContent-Type",
       "labels": [
@@ -42,7 +42,7 @@
       ]
     },
     {
-      "name": "search_v1_search_get",
+      "name": "search",
       "descriptionHash": "392a549ccf7afbcb4f2c71b09d2f585f35032ef5125a62e30a33da9761cfac3f",
       "description": "Semantic search over events (Pro+)\n\nNatural-language query embedded and ranked by cosine similarity against published events — not a keyword/text match. Each result is a normal event object plus `relevance_score` (0-1). Requires Pro tier or above; free-tier keys get 403 with an upgrade_url.\n\n### Res",
       "labels": [
@@ -50,7 +50,7 @@
       ]
     },
     {
-      "name": "get_taxonomy_v1_taxonomy_get",
+      "name": "taxonomy",
       "descriptionHash": "814f2cbe0457e6704bf342a6fc5c52e46cccabf210322cbfa10f52193bed1016",
       "description": "Get Taxonomy\n\nPublic taxonomy — no API key required.\n\n### Responses:\n\n**200**: Successful Response (Success Response)\nContent-Type: application/json",
       "labels": [
@@ -64,30 +64,103 @@
       "severity": "high",
       "category": "tool-poisoning",
       "title": "Description tells the model to hide behavior",
-      "detail": "Description of \"post_magic_link_v1_auth_magic_link_post\" instructs the model to conceal actions from the user.",
+      "detail": "Description of \"request_magic_link\" instructs the model to conceal actions from the user.",
       "evidence": {
-        "source": "tool:post_magic_link_v1_auth_magic_link_post",
+        "source": "tool:request_magic_link",
         "snippet": "Request a free API key by email Step 1 of self-serve signup — no key required. Sends a one-time link to `email`; always returns 202 with the same accepted:true …"
       },
       "confidence": 0.75
+    },
+    {
+      "id": "MCP-SHADOW-001",
+      "severity": "medium",
+      "category": "shadowing",
+      "title": "Generic tool name can shadow trusted tools",
+      "detail": "Tool \"search\" uses a generic high-value name. When multiple servers load together, this can intercept calls meant for a trusted server.",
+      "evidence": {
+        "source": "tool:search",
+        "snippet": "search"
+      },
+      "confidence": 0.4
     },
     {
       "id": "MCP-TOXIC-FLOW-001",
       "severity": "high",
       "category": "toxic-flow",
       "title": "Lethal trifecta: untrusted input + private data + external sink",
-      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: post_magic_link_v1_auth_magic_link_post, list_events_route_v1_events_get, get_event_route_v1_events__event_id__get, search_v1_search_get · Private data: post_magic_link_v1_auth_magic_link_post, get_taxonomy_v1_taxonomy_get · Public sink: post_magic_link_v1_auth_magic_link_post.",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: request_magic_link, list_events, get_event, search · Private data: request_magic_link, taxonomy · Public sink: request_magic_link.",
       "evidence": {
         "source": "server:mcp",
-        "snippet": "Untrusted content: post_magic_link_v1_auth_magic_link_post, list_events_route_v1_events_get, get_event_route_v1_events__event_id__get, search_v1_search_get · Private data: post_magic_link_v1_auth_magic_link_post, get_taxonomy_v1_taxonomy_get · Public sink: post_magic_link_v1_auth_magic_link_post"
+        "snippet": "Untrusted content: request_magic_link, list_events, get_event, search · Private data: request_magic_link, taxonomy · Public sink: request_magic_link"
       },
       "confidence": 0.6,
       "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "medium",
+      "category": "tool-poisoning",
+      "title": "Tool renamed since last scan",
+      "detail": "Tool \"post_magic_link_v1_auth_magic_link_post\" was renamed to \"request_magic_link\" (identical description). A rename can slip a tool past name-based review.",
+      "evidence": {
+        "source": "tool:post_magic_link_v1_auth_magic_link_post",
+        "snippet": "post_magic_link_v1_auth_magic_link_post → request_magic_link"
+      },
+      "confidence": 0.6
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "medium",
+      "category": "tool-poisoning",
+      "title": "Tool renamed since last scan",
+      "detail": "Tool \"list_events_route_v1_events_get\" was renamed to \"list_events\" (identical description). A rename can slip a tool past name-based review.",
+      "evidence": {
+        "source": "tool:list_events_route_v1_events_get",
+        "snippet": "list_events_route_v1_events_get → list_events"
+      },
+      "confidence": 0.6
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "medium",
+      "category": "tool-poisoning",
+      "title": "Tool renamed since last scan",
+      "detail": "Tool \"get_event_route_v1_events__event_id__get\" was renamed to \"get_event\" (identical description). A rename can slip a tool past name-based review.",
+      "evidence": {
+        "source": "tool:get_event_route_v1_events__event_id__get",
+        "snippet": "get_event_route_v1_events__event_id__get → get_event"
+      },
+      "confidence": 0.6
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "medium",
+      "category": "tool-poisoning",
+      "title": "Tool renamed since last scan",
+      "detail": "Tool \"search_v1_search_get\" was renamed to \"search\" (identical description). A rename can slip a tool past name-based review.",
+      "evidence": {
+        "source": "tool:search_v1_search_get",
+        "snippet": "search_v1_search_get → search"
+      },
+      "confidence": 0.6
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "medium",
+      "category": "tool-poisoning",
+      "title": "Tool renamed since last scan",
+      "detail": "Tool \"get_taxonomy_v1_taxonomy_get\" was renamed to \"taxonomy\" (identical description). A rename can slip a tool past name-based review.",
+      "evidence": {
+        "source": "tool:get_taxonomy_v1_taxonomy_get",
+        "snippet": "get_taxonomy_v1_taxonomy_get → taxonomy"
+      },
+      "confidence": 0.6
     }
   ],
-  "score": 60,
+  "score": 44,
   "scoreBreakdown": {
-    "tool-poisoning": 20,
+    "tool-poisoning": 28,
+    "shadowing": 8,
     "toxic-flow": 20
   },
   "errors": []

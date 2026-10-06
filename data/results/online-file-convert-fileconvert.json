@@ -8,19 +8,128 @@
     "kind": "url",
     "ref": "https://file-convert.online/api/mcp/v1/mcp"
   },
-  "scannedAt": "2026-09-16T09:36:40.453Z",
-  "durationMs": 382,
+  "scannedAt": "2026-10-06T11:40:03.665Z",
+  "durationMs": 2445,
   "layers": {
-    "metadata": false,
+    "metadata": true,
     "static": false
   },
-  "findings": [],
-  "score": 100,
-  "scoreBreakdown": {},
-  "errors": [
+  "tools": [
     {
-      "scanner": "metadata",
-      "message": "Streamable HTTP error: Error POSTing to endpoint: {\"error\":\"missing_or_invalid_authorization\",\"message\":\"MCP requests require an 'Authorization: Bearer fc_*' FileConvert API key.\"}"
+      "name": "convert_file",
+      "descriptionHash": "c7548c606c0417d733581d9c5a952af4d8431b0d3bcd960899f5bd700873939e",
+      "description": "End-to-end conversion of a remote file: fetches 'source_url' (with SSRF protection), uploads it to FileConvert, and starts a conversion from 'source_format' to 'target_format' (named by extension, e.g. png → webp, docx → pdf). Returns the conversion 'job_id' and the uploaded 'file_id'. Poll progress",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "get_balance",
+      "descriptionHash": "e38e6aba69b5acd34803397382650ec05023a54eae292cb7ad8b43591bca76db",
+      "description": "Returns the credit balance of the account that owns the API key, plus where to get more. Every conversion costs credits; call this when a conversion fails with 'no credits' or when the user asks how many conversions they have left.",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "get_download_url",
+      "descriptionHash": "293f61bcbf961d23b2b648501285f47fe8fbc289a47d07c5b4e7ca7907bc3174",
+      "description": "Returns the download URL of a converted file. Pass 'job_id' (conversion uid) to resolve the converted file of a finished conversion, or 'file_id' to download a known file uid directly. The URL needs no authentication (the unguessable file id is the capability), so it can be handed to the user or ano",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "get_job_status",
+      "descriptionHash": "d52e40849700a6b2de368c87ed0aa972f1abed255ac1e68d6fcbf4527f6b5e24",
+      "description": "Returns the current status of a conversion job. Statuses: Pending → Processing → Completed or Failed (Failed includes the reason). Poll every 2–3 seconds after convert_file / start_conversion; when Completed, call get_download_url. Also returns the full conversion object, which includes the converte",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "get_upload_url",
+      "descriptionHash": "ce5257e142a32c5902bc67021f7e549119961c0c46570b8fb155099203b9827f",
+      "description": "Returns instructions for uploading an agent-local file into FileConvert. FileConvert does NOT use presigned upload URLs; instead you upload the file bytes directly to the gateway as a multipart/form-data POST. The response gives the exact URL, HTTP method, form field name and required Authorization ",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "list_formats",
+      "descriptionHash": "2b31549a301697a144eb0b31f974d667a10cd02f8a546f5c83304596e72e6902",
+      "description": "Returns the file formats FileConvert can read and write, along with the format-type categories (image, video, document, audio, …). Use this first to discover valid 'format_type', 'source_format' and 'target_format' identifiers before calling convert_file. Each format includes its numeric id, name, f",
+      "labels": [
+        "private-data",
+        "destructive"
+      ]
+    },
+    {
+      "name": "start_conversion",
+      "descriptionHash": "8bde83df84cc555168b7afff6f0b45670693b296c04a22b4deedd6eda4a2626a",
+      "description": "Starts a conversion of a file that is already in FileConvert (a 'file_id' from upload_file or from an earlier job) from 'source_format' to 'target_format' (named by extension). Returns the 'job_id' to poll with get_job_status. Conversions consume account credits.",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "upload_file",
+      "descriptionHash": "8fbda76d59d8a9bd36f6dcd2734752ddbc17cafef0b70a490a44a4ea4e63303e",
+      "description": "Uploads file bytes (base64) into FileConvert and returns a 'file_id'. Use this when the file is not reachable by URL, then call start_conversion(file_id, source_format, target_format). For files reachable over http(s), convert_file is a single call instead.",
+      "labels": [
+        "private-data",
+        "public-sink"
+      ]
     }
-  ]
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"get_upload_url\" references sensitive artifacts (authorization). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:get_upload_url",
+        "snippet": "Returns instructions for uploading an agent-local file into FileConvert. FileConvert does NOT use presigned upload URLs; instead you upload the file bytes direc…"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOOL-POISON-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description issues instructions to the model",
+      "detail": "Description of \"list_formats\" contains imperative instructions directed at the AI assistant rather than describing the tool. This is the core tool-poisoning technique.",
+      "evidence": {
+        "source": "tool:list_formats",
+        "snippet": "Returns the file formats FileConvert can read and write, along with the format-type categories (image, video, document, audio, …). Use this first to discover va…"
+      },
+      "confidence": 0.7,
+      "remediation": "Treat the server as untrusted; the model may obey embedded instructions."
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: get_download_url, get_upload_url · Private data: convert_file, get_balance, get_download_url, get_job_status, get_upload_url, list_formats, start_conversion, upload_file · Public sink: get_download_url, get_upload_url, upload_file · Destructive: list_formats.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: get_download_url, get_upload_url · Private data: convert_file, get_balance, get_download_url, get_job_status, get_upload_url, list_formats, start_conversion, upload_file · Public sink: get_download_url, get_upload_url, upload_file · Destructive: list_formats"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 50,
+  "scoreBreakdown": {
+    "tool-poisoning": 30,
+    "toxic-flow": 20
+  },
+  "errors": []
 }

@@ -8,8 +8,8 @@
     "kind": "url",
     "ref": "https://worthune.com/api/mcp/mcp"
   },
-  "scannedAt": "2026-08-28T16:56:15.729Z",
-  "durationMs": 841,
+  "scannedAt": "2026-10-06T11:44:44.775Z",
+  "durationMs": 916,
   "layers": {
     "metadata": true,
     "static": false
@@ -62,6 +62,44 @@
       ]
     },
     {
+      "name": "list_households",
+      "descriptionHash": "ca93f7e2661e79733039db8ff50d9816e9239de2e12a6ecb95578d7d50088960",
+      "description": "List the organization's stored households — id, label, advisorRef, version, status, when it was last computed — without the documents (get_household returns one in full). Defaults to active households; GET /api/v1/households returns every status — pass status: \"all\" for the same listing.",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "archive_household",
+      "descriptionHash": "24d65906b762ef7f0200faa3b62c62b1cb74775b3dcc18fa1d69fd1ad6328dad",
+      "description": "Archive a stored household (never deleted: the row stays readable, leaves the active-household meter, and stops accepting writes or projections). The same operation as DELETE /api/v1/households/{id}.",
+      "labels": [
+        "destructive"
+      ]
+    },
+    {
+      "name": "list_decisions",
+      "descriptionHash": "5881458060bf5d9bc678b476d2c52c05e0828c97b8116df3fd8c10698bfd4d90",
+      "description": "The append-only history of coordination strategies run on a stored household, newest first — id, strategy, spec version, household version, record hash, when. Metadata only; get_decision returns one in full. Same as GET /api/v1/households/{id}/decisions.",
+      "labels": [
+        "private-data",
+        "destructive"
+      ]
+    },
+    {
+      "name": "get_decision",
+      "descriptionHash": "e8eec1335d6a4b1420e3726b6f7596dbd17282d7ff7a621d47bf58a9fff4e576",
+      "description": "One stored decision in full: the decision object as it was produced, the household version it ran against, and its evidence record with the hashed inputs — enough to re-verify it with /api/v1/records/verify or the SDKs' verifyRecord. Decisions stored before their inputs were retained are returned ha",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "get_household_picture",
+      "descriptionHash": "4bed76558f7ccd1544cbac8f04c5132a4b6c47a0d5a20956799db1304dcea831",
+      "description": "One household, one picture: the balance sheet by wrapper and owner, income and spending this year, how current the last computation is against the engine's spec (the same drift reasons the weekly scan delivers), the newest decisions, and a data-quality report naming what is missing and what supplyin"
+    },
+    {
       "name": "replace_household",
       "descriptionHash": "a36e934c198bf650bec78129aef0667af5e2f2b9375ce6e04c8387ce0a080dd5",
       "description": "Full-document replace with optimistic concurrency: pass expectedVersion (from get_household) and a stale write loses cleanly with the current version instead of clobbering a concurrent change.",
@@ -87,58 +125,14 @@
       ]
     },
     {
-      "name": "import_households",
-      "descriptionHash": "7bfd3240ea713e4ac019916b07f2338cdd184b3acb7e2176fc8f7a0793076cd3",
-      "description": "Migrate a book (WS3.5): import up to 200 households in one call, with dryRun: true validating everything and writing NOTHING — iterate until the per-row, per-field report is clean, then run for real. Two shapes: households[] of { importKey, label?, household } documents, or template + records — a de",
+      "name": "list_example_households",
+      "descriptionHash": "3e3187c71aa3f3a4a9cae60df41074ba644a18ea43fffe214f54789ca41209ce",
+      "description": "Twelve FICTIONAL households, each built to exercise a different part of the planning engine — accumulation, a Roth conversion window, drawdown on a low-basis portfolio, spousal Social Security coordination, running out of money, negative amortization, and more. Use one as a starting point for try_ho",
       "labels": [
-        "private-data",
-        "destructive"
+        "private-data"
       ]
     },
     {
-      "name": "decide_household",
-      "descriptionHash": "c6cd9ad71535171c2133c06b27f75860515b9a72613abf47bd0183eff442d992",
-      "description": "Run a Household Coordination Engine strategy on a stored household and get back a ranked decision object with evidence records. Strategies: withdrawal-sequencing (no params); roth-ladder (params.candidates: [{annualAmountUsd, years}]); ss-claiming (params.candidateAges?: {memberId: [ages 62-70]}); a",
-      "labels": [
-        "private-data",
-        "destructive"
-      ]
-    }
-  ],
-  "findings": [
-    {
-      "id": "MCP-TOOL-POISON-002",
-      "severity": "high",
-      "category": "tool-poisoning",
-      "title": "Description tells the model to hide behavior",
-      "detail": "Description of \"decide_household\" instructs the model to conceal actions from the user.",
-      "evidence": {
-        "source": "tool:decide_household",
-        "snippet": "Run a Household Coordination Engine strategy on a stored household and get back a ranked decision object with evidence records. Strategies: withdrawal-sequencin…"
-      },
-      "confidence": 0.75
-    },
-    {
-      "id": "MCP-TOXIC-FLOW-001",
-      "severity": "high",
-      "category": "toxic-flow",
-      "title": "Lethal trifecta: untrusted input + private data + external sink",
-      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: get_model_contract · Private data: verify_claim, create_household, get_household, replace_household, patch_household, import_households, decide_household · Public sink: run_model · Destructive: run_model, patch_household, project_household, import_households, decide_household.",
-      "evidence": {
-        "source": "server:mcp",
-        "snippet": "Untrusted content: get_model_contract · Private data: verify_claim, create_household, get_household, replace_household, patch_household, import_households, decide_household · Public sink: run_model · Destructive: run_model, patch_household, project_household, import_households, decide_household"
-      },
-      "confidence": 0.6,
-      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
-    }
-  ],
-  "score": 60,
-  "scoreBreakdown": {
-    "tool-poisoning": 20,
-    "toxic-flow": 20
-  },
-  "errors": []
-}{
       "name": "try_household_projection",
       "descriptionHash": "06b829ea707b70a3aa9285126aa7e3eb13d172aea6aade48026f0e34bc7ebe83",
       "description": "Run the deterministic multi-year household projection on a document you pass in — income, RMDs, Roth conversions, federal and covered-state tax, expenses, amortization, the tax-grossed-up deficit draw, and net worth per year — optionally with a seeded Monte Carlo. NO API KEY, and NOTHING IS STORED: ",

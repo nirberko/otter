@@ -1,0 +1,120 @@
+{
+  "schemaVersion": 1,
+  "scanner": {
+    "version": "1.6.0",
+    "rules": "402995650b68"
+  },
+  "target": {
+    "kind": "url",
+    "ref": "https://api.theagentc.io/mcp"
+  },
+  "scannedAt": "2026-10-06T11:50:45.376Z",
+  "durationMs": 803,
+  "layers": {
+    "metadata": true,
+    "static": false
+  },
+  "tools": [
+    {
+      "name": "list_apps",
+      "descriptionHash": "e7d4cf15f357fcb7d0f2a5b105ed63676fc8b7c26885843a8137bb7b0244dc92",
+      "description": "The user's apps in Agent C, with how many screenshots each has uploaded."
+    },
+    {
+      "name": "add_app",
+      "descriptionHash": "c723d9c4f190664eef55c7c72607cd22062f27cb8be2cb1b01360514047f2b75",
+      "description": "Add an app by its App Store link (imports name, icon, description), or by name if it isn't released yet. Importing a live app takes ~10-30s; poll list_apps until status is 'ready'."
+    },
+    {
+      "name": "get_upload_link",
+      "descriptionHash": "4bd1769ed7f6a41ae7a4aa414dfd6654ae049afeaa65c787b6270c9c47935905",
+      "description": "Best way to upload screenshots from files on disk: returns a one-time URL (valid 30 min) to POST the image files to with curl (multipart field 'files', up to 10 per request). Use this instead of upload_screenshots when you have a shell, so large images don't pass through the conversation.",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "upload_screenshots",
+      "descriptionHash": "fea69df6c7427705961ee3338bc31f5bdb2894489cbe58a4c289a8b36ad8af9d",
+      "description": "Upload 1-10 raw screenshots of the app (plain captures of the real UI, ideally 4-10, in the order you'd like them considered). Each item is base64 image data (PNG/JPEG) or a public https URL. By default replaces the app's screenshot library.",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "design_set",
+      "descriptionHash": "7d70dda5cafae23dd820ddab83781088c0314b9b15996de4eeb12a9d44b14ccd",
+      "description": "Claude art-directs a full App Store screenshot set from the uploaded screenshots: opening shot, headline per slide, close-ups, palette. Returns watermarked preview images, the slide list and a link to open it in the Agent C studio. Takes ~40-60 seconds."
+    },
+    {
+      "name": "get_set",
+      "descriptionHash": "a7ded2ba2333f6ed043ca4f9dc5fa3c0a9bf4a30eace3dafc1fbf355063541ef",
+      "description": "Current slides, unlock status and fresh preview images for a set."
+    },
+    {
+      "name": "edit_set",
+      "descriptionHash": "2d8b15dbeea829f84df3bdfe13ab22c0688063377c63ed59726a12309548e8be",
+      "description": "Change one slide (headline, subline, screenshot, layout, position, or remove it), the opening shot, or the device size. Re-renders previews. Free.",
+      "labels": [
+        "destructive"
+      ]
+    },
+    {
+      "name": "unlock_set",
+      "descriptionHash": "7e5e1bbff51a78becef9e160db2386fc25847489f12fc24b5f208fdb8cda9077",
+      "description": "Unlock clean, full-resolution files for a set. Uses a free unlock if the user has one; otherwise returns a $9.99 Stripe checkout link the USER must open and pay. Studio subscribers are already unlocked. Ask the user before calling.",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "export_set",
+      "descriptionHash": "23ed7a95d81d58c38a8883249ab73446defaf7987cd712ee823f9a919fc29f2e",
+      "description": "Render the unlocked set at exact App Store pixels without watermark and return download links (valid 7 days)."
+    },
+    {
+      "name": "send_to_app_store",
+      "descriptionHash": "fd91941ea5aa426fcc84451d5247f98515e9d3bfa8dfff264663cec41434426a",
+      "description": "Upload the unlocked set into the app's editable version in App Store Connect, replacing that language's screenshots for this device size. Never submits for review. Requires the user to have connected App Store Connect in Agent C. If the app has no editable version, ask the user, then call with creat",
+      "labels": [
+        "public-sink"
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOOL-POISON-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description issues instructions to the model",
+      "detail": "Description of \"unlock_set\" contains imperative instructions directed at the AI assistant rather than describing the tool. This is the core tool-poisoning technique.",
+      "evidence": {
+        "source": "tool:unlock_set",
+        "snippet": "Unlock clean, full-resolution files for a set. Uses a free unlock if the user has one; otherwise returns a $9.99 Stripe checkout link the USER must open and pay…"
+      },
+      "confidence": 0.7,
+      "remediation": "Treat the server as untrusted; the model may obey embedded instructions."
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: get_upload_link · Private data: get_upload_link, unlock_set · Public sink: get_upload_link, upload_screenshots, send_to_app_store · Destructive: edit_set.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: get_upload_link · Private data: get_upload_link, unlock_set · Public sink: get_upload_link, upload_screenshots, send_to_app_store · Destructive: edit_set"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 60,
+  "scoreBreakdown": {
+    "tool-poisoning": 20,
+    "toxic-flow": 20
+  },
+  "errors": []
+}

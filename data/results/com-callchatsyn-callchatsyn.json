@@ -1,0 +1,83 @@
+{
+  "schemaVersion": 1,
+  "scanner": {
+    "version": "1.6.0",
+    "rules": "402995650b68"
+  },
+  "target": {
+    "kind": "url",
+    "ref": "https://callchatsyn.com/api/mcp"
+  },
+  "scannedAt": "2026-10-06T11:30:05.862Z",
+  "durationMs": 809,
+  "layers": {
+    "metadata": true,
+    "static": false
+  },
+  "tools": [
+    {
+      "name": "answer_customer_question",
+      "descriptionHash": "e6e8ce0503c4ffa8a59c171dac1976db5fddbf2354e24be25e221ae5278eff90",
+      "description": "Answer a customer's message for one small business using only that business's own FAQs and order records. Rule-based, not generated, so it never invents prices or opening hours; English and Chinese are detected automatically. Read-only: it never books or changes anything. Use it first for any custom",
+      "labels": [
+        "untrusted-content",
+        "private-data"
+      ]
+    },
+    {
+      "name": "list_open_times",
+      "descriptionHash": "a6089bfa02952d18eb2dfd03f18d2f46a7cf68a372d444d29ab327040acbafe3",
+      "description": "List the business's next open appointment times: up to 5, soonest first, within the next 7 days, labelled in the business's time zone, plus its services and locations. Read-only. Call it before book_appointment and whenever a customer asks when they can come in. Times come from the business's CallCh"
+    },
+    {
+      "name": "book_appointment",
+      "descriptionHash": "74b4cb9b9ce4bff3ec7b49258fd7cbf3856086ccb7910624e01018f3e189edca",
+      "description": "Book one appointment for a customer. This creates a real booking: the business is notified, and if it has connected Cal.com the booking is created there too. With the demo key it's a dry run that books nothing. Not idempotent: booking the same time twice fails the second time. Only call it after the",
+      "labels": [
+        "public-sink",
+        "destructive"
+      ]
+    },
+    {
+      "name": "cancel_appointment",
+      "descriptionHash": "6de4ba2268f9014c76ec5ee790dd94a46bf7f20f180b9a84d4fb91192e9f70f0",
+      "description": "Cancel one of the business's bookings by the 'id' that book_appointment returned. This changes data: the time becomes free again, and if the business has connected Cal.com the booking is cancelled there too (Cal.com emails the customer). Only call it after the customer has clearly asked to cancel th",
+      "labels": [
+        "destructive"
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"answer_customer_question\" references sensitive artifacts (authorization, bearer). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:answer_customer_question",
+        "snippet": "Answer a customer's message for one small business using only that business's own FAQs and order records. Rule-based, not generated, so it never invents prices …"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: answer_customer_question · Private data: answer_customer_question · Public sink: book_appointment · Destructive: book_appointment, cancel_appointment.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: answer_customer_question · Private data: answer_customer_question · Public sink: book_appointment · Destructive: book_appointment, cancel_appointment"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 60,
+  "scoreBreakdown": {
+    "tool-poisoning": 20,
+    "toxic-flow": 20
+  },
+  "errors": []
+}

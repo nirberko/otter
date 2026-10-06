@@ -8,8 +8,8 @@
     "kind": "url",
     "ref": "https://quote-api.smklog.com/mcp"
   },
-  "scannedAt": "2026-08-28T16:56:04.723Z",
-  "durationMs": 374,
+  "scannedAt": "2026-10-06T11:44:25.053Z",
+  "durationMs": 165,
   "layers": {
     "metadata": true,
     "static": false
@@ -17,30 +17,143 @@
   "tools": [
     {
       "name": "get_parcel_quote",
-      "descriptionHash": "6cb264f8bfa6ccf2031f6597358ce4ec184efafc3edbac54044272138af8c753",
-      "description": "Live shipping rates for one US-domestic parcel across USPS, UPS and FedEx. Describe the item in plain words and the packed box size and weight are estimated; give exact dimensions and weight to skip the estimate. Returns up to five purchasable services with the checkout total, the carrier cost benea",
+      "descriptionHash": "e0f21d825364d12fc706769a6fcb3166f68bcbc83667ad0cec755c739d39c717",
+      "description": "Live shipping rates for one parcel sent from a US origin — inside the US, or to Canada, the UK, Germany or Australia — across USPS, UPS and FedEx, and DHL Express on the German and Australian lanes. Describe the item in plain words and the packed box size and weight are estimated. Give exact dimensi",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "create_checkout_link",
+      "descriptionHash": "d2489de9479902233804bb8c0d018067eef332c47f9d914807399dbdbad9e719",
+      "description": "Turns a decided shipment into a payment session for buying its shipping label: the checkout amount and a handoff URL that opens SMKlog checkout prefilled with the parcel. Use it after get_parcel_quote, passing the quote_id that call returned, so the price is reused and no second carrier call is spen",
+      "labels": [
+        "untrusted-content",
+        "private-data"
+      ]
+    },
+    {
+      "name": "track_parcel",
+      "descriptionHash": "430e26b5ec6ef059c018235ddae93f5472a0cda6546b3ca261c2290860712b44",
+      "description": "Track a shipment whose shipping label was bought on smklog.com, by carrier tracking number. Returns the current delivery status, the latest scan events and the estimated delivery date when the carrier reports one. Works for SMKlog labels only — it is not a universal tracker for arbitrary USPS, UPS, ",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "get_price_index",
+      "descriptionHash": "fe206591bc7c2ae2eaa20d0965ac1d5a613c9db01250ff0ed2f09e61d1aa05d5",
+      "description": "The SMKlog parcel shipping price index: a monthly repriced basket of six common boxes (1 to 20 lb) shipped from Newark, NJ to five US cities, quoted through the same live USPS, UPS and FedEx pipeline that prices real shipments. Returns the cheapest purchasable service per box and lane with every rat",
       "labels": [
         "untrusted-content"
       ]
     },
     {
-      "name": "create_checkout_link",
-      "descriptionHash": "a248586fff4109d16111253984b50875002bfc4b12b65ed2ffedb87614980ab9",
-      "description": "Prices the shipment live and returns a payment session for buying the shipping label: the amount, and a handoff URL that opens the SMKlog checkout prefilled with this shipment. The human confirms the contents certification and the carrier-adjustment consent there and pays on Stripe hosted checkout. "
-    },
-    {
-      "name": "track_parcel",
-      "descriptionHash": "0a220ea66db30acc851b3f0e7a5938a571e17594ce6b3398d82ef2068122a7fb",
-      "description": "Track a shipment whose shipping label was bought on smklog.com, by carrier tracking number. Returns the current delivery status, the latest scan events and the estimated delivery date when the carrier reports one. Works for SMKlog labels only — it is not a universal tracker for arbitrary USPS, UPS o"
-    },
-    {
-      "name": "get_price_index",
-      "descriptionHash": "138adf129dbdd20df439c53025ae3348a86d4dc1d4a6860c05620fd7d78d7852",
-      "description": "The SMKlog parcel shipping price index: a monthly repriced basket of six common boxes (1 to 20 lb) shipped from Newark, NJ to five US cities, quoted through the same live USPS, UPS and FedEx pipeline that prices real shipments. Returns the cheapest purchasable service per box and lane with every rat"
+      "name": "get_checkout_status",
+      "descriptionHash": "c0c8474952f3752b86e0c6d746cfe4ae3667c382563f9e0db29d135e4eb93294",
+      "description": "Reports where a payment session made by create_checkout_link stands: whether the human has opened checkout, paid, and whether the shipping label exists yet, with the tracking number once it does. Reads SMKlog's own order records only: no carrier call, no quote allowance, nothing changes. Poll it aft",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink"
+      ]
     }
   ],
-  "findings": [],
-  "score": 100,
-  "scoreBreakdown": {},
+  "findings": [
+    {
+      "id": "MCP-TOOL-POISON-002",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description tells the model to hide behavior",
+      "detail": "Description of \"create_checkout_link\" instructs the model to conceal actions from the user.",
+      "evidence": {
+        "source": "tool:create_checkout_link",
+        "snippet": "Turns a decided shipment into a payment session for buying its shipping label: the checkout amount and a handoff URL that opens SMKlog checkout prefilled with t…"
+      },
+      "confidence": 0.75
+    },
+    {
+      "id": "MCP-TOOL-POISON-007",
+      "severity": "low",
+      "category": "tool-poisoning",
+      "title": "Description uses pressure/override language",
+      "detail": "Description of \"create_checkout_link\" stacks urgency/override words (always, never). Legitimate tool descriptions rarely pressure the model to act or ignore prior guidance.",
+      "evidence": {
+        "source": "tool:create_checkout_link",
+        "snippet": "Turns a decided shipment into a payment session for buying its shipping label: the checkout amount and a handoff URL that opens SMKlog checkout prefilled with t…"
+      },
+      "confidence": 0.3
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: create_checkout_link, get_price_index, get_checkout_status · Private data: create_checkout_link, get_checkout_status · Public sink: get_parcel_quote, track_parcel, get_checkout_status.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: create_checkout_link, get_price_index, get_checkout_status · Private data: create_checkout_link, get_checkout_status · Public sink: get_parcel_quote, track_parcel, get_checkout_status"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"get_parcel_quote\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:get_parcel_quote",
+        "snippet": "before: \"Live shipping rates for one US-domestic parcel across USPS, UPS and FedEx. Describe the item in plain words and the packed box size and weight are estimated; give exact dimensions and weight to skip the estimate. Returns up to five purchasable services with the checkout total, the carrier cost benea\" → after: \"Live shipping rates for one parcel sent from a US origin — inside the US, or to Canada, the UK, Germany or Australia — across USPS, UPS and FedEx, and DHL Express on the German and Australian lanes. Describe the item in plain words and the packed box size and weight are estimated. Give exact dimensi\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"create_checkout_link\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:create_checkout_link",
+        "snippet": "before: \"Prices the shipment live and returns a payment session for buying the shipping label: the amount, and a handoff URL that opens the SMKlog checkout prefilled with this shipment. The human confirms the contents certification and the carrier-adjustment consent there and pays on Stripe hosted checkout. \" → after: \"Turns a decided shipment into a payment session for buying its shipping label: the checkout amount and a handoff URL that opens SMKlog checkout prefilled with the parcel. Use it after get_parcel_quote, passing the quote_id that call returned, so the price is reused and no second carrier call is spen\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"track_parcel\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:track_parcel",
+        "snippet": "before: \"Track a shipment whose shipping label was bought on smklog.com, by carrier tracking number. Returns the current delivery status, the latest scan events and the estimated delivery date when the carrier reports one. Works for SMKlog labels only — it is not a universal tracker for arbitrary USPS, UPS o\" → after: \"Track a shipment whose shipping label was bought on smklog.com, by carrier tracking number. Returns the current delivery status, the latest scan events and the estimated delivery date when the carrier reports one. Works for SMKlog labels only — it is not a universal tracker for arbitrary USPS, UPS, \""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"get_price_index\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:get_price_index",
+        "snippet": "before: \"The SMKlog parcel shipping price index: a monthly repriced basket of six common boxes (1 to 20 lb) shipped from Newark, NJ to five US cities, quoted through the same live USPS, UPS and FedEx pipeline that prices real shipments. Returns the cheapest purchasable service per box and lane with every rat\" → after: \"The SMKlog parcel shipping price index: a monthly repriced basket of six common boxes (1 to 20 lb) shipped from Newark, NJ to five US cities, quoted through the same live USPS, UPS and FedEx pipeline that prices real shipments. Returns the cheapest purchasable service per box and lane with every rat\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    }
+  ],
+  "score": 41,
+  "scoreBreakdown": {
+    "tool-poisoning": 39,
+    "toxic-flow": 20
+  },
   "errors": []
 }

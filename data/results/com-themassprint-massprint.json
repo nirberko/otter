@@ -8,8 +8,8 @@
     "kind": "url",
     "ref": "https://themassprint.com/mcp"
   },
-  "scannedAt": "2026-08-11T05:38:40.071Z",
-  "durationMs": 661,
+  "scannedAt": "2026-10-06T11:44:30.838Z",
+  "durationMs": 485,
   "layers": {
     "metadata": true,
     "static": false
@@ -45,13 +45,16 @@
     },
     {
       "name": "get_order",
-      "descriptionHash": "871a7561a4adbaa53765009ad4ddbacdcbca63e0872a34b145cb2650c43272a1",
-      "description": "Check an order: status (awaiting_payment → confirmed → printing → shipped → delivered), tracking number once shipped, and — while unpaid — the payment_url again (so you can always re-answer \"how do I pay\"). Requires the order_token from create_order."
+      "descriptionHash": "cd75508d9bcd7677553732f3d2bacf104bb17f043cdd298e5fb62f88a8f4db74",
+      "description": "Check an order: status (awaiting_payment → confirmed → printing → shipped → delivered), tracking number once shipped, and — while unpaid — the payment_url again (so you can always re-answer \"how do I pay\"). Requires the order_token from create_order, or the API key that created the order (Authorizat",
+      "labels": [
+        "private-data"
+      ]
     },
     {
       "name": "cancel_order",
-      "descriptionHash": "cfb84bcc3a601543ab8060215ce49cc597f5795d8e3956f5cf362d36dc8777d6",
-      "description": "Cancel an order. Only possible while status is awaiting_payment (i.e. before payment). Paid orders are handled manually — contact support (see get_catalog).",
+      "descriptionHash": "3b232fc4475a37e181c49e4d38d99cf64cf4150c2d7684d2cb27506528808406",
+      "description": "Cancel an order, stopping it before it is printed. With the order_token from create_order this works while the order is awaiting_payment. A platform that sends its own API key (Authorization: Bearer mp_live_...) can additionally cancel an order THAT KEY created while it is confirmed or printing — th",
       "labels": [
         "private-data"
       ]
@@ -67,21 +70,72 @@
   ],
   "findings": [
     {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"get_order\" references sensitive artifacts (authorization, bearer). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:get_order",
+        "snippet": "Check an order: status (awaiting_payment → confirmed → printing → shipped → delivered), tracking number once shipped, and — while unpaid — the payment_url again…"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"cancel_order\" references sensitive artifacts (authorization, bearer). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:cancel_order",
+        "snippet": "Cancel an order, stopping it before it is printed. With the order_token from create_order this works while the order is awaiting_payment. A platform that sends …"
+      },
+      "confidence": 0.65
+    },
+    {
       "id": "MCP-TOXIC-FLOW-001",
       "severity": "high",
       "category": "toxic-flow",
       "title": "Lethal trifecta: untrusted input + private data + external sink",
-      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: create_upload · Private data: create_upload, cancel_order, apply_enterprise · Public sink: create_upload, create_order.",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: create_upload · Private data: create_upload, get_order, cancel_order, apply_enterprise · Public sink: create_upload, create_order.",
       "evidence": {
         "source": "server:mcp",
-        "snippet": "Untrusted content: create_upload · Private data: create_upload, cancel_order, apply_enterprise · Public sink: create_upload, create_order"
+        "snippet": "Untrusted content: create_upload · Private data: create_upload, get_order, cancel_order, apply_enterprise · Public sink: create_upload, create_order"
       },
       "confidence": 0.6,
       "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"get_order\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:get_order",
+        "snippet": "before: \"Check an order: status (awaiting_payment → confirmed → printing → shipped → delivered), tracking number once shipped, and — while unpaid — the payment_url again (so you can always re-answer \"how do I pay\"). Requires the order_token from create_order.\" → after: \"Check an order: status (awaiting_payment → confirmed → printing → shipped → delivered), tracking number once shipped, and — while unpaid — the payment_url again (so you can always re-answer \"how do I pay\"). Requires the order_token from create_order, or the API key that created the order (Authorizat\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"cancel_order\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:cancel_order",
+        "snippet": "before: \"Cancel an order. Only possible while status is awaiting_payment (i.e. before payment). Paid orders are handled manually — contact support (see get_catalog).\" → after: \"Cancel an order, stopping it before it is printed. With the order_token from create_order this works while the order is awaiting_payment. A platform that sends its own API key (Authorization: Bearer mp_live_...) can additionally cancel an order THAT KEY created while it is confirmed or printing — th\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
     }
   ],
-  "score": 80,
+  "score": 43,
   "scoreBreakdown": {
+    "tool-poisoning": 38,
     "toxic-flow": 20
   },
   "errors": []

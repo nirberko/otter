@@ -8,48 +8,136 @@
     "kind": "url",
     "ref": "https://geocp.latlong.ai/mcp/"
   },
-  "scannedAt": "2026-09-16T09:24:26.398Z",
-  "durationMs": 3044,
+  "scannedAt": "2026-10-06T11:28:52.582Z",
+  "durationMs": 3539,
   "layers": {
     "metadata": true,
     "static": false
   },
   "tools": [
     {
-      "name": "create_upload",
-      "descriptionHash": "af5808ea9a753000eab1685cca8310af616c2f209b4e39ff2efa6a43538c9b0a",
-      "description": "Start a client-direct file upload for large CSV/XLSX files. Returns a presigned put_url and an opaque upload_id. Steps: 1) call create_upload with file_name, 2) HTTP PUT the raw file bytes to put_url using the returned headers, 3) pass upload_id to question_to_map, parse_file, or render_map. Preferr",
+      "name": "geocode",
+      "descriptionHash": "977dea133ff6ead7e70487d68cdb65a743f88a9b40bde01afd9bd26e515f0340",
+      "description": "Geocode addresses from an uploaded CSV or XLSX file into latitude/longitude. Pass a file_key from upload_file.\n\nColumn selection: if you know it, pass address_column (or address_columns for several). Otherwise the server asks the geo-match service to detect it. When the answer is not unambiguous — s",
       "labels": [
-        "private-data",
-        "public-sink"
+        "private-data"
       ]
     },
     {
       "name": "get_capabilities",
-      "descriptionHash": "69de293dd745e5671d7c512abddf9d7385d70d880a0232402d67d230be20c8ad",
-      "description": "Return the server's capability matrix (supported map types, geo types, output formats, and classification methods)."
-    },
-    {
-      "name": "process_upload",
-      "descriptionHash": "df25634332c4ccdaf53e19315623b35435f8a6e765f3bf44136c51eaa51be60f",
-      "description": "Validate and ingest a file uploaded via create_upload. Runs size, virus, and content-safety checks, parses CSV/XLSX/JSON, and returns an upload_id plus advisory intent (no raw rows). IMPORTANT: to make a map, call question_to_map and pass this upload_id — and pass the SAME upload_id on every follow-",
-      "labels": [
-        "private-data",
-        "public-sink"
-      ]
+      "descriptionHash": "afa9d20b24ec693c6a0c1303e0cf62a964d7c3dac78e2b436caac70338520275",
+      "description": "Return the server's capability matrix: supported map types, geo types, output formats, classification methods, and the list of tools available in this process (which varies by configuration). Call this first to discover what the server can do."
     },
     {
       "name": "question_to_map",
-      "descriptionHash": "66e48c045eff21ff0d4028572cd703abd3a3f2668d566b743322ed0974332f3e",
-      "description": "Render a geographic map from a question.\n\nTO MAP A FILE (CSV/XLSX/JSON) — you MUST upload it first, in this order:\n  1) call create_upload {file_name} -> returns { upload_id, put_url }\n  2) HTTP PUT the raw file bytes to put_url (use the returned headers)\n  3) call process_upload {upload_id, ...your",
+      "descriptionHash": "713eba8e6e7f6cd2d5d4616a186d4b0d5e93315f7288a78912d8c447cfc9f2b0",
+      "description": "Render a geographic map from your data. Call upload_file first to ingest a CSV/XLSX file, then pass the returned file_key: {\"question\": \"show total by pincode\", \"file_key\": \"mcp-uploads/<user-id>/2026/01/15/<uuid>.csv\"}. The file_key is reusable — for additional questions on the same file, pass the ",
       "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "reverse_geocode",
+      "descriptionHash": "04f136edd3689a8fe5cc863be2b02dc96bcf38165d7173d57b4e9ff45aafd17b",
+      "description": "Turn latitude/longitude coordinates in an uploaded CSV or XLSX into addresses. Pass a file_key from upload_file.\n\nColumn selection: pass latitude_column and longitude_column, or latlong_column for a single combined column, or coordinate_pairs for several sets. Otherwise the server detects them. When",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "upload_file",
+      "descriptionHash": "cfceb663091992c6b1564c4c0e18d50f3e8c0091f978d186019e8b1064a64375",
+      "description": "Upload a CSV or XLSX file for server-side ingestion under policy (auth, size cap, malware scan, injected-intent scan) and receive a file_key. This is the first step before calling question_to_map with your own data.\n\nStep 1: Call upload_file with file_name, file_size, and question. The response cont",
+      "labels": [
+        "untrusted-content",
         "private-data",
-        "public-sink"
+        "public-sink",
+        "destructive"
       ]
     }
   ],
-  "findings": [],
-  "score": 100,
-  "scoreBreakdown": {},
+  "findings": [
+    {
+      "id": "MCP-TOOL-POISON-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description issues instructions to the model",
+      "detail": "Description of \"upload_file\" contains imperative instructions directed at the AI assistant rather than describing the tool. This is the core tool-poisoning technique.",
+      "evidence": {
+        "source": "tool:upload_file",
+        "snippet": "Upload a CSV or XLSX file for server-side ingestion under policy (auth, size cap, malware scan, injected-intent scan) and receive a file_key. This is the first …"
+      },
+      "confidence": 0.7,
+      "remediation": "Treat the server as untrusted; the model may obey embedded instructions."
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: upload_file · Private data: geocode, question_to_map, reverse_geocode, upload_file · Public sink: upload_file · Destructive: upload_file.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: upload_file · Private data: geocode, question_to_map, reverse_geocode, upload_file · Public sink: upload_file · Destructive: upload_file"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "medium",
+      "category": "tool-poisoning",
+      "title": "Tool removed since last scan",
+      "detail": "Tool \"create_upload\" is no longer advertised. Removal can precede a shadowing replacement from another server.",
+      "evidence": {
+        "source": "tool:create_upload",
+        "snippet": "removed: create_upload"
+      },
+      "confidence": 0.5
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"get_capabilities\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:get_capabilities",
+        "snippet": "before: \"Return the server's capability matrix (supported map types, geo types, output formats, and classification methods).\" → after: \"Return the server's capability matrix: supported map types, geo types, output formats, classification methods, and the list of tools available in this process (which varies by configuration). Call this first to discover what the server can do.\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "medium",
+      "category": "tool-poisoning",
+      "title": "Tool removed since last scan",
+      "detail": "Tool \"process_upload\" is no longer advertised. Removal can precede a shadowing replacement from another server.",
+      "evidence": {
+        "source": "tool:process_upload",
+        "snippet": "removed: process_upload"
+      },
+      "confidence": 0.5
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"question_to_map\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:question_to_map",
+        "snippet": "before: \"Render a geographic map from a question.\n\nTO MAP A FILE (CSV/XLSX/JSON) — you MUST upload it first, in this order:\n  1) call create_upload {file_name} -> returns { upload_id, put_url }\n  2) HTTP PUT the raw file bytes to put_url (use the returned headers)\n  3) call process_upload {upload_id, ...your\" → after: \"Render a geographic map from your data. Call upload_file first to ingest a CSV/XLSX file, then pass the returned file_key: {\"question\": \"show total by pincode\", \"file_key\": \"mcp-uploads/<user-id>/2026/01/15/<uuid>.csv\"}. The file_key is reusable — for additional questions on the same file, pass the \""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    }
+  ],
+  "score": 44,
+  "scoreBreakdown": {
+    "tool-poisoning": 37,
+    "toxic-flow": 20
+  },
   "errors": []
 }

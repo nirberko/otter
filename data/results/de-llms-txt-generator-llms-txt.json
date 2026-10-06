@@ -8,8 +8,8 @@
     "kind": "url",
     "ref": "https://www.llms-txt-generator.de/api/mcp"
   },
-  "scannedAt": "2026-08-28T16:56:18.074Z",
-  "durationMs": 1759,
+  "scannedAt": "2026-10-06T11:44:54.665Z",
+  "durationMs": 1013,
   "layers": {
     "metadata": true,
     "static": false
@@ -17,33 +17,116 @@
   "tools": [
     {
       "name": "generate_llms_txt",
-      "descriptionHash": "525872bd11465b91576213f57f219b634f96d8c69ebbc3f1654e74678daed355",
-      "description": "Crawlt bis zu 15 öffentliche HTML-Seiten einer Domain und erzeugt daraus einen fertigen llms.txt-Entwurf. Deterministisch: Es wird kein Sprachmodell aufgerufen, Beschreibungen stammen ausschließlich aus den Metadaten oder sichtbaren Texten der Quellseiten. Liefert zusätzlich Validierung, Lighthouse-"
+      "descriptionHash": "6f5dbe9dfe0d1bc4aabfb457e30ffc77939936afe2d6e2134845514588991e0a",
+      "description": "Use this when the user wants a new llms.txt file for a public website they name. Reads up to 15 public HTML pages of that one domain (start page, XML sitemap, internal links) and returns a ready-to-publish llms.txt draft in Markdown, plus a format validation score, the Lighthouse \"Agentic Browsing\" ",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink",
+        "destructive"
+      ]
     },
     {
       "name": "validate_llms_txt",
-      "descriptionHash": "dc13d431eb28b04de097c6d7e525f2d2a0960076228391df68756c35fea298a1",
-      "description": "Prüft den Inhalt einer llms.txt gegen den Formatvorschlag von llmstxt.org: H1, Zusammenfassung, H2-Abschnitte, absolute Links, Duplikate, Links auf fremde Domains, Dateigröße und Aktualisierungsdatum. Liefert 0–100 Punkte sowie Befunde mit Schweregrad und Zeilennummer, dazu den Lighthouse-Status."
+      "descriptionHash": "a4b07bfabe99a61de2c5c8446401c28ed51b391d943a1afe32d83adc043683b3",
+      "description": "Use this when the user pastes the text of an llms.txt file and wants it checked or improved. Checks the text against the llmstxt.org format proposal: H1 title, summary blockquote, H2 sections, absolute Markdown links, duplicates, links to other domains, file size and update date. Returns a 0-100 sco",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "destructive"
+      ]
     },
     {
       "name": "check_published_llms_txt",
-      "descriptionHash": "1b2580fc0734f89f6bb1ae3e57d3306e42cf561c7b633589c85ea17404fcd16a",
-      "description": "Ruft die live ausgelieferte /llms.txt einer Domain ab und prüft HTTP-Status, Content-Type und Inhalt. Nutzen Sie dies, um zu klären, warum PageSpeed Insights eine llms.txt bemängelt.",
+      "descriptionHash": "88b8a981ef7b919c5712896ae0dafb133deb8c23dc936a75df39ffc3ed81e652",
+      "description": "Use this when the user asks whether a website already has an llms.txt, whether it is served correctly, or why PageSpeed Insights / Lighthouse flags it. Requests exactly one URL, https://<domain>/llms.txt, and reports HTTP status, content type, redirects, the file content, the format validation and t",
       "labels": [
-        "untrusted-content"
+        "untrusted-content",
+        "private-data",
+        "destructive"
       ]
     },
     {
       "name": "check_lighthouse_agentic_browsing",
-      "descriptionHash": "5a7bbb99fea19cf02548083af3582de8b39baee99364d8096bca027b024e5eaa",
-      "description": "Prüft einen llms.txt-Inhalt exakt gegen die drei Regeln des Lighthouse-Audits llms-txt (Lighthouse 13.3): H1 vorhanden, mindestens ein Markdown-Link, mehr als 50 Zeichen. Benennt bei Fehlschlag die Originalmeldung von Lighthouse.",
+      "descriptionHash": "78650302b066fd0f0224048ee6cdbcbe0b5f4856f02cb596de5dc2b94ccd0733",
+      "description": "Use this when the user only wants to know whether a given llms.txt text passes the Lighthouse 13.3 \"Agentic Browsing\" audit (llms-txt). Applies exactly its three rules: an H1 exists, at least one Markdown link, more than 50 characters. On failure it returns Lighthouse's original message. Works only ",
       "labels": [
-        "untrusted-content"
+        "untrusted-content",
+        "destructive"
       ]
     }
   ],
-  "findings": [],
-  "score": 100,
-  "scoreBreakdown": {},
+  "findings": [
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: generate_llms_txt, validate_llms_txt, check_published_llms_txt, check_lighthouse_agentic_browsing · Private data: generate_llms_txt, validate_llms_txt, check_published_llms_txt · Public sink: generate_llms_txt · Destructive: generate_llms_txt, validate_llms_txt, check_published_llms_txt, check_lighthouse_agentic_browsing.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: generate_llms_txt, validate_llms_txt, check_published_llms_txt, check_lighthouse_agentic_browsing · Private data: generate_llms_txt, validate_llms_txt, check_published_llms_txt · Public sink: generate_llms_txt · Destructive: generate_llms_txt, validate_llms_txt, check_published_llms_txt, check_lighthouse_agentic_browsing"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"generate_llms_txt\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:generate_llms_txt",
+        "snippet": "before: \"Crawlt bis zu 15 öffentliche HTML-Seiten einer Domain und erzeugt daraus einen fertigen llms.txt-Entwurf. Deterministisch: Es wird kein Sprachmodell aufgerufen, Beschreibungen stammen ausschließlich aus den Metadaten oder sichtbaren Texten der Quellseiten. Liefert zusätzlich Validierung, Lighthouse-\" → after: \"Use this when the user wants a new llms.txt file for a public website they name. Reads up to 15 public HTML pages of that one domain (start page, XML sitemap, internal links) and returns a ready-to-publish llms.txt draft in Markdown, plus a format validation score, the Lighthouse \"Agentic Browsing\" \""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"validate_llms_txt\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:validate_llms_txt",
+        "snippet": "before: \"Prüft den Inhalt einer llms.txt gegen den Formatvorschlag von llmstxt.org: H1, Zusammenfassung, H2-Abschnitte, absolute Links, Duplikate, Links auf fremde Domains, Dateigröße und Aktualisierungsdatum. Liefert 0–100 Punkte sowie Befunde mit Schweregrad und Zeilennummer, dazu den Lighthouse-Status.\" → after: \"Use this when the user pastes the text of an llms.txt file and wants it checked or improved. Checks the text against the llmstxt.org format proposal: H1 title, summary blockquote, H2 sections, absolute Markdown links, duplicates, links to other domains, file size and update date. Returns a 0-100 sco\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"check_published_llms_txt\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:check_published_llms_txt",
+        "snippet": "before: \"Ruft die live ausgelieferte /llms.txt einer Domain ab und prüft HTTP-Status, Content-Type und Inhalt. Nutzen Sie dies, um zu klären, warum PageSpeed Insights eine llms.txt bemängelt.\" → after: \"Use this when the user asks whether a website already has an llms.txt, whether it is served correctly, or why PageSpeed Insights / Lighthouse flags it. Requests exactly one URL, https://<domain>/llms.txt, and reports HTTP status, content type, redirects, the file content, the format validation and t\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"check_lighthouse_agentic_browsing\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:check_lighthouse_agentic_browsing",
+        "snippet": "before: \"Prüft einen llms.txt-Inhalt exakt gegen die drei Regeln des Lighthouse-Audits llms-txt (Lighthouse 13.3): H1 vorhanden, mindestens ein Markdown-Link, mehr als 50 Zeichen. Benennt bei Fehlschlag die Originalmeldung von Lighthouse.\" → after: \"Use this when the user only wants to know whether a given llms.txt text passes the Lighthouse 13.3 \"Agentic Browsing\" audit (llms-txt). Applies exactly its three rules: an H1 exists, at least one Markdown link, more than 50 characters. On failure it returns Lighthouse's original message. Works only \""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    }
+  ],
+  "score": 43,
+  "scoreBreakdown": {
+    "toxic-flow": 20,
+    "tool-poisoning": 38
+  },
   "errors": []
 }

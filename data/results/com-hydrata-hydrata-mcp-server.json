@@ -8,8 +8,8 @@
     "kind": "url",
     "ref": "https://hydrata.com/mcp/"
   },
-  "scannedAt": "2026-09-16T09:25:31.709Z",
-  "durationMs": 787,
+  "scannedAt": "2026-10-06T11:30:38.841Z",
+  "durationMs": 933,
   "layers": {
     "metadata": true,
     "static": false
@@ -27,9 +27,10 @@
     },
     {
       "name": "get_scenario",
-      "descriptionHash": "f230643046eca07a6018a131671105aac61f416a74f13ddd05b4cd0c52128290",
-      "description": "Get scenario details including its current status and latest run.\n\nThe status field is computed from the latest run and will be one of:\ncreated, building, built, queued, computing, processing, complete,\nerror, or cancelled. A scenario must be in 'built' status before\nit can be run.",
+      "descriptionHash": "4d194ee6b6e34eb3af2eb2b9dbba5ccc84bcd92955057c070ae3a4f4f02d36a1",
+      "description": "Get scenario details including its `computed_status` and latest run.\n\nThe `computed_status` field (there is NO `status` key on a scenario) is\nderived from the latest run and will be one of: created, building, built,\nqueued, computing, processing, complete, error, or cancelled — `created`\nalso means ",
       "labels": [
+        "private-data",
         "destructive"
       ]
     },
@@ -79,10 +80,165 @@
       "name": "list_runs",
       "descriptionHash": "867fcb1c2f464f9c2606096e78996b393ae989e8fbd218fe36fc8e9dae71305c",
       "description": "List all simulation runs across all scenarios in a project.\n\nReturns a paginated list of runs. Optionally filter by status\nto find active, completed, or failed runs."
+    },
+    {
+      "name": "create_project",
+      "descriptionHash": "95b12938b7adfda39b5f1a1ed72fb6ce1b29a19887e8aa3ca14fc4b9f7ba9211",
+      "description": "Create a new ANUGA project. Returns the project record including its id.\n\nThe caller's own account becomes the owner. `projection` is the projected\nCRS every scenario in the project is meshed and run in — pick the UTM zone\ncovering the site. Next step for a new project: presign_terrain_upload.",
+      "labels": [
+        "private-data",
+        "destructive"
+      ]
+    },
+    {
+      "name": "presign_terrain_upload",
+      "descriptionHash": "cd9edbde745a11801c3c8070e1609ff960c7fe92f0f093f02de39d314830f4c4",
+      "description": "Step 1 of a terrain import: get a presigned S3 PUT URL for a GeoTIFF DEM.\n\nThe agent moves the bytes itself — no tool accepts file contents. After this\ncall, PUT the file straight to `upload_url`, sending the SAME Content-Type\nyou passed here (it is part of the signature; a mismatch is a 403\nSignatu",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink",
+        "destructive"
+      ]
+    },
+    {
+      "name": "finalize_terrain_upload",
+      "descriptionHash": "59475ba575cd3e87b8ad81299a481ba560f2c5e6560417a1d24db14dcbb0594a",
+      "description": "Step 2 of a terrain import: register the PUT GeoTIFF as a Terrain and start the import.\n\nCall this only after the presigned PUT returned 200. Creates the Terrain row\n(status `creating`) and queues the import chain — reproject to UTM, publish\nthe layer + hillshade, style — which also seeds the projec",
+      "labels": [
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "get_terrain",
+      "descriptionHash": "f2d6e1162dd7a304ff8567ace3c76810070ddc863aa01d6c5122dd4f1b917572",
+      "description": "Poll a terrain's import until it is `ready` (or `error`), bounded by timeout_seconds.\n\nReturns `outcome` — exactly one of `ready`, `error`, `timed_out`, `not_found`\n(the project has no terrain yet; an unknown terrain_id is an API 404 error\ninstead) — plus the last `status` seen (creating → styling →",
+      "labels": [
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "create_time_series",
+      "descriptionHash": "ca30c6f87cba184b0200cb19799f736a84488c591a25b0515063ea2a67dbe7b1",
+      "description": "Create a time series (rain gauge, hydrograph, tide/stage) in a project.\n\nPOSTs /projects/<id>/time-series/ with `series_type` and `units` as\ntop-level fields. `series_type` is checked against the four choices and\n`data` against the {\"rowData\": [{timestamp, value}, ...]} shape before any\nrequest is m",
+      "labels": [
+        "untrusted-content",
+        "private-data"
+      ]
+    },
+    {
+      "name": "attach_input_layer",
+      "descriptionHash": "a16201b1d54f4a40c3e963997d1e7325a5cef8bac47810361fb19d6cf45dc297",
+      "description": "Attach a GeoJSON you uploaded to GeoNode as the project's boundary, friction, inflow, rainfall, structure or mesh_region layer.\n\nThe agent moves the bytes: first upload the GeoJSON yourself, with the\nsame credential, to GeoNode's upload endpoint at the site origin:\n\n    curl -sS -u <user>:<password>",
+      "labels": [
+        "private-data",
+        "public-sink",
+        "destructive"
+      ]
+    },
+    {
+      "name": "create_scenario",
+      "descriptionHash": "98e9bfe99e86b99d7a4f9e2d750ac661a839ce946f6de088ace1fc95494145c7",
+      "description": "Create a DRAFT scenario (no build, no run) and report its mesh-triangle estimate.\n\nPOSTs /projects/<id>/scenarios/ with the write fields, then GETs the\nscenario detail — the create response carries NO estimate; the detail's\n`mesh_triangle_count_estimate` (+ `_breakdown`) does. Returns a compact\nreco",
+      "labels": [
+        "private-data",
+        "destructive"
+      ]
+    },
+    {
+      "name": "build_scenario",
+      "descriptionHash": "c133fcf6db0f444ea4a13af919d4d090f2b2ea77e77431a2d3ad36c6903f534e",
+      "description": "Build a scenario's package (mesh + inputs) after showing what it will cost, and poll until built.\n\nOrder of operations, so the number is shown before anything is spent:\n\n1. GET the scenario detail. A record with no `boundary`/`computed_status`\n   keys is a non-member's read of a public project → ref",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink",
+        "destructive"
+      ]
     }
   ],
-  "findings": [],
-  "score": 100,
-  "scoreBreakdown": {},
+  "findings": [
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"attach_input_layer\" references sensitive artifacts (password). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:attach_input_layer",
+        "snippet": "Attach a GeoJSON you uploaded to GeoNode as the project's boundary, friction, inflow, rainfall, structure or mesh_region layer. The agent moves the bytes: first…"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOOL-POISON-006",
+      "severity": "low",
+      "category": "tool-poisoning",
+      "title": "Anomalously long tool description",
+      "detail": "Description of \"attach_input_layer\" is 1861 chars, far longer than this server's median (322). Overlong descriptions are a common place to bury instructions.",
+      "evidence": {
+        "source": "tool:attach_input_layer",
+        "snippet": "Attach a GeoJSON you uploaded to GeoNode as the project's boundary, friction, inflow, rainfall, structure or mesh_region layer. The agent moves the bytes: first…"
+      },
+      "confidence": 0.4
+    },
+    {
+      "id": "MCP-TOOL-POISON-006",
+      "severity": "low",
+      "category": "tool-poisoning",
+      "title": "Anomalously long tool description",
+      "detail": "Description of \"create_scenario\" is 1659 chars, far longer than this server's median (322). Overlong descriptions are a common place to bury instructions.",
+      "evidence": {
+        "source": "tool:create_scenario",
+        "snippet": "Create a DRAFT scenario (no build, no run) and report its mesh-triangle estimate. POSTs /projects/<id>/scenarios/ with the write fields, then GETs the scenario …"
+      },
+      "confidence": 0.4
+    },
+    {
+      "id": "MCP-TOOL-POISON-006",
+      "severity": "low",
+      "category": "tool-poisoning",
+      "title": "Anomalously long tool description",
+      "detail": "Description of \"build_scenario\" is 3213 chars, far longer than this server's median (322). Overlong descriptions are a common place to bury instructions.",
+      "evidence": {
+        "source": "tool:build_scenario",
+        "snippet": "Build a scenario's package (mesh + inputs) after showing what it will cost, and poll until built. Order of operations, so the number is shown before anything is…"
+      },
+      "confidence": 0.4
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: get_run, presign_terrain_upload, create_time_series, build_scenario · Private data: get_scenario, get_run, create_project, presign_terrain_upload, finalize_terrain_upload, get_terrain, create_time_series, attach_input_layer, create_scenario, build_scenario · Public sink: presign_terrain_upload, finalize_terrain_upload, get_terrain, attach_input_layer, build_scenario · Destructive: get_scenario, start_simulation, get_run_status, get_run, cancel_run, retry_run, create_project, presign_terrain_upload, attach_input_layer, create_scenario, build_scenario.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: get_run, presign_terrain_upload, create_time_series, build_scenario · Private data: get_scenario, get_run, create_project, presign_terrain_upload, finalize_terrain_upload, get_terrain, create_time_series, attach_input_layer, create_scenario, build_scenario · Public sink: presign_terrain_upload, finalize_terrain_upload, get_terrain, attach_input_layer, build_scenario · Destructive: get_scenario, start_simulation, get_run_status, get_run, cancel_run, retry_run, create_project, presign_terrain_upload, attach_input_layer, create_scenario, build_scenario"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"get_scenario\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:get_scenario",
+        "snippet": "before: \"Get scenario details including its current status and latest run.\n\nThe status field is computed from the latest run and will be one of:\ncreated, building, built, queued, computing, processing, complete,\nerror, or cancelled. A scenario must be in 'built' status before\nit can be run.\" → after: \"Get scenario details including its `computed_status` and latest run.\n\nThe `computed_status` field (there is NO `status` key on a scenario) is\nderived from the latest run and will be one of: created, building, built,\nqueued, computing, processing, complete, error, or cancelled — `created`\nalso means \""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    }
+  ],
+  "score": 49,
+  "scoreBreakdown": {
+    "tool-poisoning": 31,
+    "toxic-flow": 20
+  },
   "errors": []
 }

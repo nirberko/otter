@@ -8,8 +8,8 @@
     "kind": "url",
     "ref": "https://api.openshopgraph.com/mcp"
   },
-  "scannedAt": "2026-08-11T05:38:26.270Z",
-  "durationMs": 2181,
+  "scannedAt": "2026-10-06T11:44:01.794Z",
+  "durationMs": 1325,
   "layers": {
     "metadata": true,
     "static": false
@@ -17,11 +17,16 @@
   "tools": [
     {
       "name": "find_shop",
-      "descriptionHash": "63afb2e01791ecd7af0421afd25ad8c161e22c52a9805961d2b339eedd42a8d4",
-      "description": "Search merchants/shops by free-text query (name or domain fragment), optionally filtered by country (ISO 3166-1 alpha-2, e.g. \"DE\"). Returns the public shop view only — shops still under internal review are never returned. If many shops match, grouping by country or category keeps the list scannable",
+      "descriptionHash": "c57c3737f6c574e8ad2763c0f285e68bdc1a34e4a52916bb208dd18795523614",
+      "description": "Search merchants/shops by free-text query (name or domain fragment), optionally filtered by country (ISO 3166-1 alpha-2, e.g. \"DE\") and/or by an EXACT category slug. Returns the public shop view only — shops still under internal review are never returned. `results` carries at most `limit` entries (d",
       "labels": [
         "untrusted-content"
       ]
+    },
+    {
+      "name": "list_categories",
+      "descriptionHash": "a2290a32afd6bede8e7f56fa80f85ed83a05fd87690234f1391a98e1b4a576da",
+      "description": "Enumerate the shop category taxonomy: every category slug currently carried by at least one public shop, together with how many public shops carry it. Call this BEFORE passing `category` to find_shop — the taxonomy is flat (no parent/child hierarchy, e.g. \"fashion\" and \"womens-clothing\" are siblings"
     },
     {
       "name": "get_shop",
@@ -33,8 +38,11 @@
     },
     {
       "name": "list_coupons",
-      "descriptionHash": "7e5e520eed2a25fc1c730564f44c03ccc42abdf9fed4bc0f21a9ccc002978ed9",
-      "description": "List currently visible discount codes/coupons, optionally filtered by shop_domain (e.g. \"example-shop.com\"). Only publicly displayable coupons are returned — internal/candidate-shop or policy-suppressed codes are excluded, and EXPIRED codes are never returned (a code whose valid_until has passed is "
+      "descriptionHash": "4fa631694eae2bc3e68bac6d222cdfddc3d372088a68b99b9965ad126efa606a",
+      "description": "List currently USABLE discount codes/coupons, optionally filtered by shop_domain (e.g. \"otto.de\"). A code is withheld from `results` when it is EXPIRED (valid_until has passed), when a real checkout test PROVED it does not work (verification_status \"verified_rejected\"), or when a display policy supp",
+      "labels": [
+        "untrusted-content"
+      ]
     },
     {
       "name": "get_shipping_policy",
@@ -43,38 +51,138 @@
     },
     {
       "name": "get_trust",
-      "descriptionHash": "e15a26d149e701003462f96885515eadea1b80ab76e05035a92e313ad6572870",
+      "descriptionHash": "bdb02d77c46af9327d1c14ba2cbb2880d41c617b44ddc870bcb528f917d503ac",
       "description": "Trust-relevant facts OpenShopGraph itself measured about one merchant/shop (by id or domain): TLS certificate issuer and grade, hosting ISP and country, domain registration date, registrar, and accepted payment methods. Returns INDIVIDUAL signals, never an aggregate: every entry carries its own valu",
       "labels": [
-        "untrusted-content"
+        "untrusted-content",
+        "private-data",
+        "destructive"
       ]
     },
     {
       "name": "report_code",
-      "descriptionHash": "581a8da15bcc39851885ae5baba149c7fedf6b9d2325d72e2ed81498bff82e85",
-      "description": "Record that a specific shop_domain + code (coupon) pair was tried and the outcome (invalid, expired, store_specific, or worked). This is a write: it appends one new report row and never deletes or overwrites existing data — it does not change what list_coupons returns immediately, since reports feed",
+      "descriptionHash": "c9bbab6bdf83086702505edecdbd6842091bd6c199651e5716701980d7c8ad20",
+      "description": "Record that a specific shop_domain + code (coupon) pair is wrong in one of four fixed, documented ways (invalid | mismatch | item_restricted | min_order_missing — see reasons enum; no free text anywhere). This is a write: it appends one new report row and NEVER changes the delivered coupon directly ",
       "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "report_issue",
+      "descriptionHash": "5685b19b0b3c0ac1a31352b416a2b702f6193db171aafac14100548f914aa2a8",
+      "description": "Record a shop-level or data-fact issue as one fixed, documented reason (no free text). subject_type \"shop\": unreachable | no_longer_exists | info_outdated | wrong_category | wrong_name_or_domain. subject_type \"fact\": shipping_cost | return_period | payment_methods | evidence_broken. Same write seman",
+      "labels": [
+        "untrusted-content",
         "private-data"
       ]
     }
   ],
   "findings": [
     {
+      "id": "MCP-TOOL-POISON-002",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description tells the model to hide behavior",
+      "detail": "Description of \"list_categories\" instructs the model to conceal actions from the user.",
+      "evidence": {
+        "source": "tool:list_categories",
+        "snippet": "Enumerate the shop category taxonomy: every category slug currently carried by at least one public shop, together with how many public shops carry it. Call this…"
+      },
+      "confidence": 0.75
+    },
+    {
+      "id": "MCP-TOOL-POISON-002",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description tells the model to hide behavior",
+      "detail": "Description of \"list_coupons\" instructs the model to conceal actions from the user.",
+      "evidence": {
+        "source": "tool:list_coupons",
+        "snippet": "List currently USABLE discount codes/coupons, optionally filtered by shop_domain (e.g. \"otto.de\"). A code is withheld from `results` when it is EXPIRED (valid_u…"
+      },
+      "confidence": 0.75
+    },
+    {
       "id": "MCP-TOOL-POISON-007",
       "severity": "low",
       "category": "tool-poisoning",
       "title": "Description uses pressure/override language",
-      "detail": "Description of \"report_code\" stacks urgency/override words (immediately, never). Legitimate tool descriptions rarely pressure the model to act or ignore prior guidance.",
+      "detail": "Description of \"list_coupons\" stacks urgency/override words (always, never). Legitimate tool descriptions rarely pressure the model to act or ignore prior guidance.",
       "evidence": {
-        "source": "tool:report_code",
-        "snippet": "Record that a specific shop_domain + code (coupon) pair was tried and the outcome (invalid, expired, store_specific, or worked). This is a write: it appends one…"
+        "source": "tool:list_coupons",
+        "snippet": "List currently USABLE discount codes/coupons, optionally filtered by shop_domain (e.g. \"otto.de\"). A code is withheld from `results` when it is EXPIRED (valid_u…"
       },
       "confidence": 0.3
+    },
+    {
+      "id": "MCP-SCHEMA-SMELL-001",
+      "severity": "medium",
+      "category": "schema-smell",
+      "title": "Read-only tool requests dangerous parameters",
+      "detail": "Tool \"report_code\" appears informational but accepts parameters (code) that enable code/file/secret access.",
+      "evidence": {
+        "source": "tool:report_code",
+        "snippet": "shop_domain, code, reason"
+      },
+      "confidence": 0.55
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"find_shop\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:find_shop",
+        "snippet": "before: \"Search merchants/shops by free-text query (name or domain fragment), optionally filtered by country (ISO 3166-1 alpha-2, e.g. \"DE\"). Returns the public shop view only — shops still under internal review are never returned. If many shops match, grouping by country or category keeps the list scannable\" → after: \"Search merchants/shops by free-text query (name or domain fragment), optionally filtered by country (ISO 3166-1 alpha-2, e.g. \"DE\") and/or by an EXACT category slug. Returns the public shop view only — shops still under internal review are never returned. `results` carries at most `limit` entries (d\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"list_coupons\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:list_coupons",
+        "snippet": "before: \"List currently visible discount codes/coupons, optionally filtered by shop_domain (e.g. \"example-shop.com\"). Only publicly displayable coupons are returned — internal/candidate-shop or policy-suppressed codes are excluded, and EXPIRED codes are never returned (a code whose valid_until has passed is \" → after: \"List currently USABLE discount codes/coupons, optionally filtered by shop_domain (e.g. \"otto.de\"). A code is withheld from `results` when it is EXPIRED (valid_until has passed), when a real checkout test PROVED it does not work (verification_status \"verified_rejected\"), or when a display policy supp\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"get_trust\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:get_trust",
+        "snippet": "before: \"Trust-relevant facts OpenShopGraph itself measured about one merchant/shop (by id or domain): TLS certificate issuer and grade, hosting ISP and country, domain registration date, registrar, and accepted payment methods. Returns INDIVIDUAL signals, never an aggregate: every entry carries its own valu\" → after: \"Trust-relevant facts OpenShopGraph itself measured about one merchant/shop (by id or domain): TLS certificate issuer and grade, hosting ISP and country, domain registration date, registrar, and accepted payment methods. Returns INDIVIDUAL signals, never an aggregate: every entry carries its own valu\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"report_code\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:report_code",
+        "snippet": "before: \"Record that a specific shop_domain + code (coupon) pair was tried and the outcome (invalid, expired, store_specific, or worked). This is a write: it appends one new report row and never deletes or overwrites existing data — it does not change what list_coupons returns immediately, since reports feed\" → after: \"Record that a specific shop_domain + code (coupon) pair is wrong in one of four fixed, documented ways (invalid | mismatch | item_restricted | min_order_missing — see reasons enum; no free text anywhere). This is a write: it appends one new report row and NEVER changes the delivered coupon directly \""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
     }
   ],
-  "score": 97,
+  "score": 52,
   "scoreBreakdown": {
-    "tool-poisoning": 3
+    "tool-poisoning": 40,
+    "schema-smell": 8
   },
   "errors": []
 }

@@ -8,8 +8,8 @@
     "kind": "url",
     "ref": "https://jinero.online/mcp"
   },
-  "scannedAt": "2026-07-28T06:48:36.782Z",
-  "durationMs": 3368,
+  "scannedAt": "2026-10-06T11:40:03.766Z",
+  "durationMs": 2450,
   "layers": {
     "metadata": true,
     "static": false
@@ -19,6 +19,14 @@
       "name": "search_fonts",
       "descriptionHash": "0380569f54dc33618dcc56d1a987882658b64f4ec727e809f31754b6d47b3501",
       "description": "Search the free font catalog by name, category, style tags, language coverage, variable/monospace flags and style count. Returns a paginated list of families."
+    },
+    {
+      "name": "recognize_font",
+      "descriptionHash": "a2767faab568839fe341859b7d9e32eb34d58f21b2c2a9ae7ecf61342bbf1fdb",
+      "description": "Identify which font is used in an image. Powered by our OWN CNN embedding model, trained on the jinero font catalog — it matches fonts by visual shape/style, so it needs NO OCR and NO text (works for Latin and Cyrillic). Send a tight crop of one line of text as either image_url (public URL) or image",
+      "labels": [
+        "public-sink"
+      ]
     },
     {
       "name": "get_font",
@@ -68,8 +76,8 @@
     },
     {
       "name": "extract_colors",
-      "descriptionHash": "222a4b6ef3c7e13bc9f3049d6bd8d83c596947e8a3a56e0cc1c7354ae80394e4",
-      "description": "Extract a dominant-color palette from an image URL. Each color comes back with its hex, rgb, hsl, share of the image, and the closest human color name — a named palette in one call.",
+      "descriptionHash": "4e9bc005449004fae1edbdc3a48ef221cbda49037fdd85ddefee174e12d531a7",
+      "description": "Extract a dominant-color palette from an image. Send either a public image_url or image_base64 (base64/data-URI, e.g. a local screenshot). The image is processed in memory and never stored. Each color comes back with its hex, rgb, hsl, share of the image, and the closest human color name — a named p",
       "labels": [
         "public-sink"
       ]
@@ -86,45 +94,117 @@
     },
     {
       "name": "minify_code",
-      "descriptionHash": "205a2528264bfbed830653ea99d48365c0a997b2a247e0b9a6add75fad82f06f",
-      "description": "Minify or beautify JS, CSS, HTML, SVG, JSON or XML. Set type=auto to sniff the language."
+      "descriptionHash": "dfc924937c1d5dde7e5c5c3e89dc7b2747de93e4426c01245e350db8765547da",
+      "description": "Minify or beautify JS, CSS, HTML, SVG, JSON or XML text. Set type=auto to sniff the language. The code is only parsed and re-printed — never executed and never stored. Rate limit: 30 calls/min per IP."
     },
     {
       "name": "detect_code",
-      "descriptionHash": "a331b3151189d537e390bd6d55429fd8f6b2f7c572226801331d1dd83a2453fc",
-      "description": "Detect the language/format of a code snippet.",
+      "descriptionHash": "a57a555e64e12f6a00b085a658185860b9f69fb0a33b496c9641902435265f2b",
+      "description": "Detect the language/format of a code snippet. Static analysis only — the snippet is never executed and never stored.",
       "labels": [
         "destructive"
       ]
     },
     {
       "name": "convert_code",
-      "descriptionHash": "906b2dc483bc398d76946c5a36bdedbfbbfba63ff5560ec366e8c946e67485d4",
-      "description": "Convert code between formats (e.g. JSON↔YAML, CSS↔SCSS). Use list_code_converters for valid from/to ids and per-converter options."
-    },
-    {
-      "name": "list_code_converters",
-      "descriptionHash": "b4717f88dd075e6f62281a47636970c6954a6dea5f5ab45e108b43fafeaefec0",
-      "description": "List available code converters with their from/to ids and per-converter option schemas."
+      "descriptionHash": "7ff432227a4e74a62e8a1aaeae856b596ba5aaf356f0fe0f5cc060f1329772a2",
+      "description": "Convert code between text formats (e.g. JSON↔YAML, CSS↔SCSS). Pure text transformation: the source is parsed and re-serialized, never executed and never stored. Use list_code_converters for valid from/to ids and per-converter options. Rate limit: 30 calls/min per IP."
     }
   ],
   "findings": [
+    {
+      "id": "MCP-TOOL-POISON-007",
+      "severity": "low",
+      "category": "tool-poisoning",
+      "title": "Description uses pressure/override language",
+      "detail": "Description of \"recognize_font\" stacks urgency/override words (immediately, never). Legitimate tool descriptions rarely pressure the model to act or ignore prior guidance.",
+      "evidence": {
+        "source": "tool:recognize_font",
+        "snippet": "Identify which font is used in an image. Powered by our OWN CNN embedding model, trained on the jinero font catalog — it matches fonts by visual shape/style, so…"
+      },
+      "confidence": 0.3
+    },
     {
       "id": "MCP-TOXIC-FLOW-001",
       "severity": "high",
       "category": "toxic-flow",
       "title": "Lethal trifecta: untrusted input + private data + external sink",
-      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: get_font, get_font_files, get_font_download_url · Private data: get_font_files · Public sink: extract_colors · Destructive: get_font_files, detect_code.",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: get_font, get_font_files, get_font_download_url · Private data: get_font_files · Public sink: recognize_font, extract_colors · Destructive: get_font_files, detect_code.",
       "evidence": {
         "source": "server:mcp",
-        "snippet": "Untrusted content: get_font, get_font_files, get_font_download_url · Private data: get_font_files · Public sink: extract_colors · Destructive: get_font_files, detect_code"
+        "snippet": "Untrusted content: get_font, get_font_files, get_font_download_url · Private data: get_font_files · Public sink: recognize_font, extract_colors · Destructive: get_font_files, detect_code"
       },
       "confidence": 0.6,
       "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"extract_colors\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:extract_colors",
+        "snippet": "before: \"Extract a dominant-color palette from an image URL. Each color comes back with its hex, rgb, hsl, share of the image, and the closest human color name — a named palette in one call.\" → after: \"Extract a dominant-color palette from an image. Send either a public image_url or image_base64 (base64/data-URI, e.g. a local screenshot). The image is processed in memory and never stored. Each color comes back with its hex, rgb, hsl, share of the image, and the closest human color name — a named p\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"minify_code\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:minify_code",
+        "snippet": "before: \"Minify or beautify JS, CSS, HTML, SVG, JSON or XML. Set type=auto to sniff the language.\" → after: \"Minify or beautify JS, CSS, HTML, SVG, JSON or XML text. Set type=auto to sniff the language. The code is only parsed and re-printed — never executed and never stored. Rate limit: 30 calls/min per IP.\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"detect_code\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:detect_code",
+        "snippet": "before: \"Detect the language/format of a code snippet.\" → after: \"Detect the language/format of a code snippet. Static analysis only — the snippet is never executed and never stored.\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"convert_code\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:convert_code",
+        "snippet": "before: \"Convert code between formats (e.g. JSON↔YAML, CSS↔SCSS). Use list_code_converters for valid from/to ids and per-converter options.\" → after: \"Convert code between text formats (e.g. JSON↔YAML, CSS↔SCSS). Pure text transformation: the source is parsed and re-serialized, never executed and never stored. Use list_code_converters for valid from/to ids and per-converter options. Rate limit: 30 calls/min per IP.\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "medium",
+      "category": "tool-poisoning",
+      "title": "Tool removed since last scan",
+      "detail": "Tool \"list_code_converters\" is no longer advertised. Removal can precede a shadowing replacement from another server.",
+      "evidence": {
+        "source": "tool:list_code_converters",
+        "snippet": "removed: list_code_converters"
+      },
+      "confidence": 0.5
     }
   ],
-  "score": 80,
+  "score": 42,
   "scoreBreakdown": {
+    "tool-poisoning": 38,
     "toxic-flow": 20
   },
   "errors": []

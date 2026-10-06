@@ -1,0 +1,108 @@
+{
+  "schemaVersion": 1,
+  "scanner": {
+    "version": "1.6.0",
+    "rules": "402995650b68"
+  },
+  "target": {
+    "kind": "url",
+    "ref": "https://jid.com/mcp"
+  },
+  "scannedAt": "2026-10-06T11:30:35.183Z",
+  "durationMs": 726,
+  "layers": {
+    "metadata": true,
+    "static": false
+  },
+  "tools": [
+    {
+      "name": "search_business",
+      "descriptionHash": "5ea894beb08e5a899d421eeee77a8a9f516e8167a91df69167510c4da1c51a05",
+      "description": "Find Jid business files by name or by any registry number (FEI, LEI, SEC CIK, DUNS, NDC labeler code, state licence or entity number). Returns candidate files with status and match evidence.",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "get_business_file",
+      "descriptionHash": "5d5cda95314f90f066518f5fad1b2250dd0816da104deaf6252ea00e456ee23c",
+      "description": "The full Jid file for one business: status, identifiers, every current fact with its source, verification date, next check and confidence, owner statements (labelled self-reported), possible matches and the change history.",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "verify_business",
+      "descriptionHash": "adda32c6cb162371ab7da8dba7b15be46e08d92ffbe6bd4e38fe96f8dd8b7bb8",
+      "description": "Check a business before an agent pays, signs, books, hires or buys. Pass the Jid id (or a name or registry number) and, to get a decision, the activity. Returns decision (proceed, review, stop or insufficient_data) with reasons: each names the requirement, met (true, false or unknown), the fact ids,",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "get_receipt",
+      "descriptionHash": "ccff29acebc85786ccf89dea39e729656bf0a42be2d202500140fb69aea48a6e",
+      "description": "Retrieve a stored, Ed25519-signed verification receipt by receipt_id: the inputs, decision, reasons, fact ids and value hashes, rules version and time. Use it to prove what was checked before an action. Free; not a check."
+    },
+    {
+      "name": "qualify_counterparty",
+      "descriptionHash": "5a50bc6272f093087869faff299dd20581f7f97bd03f8a5459dba9caa34e4e6d",
+      "description": "Before you engage with a business that contacted you (a form submission, an inquiry, an outreach reply), qualify it. Pass the sender's e-mail (or the company domain), the company name if given, and the context (form type, message, stated value, stated role). Jid checks the domain (MX, SPF, DMARC, re",
+      "labels": [
+        "untrusted-content",
+        "private-data"
+      ]
+    },
+    {
+      "name": "screen",
+      "descriptionHash": "3294dcd9b239af3b8e8979d7cce9b477908f4ccdecbb520132cb3aaa36a927a5",
+      "description": "A fast engage-or-not answer before you reply to, onboard, pay or buy from someone. Pass any of domain, url, email, phone or company_name, the context (lead, inbound_email, partnership, vendor, purchase, marketplace_seller, agent_action), an optional amount (USD) and a policy (strict, balanced, permi",
+      "labels": [
+        "untrusted-content",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "check_email",
+      "descriptionHash": "f2043cc30ffed8f75c000b51b2143c465791dd04fd88e365a776ec9bcad34872",
+      "description": "Paste the raw headers of a message (Show original / View source). Returns checks and a read (headline, recommendation engage | verify_first | do_not_engage, failed checks, lookup links: show the user the read first): DMARC/SPF/DKIM as the receiving server recorded them, DKIM alignment with From, Rep",
+      "labels": [
+        "untrusted-content",
+        "public-sink"
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-SCHEMA-SMELL-001",
+      "severity": "medium",
+      "category": "schema-smell",
+      "title": "Read-only tool requests dangerous parameters",
+      "detail": "Tool \"screen\" appears informational but accepts parameters (context) that enable code/file/secret access.",
+      "evidence": {
+        "source": "tool:screen",
+        "snippet": "domain, url, email, phone, company_name, context, amount, policy, country, ip_country, ip_region, ip_asn, browser_timezone, stated_country, signal, site"
+      },
+      "confidence": 0.55
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: verify_business, qualify_counterparty, screen, check_email · Private data: search_business, get_business_file, qualify_counterparty · Public sink: screen, check_email.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: verify_business, qualify_counterparty, screen, check_email · Private data: search_business, get_business_file, qualify_counterparty · Public sink: screen, check_email"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 72,
+  "scoreBreakdown": {
+    "schema-smell": 8,
+    "toxic-flow": 20
+  },
+  "errors": []
+}

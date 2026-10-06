@@ -1,0 +1,117 @@
+{
+  "schemaVersion": 1,
+  "scanner": {
+    "version": "1.6.0",
+    "rules": "402995650b68"
+  },
+  "target": {
+    "kind": "url",
+    "ref": "https://booklint.com/mcp"
+  },
+  "scannedAt": "2026-10-06T11:30:11.830Z",
+  "durationMs": 521,
+  "layers": {
+    "metadata": true,
+    "static": false
+  },
+  "tools": [
+    {
+      "name": "get_sample",
+      "descriptionHash": "40e6d48dd8ee6662bdffec4f6a77989f7e17cddd99997eae7a5df7b42f77321a",
+      "description": "Returns a public sample, the same as GET /v1/sample. Start with name \"booking\" (sample 3, a hotel offer): passed to check_book as sample=\"booking\", it returns real STOP results against the limits its owner wrote. \"subscription\" (sample 4, a subscription checkout) is the other Fine-Print Check reques"
+    },
+    {
+      "name": "check_book",
+      "descriptionHash": "3316cc63b93f135f72c40dc8702b505e50790485b49d49060c3c7af302e78fbb",
+      "description": "Deterministic rule checks of any agent's actions against the limits its owner wrote, the same as POST /v1/check. Send a trading book (snapshot and rulebook, optionally broker and journal) or an actions list with limits (per-transaction and daily spend caps, merchant allow and deny lists, refundabili",
+      "labels": [
+        "untrusted-content",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "check_invoice",
+      "descriptionHash": "6da72b448747b1b25e45b94fdb259d7ff2710cf78c2bdc8f5a2c569416a50d4a",
+      "description": "Send invoice or expense lines as JSON; returns flags for duplicate IDs, repeat vendor+amount+date, missing fields and currency mismatch. Math only. Process-and-discard: nothing is stored or logged after the run. A request containing a Luhn-valid card number or a valid IBAN is refused before accept w",
+      "labels": [
+        "public-sink",
+        "destructive"
+      ]
+    },
+    {
+      "name": "check_quote_math",
+      "descriptionHash": "2c54af5839a0da8ea5e0531d5383c72b063ee3dfe746ba8be48bb196ba120afd",
+      "description": "Send quote or pricing sheet lines as JSON; returns flags for mismatched line totals, wrong discount amounts, subtotal and grand-total errors, and tier range conflicts (overlap and gap). Math only. Process-and-discard: nothing is stored or logged after the run. A request containing a Luhn-valid card ",
+      "labels": [
+        "public-sink",
+        "destructive"
+      ]
+    },
+    {
+      "name": "get_free_key",
+      "descriptionHash": "41a7f06bdf04f7969b75c02ff0b60011492ef289562d43c303167d61e4ec1aa0",
+      "description": "Returns a free key at once, the same as POST /v1/keys {\"plan\": \"free\"}: no card, no e-mail, and the same daily limits on new keys per client and across the service. The key is shown once in this result and is not stored or logged; pass it as api_key to check_book. A free key runs more own checks a d",
+      "labels": [
+        "untrusted-content",
+        "public-sink"
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"check_book\" references sensitive artifacts (api_key). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:check_book",
+        "snippet": "Deterministic rule checks of any agent's actions against the limits its owner wrote, the same as POST /v1/check. Send a trading book (snapshot and rulebook, opt…"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOOL-POISON-007",
+      "severity": "low",
+      "category": "tool-poisoning",
+      "title": "Description uses pressure/override language",
+      "detail": "Description of \"check_book\" stacks urgency/override words (never, mandatory). Legitimate tool descriptions rarely pressure the model to act or ignore prior guidance.",
+      "evidence": {
+        "source": "tool:check_book",
+        "snippet": "Deterministic rule checks of any agent's actions against the limits its owner wrote, the same as POST /v1/check. Send a trading book (snapshot and rulebook, opt…"
+      },
+      "confidence": 0.3
+    },
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"get_free_key\" references sensitive artifacts (api_key). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:get_free_key",
+        "snippet": "Returns a free key at once, the same as POST /v1/keys {\"plan\": \"free\"}: no card, no e-mail, and the same daily limits on new keys per client and across the serv…"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "medium",
+      "category": "toxic-flow",
+      "title": "Toxic flow: untrusted input can reach an external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: check_book, get_free_key · Public sink: check_book, check_invoice, check_quote_math, get_free_key · Destructive: check_invoice, check_quote_math.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: check_book, get_free_key · Public sink: check_book, check_invoice, check_quote_math, get_free_key · Destructive: check_invoice, check_quote_math"
+      },
+      "confidence": 0.45,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 61,
+  "scoreBreakdown": {
+    "tool-poisoning": 31,
+    "toxic-flow": 8
+  },
+  "errors": []
+}

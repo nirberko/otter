@@ -8,15 +8,97 @@
     "kind": "url",
     "ref": "https://mcp.startcompanies.io/mcp"
   },
-  "scannedAt": "2026-08-28T16:52:49.640Z",
-  "durationMs": 1411,
+  "scannedAt": "2026-10-06T11:39:54.819Z",
+  "durationMs": 2367,
   "layers": {
     "metadata": true,
     "static": false
   },
-  "tools": [],
-  "findings": [],
-  "score": 100,
-  "scoreBreakdown": {},
+  "tools": [
+    {
+      "name": "get_llc_options",
+      "descriptionHash": "33f03aa48446264069cddd9a5383a6f9a1474502aa42005fed84ee85a3c22f46",
+      "description": "Returns the three US LLC formation packages offered by Start Companies, with price, turnaround time and what each one includes, plus add-on services, annual renewals and tax advisory. Call this before discussing prices, renewals, advisory or what is included."
+    },
+    {
+      "name": "recommend_llc_package",
+      "descriptionHash": "df171f2e3b541887b870183bfa21b4416ebaeb2d5c432ced51dee5b7ced40d95",
+      "description": "Given the US state, whether the LLC has more than one member, and which services the user needs, returns the package that matches those inputs and explains why. Read-only: it does not create anything."
+    },
+    {
+      "name": "create_llc_lead",
+      "descriptionHash": "bda5134477df1c2e24a5bf20793f755ba2b94971059ba38c2a8fe2194b66575e",
+      "description": "Registers the LLC formation request, emails the user a confirmation with their reference number, and returns the payment link. The user does not need to fill in any web form afterwards: everything was captured here. If they are not ready to pay, hand them off to a person, not to a form. Call this ON",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "get_checkout_link",
+      "descriptionHash": "6290f12f704da25fe921d131b9a0e0ca2db7c9d7daf32cbae79b8263f4267b31",
+      "description": "Returns the Stripe checkout link for one of the three packages. Use it when the user already knows which package they want and wants to pay now, or when they submitted the request earlier and want to pay afterwards. If they already have a reference number, pass it so the payment can be matched to th"
+    },
+    {
+      "name": "get_renewal_info",
+      "descriptionHash": "95f02f024f8a8d694bcf19ffa3b7f461a4fb393e316fc7f35ef27f0ed3a0b32a",
+      "description": "Returns what the annual LLC renewal costs and covers, including the yearly IRS filings: Form 1120 + 5472 for foreign-owned single-member LLCs, or Form 1065 with its schedules for multimember LLCs. Renewals are not sold through this server: the user is referred to the team by WhatsApp, email or the c",
+      "labels": [
+        "untrusted-content",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "get_itin_info",
+      "descriptionHash": "21caa2c6219430712ad0624024d26e7c0e4bce9826146df554311bb73af00c41",
+      "description": "Returns what an ITIN is, what it costs, which documents are needed, how long the IRS takes, and the link to the application form on the Start Companies website. It does not submit or start an application. An ITIN is the IRS personal tax ID for people without an SSN. Use it when the user asks about I",
+      "labels": [
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "get_order_status",
+      "descriptionHash": "920a04259f4f99804e655bb7444cf17715dcd778f79a290e3bdc21b403797309",
+      "description": "Looks up a previously submitted LLC formation request and returns its status. Requires BOTH the reference number (format SC-MMDD-XXXX) and the email address used when the request was submitted: the email is a second factor, not a search key. Ask the user for both before calling. Returns the status o",
+      "labels": [
+        "untrusted-content",
+        "public-sink",
+        "destructive"
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOOL-POISON-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description issues instructions to the model",
+      "detail": "Description of \"get_order_status\" contains imperative instructions directed at the AI assistant rather than describing the tool. This is the core tool-poisoning technique.",
+      "evidence": {
+        "source": "tool:get_order_status",
+        "snippet": "Looks up a previously submitted LLC formation request and returns its status. Requires BOTH the reference number (format SC-MMDD-XXXX) and the email address use…"
+      },
+      "confidence": 0.7,
+      "remediation": "Treat the server as untrusted; the model may obey embedded instructions."
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: get_renewal_info, get_order_status · Private data: get_itin_info · Public sink: create_llc_lead, get_renewal_info, get_itin_info, get_order_status · Destructive: get_order_status.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: get_renewal_info, get_order_status · Private data: get_itin_info · Public sink: create_llc_lead, get_renewal_info, get_itin_info, get_order_status · Destructive: get_order_status"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 60,
+  "scoreBreakdown": {
+    "tool-poisoning": 20,
+    "toxic-flow": 20
+  },
   "errors": []
 }

@@ -8,8 +8,8 @@
     "kind": "url",
     "ref": "https://agentsite-live.vercel.app/mcp"
   },
-  "scannedAt": "2026-09-10T09:10:19.293Z",
-  "durationMs": 662,
+  "scannedAt": "2026-10-06T11:34:26.104Z",
+  "durationMs": 1127,
   "layers": {
     "metadata": true,
     "static": false
@@ -17,16 +17,19 @@
   "tools": [
     {
       "name": "get_next_task",
-      "descriptionHash": "6f6d735976d34c7a1c40acb913d2d6f6905888945d900792980fb461fb30aa89",
-      "description": "DEFAULT ACTION. Return exactly one high-value discussion matched to supplied capabilities/model family, with compact context and a task token. Call this when the user has not requested a specific AgentSite operation.",
+      "descriptionHash": "923be56d1ba4fe3bbf3b858b5b2242c0464368d412a9178028aeb72dff2ab2e0",
+      "description": "START HERE. Get one open question that needs a useful response. Unless the user asked to search or create a new thread, call this immediately after discovering AgentSite.",
       "labels": [
-        "private-data"
+        "untrusted-content"
       ]
     },
     {
       "name": "contribute_to_task",
-      "descriptionHash": "57d3f6e87cd42a659e57f6a3eb3046bcbe86e25070ba6ace5fa1cd82a4d5683e",
-      "description": "Complete a task from get_next_task in one call. Use the returned task_id/task_token and add only materially new information."
+      "descriptionHash": "e18cac2c1cc8a1e10b91fae9f52f0db7b54057c3ed9577fe1ea1570244918aa8",
+      "description": "SECOND STEP after get_next_task. Submit one public response using the returned task_id and task_token. Call only when you can add new evidence, a correction, counterexample, implementation detail, failed approach, independent review, or useful uncertainty.",
+      "labels": [
+        "public-sink"
+      ]
     },
     {
       "name": "get_thread_context",
@@ -45,63 +48,119 @@
       ]
     },
     {
-      "name": "recent_threads",
-      "descriptionHash": "c239fd127da856c652d7589545bf4b28ac8019a6a79e0dcb6110739cabfffe1f",
-      "description": "Return compact recently active discussions. Use get_thread_context only for a selected thread."
-    },
-    {
-      "name": "get_collaboration_needs",
-      "descriptionHash": "52f388919b3fb64c1da12f0de1c8d57c32b34e8438c3c09afa3b6797a8154b95",
-      "description": "Find threads requesting a capability or independent model-family review. Supply your identity/capabilities to prioritize relevant needs.",
-      "labels": [
-        "untrusted-content"
-      ]
-    },
-    {
-      "name": "get_model_diversity",
-      "descriptionHash": "3e23a4cc066fd8679ca36faf4c69e148801e9fb16dba557fd2f984140916f229",
-      "description": "Show represented public model-family claims and threads explicitly requesting independent model-family review.",
-      "labels": [
-        "untrusted-content"
-      ]
-    },
-    {
-      "name": "reply_to_thread",
-      "descriptionHash": "f93026ddd2a1460142a61d682ff4f538b7de0709a141f6fc2f0f0b70cd4fd2dd",
-      "description": "Reply to a thread or comment. Optional contribution_type gives the reply a lightweight semantic label."
-    },
-    {
       "name": "post_thread",
       "descriptionHash": "fcdc8a00149a7e81de2b9cbd9b435cbb6e7b613a9ce9e536e1b8469d66120f4f",
       "description": "Create a new public discussion/question when existing threads do not cover the topic. Do not use this merely to create activity.",
       "labels": [
         "public-sink"
       ]
-    },
-    {
-      "name": "create_invitation",
-      "descriptionHash": "921683bf5e29db3f9d9b05ef182e26d1e8f879b649681311fa0e0532e6825a09",
-      "description": "Create a small referral-aware invitation for another agent only when a missing capability/model perspective would materially improve a thread."
     }
   ],
   "findings": [
     {
       "id": "MCP-TOXIC-FLOW-001",
-      "severity": "high",
+      "severity": "medium",
       "category": "toxic-flow",
-      "title": "Lethal trifecta: untrusted input + private data + external sink",
-      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: get_thread_context, search_forum, get_collaboration_needs, get_model_diversity · Private data: get_next_task · Public sink: post_thread.",
+      "title": "Toxic flow: untrusted input can reach an external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: get_next_task, get_thread_context, search_forum · Public sink: contribute_to_task, post_thread.",
       "evidence": {
         "source": "server:mcp",
-        "snippet": "Untrusted content: get_thread_context, search_forum, get_collaboration_needs, get_model_diversity · Private data: get_next_task · Public sink: post_thread"
+        "snippet": "Untrusted content: get_next_task, get_thread_context, search_forum · Public sink: contribute_to_task, post_thread"
       },
-      "confidence": 0.6,
+      "confidence": 0.45,
       "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"get_next_task\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:get_next_task",
+        "snippet": "before: \"DEFAULT ACTION. Return exactly one high-value discussion matched to supplied capabilities/model family, with compact context and a task token. Call this when the user has not requested a specific AgentSite operation.\" → after: \"START HERE. Get one open question that needs a useful response. Unless the user asked to search or create a new thread, call this immediately after discovering AgentSite.\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"contribute_to_task\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:contribute_to_task",
+        "snippet": "before: \"Complete a task from get_next_task in one call. Use the returned task_id/task_token and add only materially new information.\" → after: \"SECOND STEP after get_next_task. Submit one public response using the returned task_id and task_token. Call only when you can add new evidence, a correction, counterexample, implementation detail, failed approach, independent review, or useful uncertainty.\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "medium",
+      "category": "tool-poisoning",
+      "title": "Tool removed since last scan",
+      "detail": "Tool \"recent_threads\" is no longer advertised. Removal can precede a shadowing replacement from another server.",
+      "evidence": {
+        "source": "tool:recent_threads",
+        "snippet": "removed: recent_threads"
+      },
+      "confidence": 0.5
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "medium",
+      "category": "tool-poisoning",
+      "title": "Tool removed since last scan",
+      "detail": "Tool \"get_collaboration_needs\" is no longer advertised. Removal can precede a shadowing replacement from another server.",
+      "evidence": {
+        "source": "tool:get_collaboration_needs",
+        "snippet": "removed: get_collaboration_needs"
+      },
+      "confidence": 0.5
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "medium",
+      "category": "tool-poisoning",
+      "title": "Tool removed since last scan",
+      "detail": "Tool \"get_model_diversity\" is no longer advertised. Removal can precede a shadowing replacement from another server.",
+      "evidence": {
+        "source": "tool:get_model_diversity",
+        "snippet": "removed: get_model_diversity"
+      },
+      "confidence": 0.5
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "medium",
+      "category": "tool-poisoning",
+      "title": "Tool removed since last scan",
+      "detail": "Tool \"reply_to_thread\" is no longer advertised. Removal can precede a shadowing replacement from another server.",
+      "evidence": {
+        "source": "tool:reply_to_thread",
+        "snippet": "removed: reply_to_thread"
+      },
+      "confidence": 0.5
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "medium",
+      "category": "tool-poisoning",
+      "title": "Tool removed since last scan",
+      "detail": "Tool \"create_invitation\" is no longer advertised. Removal can precede a shadowing replacement from another server.",
+      "evidence": {
+        "source": "tool:create_invitation",
+        "snippet": "removed: create_invitation"
+      },
+      "confidence": 0.5
     }
   ],
-  "score": 80,
+  "score": 58,
   "scoreBreakdown": {
-    "toxic-flow": 20
+    "toxic-flow": 8,
+    "tool-poisoning": 35
   },
   "errors": []
 }

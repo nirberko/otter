@@ -6,21 +6,75 @@
   },
   "target": {
     "kind": "url",
-    "ref": "https://scoutee.org/api/mcp"
+    "ref": "https://scoutee.org/api/mcp/public"
   },
-  "scannedAt": "2026-09-10T09:13:48.443Z",
-  "durationMs": 505,
+  "scannedAt": "2026-10-06T11:40:11.138Z",
+  "durationMs": 1980,
   "layers": {
-    "metadata": false,
+    "metadata": true,
     "static": false
   },
-  "findings": [],
-  "score": 100,
-  "scoreBreakdown": {},
-  "errors": [
+  "tools": [
     {
-      "scanner": "metadata",
-      "message": "Streamable HTTP error: Error POSTing to endpoint: {\"error\": \"unauthorized\", \"error_description\": \"Authorization required: an OAuth access token, or a workspace API key in the X-API-Key header.\"}"
+      "name": "search_public_tenders",
+      "descriptionHash": "17594caadf1430ade6af1d5421650a78a3480ca87b2dbeaa402d701995c0f36b",
+      "description": "Search Scoutee's index of public procurement notices from Europe. No account and no API key needed. Returns up to 10 open notices per page (3 pages at most), the total number of matches and a per-country breakdown of the same match set (`by_country`, useful to suggest where else to look). Each notic",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink",
+        "destructive"
+      ]
+    },
+    {
+      "name": "get_public_tender",
+      "descriptionHash": "2e79da2266e86a485cffa9a9fa062f07ac5040779d75fb1a404cb778b1c9a63c",
+      "description": "The public page of one notice, by its Scoutee identifier (the `id` of a search result). The teaser plus the procedure, the CPV codes and an excerpt of the description — the whole of what scoutee.org shows an anonymous visitor. The description in full, the buyer's platform link and the tender documen",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "find_cpv_codes",
+      "descriptionHash": "2e3a95c4df68e105594e12e1750997850c547c90cf69568d1f10a4a672edab86",
+      "description": "Find official CPV catalogue candidates for the user's actual products, works or services. Public MCP allows two anonymous queries per rolling hour per IP, shared with tender search. Available on every plan through authenticated workspace MCP with its account budget. Describe the activity, preferably",
+      "labels": [
+        "private-data",
+        "destructive"
+      ]
     }
-  ]
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"find_cpv_codes\" references sensitive artifacts (credentials). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:find_cpv_codes",
+        "snippet": "Find official CPV catalogue candidates for the user's actual products, works or services. Public MCP allows two anonymous queries per rolling hour per IP, share…"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"public\" exposes tools that together enable an exfiltration flow. Untrusted content: search_public_tenders · Private data: search_public_tenders, get_public_tender, find_cpv_codes · Public sink: search_public_tenders · Destructive: search_public_tenders, find_cpv_codes.",
+      "evidence": {
+        "source": "server:public",
+        "snippet": "Untrusted content: search_public_tenders · Private data: search_public_tenders, get_public_tender, find_cpv_codes · Public sink: search_public_tenders · Destructive: search_public_tenders, find_cpv_codes"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 60,
+  "scoreBreakdown": {
+    "tool-poisoning": 20,
+    "toxic-flow": 20
+  },
+  "errors": []
 }

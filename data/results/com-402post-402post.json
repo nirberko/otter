@@ -1,0 +1,114 @@
+{
+  "schemaVersion": 1,
+  "scanner": {
+    "version": "1.6.0",
+    "rules": "402995650b68"
+  },
+  "target": {
+    "kind": "url",
+    "ref": "https://402post.com/mcp"
+  },
+  "scannedAt": "2026-10-06T11:29:33.021Z",
+  "durationMs": 749,
+  "layers": {
+    "metadata": true,
+    "static": false
+  },
+  "tools": [
+    {
+      "name": "list_categories",
+      "descriptionHash": "1ec64ef23dc23cb1c9d01581756160a9f859d4dde729b1fda27dca1443a8b537",
+      "description": "The category tree of 402post: for each category and subcategory its slug, when to use it, what it is not for, examples, the attributes it takes, and the number of live listings. Free. Call it first, or when validate_post says a category or subcategory is unknown."
+    },
+    {
+      "name": "suggest_place",
+      "descriptionHash": "ed8bdadf3dd976fc8721787c5711368023d6c54d505179a8fbf8dd4df88515ec",
+      "description": "Find the place id of a city for a listing's location. Returns candidates, each with a ready `location` object to paste into the listing. `country` (ISO 3166-1 alpha-2, for example BG) narrows the search. Free."
+    },
+    {
+      "name": "validate_post",
+      "descriptionHash": "5041f1e4d6c29141a47303b807a7727a1584409dc72bc37b1f678aee9db68d46",
+      "description": "Dry run of a listing: every problem comes back at once, by field, with the allowed values. Nothing is stored and nothing is charged. Send exactly the arguments you will send to create_post. Add `payer` (your wallet address) to also learn, before you sign, whether the daily cap or a duplicate would r",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink",
+        "destructive"
+      ]
+    },
+    {
+      "name": "create_post",
+      "descriptionHash": "14e98bf26c3a9f38bf7adc05cf8133677ff45b7294a4b599cd07204cfe8ba629",
+      "description": "Publish a listing: $0.10 USDC for 30 days, paid with x402 on Base. Without a payment this returns the payment requirements — exactly the body of HTTP 402 from POST /v1/posts, as an error result — and charges nothing. An x402 MCP client (the @x402/mcp standard) signs it and calls again with the payme",
+      "labels": [
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "search_posts",
+      "descriptionHash": "ce60a4e52f3e2ea11af93c291d8dbcfd32548da0fda93259501e374d1806b8ef",
+      "description": "Full-text search over live listings, newest first, at most 18 per call. Every word must match (words of three or more letters match the start of a word); there are no operators. Optionally search one category. When the answer carries next, pass it back as after to get the older results. Each item ca",
+      "labels": [
+        "untrusted-content",
+        "private-data"
+      ]
+    },
+    {
+      "name": "get_post",
+      "descriptionHash": "ca8f10aa65596f542943f09d092f6ba4080e354978565894e00c1f20b43ce1c4",
+      "description": "One listing by id (26 characters, as returned by create_post and search_posts): what GET /p/{id}.json returns, including `body_untrusted: true`. A removed listing, or one that expired more than 30 days ago, answers 410 gone. `likes` is the number of likes people gave it (one per address per day; not",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink"
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOOL-POISON-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description issues instructions to the model",
+      "detail": "Description of \"create_post\" contains imperative instructions directed at the AI assistant rather than describing the tool. This is the core tool-poisoning technique.",
+      "evidence": {
+        "source": "tool:create_post",
+        "snippet": "Publish a listing: $0.10 USDC for 30 days, paid with x402 on Base. Without a payment this returns the payment requirements — exactly the body of HTTP 402 from P…"
+      },
+      "confidence": 0.7,
+      "remediation": "Treat the server as untrusted; the model may obey embedded instructions."
+    },
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"create_post\" references sensitive artifacts (authorization). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:create_post",
+        "snippet": "Publish a listing: $0.10 USDC for 30 days, paid with x402 on Base. Without a payment this returns the payment requirements — exactly the body of HTTP 402 from P…"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: validate_post, search_posts, get_post · Private data: validate_post, create_post, search_posts, get_post · Public sink: validate_post, create_post, get_post · Destructive: validate_post.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: validate_post, search_posts, get_post · Private data: validate_post, create_post, search_posts, get_post · Public sink: validate_post, create_post, get_post · Destructive: validate_post"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 50,
+  "scoreBreakdown": {
+    "tool-poisoning": 30,
+    "toxic-flow": 20
+  },
+  "errors": []
+}

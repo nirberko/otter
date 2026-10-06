@@ -1,0 +1,92 @@
+{
+  "schemaVersion": 1,
+  "scanner": {
+    "version": "1.6.0",
+    "rules": "402995650b68"
+  },
+  "target": {
+    "kind": "url",
+    "ref": "https://rapp-agent-builder.azurewebsites.net/finder/mcp"
+  },
+  "scannedAt": "2026-10-06T11:35:00.031Z",
+  "durationMs": 824,
+  "layers": {
+    "metadata": true,
+    "static": false
+  },
+  "tools": [
+    {
+      "name": "find_agents",
+      "descriptionHash": "b59841f79a211e105464815742ca7c9ffa4ebf9f8e67ab17d92b112c6c1a2cef",
+      "description": "Searches the public agent registry (about 1,700 single-file agents) for agents that already do what the user wants, for example when they ask 'is there an AI tool for...' or want a ready-made automation instead of building one. Use it before building from scratch, or when the user asks whether an ag",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "get_agent_code",
+      "descriptionHash": "2ecb84cb0cce5c246fe5ff6a58ec930e5133d2e9709bec314d3bc425df7ae597",
+      "description": "Returns the full source of one agent from the registry, by its name (e.g. @bill/neuron_agent), so it can be read or adapted."
+    },
+    {
+      "name": "use_agent_here",
+      "descriptionHash": "6bc3be20a3c30462cc2a37e80074552ba8a9a334da30794c0fdc1ce95831d354",
+      "description": "Use this right after an agent passes check_agent, or whenever the user wants to try an agent. Returns a short Python runner so you can run the agent in this chat with your own Python tool on the user's own data (pasted text, an uploaded spreadsheet, a list). Nothing to install. If Python is unavaila",
+      "labels": [
+        "untrusted-content",
+        "destructive"
+      ]
+    },
+    {
+      "name": "how_to_run_agent",
+      "descriptionHash": "a3df8ae8caf3627fffcede3a105bb9d71355ae63fb1cdac81578654dd9ebba09",
+      "description": "Optional, for later: how to keep an agent running on the user's own computer with the free Brainstem. Only offer this after the user has used the agent in the chat and wants to keep it.",
+      "labels": [
+        "destructive"
+      ]
+    },
+    {
+      "name": "request_service",
+      "descriptionHash": "1dca8b9a0a6efaf7b8ecc344cf2f15c7d22ea6f6d87c952209ae4c0d0fe7fbfc",
+      "description": "Use when the person wants something none of these tools can do and says yes to passing the request on. Records only the request text they agree to send (no name or contact). Ask before calling it.",
+      "labels": [
+        "private-data",
+        "public-sink"
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOOL-POISON-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description issues instructions to the model",
+      "detail": "Description of \"request_service\" contains imperative instructions directed at the AI assistant rather than describing the tool. This is the core tool-poisoning technique.",
+      "evidence": {
+        "source": "tool:request_service",
+        "snippet": "Use when the person wants something none of these tools can do and says yes to passing the request on. Records only the request text they agree to send (no name…"
+      },
+      "confidence": 0.7,
+      "remediation": "Treat the server as untrusted; the model may obey embedded instructions."
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: use_agent_here · Private data: find_agents, request_service · Public sink: request_service · Destructive: use_agent_here, how_to_run_agent.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: use_agent_here · Private data: find_agents, request_service · Public sink: request_service · Destructive: use_agent_here, how_to_run_agent"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 60,
+  "scoreBreakdown": {
+    "tool-poisoning": 20,
+    "toxic-flow": 20
+  },
+  "errors": []
+}
