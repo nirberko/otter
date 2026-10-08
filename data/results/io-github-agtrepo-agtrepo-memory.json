@@ -8,8 +8,8 @@
     "kind": "url",
     "ref": "https://agtrepo.com/mcp"
   },
-  "scannedAt": "2026-09-17T09:35:00.440Z",
-  "durationMs": 1627,
+  "scannedAt": "2026-10-08T11:38:25.023Z",
+  "durationMs": 1210,
   "layers": {
     "metadata": true,
     "static": false
@@ -17,8 +17,8 @@
   "tools": [
     {
       "name": "store_persistent_memory",
-      "descriptionHash": "ebb11bdd85d3a7b1ff297ef30c9ff0a65da59311f413483af3a15ca34a99427f",
-      "description": "Stores encrypted text memory (base64 ciphertext, up to 16384 bytes). Automatically completes x402 payment challenges."
+      "descriptionHash": "a04f89e03a6b336aa76c683477e56db0bbede9e0380b0008fd2b8f72ef6671cf",
+      "description": "Stores encrypted text memory (standard padded base64 ciphertext, up to 16384 bytes decoded). Requires x402 payment. Returns the memory's id."
     },
     {
       "name": "read_memory",
@@ -27,8 +27,8 @@
     },
     {
       "name": "extend_memory",
-      "descriptionHash": "2c90febc4439cf7bfcccc7b446060aaeb534de1888accf3788919b1e3e37a970",
-      "description": "Extends a memory's TTL by 30 days, up to a maximum total lifetime of 365 days from creation. Requires x402 payment."
+      "descriptionHash": "bf8f114c9e5980cb542f21da17e88bd8a257c59f64e407dd35a08dde42e40294",
+      "description": "Extends a memory's TTL by 30 days, up to a maximum total lifetime of 365 days from creation. Requires x402 payment. An expired memory is deleted and cannot be extended."
     },
     {
       "name": "share_memory_key",
@@ -41,20 +41,90 @@
     },
     {
       "name": "register_key_release",
-      "descriptionHash": "e9bf4c7f46ecae029d55604b39b7ca0ebd4fe290686cb37be4464a1d73c36439",
-      "description": "Free. Creator registers a wrapped content key for a specific reader's public key, proven by an EIP-191 signature over `agtrepo-memory:key-release:{id}:{readerPubKey}:{timestamp}`."
+      "descriptionHash": "dd58b9637c2af9036e5ee39e77ed50940038876f7520d61ec677ceb051b07541",
+      "description": "Free. Creator registers a wrapped content key for a specific reader's public key, proven by an EIP-191 signature over `agtrepo-memory:key-release:{id}:{readerPubKey}:{timestamp}:{sha256hex(wrappedKey)}` (the hash is lowercase hex SHA-256 of the wrappedKey string exactly as sent, so the signature can"
     },
     {
       "name": "send_feedback",
-      "descriptionHash": "7731c830862ddceca14ebec8c1129baacd183e2381d7e1648b5832ffe5feef2e",
-      "description": "Free. Sends feedback about the Protocol to its operators by email. Name is optional (omit for anonymous feedback); message is limited to 1000 characters.",
+      "descriptionHash": "ec2d8758a95584e86a9356d245db712619c040fa5f6375e606a7d8f344b780bc",
+      "description": "Free. Sends a message to the human operators of this service: a bug report, a problem with these tools or the documentation, or a suggestion. It is read by people, not processed by software, and nothing is returned beyond an acknowledgement. Do NOT use it for status updates, progress notes, task nar",
       "labels": [
+        "untrusted-content",
         "public-sink"
       ]
     }
   ],
-  "findings": [],
-  "score": 100,
-  "scoreBreakdown": {},
+  "findings": [
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: send_feedback · Private data: share_memory_key · Public sink: share_memory_key, send_feedback.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: send_feedback · Private data: share_memory_key · Public sink: share_memory_key, send_feedback"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"store_persistent_memory\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:store_persistent_memory",
+        "snippet": "before: \"Stores encrypted text memory (base64 ciphertext, up to 16384 bytes). Automatically completes x402 payment challenges.\" → after: \"Stores encrypted text memory (standard padded base64 ciphertext, up to 16384 bytes decoded). Requires x402 payment. Returns the memory's id.\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"extend_memory\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:extend_memory",
+        "snippet": "before: \"Extends a memory's TTL by 30 days, up to a maximum total lifetime of 365 days from creation. Requires x402 payment.\" → after: \"Extends a memory's TTL by 30 days, up to a maximum total lifetime of 365 days from creation. Requires x402 payment. An expired memory is deleted and cannot be extended.\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"register_key_release\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:register_key_release",
+        "snippet": "before: \"Free. Creator registers a wrapped content key for a specific reader's public key, proven by an EIP-191 signature over `agtrepo-memory:key-release:{id}:{readerPubKey}:{timestamp}`.\" → after: \"Free. Creator registers a wrapped content key for a specific reader's public key, proven by an EIP-191 signature over `agtrepo-memory:key-release:{id}:{readerPubKey}:{timestamp}:{sha256hex(wrappedKey)}` (the hash is lowercase hex SHA-256 of the wrappedKey string exactly as sent, so the signature can\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"send_feedback\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:send_feedback",
+        "snippet": "before: \"Free. Sends feedback about the Protocol to its operators by email. Name is optional (omit for anonymous feedback); message is limited to 1000 characters.\" → after: \"Free. Sends a message to the human operators of this service: a bug report, a problem with these tools or the documentation, or a suggestion. It is read by people, not processed by software, and nothing is returned beyond an acknowledgement. Do NOT use it for status updates, progress notes, task nar\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    }
+  ],
+  "score": 43,
+  "scoreBreakdown": {
+    "toxic-flow": 20,
+    "tool-poisoning": 38
+  },
   "errors": []
 }

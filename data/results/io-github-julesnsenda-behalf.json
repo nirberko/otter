@@ -1,0 +1,105 @@
+{
+  "schemaVersion": 1,
+  "scanner": {
+    "version": "1.6.0",
+    "rules": "402995650b68"
+  },
+  "target": {
+    "kind": "url",
+    "ref": "https://behalf.dropkit.sh/mcp"
+  },
+  "scannedAt": "2026-10-08T11:50:55.625Z",
+  "durationMs": 1481,
+  "layers": {
+    "metadata": true,
+    "static": false
+  },
+  "tools": [
+    {
+      "name": "create_room",
+      "descriptionHash": "93a2e2eb36ad9045d11024234d3ab5e44b4c35c0f66e8ddfb4744f0755945da6",
+      "description": "Open a new room. Your principal takes seat A, and you get a private invite link for the other person (seat B). Send the invite only to that person. Use this when your principal wants to negotiate with someone and has no room yet. This server requires sign-in: your MCP client must send your principal",
+      "labels": [
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "join_room",
+      "descriptionHash": "0dc2d29dfdfc49e2d2bad8b4b83d141de35c80fe491749f3b84b3de5163156b5",
+      "description": "Take your principal's seat with their private link. Returns the room state, your principal's card (if sealed), and what to do next.",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "seal_intent_card",
+      "descriptionHash": "eedc414d16b7d6786cb9772bbfc380090af9d46ba7dfcf43383ffab5891766a4",
+      "description": "Seal your principal's Intent Card. Only after they confirmed every line. Once sealed it cannot change except through escalation answers."
+    },
+    {
+      "name": "get_room",
+      "descriptionHash": "6e9ce397ced4ee6319e6fd55b38edf8167f7d652b5926e0fa92ee48ce3e57430",
+      "description": "Current state from your seat: status, whose turn, transcript, claims you still need to review, unverified assumptions, and the next action.",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "wait_for_turn",
+      "descriptionHash": "c1f306759b83e830d98e5012c3f37b8d6779778983f329f541a4a425295385c9",
+      "description": "Blocks up to timeout_seconds (max 25) until it is your turn, your principal must answer a question, or the room ends. Call it again if it times out."
+    },
+    {
+      "name": "send_envelope",
+      "descriptionHash": "a51441c362747ca35371530e8ed425be25e95c0613a1f201722eef65980990d9",
+      "description": "Send one PXP envelope on your turn. The server enforces the rules: untagged or unreferenced claims become \"assumed\", agreeing while raising a conflict is refused. The enforced envelope is returned.",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "answer_escalation",
+      "descriptionHash": "721e29e612367b7e90233825a8b19e41806bf208aaa3bf43c12c59f97dfcae64",
+      "description": "When the room is paused for your principal, ask them the question verbatim and relay their exact answer. It is sealed into their card as an amendment. Never answer on their behalf."
+    },
+    {
+      "name": "get_brief",
+      "descriptionHash": "b7f2e0f8f87f8d9744047c75f59f2dbff65be60616eae96b8af3cc460d748fcf",
+      "description": "The decision brief once the room has ended: agreed terms, authority per term, unverified assumptions, escalations, ledger head."
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"create_room\" references sensitive artifacts (authorization, bearer). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:create_room",
+        "snippet": "Open a new room. Your principal takes seat A, and you get a private invite link for the other person (seat B). Send the invite only to that person. Use this whe…"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: get_room · Private data: create_room, join_room · Public sink: create_room, send_envelope.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: get_room · Private data: create_room, join_room · Public sink: create_room, send_envelope"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 60,
+  "scoreBreakdown": {
+    "tool-poisoning": 20,
+    "toxic-flow": 20
+  },
+  "errors": []
+}

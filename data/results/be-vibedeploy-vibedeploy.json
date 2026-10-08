@@ -8,8 +8,8 @@
     "kind": "url",
     "ref": "https://mcp.vibedeploy.be/mcp"
   },
-  "scannedAt": "2026-09-27T10:04:01.913Z",
-  "durationMs": 2232,
+  "scannedAt": "2026-10-08T11:34:46.344Z",
+  "durationMs": 2923,
   "layers": {
     "metadata": true,
     "static": false
@@ -156,10 +156,11 @@
     },
     {
       "name": "deploy_from_url",
-      "descriptionHash": "f386e2a2d2265241b4563bf1bab5b753efa1637fbcfe2e6e93dad161c4e57425",
+      "descriptionHash": "d4b5631ddbb5041b205c8fe58c7ec9e85405fc7b7c6394086eba86ee85af877b",
       "description": "Publish a website to a live URL from a public archive link. Point this at a tar(.gz) archive on github / gist / S3 and the server fetches and deploys it, no upload from your side. Server-side fetch of a tar(.gz) archive from a public HTTPS URL, then deploy its contents. Sidesteps the case where your",
       "labels": [
         "untrusted-content",
+        "private-data",
         "public-sink"
       ]
     },
@@ -290,7 +291,7 @@
     },
     {
       "name": "commit_deploy",
-      "descriptionHash": "85450c3ebba7be058500563d2eeb458e58ababcbb39819171e5f58590f8e4581",
+      "descriptionHash": "70618aea18bcf87ab4cdcde27571b507f2d3d86c4cd3d9bab6c988ec4707cca1",
       "description": "Atomically apply a staging session's files to the live site. Runs preflight + secret/malware scan against the complete staged set; on failure the session stays open and can be re-attempted or aborted. For replace-mode against a site with existing files, requires confirm:\"I-want-to-replace-all-files\"",
       "labels": [
         "private-data"
@@ -311,8 +312,8 @@
     },
     {
       "name": "list_history",
-      "descriptionHash": "6cb7588699e31138dff60f6f29c6b9f48cfc7ad8d2fefad17e0a60e3384a8b9f",
-      "description": "Return the most recent 50 deploy and snapshot history entries for a site, newest first. Includes the source (how it was triggered), an optional label, the associated Longhorn snapshot name (if any), the file count, and the number of secrets detected. Any team member can read history.",
+      "descriptionHash": "0e91c585d607d22bbd8866db4c0d13243e1ce3b0c42980200bc6be54cf2d8d31",
+      "description": "Return the most recent 50 deploy and snapshot history entries for a site, newest first. Includes the source (how it was triggered), an optional label, the associated Longhorn snapshot name (if any), the file count, and the number of secrets detected. Each entry's snapshot holds the content from BEFO",
       "labels": [
         "private-data"
       ]
@@ -327,10 +328,36 @@
     },
     {
       "name": "create_snapshot",
-      "descriptionHash": "5b4fc375f375dd497e34af9fa627a319a89f45a8c3bc220935bda7d7ad2e35fd",
-      "description": "Take a point-in-time Longhorn snapshot of a site's served files. This is an additive backup — it does not change anything served. It records a manual-snapshot history entry and runs retention cleanup. Viewers cannot create snapshots. Returns NO_VOLUME if the site has no volume yet (it has never been",
+      "descriptionHash": "687a70d4fc247377b91867101ab72c247fe17159272fceb00cd9fcffa54188de",
+      "description": "Take a point-in-time Longhorn snapshot of a site's served files. It does not change served content, but retention cleanup may remove older backups. Requires an owner or admin team role. Returns NO_VOLUME if the site has no volume yet (it has never been deployed).",
+      "labels": [
+        "private-data",
+        "destructive"
+      ]
+    },
+    {
+      "name": "deploy_app",
+      "descriptionHash": "e3b231ca9cf01cc87721a0c1b81345d96bae6f4a1d9c87afe73090ad2f1b1836",
+      "description": "Deploy or update the site's container services: the user's own backend server, a database (Postgres, MySQL, MongoDB, ...), Redis, background workers, from any public image. Applies the whole config: services missing from it are stopped (their volumes and data are kept). Waits until every service is ",
       "labels": [
         "private-data"
+      ]
+    },
+    {
+      "name": "get_app_status",
+      "descriptionHash": "6006d31620d9688584fd160f597fc7b9b846ee6af5f0c71093cf58dbf9372f94",
+      "description": "Per-service status of the site's container services (ready, restarts, waiting/crash reasons, volumes), the stored config, the names of the site secrets that are set (never values) with the dashboard link where the user adds them, and optionally the recent logs of one service.",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "remove_app",
+      "descriptionHash": "ea496ebc61936a368681811ae5466725fae36b2c73f51c9b50cd8ba1e25af6ff",
+      "description": "Stops every container service and serves the site's static files again. Volumes (database data) are kept unless deleteData is true, which is irreversible.",
+      "labels": [
+        "private-data",
+        "destructive"
       ]
     }
   ],
@@ -384,40 +411,59 @@
       "confidence": 0.65
     },
     {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"deploy_app\" references sensitive artifacts (env var, password, secret). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:deploy_app",
+        "snippet": "Deploy or update the site's container services: the user's own backend server, a database (Postgres, MySQL, MongoDB, ...), Redis, background workers, from any p…"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOOL-POISON-006",
+      "severity": "low",
+      "category": "tool-poisoning",
+      "title": "Anomalously long tool description",
+      "detail": "Description of \"deploy_app\" is 2306 chars, far longer than this server's median (339). Overlong descriptions are a common place to bury instructions.",
+      "evidence": {
+        "source": "tool:deploy_app",
+        "snippet": "Deploy or update the site's container services: the user's own backend server, a database (Postgres, MySQL, MongoDB, ...), Redis, background workers, from any p…"
+      },
+      "confidence": 0.4
+    },
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"get_app_status\" references sensitive artifacts (secret). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:get_app_status",
+        "snippet": "Per-service status of the site's container services (ready, restarts, waiting/crash reasons, volumes), the stored config, the names of the site secrets that are…"
+      },
+      "confidence": 0.65
+    },
+    {
       "id": "MCP-TOXIC-FLOW-001",
       "severity": "high",
       "category": "toxic-flow",
       "title": "Lethal trifecta: untrusted input + private data + external sink",
-      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: deploy_site, get_site, read_file, read_source_file, deploy_from_url, get_forms_config, verify_custom_domain, add_files · Private data: get_account, deploy_site, update_site, read_file, read_files, list_file_hashes, list_source_files, read_source_file, read_source_files, write_source_files, delete_source_file, build_and_deploy, search_files, update_file_content, apply_edits, get_forms_config, set_forms_config, verify_forms_sender_domain, add_custom_domain, verify_custom_domain, list_dns_records, check_domain_availability, begin_deploy, add_files, add_file_chunk, commit_deploy, list_deploys, list_history, list_snapshots, create_snapshot · Public sink: deploy_site, deploy_from_url, get_forms_config, set_forms_config, begin_deploy, add_files, add_file_chunk · Destructive: update_site, delete_site, read_file, write_source_files, delete_source_file, build_and_deploy, verify_forms_sender_domain, remove_custom_domain, list_dns_records, add_files.",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: deploy_site, get_site, read_file, read_source_file, deploy_from_url, get_forms_config, verify_custom_domain, add_files · Private data: get_account, deploy_site, update_site, read_file, read_files, list_file_hashes, list_source_files, read_source_file, read_source_files, write_source_files, delete_source_file, build_and_deploy, search_files, deploy_from_url, update_file_content, apply_edits, get_forms_config, set_forms_config, verify_forms_sender_domain, add_custom_domain, verify_custom_domain, list_dns_records, check_domain_availability, begin_deploy, add_files, add_file_chunk, commit_deploy, list_deploys, list_history, list_snapshots, create_snapshot, deploy_app, get_app_status, remove_app · Public sink: deploy_site, deploy_from_url, get_forms_config, set_forms_config, begin_deploy, add_files, add_file_chunk · Destructive: update_site, delete_site, read_file, write_source_files, delete_source_file, build_and_deploy, verify_forms_sender_domain, remove_custom_domain, list_dns_records, add_files, create_snapshot, remove_app.",
       "evidence": {
         "source": "server:mcp",
-        "snippet": "Untrusted content: deploy_site, get_site, read_file, read_source_file, deploy_from_url, get_forms_config, verify_custom_domain, add_files · Private data: get_account, deploy_site, update_site, read_file, read_files, list_file_hashes, list_source_files, read_source_file, read_source_files, write_source_files, delete_source_file, build_and_deploy, search_files, update_file_content, apply_edits, get_forms_config, set_forms_config, verify_forms_sender_domain, add_custom_domain, verify_custom_domain, list_dns_records, check_domain_availability, begin_deploy, add_files, add_file_chunk, commit_deploy, list_deploys, list_history, list_snapshots, create_snapshot · Public sink: deploy_site, deploy_from_url, get_forms_config, set_forms_config, begin_deploy, add_files, add_file_chunk · Destructive: update_site, delete_site, read_file, write_source_files, delete_source_file, build_and_deploy, verify_forms_sender_domain, remove_custom_domain, list_dns_records, add_files"
+        "snippet": "Untrusted content: deploy_site, get_site, read_file, read_source_file, deploy_from_url, get_forms_config, verify_custom_domain, add_files · Private data: get_account, deploy_site, update_site, read_file, read_files, list_file_hashes, list_source_files, read_source_file, read_source_files, write_source_files, delete_source_file, build_and_deploy, search_files, deploy_from_url, update_file_content, apply_edits, get_forms_config, set_forms_config, verify_forms_sender_domain, add_custom_domain, verify_custom_domain, list_dns_records, check_domain_availability, begin_deploy, add_files, add_file_chunk, commit_deploy, list_deploys, list_history, list_snapshots, create_snapshot, deploy_app, get_app_status, remove_app · Public sink: deploy_site, deploy_from_url, get_forms_config, set_forms_config, begin_deploy, add_files, add_file_chunk · Destructive: update_site, delete_site, read_file, write_source_files, delete_source_file, build_and_deploy, verify_forms_sender_domain, remove_custom_domain, list_dns_records, add_files, create_snapshot, remove_app"
       },
       "confidence": 0.6,
       "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
     }
   ],
-  "score": 37,
+  "score": 33,
   "scoreBreakdown": {
     "shadowing": 8,
-    "tool-poisoning": 35,
-    "toxic-flow": 20
-  },
-  "errors": []
-}": "Tool description changed since last scan",
-      "detail": "Tool \"create_snapshot\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
-      "evidence": {
-        "source": "tool:create_snapshot",
-        "snippet": "before: \"Take a point-in-time Longhorn snapshot of a site's served files. This is an additive backup — it does not change anything served. It records a manual-snapshot history entry and runs retention cleanup. Viewers cannot create snapshots. Returns NO_VOLUME if the site has no volume yet (it has never been\" → after: \"Take a point-in-time Longhorn snapshot of a site's served files. It does not change served content, but retention cleanup may remove older backups. Requires an owner or admin team role. Returns NO_VOLUME if the site has no volume yet (it has never been deployed).\""
-      },
-      "confidence": 0.8,
-      "remediation": "Re-review the tool before continuing to trust it."
-    }
-  ],
-  "score": 35,
-  "scoreBreakdown": {
-    "shadowing": 8,
-    "tool-poisoning": 38,
+    "tool-poisoning": 39,
     "toxic-flow": 20
   },
   "errors": []

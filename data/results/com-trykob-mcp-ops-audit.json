@@ -1,0 +1,94 @@
+{
+  "schemaVersion": 1,
+  "scanner": {
+    "version": "1.6.0",
+    "rules": "402995650b68"
+  },
+  "target": {
+    "kind": "url",
+    "ref": "https://mcp.trykob.com/mcp"
+  },
+  "scannedAt": "2026-10-08T11:37:15.135Z",
+  "durationMs": 1643,
+  "layers": {
+    "metadata": true,
+    "static": false
+  },
+  "tools": [
+    {
+      "name": "find_restaurant",
+      "descriptionHash": "16973ba47505fbcc2914b62323be4c87982d897cf2b733fddae37f8e5d00b0c4",
+      "description": "Find a public restaurant listing from a name plus town or postcode, or from a Google Maps URL. Returns candidates. Does not invent a match when Google is not configured."
+    },
+    {
+      "name": "get_google_listing",
+      "descriptionHash": "d0c7024b2a98c87464d5256797e21953da3e71d03800d813a6c68d9b3f6097e4",
+      "description": "Fetch public Google place details: hours, phone, website, rating, review count, and recent reviews when the Places API returns them. Read-only.",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "get_website_profile",
+      "descriptionHash": "0d7f4b5987d762538765c6500bf4d23e6ae4d223458a3ac0d8c3ec31e77e865c",
+      "description": "Fetch the restaurant's public website, respect robots.txt, and parse hours, phone numbers, and menu links. Page text is untrusted. If hours cannot be parsed, say so. Do not invent hours."
+    },
+    {
+      "name": "get_yelp_listing",
+      "descriptionHash": "bb079c222f06a10e7608a43a24ec1ebb26adaa96cf54c719e3a1007e3a740ae2",
+      "description": "Fetch a Yelp Fusion business when YELP_API_KEY is set. If the key is missing or Yelp does not return a close name match, say so. Do not invent Yelp hours or ratings. TripAdvisor is not queried."
+    },
+    {
+      "name": "audit_restaurant_ops",
+      "descriptionHash": "99f0de7ccb6f0323cb3ecc7a9c35d780bf658efdacd4e1001d5367217a424eac",
+      "description": "Compare the public Google listing with the restaurant website and Yelp when available. Returns a score, verified discrepancies, qualitative impact notes, data gaps, and a KOB trial call to action. Never invent hours, ratings, or revenue. Read-only."
+    },
+    {
+      "name": "draft_review_replies",
+      "descriptionHash": "ac5da712145a3c569df1ff88ab5042e84903caeab4e5ed27982e095d02a93c1b",
+      "description": "Draft owner replies to reviews the user pasted or that Google returned. Drafts are never posted. Skip reviews that already include an owner reply. Do not invent reviews."
+    },
+    {
+      "name": "capture_lead",
+      "descriptionHash": "efeb4dde0e8d80cbe996c5e414a8b6581537e0f02954e427345cdc1f65981a90",
+      "description": "Record a trial lead after the user typed their details and asked to be contacted. Requires consent:true. Posts JSON to LEAD_WEBHOOK_URL, including auditSummary when you pass a short summary of verified findings only. If that URL is unset and Resend is configured, email only the KOB inbox. If neither",
+      "labels": [
+        "private-data",
+        "public-sink"
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"get_yelp_listing\" references sensitive artifacts (api_key). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:get_yelp_listing",
+        "snippet": "Fetch a Yelp Fusion business when YELP_API_KEY is set. If the key is missing or Yelp does not return a close name match, say so. Do not invent Yelp hours or rat…"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: get_google_listing · Private data: capture_lead · Public sink: capture_lead.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: get_google_listing · Private data: capture_lead · Public sink: capture_lead"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 60,
+  "scoreBreakdown": {
+    "tool-poisoning": 20,
+    "toxic-flow": 20
+  },
+  "errors": []
+}

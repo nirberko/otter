@@ -8,8 +8,8 @@
     "kind": "url",
     "ref": "https://api.hyperping.io/v1/mcp"
   },
-  "scannedAt": "2026-09-17T09:33:44.718Z",
-  "durationMs": 704,
+  "scannedAt": "2026-10-08T11:36:16.220Z",
+  "durationMs": 1114,
   "layers": {
     "metadata": true,
     "static": false
@@ -82,6 +82,29 @@
       "description": "Paginated list of outages scoped to one monitor. Convenience wrapper around list_outages."
     },
     {
+      "name": "create_outage",
+      "descriptionHash": "7ea85790d677cbf5dab2d73a7804cde11ca1f508a00cd24b9392c016a8a793a0",
+      "description": "Declare an incident by hand, for a problem no monitor detects. It appears under Incident Management in the dashboard and, with an escalation policy, pages its on-call responders. Internal: nothing is published on a status page (create_status_page_incident does that)."
+    },
+    {
+      "name": "acknowledge_outage",
+      "descriptionHash": "4948ecded4fce92c4d626fa7e037dc22f0cbe832b1882978ea105140b220fd2b",
+      "description": "Mark an ongoing outage as being handled: repeat alerts stop. Escalation steps still fire on schedule; resolve it or fix the cause to stop them."
+    },
+    {
+      "name": "escalate_outage",
+      "descriptionHash": "91c21da7de1bbc08c81ea939185437c7255c2660f214102f2c868aa84b84562c",
+      "description": "Page the next step of the outage's escalation policy now instead of waiting for it. Each call moves one step further."
+    },
+    {
+      "name": "resolve_outage",
+      "descriptionHash": "a44090c28a80fcdf2a7746a3e1ea89bd139eb46c0b3ee1203335d3797d545920",
+      "description": "Resolve an incident declared by hand or a server incident, and send the recovery to the channels it paged. An outage detected on a monitor resolves itself when its checks pass again.",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
       "name": "list_recent_alerts",
       "descriptionHash": "c0febb26c008fa39da8c0719e83f2b52c2b4db88853969f3afe1e2d679d853e5",
       "description": "Alert notifications (up/down transitions) over a date range. Defaults to last 30 days.",
@@ -151,6 +174,14 @@
       ]
     },
     {
+      "name": "get_on_call_now",
+      "descriptionHash": "f587080ee83b37b5c389ce123b1401fb78a3706b9a949900c66fc474798a571d",
+      "description": "Who is on call, per on-call schedule, right now or at the moment given in `at` (e.g. next Saturday 10:00), computed by the engine that pages people: names, emails and the rotation of each person, and the escalation policies each schedule pages for. Use it for any \"who is on call\" question instead of",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
       "name": "list_integrations",
       "descriptionHash": "254073d0336bd8ef427fe79ef7767789cb6414509d8e665231062b520a217b93",
       "description": "All notification integrations in the project (Slack, Telegram, Discord, PagerDuty, OpsGenie, Teams, webhook, etc.).",
@@ -167,69 +198,239 @@
         "untrusted-content",
         "public-sink"
       ]
-    }
-  ],
-  "findings": [
-    {
-      "id": "MCP-TOXIC-FLOW-001",
-      "severity": "high",
-      "category": "toxic-flow",
-      "title": "Lethal trifecta: untrusted input + private data + external sink",
-      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: search_monitors_by_name, list_recent_alerts, list_team_members, list_integrations, get_integration · Private data: get_escalation_policy · Public sink: list_integrations, get_integration · Destructive: pause_monitor.",
-      "evidence": {
-        "source": "server:mcp",
-        "snippet": "Untrusted content: search_monitors_by_name, list_recent_alerts, list_team_members, list_integrations, get_integration · Private data: get_escalation_policy · Public sink: list_integrations, get_integration · Destructive: pause_monitor"
-      },
-      "confidence": 0.6,
-      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
     },
     {
-      "id": "MCP-RUGPULL-001",
-      "severity": "high",
-      "category": "tool-poisoning",
-      "title": "Tool description changed since last scan",
-      "detail": "Tool \"get_monitor_response_time\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
-      "evidence": {
-        "source": "tool:get_monitor_response_time",
-        "snippet": "before: \"Response time latency trend over a date window.\" → after: \"Response time latency trend over a date window. Returns a per-monitor breakdown — pass all monitors at once in monitor_uuids rather than calling this once per monitor.\""
-      },
-      "confidence": 0.8,
-      "remediation": "Re-review the tool before continuing to trust it."
+      "name": "list_status_pages",
+      "descriptionHash": "f12f089cb0c53e0ceaf11f30201e46ce92b044469a919e40caa93e2782aef339",
+      "description": "Status pages in the project, 20 per page: UUID, name, public URL, password protection.",
+      "labels": [
+        "untrusted-content",
+        "private-data"
+      ]
     },
     {
-      "id": "MCP-RUGPULL-001",
-      "severity": "high",
-      "category": "tool-poisoning",
-      "title": "Tool description changed since last scan",
-      "detail": "Tool \"get_monitor_mttr\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
-      "evidence": {
-        "source": "tool:get_monitor_mttr",
-        "snippet": "before: \"Mean time to resolve (MTTR) per monitor over a date window, in seconds.\" → after: \"Mean time to resolve (MTTR) per monitor over a date window, in seconds. Already per-monitor — pass all monitors at once in monitor_uuids rather than calling this once per monitor.\""
-      },
-      "confidence": 0.8,
-      "remediation": "Re-review the tool before continuing to trust it."
+      "name": "get_status_page",
+      "descriptionHash": "bb84aa4d84e3ec7ad6800d025340133bc8809ef6b4d2f3ed5e09cd645bacf5b8",
+      "description": "One status page with its settings (languages, subscriptions, access) and the services it shows, section by section, with their UUIDs and type (monitor, healthcheck, server or component)."
     },
     {
-      "id": "MCP-RUGPULL-001",
-      "severity": "high",
-      "category": "tool-poisoning",
-      "title": "Tool description changed since last scan",
-      "detail": "Tool \"get_monitor_mtta\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
-      "evidence": {
-        "source": "tool:get_monitor_mtta",
-        "snippet": "before: \"Mean time to acknowledge (MTTA) per monitor over a date window, in seconds.\" → after: \"Mean time to acknowledge (MTTA) per monitor over a date window, in seconds. Already per-monitor — pass all monitors at once in monitor_uuids rather than calling this once per monitor.\""
-      },
-      "confidence": 0.8,
-      "remediation": "Re-review the tool before continuing to trust it."
-    }
-  ],
-  "score": 45,
-  "scoreBreakdown": {
-    "toxic-flow": 20,
-    "tool-poisoning": 35
-  },
-  "errors": []
-}                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             period, worst first, in one call: per monitor uptime_pct, downtime (seconds + text), outage count, longest outage and MTTR (mean time to resolve, resolved outages only), plus project totals (average uptime, total downtime and outages, MTTR, monitors curr"
+      "name": "create_status_page",
+      "descriptionHash": "9b9104dcd68ad74743da2e56627df5ee4cd94ebac15cc6ccee4f62c57694a131",
+      "description": "Create a status page on a hyperping.app subdomain, with sections of monitors, healthchecks, components and servers. It is public as soon as it exists: confirm the name, address and services with the user first. Password protection, SSO, a custom domain and a logo are set in the dashboard.",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "update_status_page",
+      "descriptionHash": "be47891dade1fb8babdd647d48b58f88eda8424441a57e0d41e9e18c3f4e7aaa",
+      "description": "Change a status page's name, description, website, look or subscription button. Only the fields passed change. The page is public: confirm the change with the user first."
+    },
+    {
+      "name": "add_status_page_services",
+      "descriptionHash": "810475479964dc26f29840ed5262e11a32c385216fa2046ee4bbe7ac822fabdc",
+      "description": "Show monitors, healthchecks, components or servers on a status page, in the section you name (created at the end if the page has none by that name) or the first one. Services already on the page stay where they are. A healthcheck shows its uptime bar (show_uptime) but never response times."
+    },
+    {
+      "name": "remove_status_page_services",
+      "descriptionHash": "f618b76ffe100f03951bb1cf45292c6c0ec0957503487d7e23ccc4c57812e29a",
+      "description": "Take monitors, healthchecks, components or servers off a status page, wherever they appear, groups included. Their settings on the page (display name, description) are lost.",
+      "labels": [
+        "destructive"
+      ]
+    },
+    {
+      "name": "list_status_page_incidents",
+      "descriptionHash": "ecab3df76113be2504152a59608352a5f3b362d35160fad0ce99b05cf192211b",
+      "description": "Incidents published on status pages, newest first, each with its current stage and latest update. For downtime detected on monitors, use list_outages."
+    },
+    {
+      "name": "get_status_page_incident",
+      "descriptionHash": "add9e5e8d86d2db493b5adcb440f098b40b8bc9d3bcb5f040cd401a5d6b1b9ea",
+      "description": "One status page incident with every update (newest first, with their UUIDs), its status pages and affected components."
+    },
+    {
+      "name": "create_status_page_incident",
+      "descriptionHash": "14d9ecfd885d9698a73a4f421bc6eb07542ff8a9173db14fdf56a5f4e96a06f2",
+      "description": "Publish an incident on status pages, with its first update. Public, and emailed to subscribers unless notify_subscribers is false: confirm the wording with the user first. To record an incident internally and page on-call instead, use create_outage.",
+      "labels": [
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "add_status_page_incident_update",
+      "descriptionHash": "d2bb49f011cd969d55c5405eb9c10417019ef1ce81013c8479c5c50b9446ebd1",
+      "description": "Post an update on a status page incident (investigating, identified, update, monitoring, resolved). Public, and sent to subscribers unless notify_subscribers is false.",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "resolve_status_page_incident",
+      "descriptionHash": "001bf0e56e54de74c1ebc057ba657f9af473629f5ddee6212bb5a2525967fd5c",
+      "description": "Close a status page incident with a final \"resolved\" update. Same as add_status_page_incident_update with status \"resolved\"; refuses an incident that is already resolved."
+    },
+    {
+      "name": "update_status_page_incident",
+      "descriptionHash": "590259dcc07272e8df9c1bd48507999d75e04e43bc7089464c9100b4fc091582",
+      "description": "Change a status page incident's title, type, status pages or affected services. The pages show the change right away; subscribers are not notified. To tell them something, post an update.",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "edit_status_page_incident_update",
+      "descriptionHash": "cfde9940ae5e0c3cfa686e99c4b273430bae726e49875d4e9f546a8dde61a0ed",
+      "description": "Correct the text or stage of an update already posted, e.g. a typo. The page shows the correction; subscribers are not notified again and its date is kept."
+    },
+    {
+      "name": "list_maintenance_windows",
+      "descriptionHash": "627da5a0d3a48cb0723e44ef99ddd02b6bab68059a5417c7b9459a607aa9ef61",
+      "description": "Maintenance windows, 20 per page, with their monitors, status pages, updates and status (upcoming, inprogress, completed)."
+    },
+    {
+      "name": "get_maintenance_window",
+      "descriptionHash": "7be009a0a28756cf5e74b65eab6a15116f52d9a0149817998686822f9b945830",
+      "description": "One maintenance window with its updates and the state of its subscriber notification.",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "create_maintenance_window",
+      "descriptionHash": "6788d00ae343d401d9dac0ad1fe05584334020a53378738cd7832f1b35b44ae1",
+      "description": "Schedule a maintenance window: checks and alerts stop for its monitors during the window, and the status pages you pass announce it. Public once it has status pages: confirm with the user first."
+    },
+    {
+      "name": "update_maintenance_window",
+      "descriptionHash": "b0b17e6e640fd3675b45ae890054bc572eb0c7a7708f3436179f0d6f5d6256b8",
+      "description": "Reschedule a maintenance window, rename it, change its monitors or status pages, or post a public update on it. The pages show the change; subscribers are not notified.",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "complete_maintenance_window",
+      "descriptionHash": "2a6b15a3f1e997af2483cb3927610e68d77a5653ffca03b860335dfe7188a0c0",
+      "description": "End a maintenance window in progress now: checks and alerts resume on its monitors and the status pages show it as completed."
+    },
+    {
+      "name": "cancel_maintenance_window",
+      "descriptionHash": "11520529b44c31928c2f59e7f6b9846bb8335dbf6694e05f4f10ab4d9e41f545",
+      "description": "Cancel a maintenance window that has not started: it is deleted and leaves the status pages. Subscribers already told about it are not told it is cancelled. To end one in progress, use complete_maintenance_window."
+    },
+    {
+      "name": "search_logs",
+      "descriptionHash": "b8cbdc4b46fc90d4de45765ded5fddc12004952fd8e898fb8aa0e033644697d2",
+      "description": "Search the project's logs, newest first. Logs search language (not SQL): free words are ANDed (whole words), \"exact phrase\", -word to exclude, service:api, host:web-1, env:prod, source:src_…, level:error or level:>=warn, attr.<key>:value, trace:<id>, pattern:<hash>, word* for a prefix. OR is not sup"
+    },
+    {
+      "name": "get_outage_logs",
+      "descriptionHash": "38c5e50fdb8754abb50334f2bd065f5cb1875576f318b965299b3a2643827b28",
+      "description": "Logs around one outage (incident) of the project: from 15 min before it started to 5 min after it ended. Returns warnings and errors grouped by message pattern, the latest matching lines, and a per-level histogram. Works for monitor, manual, server, log-rule and healthcheck (hco_) outages. Logs sear",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "summarize_log_errors",
+      "descriptionHash": "e42dd501af6c46ae6ed4e16af140bda0ed402bbab97dbf9c4cde9c187fb18156",
+      "description": "Groups the project's errors (or warnings) of a time window by message pattern (numbers, ids and IPs normalized), most frequent first: count, share, trend (>1 = rising in the last quarter of the window), level, services, hosts, first/last seen, one sample. Computed from the stored lines, no AI. Follo",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "list_log_dashboards",
+      "descriptionHash": "fb831e4c66452bfa7e6319e8cb4f95107988dcb98af810da000a0fc7a89b27a4",
+      "description": "Log dashboards of the project: name, tags, widget count, template, last update. With `uuid`, one dashboard in detail: its time range, variables, sections and every widget with its chart as HPL (run one with run_log_chart; dashboard variables such as $service must be passed in `variables`). With `tem",
+      "labels": [
+        "destructive"
+      ]
+    },
+    {
+      "name": "run_log_chart",
+      "descriptionHash": "c44201c6c3181c0851a0307e28df887c2f4e43993c40ee71683dea089ecf6619",
+      "description": "Aggregates the project's logs into a chart and returns a compact summary: per series min/max/avg/last and up to `max_points` points, a table (up to 50 rows) or a single value. HPL = `<search> | <aggregations> [by <fields>] [every <interval>] [compare <1h|1d|1w|4w>] [| eval <alias> = <formula>] [| so",
+      "labels": [
+        "destructive"
+      ]
+    },
+    {
+      "name": "create_log_dashboard_from_template",
+      "descriptionHash": "41e9e691d9a3fa6ad36c3c0ea3bc6fe7f6844572211cc45d584bfd7f0858aec3",
+      "description": "Creates a log dashboard from a ready-made template (overview, errors-patterns, http-access, app-otel, containers, host-syslog, databases, jobs, ingestion-cost, incident-war-room, vercel). The template's fields (HTTP status, duration, route…) are detected in the project's logs; pass `bindings` to cho"
+    },
+    {
+      "name": "get_outage_checks",
+      "descriptionHash": "9c67226199117533257c6dc6d104ab1054c5a39e44093364e30b5135059a2e6a",
+      "description": "Region-by-region evidence for one outage (\"outage_…\" or an incident key like \"INC-12\"): a verdict — \"global\" (every checked region failed), \"partial\" (some regions stayed healthy, listed), \"single_region\" or \"unknown\" —, the dominant failure layer (dns, connect, tls, timeout, http = the endpoint ans",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "find_correlated_outages",
+      "descriptionHash": "2bb1eb1341d335a75e434c5428a617e3efc8f73107efb9b26da4174fe429e8b0",
+      "description": "Other incidents of this project that started within ±window_minutes (default 10, max 60) of an outage (outage_uuid, or incident key) or of a moment (at), each with monitor (uuid, name), start, end or ongoing, status code, error, host, registrable domain, resolved IP and detecting region, and the key",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "get_recent_changes",
+      "descriptionHash": "a565d130dd1d5a2db41fa06490c465497c6618ab611215bb3b340c57f64cbe46",
+      "description": "What changed on a monitor before a moment (default: the outage start) and shortly after: audit-log changes to the monitor and to its escalation policies (regions, URL, timeout, pause / resume..., with who made them; needs the owner or admin role and the plan that includes the Audit Log, like the Aud",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "run_check_now",
+      "descriptionHash": "5b667732a81d8731da9be3c6601eee0c859d0f30e6bacd4650dcd4d8638ebf89",
+      "description": "Run the monitor's check right now from each of its regions (20 at most) and return per region: ok, status, total ms, error, failure layer and phase timings in integer ms (dns, connect, ttfb, download), once every region answered or after about 25 s (regions still waiting are listed in pending), with",
+      "labels": [
+        "destructive"
+      ]
+    },
+    {
+      "name": "list_healthchecks",
+      "descriptionHash": "cbbe5e8f9bf3c55cd94093fb7911fd7a9c13c7a66d15c83b043f5f8e4e28b2c5",
+      "description": "Cron/heartbeat healthchecks of the project (jobs that ping Hyperping; monitors are list_monitors, servers list_servers): per healthcheck its hc_ uuid, name, schedule (cron + timezone, or period), grace period, state (down, up, or new = never pinged), last ping, next ping due (up ones; late=true whil"
+    },
+    {
+      "name": "get_healthcheck",
+      "descriptionHash": "67aa5ad78cba004fe720f3e9d64a0a993826e7565bdca2d7bdbebfd55f7bd754",
+      "description": "One healthcheck in detail: schedule, grace, state and timing, escalation policy, uptime and downtime over the last 30 days, its last 20 pings (pings are kept 15 days; \"start\" = a /start ping without its completion) and its last 10 incidents (hco_ uuids, which get_outage and get_outage_timeline also ",
+      "labels": [
+        "destructive"
+      ]
+    },
+    {
+      "name": "list_servers",
+      "descriptionHash": "a158618c9df41ac1543d306e09ede0116ced1f0cfaea8b9e19bb9181ccbccd03",
+      "description": "Servers of the project (machines running the Hyperping agent, agt_ uuids; not monitors or healthchecks): per server its name, hostname, status (online, stale = heartbeat late, offline, uninstalled), last_seen_at, OS, agent version, group, tags, current memory_pct and disk_pct of the root filesystem "
+    },
+    {
+      "name": "get_server",
+      "descriptionHash": "ff21eedcd99817c7fe5bbc37442b5e7bfeef12783458297630b58593a619b6f4",
+      "description": "One server in detail: status, last seen, OS, agent version (and whether an update exists), hardware, group, tags, escalation policy; current memory and root disk usage; last 24 h of CPU %, memory %, disk % (all filesystems) and 1-minute load as last/avg/max of 5-minute averages; filesystems (mount, "
+    },
+    {
+      "name": "list_audit_log",
+      "descriptionHash": "cdfae82ff769c77bbb7ef14fb82f93d0ef816834c54b557db421add89ecf6b5f",
+      "description": "Who changed what in the project (the Audit Log page; owners and admins, Business plan): newest first, each event with its time, actor (user name and email, or the API key / MCP key that acted, or system), action (e.g. UpdateMonitor, DeleteStatuspage, InviteUser, MuteOutage), resource (type, uuid, na",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "get_project_report",
+      "descriptionHash": "efc2c4c70e1a4ec7e1caca7e3ad8cf4419e098ffff38fcb98b552ae0cd9517cf",
+      "description": "Uptime of every monitor of the project over a period, worst first, in one call: per monitor uptime_pct, downtime (seconds + text), outage count, longest outage and MTTR (mean time to resolve, resolved outages only), plus project totals (average uptime, total downtime and outages, MTTR, monitors curr"
     },
     {
       "name": "get_outage_alerts",

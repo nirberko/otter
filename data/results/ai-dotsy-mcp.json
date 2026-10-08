@@ -1,0 +1,950 @@
+{
+  "schemaVersion": 1,
+  "scanner": {
+    "version": "1.6.0",
+    "rules": "402995650b68"
+  },
+  "target": {
+    "kind": "url",
+    "ref": "https://mcp.dotsy.ai/mcp"
+  },
+  "scannedAt": "2026-10-08T11:34:12.576Z",
+  "durationMs": 615,
+  "layers": {
+    "metadata": true,
+    "static": false
+  },
+  "tools": [
+    {
+      "name": "create_site",
+      "descriptionHash": "429071f3f2cba10bc2551a391b9cab9c31f8f1084375c74602de5190f4cc60e1",
+      "description": "Create empty site; seeds brief. Globally taken slugs auto-suffix to `{slug}-{adjective}-{noun}` (default); pass onSlugTaken:\"fail\" to get a 409 instead of a renamed site."
+    },
+    {
+      "name": "get_site",
+      "descriptionHash": "2d4b11d646392ea29482b89c4d1c21e7bacada0f391caf9b83274c1af9713dcd",
+      "description": "Site detail, stats, publicUrl, brief head (default-on), and readiness flags. pages[] is a ~25-entry head by default (stats.pages has the true count) — pass pages: true for the full array (capped at 1000), or enumerate everything with list_content/get_site_manifest. Large sites (200+ pages): list_pag"
+    },
+    {
+      "name": "update_brief",
+      "descriptionHash": "86df91bc6696004eb8ba69a4cc43028a34da33016e64b31a6bc09c6f75d8ddf5",
+      "description": "Update `_intent/site.md` (site brief) or a page brief when `page` is set. See field descriptions for rules, notes, and head enums."
+    },
+    {
+      "name": "get_analytics",
+      "descriptionHash": "1572a2d8aebc6d3986ab62941f96bf41843752bb862c1f7e4ae75bd373a4a0b2",
+      "description": "Read-only traffic overview (default) or full breakdowns via include[]; optional bot id for crawler page drill-down."
+    },
+    {
+      "name": "update_site",
+      "descriptionHash": "c4727b7ccb2e386570567c28076b5401468a42b52be9430b7002fa4d6c50be3b",
+      "description": "Update site settings: title, keyConvention, or editingMode ('live' = each editor save publishes immediately; 'staged' = saves stay drafts until publish_site). Slug is the hostname — change it with rename_site, not this tool. Set 'staged' before handing the editor to a person via start_edit_session's"
+    },
+    {
+      "name": "rename_site",
+      "descriptionHash": "3cf46b212fa6453d646c769b0694a9389845856804c62cb82693f922de855ef8",
+      "description": "Rename the site slug (public hostname {slug}.dotsy.site). Owner-only. After success: use the returned slug in every later tool. Published site: the old slug redirects on the API (301 for reads, 308 for writes) while it stays reserved; the old host 301s and stays reserved until delete or rename-back.",
+      "labels": [
+        "destructive"
+      ]
+    },
+    {
+      "name": "publish_site",
+      "descriptionHash": "2c31efdef739b177739c2fcf671285bc0fd9b84d47fdc52abef51a3db711fb26",
+      "description": "Publish draft to live. feedback and handoff required (use dummy feedback + one-line handoff if clean).",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "get_draft_status",
+      "descriptionHash": "84301921aafbabc993d5fb4ce9a6457e77d54eebc003064b967f601ed2a31d72",
+      "description": "Pending draft changes: content keys and routes with status. May include requiredDecision (publish_confirm) before publish_site."
+    },
+    {
+      "name": "discard_drafts",
+      "descriptionHash": "23aebcbde626a37cbefc2381a80fabbb585b8bf578599113dfbd6489ee84077f",
+      "description": "Discard unpublished drafts: all (omit key/keys/routes), one content key (key), or a selection (keys, routes). Destructive — check get_draft_status first."
+    },
+    {
+      "name": "delete_site",
+      "descriptionHash": "7014356209819a6b6ec30ad1b3d07b7b0dffb515590464bf98650c5e47da1305",
+      "description": "Permanently delete site; confirmSlug must equal slug.",
+      "labels": [
+        "destructive"
+      ]
+    },
+    {
+      "name": "bulk_put_content",
+      "descriptionHash": "915f4d660e34dfd8c0fa60ee8e2184d5f1b6d06a64316c813c864558e656cde3",
+      "description": "Stage many content keys (pages, layouts, fragments). Content only — not routes or assets. Each body ≤60KB and the whole call ≤80KB; larger pages use stage_content_chunk, dotsy push, or PUT content-raw. May queue above the inline threshold."
+    },
+    {
+      "name": "get_site_manifest",
+      "descriptionHash": "69ca180fc23148f9ceff8ad895407f4a469ccab269168b64f4835791f73286e5",
+      "description": "Content keys + hashes only (optional routes=true) — static files live in list_assets, not manifest. Diff keys+hashes before apply_changeset; stage only changed bodies.",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "find_replace",
+      "descriptionHash": "8ed4db5e71d7b5d005aeb43900a78067ce1197c9fc3d8224df1cb1875f103403",
+      "description": "Case-insensitive find→replace across pages in one staged commit. Batch all replacements into ONE call — never parallelize find_replace on the same key (concurrent edits surface as per-key conflict). find/replace ≤60KB."
+    },
+    {
+      "name": "search_content",
+      "descriptionHash": "6f27e4cb70c0504d6fc9d484808abba87768dd823e3d8a696f1cc5f6380d1bdf",
+      "description": "Find pages containing a phrase (grep without reading bodies). Requires do-sqlite — graduate_site first if search_unavailable."
+    },
+    {
+      "name": "graduate_site",
+      "descriptionHash": "bd32bd240066d95d3f181d01b9b8d714b1fe1c3cd8dbd0e823a87c2e27e7038e",
+      "description": "Enable site search & collections (kv → do-sqlite), one-way. Unlocks search_content, collection indexes, visitor /__paige/search, and moves any R2 form-submission ledger into SiteDb. 409 blocked covers three unrelated gates: an unsupported source backend (no override, ever); strictDrafts — default tr"
+    },
+    {
+      "name": "apply_changeset",
+      "descriptionHash": "ebef158c98c00bb4942ea852834c2e63de3423759e2e297fc5536b49c80313cd",
+      "description": "Atomic writes[] + deletes[]; attach routes via writes[].route. At most 10 writes; each body ≤60KB and the call ≤80KB. Larger new pages: stage_content_chunk then writes[].bodyStaging, or dotsy push / PUT content-raw."
+    },
+    {
+      "name": "import_site_from_url",
+      "descriptionHash": "9a925f3eb6f1c4413b54d2464053e77d142d58d372e15f12a4cc2c8abd82821f",
+      "description": "Import URL to draft. On complete, response may include requiredDecision — preview then ask mirror vs editable before structure_*."
+    },
+    {
+      "name": "get_structure_status",
+      "descriptionHash": "aca203c191adcf06241c07de55816f2dcc7f8573c677a8fd4d1ada45ec92b3f5",
+      "description": "Flat vs structured page counts; informs user — do not auto-run analyze/apply while requiredDecision pending.",
+      "labels": [
+        "destructive"
+      ]
+    },
+    {
+      "name": "structure_site_analyze",
+      "descriptionHash": "ca545801e055a52420ba8f4260cb342c5498a5da11a3995c2e4062fdc80d8e6f",
+      "description": "Propose shared layout + fragments; persist:false first. Wait for mirror-vs-editable answer if requiredDecision pending."
+    },
+    {
+      "name": "decompose_analyze",
+      "descriptionHash": "bb400c1e591f5b79f8f6fdcfb323d5739ca661fb16a0207a85f1bc69426d1b69",
+      "description": "Deprecated — use structure_site_analyze."
+    },
+    {
+      "name": "structure_site_apply",
+      "descriptionHash": "e815892ff11874c5661fa71fba2c6702753d712dde7c34ef6a53c437c0f1cc4e",
+      "description": "Rewrite flat pages to layout + fragments (draft). Do not call while requiredDecision pending — user must pick editable first."
+    },
+    {
+      "name": "get_structure_result",
+      "descriptionHash": "3e4f379bd529292b3a97ab1956baafbc2ea999f7a5b0d79eee7dd7843997276e",
+      "description": "Last structure apply job result (structuredKeys, conflicts, partial)."
+    },
+    {
+      "name": "adapt_site_analyze",
+      "descriptionHash": "b4612bcae2e0c343907be3516f4025196a36dbd2da7c36c4bd7d74eb66944a20",
+      "description": "Propose nav wiring + blog collectionization for an imported mirror (draft, opt-in). Read-only; returns per-adapter reports + proposalEtag. Nav decline may include nextStep (e.g. mega-menu → edit fragments/header.html). Wait for mirror-vs-editable answer if requiredDecision pending.",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "adapt_site_apply",
+      "descriptionHash": "513840cabed51453750910eb38e832fbd23a42ee55ec135be9c29757451af61d",
+      "description": "Apply the adapt proposal (draft): wire nav into the menu store and/or rewrite the blog index to a live <dotsy-collection>. One undo covers the whole apply; a second apply is refused until adapt_site_revert (or force). Queued applies are polled to completion."
+    },
+    {
+      "name": "adapt_site_revert",
+      "descriptionHash": "82e27f6ecd0a95021a72713c71908f5429f54446675ab1511213f725ad4983c0",
+      "description": "Atomically restore everything the last adapt_site_apply wrote (fragments, the menu doc when the op touched it, index, member configs, routes)."
+    },
+    {
+      "name": "get_adapt_status",
+      "descriptionHash": "abba3095c66bef6adfe3bb91299395ae45f237b2b1847bece1282ca899d57ce2",
+      "description": "Read adapt state: proposal summary + proposalEtag (+ applied/consumed flag), undo-record presence, active or queued job progress. Use to resume in a fresh session.",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "list_content",
+      "descriptionHash": "e2eb821c227786f99676db8ee39bfa48e282a46f2b8399eed33cb1c202e5f328",
+      "description": "List content keys (HTML/md); not assets — use list_assets. Defaults to 50 keys per page — raise limit (max 1000) or pass cursor (from nextCursor) to page through the rest. Per-row `size`/`missing` are measured automatically only on pages of ≤100 rows; past that they're ABSENT (not measured, never `n",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "get_content",
+      "descriptionHash": "b9b1aaec9153f6f2bd52adc36820c900a1017fef105a92e4d031a531b47c8c0f",
+      "description": "Read one content key; optional selector (region) or published=true (live body). Bodies over 40KB without a selector return a truncated summary — use selector, batch_patch_content, or dotsy pull."
+    },
+    {
+      "name": "put_content",
+      "descriptionHash": "f4fe2a16d56eb30192233602b9d224b0e7a70902ed60f976fa5c48f384f439fc",
+      "description": "Stage one content key. Body ≤60KB. Larger pages: stage_content_chunk + apply_changeset bodyStaging, dotsy push, or PUT content-raw. Edits to an existing large page: batch_patch_content."
+    },
+    {
+      "name": "stage_content_chunk",
+      "descriptionHash": "ec5ac4fa958c687393e3b129f3e3a1565ecbc6b6d0a36770507d5c8f3c1c3bd7",
+      "description": "Append one ≤60KB chunk of a large new page. Omit stagingId on seq 0; pass the returned stagingId on later seq. Set finalize:true on the last chunk, then apply_changeset with writes[].bodyStaging."
+    },
+    {
+      "name": "patch_content",
+      "descriptionHash": "66a9e4786ff2b64726a9ceff2c20d579af74dbb5faa5a32143c3ca2c2ee7e6ea",
+      "description": "Edit one content key via ops[] (selector ops or replace-string). Stages draft; op shapes in schema."
+    },
+    {
+      "name": "batch_patch_content",
+      "descriptionHash": "197ca95126fa832c67f682def9e4d067456097f5ac1be4938d705ca0b6ef5c69",
+      "description": "patch_content on multiple keys; all-or-nothing validation. Preferred edit path for pages over 60KB. replace-string value/replace ≤60KB; whole call ≤80KB."
+    },
+    {
+      "name": "delete_content",
+      "descriptionHash": "556b4de7b4a731aeb0a96dc13135958f681ce9f5d22f38385b121b9499ece94a",
+      "description": "Delete content key (tombstone if published).",
+      "labels": [
+        "destructive"
+      ]
+    },
+    {
+      "name": "rename_content",
+      "descriptionHash": "f719bf075039ff14bc2c6a78878687f8321f1834580b4afe30d508c229a73190",
+      "description": "Re-key a page by slug (draft or published static). Server-side hash copy — no body round-trip. Default deletes static routes (obscure-URL); movePath:true repoints the route, rewrites menu refs and other redirects aimed at the old path, and — only for an already-PUBLISHED page — leaves a 301 there to"
+    },
+    {
+      "name": "put_post",
+      "descriptionHash": "6b720cc1fff2334b89bcebf72a24c97093b799de342557aefa8b3a499e156d1f",
+      "description": "Stage a blog post via structured meta+body (?format=post). Key e.g. blog/my-post.html. Declared membership: meta.collections; schedule: meta.visibleAt; SEO title override: meta.seoTitle (card always shows meta.title); custom fields: meta.custom.",
+      "labels": [
+        "public-sink",
+        "destructive"
+      ]
+    },
+    {
+      "name": "inspect_collection",
+      "descriptionHash": "9ceb8cc5f20376b5f734236e943ac4328d06dc767a8b6c1ea62f6a3f2f50f3e8",
+      "description": "Collection state — count, server.mode, sample entries, tag (membershipKind, match=) when discovered; plus name, noun, URL pattern, layout, where it's listed, and post fields used. Pass status/q/cursor/limit (any one, even empty) for a full items[] page instead: status draft = never published; a publ",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "list_collections",
+      "descriptionHash": "fe504a6b5bddf5f03d33b0abf9266f6c44917bca32154d084b7a31835a4e2aac",
+      "description": "Collections on the site — name, noun, item count (or 'not published yet'), URL pattern, and whether any member is staged. Includes a collection only a draft page lists. Returns a bare array (not wrapped in an object) — pass each row's key verbatim to inspect_collection/update_collection.",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "update_collection",
+      "descriptionHash": "d8366020318b07ffac44ecce8f345ee177d85be7e7f35e0121c7145e07ec56ea",
+      "description": "Rename a collection's display name and/or noun (e.g. the generic 'posts' key shown as 'Recipes' / 'recipe') — cosmetic only, stored separately from the tag that defines membership; doesn't need publish. Provide at least one of name/noun. null (or \"\") resets that field back to its derived default — d",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "new_post_template",
+      "descriptionHash": "95927291e064db6eb8732794580817150604d5ac6b82f914082a46b664847d6b",
+      "description": "Read-only scaffold for a new post — suggested key/path, membership meta, blank or duplicate body. Then put_post (+ optional put_route).",
+      "labels": [
+        "untrusted-content",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "reindex_collection",
+      "descriptionHash": "ead483499f3180482dd4bf0366340bda92a8ed873db070a4707c589f1c4e7613",
+      "description": "Build/finish collection indexes after publish returns collectionDataPending or collectionSqlPending.",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "preview_page",
+      "descriptionHash": "cb675fdbd6063d2321a93682258776e0676016ffc313657c4190dc8c46fa158f",
+      "description": "Verify-only composed HTML check; home preview may include requiredDecision — ask mirror vs editable before structure_*.",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "verify_page",
+      "descriptionHash": "d1800abec8140d012ae054f7fe521b1a10f329ab6747669882c4a0d8940e79c5",
+      "description": "Pre-publish lint (tags, assets, layout). Pair with preview_page — see get_skill('verify').",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "preflight_site",
+      "descriptionHash": "79b8e1011210fefa30f3b2e2d42938f7aaccdaa79f10c0d5899f76f7f985cbfe",
+      "description": "Plan check before large build (counts, route soft limit). Read-only."
+    },
+    {
+      "name": "start_edit_session",
+      "descriptionHash": "c642e43e20cdecaf26d749af1873d26e81e8f53f131fdac33f81c48bb5e1118c",
+      "description": "Open a draft session. Returns preview/edit URLs for the person (see linkGuidance). draftEditorUrl only when the site gives AI agents Full access. path defaults to '/'.",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "get_site_outline",
+      "descriptionHash": "59afb6198abb9d067680051f9c2257b2d95c9f129215ec752723951fb8f54c92",
+      "description": "Site shape: every layout and section with its page count and staged-change flag, whether a layout is missing, redirects count, menus grouped by where they show, and collections with their page placements. Use for 'is my layout missing', 'what does this section reach', 'where does this menu show' — w"
+    },
+    {
+      "name": "get_route",
+      "descriptionHash": "416db4f048c8590965c71a6e1dff14e346fcbb1a9a7a4d8a272c740821c1d107",
+      "description": "Get one route by path (home is '/')."
+    },
+    {
+      "name": "put_route",
+      "descriptionHash": "cfd1a0275f2e3026adc89760fcca71217189054b4789f9b4abe851e9228d3189",
+      "description": "Create/replace route; contentKey derived from path if omitted. On a field that accepts null (contentKey, redirectTo, redirectStatus, preserveQuery), sending null clears it back to its default."
+    },
+    {
+      "name": "patch_route",
+      "descriptionHash": "aff3d18a839efd9a95e4b6709ea8b530bfc2fce81e805711c96e0cd6d61e1a94",
+      "description": "Partial route update (only sent fields change; an OMITTED field is left alone). On a field that accepts null (contentKey, redirectTo, redirectStatus, preserveQuery), sending null CLEARS it back to its default — different from omitting it. To set redirectTo/redirectStatus, include purpose: \"redirect\""
+    },
+    {
+      "name": "rename_page",
+      "descriptionHash": "100a7480ffe74c72b6ddb8f96f780e1415f63096f428068697912a9ef07fc628",
+      "description": "Change a page's URL: moves its route from `from` to `to`. Menu links and other redirects that pointed at the old path retarget automatically; a 301 is left at the old path by default (leaveRedirect). Retry-safe (resend the same call after any error). Errors: 404 route_not_found (from isn't a route);"
+    },
+    {
+      "name": "delete_route",
+      "descriptionHash": "92c822e409b5d3d8066b98136c38dfda3237fb22fc48a9f932d472dd0e3b1cf1",
+      "description": "Remove a route by path.",
+      "labels": [
+        "destructive"
+      ]
+    },
+    {
+      "name": "list_goals",
+      "descriptionHash": "5f206832c42d9793abd8d641986d6687904eaf5a98761231677e6d759f8312f8",
+      "description": "List site conversion goals (pageview paths and form submits). Required before start_test."
+    },
+    {
+      "name": "put_goals",
+      "descriptionHash": "4fc8dbbaeb9feae0b845c2476e26bf3d45f0519510e60a09cc0b3e61430fa468",
+      "description": "Create or replace all site conversion goals (≤50). Required before start_test when no goal exists."
+    },
+    {
+      "name": "estimate_test",
+      "descriptionHash": "fcc70f526c3afee8ba0627e362b03d58ac9d88111bdcbf713a78440d5e61d4b0",
+      "description": "Estimate days to reach promote readiness for a page (traffic baseline). Read-only."
+    },
+    {
+      "name": "start_test",
+      "descriptionHash": "ba2e2ed7d24ec471ec5e2deb501f810f5499560121d0a72bd5a61fd9ac1c9f18",
+      "description": "Start a same-URL A/B test (draft or live source). Rules → get_skill('verify') § A/B."
+    },
+    {
+      "name": "promote_experiment",
+      "descriptionHash": "fe6bedd981b2789eed3df58ad051c4eeed8bfc9e3691925bdba2d304a9fba8c2",
+      "description": "Promote a winning A/B variant to live — explicit user instruction only; see get_skill('verify') § A/B."
+    },
+    {
+      "name": "delete_draft_test",
+      "descriptionHash": "9e6942d46f05ca1fc7bddb2f326f6d29443e8f11be5cc99e88891167b5dcfdc6",
+      "description": "Remove a draft A/B test (releases variant bodies; does not publish).",
+      "labels": [
+        "public-sink",
+        "destructive"
+      ]
+    },
+    {
+      "name": "set_experiment_note",
+      "descriptionHash": "26c3243cf1233ca02b4c0fac35e537fb1112dbb9719a93f33c1b895465801a28",
+      "description": "Record what was learned from an ended A/B test (≤500 chars; null clears).",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "get_menu",
+      "descriptionHash": "992816d1ac335b17b154ce9893a5478bb76cc5ec6c18705bc4427b1179283498",
+      "description": "Read a menu's draft items and etag; menu rules → get_skill('nav')."
+    },
+    {
+      "name": "put_menu_item",
+      "descriptionHash": "77bdef1802129ad6201237d6ce65948778fdb8d07c35234e34fa301cbdf34751",
+      "description": "Partial upsert one menu item: provided fields overwrite; omitted html/childTemplate/childShell/attrs/data are preserved. To remove those keys, use put_menu_doc. A brand-new id dedupes by (menu, ref) — reuses an existing item linking the same target instead of creating a duplicate. An id that already",
+      "labels": [
+        "destructive"
+      ]
+    },
+    {
+      "name": "delete_menu_item",
+      "descriptionHash": "c8a9af402804a59d731c28f037b3d76cdfde26338e5eba52115ffafaae105e0e",
+      "description": "Remove one item from a menu (page stays live).",
+      "labels": [
+        "destructive"
+      ]
+    },
+    {
+      "name": "reorder_menu",
+      "descriptionHash": "c94e41f6e70d8045b6fd155f522e31ffdf61e4f6d6df63c352d3e45966d5c497",
+      "description": "Set final menu order. Pass ifMatch from get_menu; stale → 409 with current items."
+    },
+    {
+      "name": "get_menu_doc",
+      "descriptionHash": "b7c7011446632908f5f58a9e278666987bc76bdb1f40a93818b48051d5b4e5f5",
+      "description": "Read the whole menu doc (all menus + shell/template), etag for put_menu_doc, and issues (by item id) — page_not_routable, page_missing, page_dead_link, page_is_redirect — computed from the draft routes, so a link that won't show or leads nowhere shows up before publish.",
+      "labels": [
+        "untrusted-content",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "put_menu_doc",
+      "descriptionHash": "a9af31687621bbc31878175186fafea4279c23696687a6e3906852976b2be571",
+      "description": "Replace the whole menu doc (ifMatch from get_menu_doc required)."
+    },
+    {
+      "name": "list_assets",
+      "descriptionHash": "c6f233996cbc09650e3fc267c4ad1ef15e933b3bd4fd49f86aace3a0f91ba3b4",
+      "description": "CMS uploads under assets/ only — not mirrored clone CDN (get_site mirroredAssets or import warmJob). Not content — use list_content. Uploaded files are live in the editor and draft preview at once; the published site picks them up at the next publish.",
+      "labels": [
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "get_asset",
+      "descriptionHash": "3d01be12b7f75a9f1e19afecac8181a440ddf7faf1999b0006276c5c99b4f1df",
+      "description": "Read one asset (metadata + base64 + stored sha256). sha256 is the stored blob; may differ from upload bodySha256 when IMAGES re-encodes rasters. Uploaded files are live in the editor and draft preview at once; the published site picks them up at the next publish.",
+      "labels": [
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "bulk_put_assets",
+      "descriptionHash": "7dd208b8dcd2b0d89c2c65d9c96d1b75eb2880cdcd382475f32c114f0c1e15a4",
+      "description": "Upload 1–200 CMS assets; key = path after /assets/. Optional bodySha256 verifies submitted bytes before write; response sha256 is stored bytes (JS/CSS match; WebP rasters may differ). Uploaded files are live in the editor and draft preview at once; the published site picks them up at the next publis",
+      "labels": [
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "delete_asset",
+      "descriptionHash": "32db3a2c9e62e49769b9ecfe8d57894a9a5db17e84673cb07171706836f9ba4a",
+      "description": "Delete a static asset by key. The editor and draft preview drop it at once; the published site drops it at the next publish.",
+      "labels": [
+        "public-sink",
+        "destructive"
+      ]
+    },
+    {
+      "name": "start_site",
+      "descriptionHash": "6f7ae6dc4ae11bc0d4ada9005fba4b72dfb1d6dd524d682907af50aeaf25378c",
+      "description": "Start one draft site with no Dotsy account. Returns slug + guestToken — pass guestToken on every later tool call until claim_site."
+    },
+    {
+      "name": "claim_site",
+      "descriptionHash": "c6e3f5e5234ca2707387094eafbecf84dcf3cfbc05c43fc886f29a4af53f6e14",
+      "description": "Move the guest draft onto your signed-in Dotsy account. Requires OAuth Connect; pass the guestToken from start_site."
+    },
+    {
+      "name": "list_skills",
+      "descriptionHash": "8f4695218c9b743d12c29db1dbab41dcd878e0e72e1f6243acb3c724ee426150",
+      "description": "Paige build skills (id + whenToUse). Pull get_skill on demand — do not duplicate in tool text."
+    },
+    {
+      "name": "get_skill",
+      "descriptionHash": "7011baddf8cf91bd56d4f94af2c643b679b58795b4e79b296a1801e0f237eba1",
+      "description": "Skill body + optional questions[]. Accepts an id OR a synonym (e.g. 'list', 'menu') — resolves aliases and suggests near-misses. Start with intake when ambiguous."
+    },
+    {
+      "name": "submit_feedback",
+      "descriptionHash": "89ed0653b55818993b801edf582f0aa908c379df709209e86e3079c0f725f081",
+      "description": "Optional mid-session feedback (required feedback rides with publish_site).",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "get_activity",
+      "descriptionHash": "97c1405436cbb0d9f887c9f8a72e82ad367335b8b609b3b2f0ec86b855a7c174",
+      "description": "List site activity or fetch one change diff (pass id). Filters: who, state, actor (me), since, limit≤20. Notes from context are visible to everyone on the site — no secrets.",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "revert_change",
+      "descriptionHash": "ad62922c2f4d64b90644827907959fee8838bfb197da549af5da1b8d55543605",
+      "description": "Undo one activity event by staging the prior version as draft only — call publish_site to go live. Respects AI access."
+    },
+    {
+      "name": "get_account_context",
+      "descriptionHash": "d0e3fbfeadb66da1455856783406bacc90d520128f11fcf846f7103723f080bd",
+      "description": "Account, user, memberships[]. Pass workspace on writes when memberships.length > 1."
+    },
+    {
+      "name": "add_custom_domain",
+      "descriptionHash": "dbd3372559f54fddf893b1d84a985014f79a93e15015d581890f97c86baf04f3",
+      "description": "Connect apex and/or www on a paid plan; starts a DNS connect session."
+    },
+    {
+      "name": "get_custom_domain_connect",
+      "descriptionHash": "0636b4108be739e847de6aec9faa3a0181504ce8f37a81560273c1ecaf1b3762",
+      "description": "Current connect session and nextAction (browser URL or manual DNS guide).",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "reapply_custom_domain_oauth",
+      "descriptionHash": "b52c2b7ee411e92d9c848ebcf161e21949e1a45f4dbee250cdc7668eba0d6099",
+      "description": "Re-apply DNS with stored Cloudflare OAuth grant (no browser)."
+    },
+    {
+      "name": "refresh_custom_domain",
+      "descriptionHash": "0ffa926d9bbf94ce34dcc2afee8d6f4dc5647a7895b81af8ec67013eac774595",
+      "description": "Poll one hostname until DNS/cert propagates."
+    },
+    {
+      "name": "wait_for_custom_domain",
+      "descriptionHash": "7d81a3d50dad7fde44009836ad2e0a5a2dd7fbd181e931707d49980fd9c304d3",
+      "description": "Poll one hostname until it is connected or the timeout is reached."
+    },
+    {
+      "name": "set_primary_custom_domain",
+      "descriptionHash": "36068d36f395d58e22d07e97282289ffa25753ebd0d62f3d5d6b77df47a1a88f",
+      "description": "Set the canonical host (301 target) when multiple hostnames are connected."
+    },
+    {
+      "name": "list_custom_domains",
+      "descriptionHash": "9c293648e401c0b98078ee2adad8b04060800f61234687c017869e0007cd6468",
+      "description": "List all custom hostnames and connection status for the site."
+    },
+    {
+      "name": "remove_custom_domain",
+      "descriptionHash": "69707e949d9baa1ee2c4de9a4f98c3b42b8b0afe25cd81e64dc37a497128bc33",
+      "description": "Remove one custom hostname from the site.",
+      "labels": [
+        "destructive"
+      ]
+    },
+    {
+      "name": "list_form_submissions",
+      "descriptionHash": "2820f07c227cd6d835ed13a67f35c939677e9e7a4e8caf5e7171eff66dba800b",
+      "description": "List form submissions (metadata + bounded field preview — not full PII). Works on kv and do-sqlite backends."
+    },
+    {
+      "name": "get_form_submission",
+      "descriptionHash": "fab60ac59358512070ce56a06ede7e12d6b035dfd6508b0a8764cdc2857019ee",
+      "description": "Read one form submission with the full field payload (explicit PII access — use only when needed)."
+    },
+    {
+      "name": "list_my_sites",
+      "descriptionHash": "9549651ea4391acea575104e30f7f025f4d5dc5380b64ea504cc1abf601e5170",
+      "description": "List your Dotsy sites. Renders a site-picker for humans; agent reads structuredContent. Use to choose a site — not for editing content (use edit_page) or verify-only checks (use preview_page). Defaults to your active workspace; pass workspace (org id or slug from get_account_context memberships) to "
+    },
+    {
+      "name": "list_pages",
+      "descriptionHash": "c3997a5b77e298d64622e3e352bd0745890bba0339ec990e2415fd8329ed56b4",
+      "description": "List pages on a site — route settings (path/title/navLabel/purpose) by default, one row per route. Renders a page-picker for humans (redirect and worker routes left out there — nothing to open in edit_page); agent reads structuredContent. Use after picking a site — not for editing (use edit_page) or"
+    },
+    {
+      "name": "edit_page",
+      "descriptionHash": "378ae077b917e479ae3ad356c870c5966eac931240ebf45152a3110e3f7a5a57",
+      "description": "Open the interactive page canvas to change content: the user clicks an element, then you call patch_content. Use when the intent is editing — not for verify-only checks (use preview_page)."
+    },
+    {
+      "name": "get_site_build_progress",
+      "descriptionHash": "36cb185e6e9aa2e282e249ece2354a356201823d434e58bea7a96651b0390543",
+      "description": "Read-only build progress for humans (build-theater view) during structure/adapt or after import. Agent reads structuredContent.forHumans — optional; do not call in a loop during import_site_from_url (that tool blocks until done). Prefer get_site for agent logic."
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-SCHEMA-SMELL-001",
+      "severity": "medium",
+      "category": "schema-smell",
+      "title": "Read-only tool requests dangerous parameters",
+      "detail": "Tool \"create_site\" appears informational but accepts parameters (context) that enable code/file/secret access.",
+      "evidence": {
+        "source": "tool:create_site",
+        "snippet": "slug, title, keyConvention, purpose, onSlugTaken, editingMode, workspace, context, guestToken"
+      },
+      "confidence": 0.55
+    },
+    {
+      "id": "MCP-SCHEMA-SMELL-001",
+      "severity": "medium",
+      "category": "schema-smell",
+      "title": "Read-only tool requests dangerous parameters",
+      "detail": "Tool \"get_analytics\" appears informational but accepts parameters (context) that enable code/file/secret access.",
+      "evidence": {
+        "source": "tool:get_analytics",
+        "snippet": "site, range, include, bot, context, guestToken"
+      },
+      "confidence": 0.55
+    },
+    {
+      "id": "MCP-SCHEMA-SMELL-001",
+      "severity": "medium",
+      "category": "schema-smell",
+      "title": "Read-only tool requests dangerous parameters",
+      "detail": "Tool \"get_draft_status\" appears informational but accepts parameters (context) that enable code/file/secret access.",
+      "evidence": {
+        "source": "tool:get_draft_status",
+        "snippet": "site, context, guestToken"
+      },
+      "confidence": 0.55
+    },
+    {
+      "id": "MCP-TOOL-POISON-006",
+      "severity": "low",
+      "category": "tool-poisoning",
+      "title": "Anomalously long tool description",
+      "detail": "Description of \"graduate_site\" is 945 chars, far longer than this server's median (127). Overlong descriptions are a common place to bury instructions.",
+      "evidence": {
+        "source": "tool:graduate_site",
+        "snippet": "Enable site search & collections (kv → do-sqlite), one-way. Unlocks search_content, collection indexes, visitor /__paige/search, and moves any R2 form-submissio…"
+      },
+      "confidence": 0.4
+    },
+    {
+      "id": "MCP-TOOL-POISON-007",
+      "severity": "low",
+      "category": "tool-poisoning",
+      "title": "Description uses pressure/override language",
+      "detail": "Description of \"graduate_site\" stacks urgency/override words (never, override). Legitimate tool descriptions rarely pressure the model to act or ignore prior guidance.",
+      "evidence": {
+        "source": "tool:graduate_site",
+        "snippet": "Enable site search & collections (kv → do-sqlite), one-way. Unlocks search_content, collection indexes, visitor /__paige/search, and moves any R2 form-submissio…"
+      },
+      "confidence": 0.3
+    },
+    {
+      "id": "MCP-SCHEMA-SMELL-001",
+      "severity": "medium",
+      "category": "schema-smell",
+      "title": "Read-only tool requests dangerous parameters",
+      "detail": "Tool \"graduate_site\" appears informational but accepts parameters (context) that enable code/file/secret access.",
+      "evidence": {
+        "source": "tool:graduate_site",
+        "snippet": "site, strictDrafts, force, context, guestToken"
+      },
+      "confidence": 0.55
+    },
+    {
+      "id": "MCP-SCHEMA-SMELL-001",
+      "severity": "medium",
+      "category": "schema-smell",
+      "title": "Read-only tool requests dangerous parameters",
+      "detail": "Tool \"adapt_site_analyze\" appears informational but accepts parameters (context) that enable code/file/secret access.",
+      "evidence": {
+        "source": "tool:adapt_site_analyze",
+        "snippet": "site, full, adapters, options, refreshProposal, context, guestToken"
+      },
+      "confidence": 0.55
+    },
+    {
+      "id": "MCP-SCHEMA-SMELL-001",
+      "severity": "medium",
+      "category": "schema-smell",
+      "title": "Read-only tool requests dangerous parameters",
+      "detail": "Tool \"get_adapt_status\" appears informational but accepts parameters (context) that enable code/file/secret access.",
+      "evidence": {
+        "source": "tool:get_adapt_status",
+        "snippet": "site, context, guestToken"
+      },
+      "confidence": 0.55
+    },
+    {
+      "id": "MCP-SCHEMA-SMELL-001",
+      "severity": "medium",
+      "category": "schema-smell",
+      "title": "Read-only tool requests dangerous parameters",
+      "detail": "Tool \"list_content\" appears informational but accepts parameters (context) that enable code/file/secret access.",
+      "evidence": {
+        "source": "tool:list_content",
+        "snippet": "site, limit, cursor, withSize, context, guestToken"
+      },
+      "confidence": 0.55
+    },
+    {
+      "id": "MCP-SCHEMA-SMELL-001",
+      "severity": "medium",
+      "category": "schema-smell",
+      "title": "Read-only tool requests dangerous parameters",
+      "detail": "Tool \"get_content\" appears informational but accepts parameters (context) that enable code/file/secret access.",
+      "evidence": {
+        "source": "tool:get_content",
+        "snippet": "site, key, selector, published, context, guestToken"
+      },
+      "confidence": 0.55
+    },
+    {
+      "id": "MCP-TOOL-POISON-007",
+      "severity": "low",
+      "category": "tool-poisoning",
+      "title": "Description uses pressure/override language",
+      "detail": "Description of \"put_post\" stacks urgency/override words (always, override). Legitimate tool descriptions rarely pressure the model to act or ignore prior guidance.",
+      "evidence": {
+        "source": "tool:put_post",
+        "snippet": "Stage a blog post via structured meta+body (?format=post). Key e.g. blog/my-post.html. Declared membership: meta.collections; schedule: meta.visibleAt; SEO titl…"
+      },
+      "confidence": 0.3
+    },
+    {
+      "id": "MCP-TOOL-POISON-006",
+      "severity": "low",
+      "category": "tool-poisoning",
+      "title": "Anomalously long tool description",
+      "detail": "Description of \"inspect_collection\" is 692 chars, far longer than this server's median (127). Overlong descriptions are a common place to bury instructions.",
+      "evidence": {
+        "source": "tool:inspect_collection",
+        "snippet": "Collection state — count, server.mode, sample entries, tag (membershipKind, match=) when discovered; plus name, noun, URL pattern, layout, where it's listed, an…"
+      },
+      "confidence": 0.4
+    },
+    {
+      "id": "MCP-SCHEMA-SMELL-001",
+      "severity": "medium",
+      "category": "schema-smell",
+      "title": "Read-only tool requests dangerous parameters",
+      "detail": "Tool \"inspect_collection\" appears informational but accepts parameters (context) that enable code/file/secret access.",
+      "evidence": {
+        "source": "tool:inspect_collection",
+        "snippet": "site, prefix, status, q, cursor, limit, context, guestToken"
+      },
+      "confidence": 0.55
+    },
+    {
+      "id": "MCP-SCHEMA-SMELL-001",
+      "severity": "medium",
+      "category": "schema-smell",
+      "title": "Read-only tool requests dangerous parameters",
+      "detail": "Tool \"new_post_template\" appears informational but accepts parameters (context) that enable code/file/secret access.",
+      "evidence": {
+        "source": "tool:new_post_template",
+        "snippet": "site, collection, templateKey, mode, context, guestToken"
+      },
+      "confidence": 0.55
+    },
+    {
+      "id": "MCP-SCHEMA-SMELL-001",
+      "severity": "medium",
+      "category": "schema-smell",
+      "title": "Read-only tool requests dangerous parameters",
+      "detail": "Tool \"preflight_site\" appears informational but accepts parameters (context) that enable code/file/secret access.",
+      "evidence": {
+        "source": "tool:preflight_site",
+        "snippet": "site, requiredRoutes, requiredAssets, context, guestToken"
+      },
+      "confidence": 0.55
+    },
+    {
+      "id": "MCP-SCHEMA-SMELL-001",
+      "severity": "medium",
+      "category": "schema-smell",
+      "title": "Read-only tool requests dangerous parameters",
+      "detail": "Tool \"get_site_outline\" appears informational but accepts parameters (context) that enable code/file/secret access.",
+      "evidence": {
+        "source": "tool:get_site_outline",
+        "snippet": "site, context, guestToken"
+      },
+      "confidence": 0.55
+    },
+    {
+      "id": "MCP-SCHEMA-SMELL-001",
+      "severity": "medium",
+      "category": "schema-smell",
+      "title": "Read-only tool requests dangerous parameters",
+      "detail": "Tool \"get_route\" appears informational but accepts parameters (context) that enable code/file/secret access.",
+      "evidence": {
+        "source": "tool:get_route",
+        "snippet": "site, path, context, guestToken"
+      },
+      "confidence": 0.55
+    },
+    {
+      "id": "MCP-TOOL-POISON-006",
+      "severity": "low",
+      "category": "tool-poisoning",
+      "title": "Anomalously long tool description",
+      "detail": "Description of \"rename_page\" is 895 chars, far longer than this server's median (127). Overlong descriptions are a common place to bury instructions.",
+      "evidence": {
+        "source": "tool:rename_page",
+        "snippet": "Change a page's URL: moves its route from `from` to `to`. Menu links and other redirects that pointed at the old path retarget automatically; a 301 is left at t…"
+      },
+      "confidence": 0.4
+    },
+    {
+      "id": "MCP-SCHEMA-SMELL-001",
+      "severity": "medium",
+      "category": "schema-smell",
+      "title": "Read-only tool requests dangerous parameters",
+      "detail": "Tool \"list_goals\" appears informational but accepts parameters (context) that enable code/file/secret access.",
+      "evidence": {
+        "source": "tool:list_goals",
+        "snippet": "site, context, guestToken"
+      },
+      "confidence": 0.55
+    },
+    {
+      "id": "MCP-SCHEMA-SMELL-001",
+      "severity": "medium",
+      "category": "schema-smell",
+      "title": "Read-only tool requests dangerous parameters",
+      "detail": "Tool \"estimate_test\" appears informational but accepts parameters (context) that enable code/file/secret access.",
+      "evidence": {
+        "source": "tool:estimate_test",
+        "snippet": "site, path, context, guestToken"
+      },
+      "confidence": 0.55
+    },
+    {
+      "id": "MCP-SCHEMA-SMELL-001",
+      "severity": "medium",
+      "category": "schema-smell",
+      "title": "Read-only tool requests dangerous parameters",
+      "detail": "Tool \"get_menu\" appears informational but accepts parameters (context) that enable code/file/secret access.",
+      "evidence": {
+        "source": "tool:get_menu",
+        "snippet": "site, menu, context, guestToken"
+      },
+      "confidence": 0.55
+    },
+    {
+      "id": "MCP-SCHEMA-SMELL-001",
+      "severity": "medium",
+      "category": "schema-smell",
+      "title": "Read-only tool requests dangerous parameters",
+      "detail": "Tool \"get_menu_doc\" appears informational but accepts parameters (context) that enable code/file/secret access.",
+      "evidence": {
+        "source": "tool:get_menu_doc",
+        "snippet": "site, source, context, guestToken"
+      },
+      "confidence": 0.55
+    },
+    {
+      "id": "MCP-SCHEMA-SMELL-001",
+      "severity": "medium",
+      "category": "schema-smell",
+      "title": "Read-only tool requests dangerous parameters",
+      "detail": "Tool \"get_asset\" appears informational but accepts parameters (context) that enable code/file/secret access.",
+      "evidence": {
+        "source": "tool:get_asset",
+        "snippet": "site, key, context, guestToken"
+      },
+      "confidence": 0.55
+    },
+    {
+      "id": "MCP-SCHEMA-SMELL-001",
+      "severity": "medium",
+      "category": "schema-smell",
+      "title": "Read-only tool requests dangerous parameters",
+      "detail": "Tool \"get_skill\" appears informational but accepts parameters (context) that enable code/file/secret access.",
+      "evidence": {
+        "source": "tool:get_skill",
+        "snippet": "id, context"
+      },
+      "confidence": 0.55
+    },
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"get_activity\" references sensitive artifacts (secret). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:get_activity",
+        "snippet": "List site activity or fetch one change diff (pass id). Filters: who, state, actor (me), since, limit≤20. Notes from context are visible to everyone on the site …"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-SCHEMA-SMELL-001",
+      "severity": "medium",
+      "category": "schema-smell",
+      "title": "Read-only tool requests dangerous parameters",
+      "detail": "Tool \"get_activity\" appears informational but accepts parameters (context) that enable code/file/secret access.",
+      "evidence": {
+        "source": "tool:get_activity",
+        "snippet": "slug, who, state, actor, since, limit, id, key, context, guestToken"
+      },
+      "confidence": 0.55
+    },
+    {
+      "id": "MCP-SCHEMA-SMELL-001",
+      "severity": "medium",
+      "category": "schema-smell",
+      "title": "Read-only tool requests dangerous parameters",
+      "detail": "Tool \"list_custom_domains\" appears informational but accepts parameters (context) that enable code/file/secret access.",
+      "evidence": {
+        "source": "tool:list_custom_domains",
+        "snippet": "site, context, guestToken"
+      },
+      "confidence": 0.55
+    },
+    {
+      "id": "MCP-SCHEMA-SMELL-001",
+      "severity": "medium",
+      "category": "schema-smell",
+      "title": "Read-only tool requests dangerous parameters",
+      "detail": "Tool \"list_form_submissions\" appears informational but accepts parameters (context) that enable code/file/secret access.",
+      "evidence": {
+        "source": "tool:list_form_submissions",
+        "snippet": "site, form, limit, cursor, fromMs, toMs, q, context, guestToken"
+      },
+      "confidence": 0.55
+    },
+    {
+      "id": "MCP-SCHEMA-SMELL-001",
+      "severity": "medium",
+      "category": "schema-smell",
+      "title": "Read-only tool requests dangerous parameters",
+      "detail": "Tool \"get_form_submission\" appears informational but accepts parameters (context) that enable code/file/secret access.",
+      "evidence": {
+        "source": "tool:get_form_submission",
+        "snippet": "site, id, context, guestToken"
+      },
+      "confidence": 0.55
+    },
+    {
+      "id": "MCP-TOOL-POISON-006",
+      "severity": "low",
+      "category": "tool-poisoning",
+      "title": "Anomalously long tool description",
+      "detail": "Description of \"list_pages\" is 679 chars, far longer than this server's median (127). Overlong descriptions are a common place to bury instructions.",
+      "evidence": {
+        "source": "tool:list_pages",
+        "snippet": "List pages on a site — route settings (path/title/navLabel/purpose) by default, one row per route. Renders a page-picker for humans (redirect and worker routes …"
+      },
+      "confidence": 0.4
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: adapt_site_analyze, list_content, list_collections, new_post_template, preview_page, start_edit_session, get_menu_doc, get_custom_domain_connect · Private data: get_site_manifest, get_adapt_status, set_experiment_note, list_assets, get_asset, bulk_put_assets, get_activity · Public sink: publish_site, put_post, inspect_collection, update_collection, new_post_template, reindex_collection, verify_page, delete_draft_test, get_menu_doc, list_assets, get_asset, bulk_put_assets, delete_asset, submit_feedback · Destructive: rename_site, delete_site, get_structure_status, delete_content, put_post, delete_route, delete_draft_test, put_menu_item, delete_menu_item, delete_asset, remove_custom_domain.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: adapt_site_analyze, list_content, list_collections, new_post_template, preview_page, start_edit_session, get_menu_doc, get_custom_domain_connect · Private data: get_site_manifest, get_adapt_status, set_experiment_note, list_assets, get_asset, bulk_put_assets, get_activity · Public sink: publish_site, put_post, inspect_collection, update_collection, new_post_template, reindex_collection, verify_page, delete_draft_test, get_menu_doc, list_assets, get_asset, bulk_put_assets, delete_asset, submit_feedback · Destructive: rename_site, delete_site, get_structure_status, delete_content, put_post, delete_route, delete_draft_test, put_menu_item, delete_menu_item, delete_asset, remove_custom_domain"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 32,
+  "scoreBreakdown": {
+    "schema-smell": 25,
+    "tool-poisoning": 23,
+    "toxic-flow": 20
+  },
+  "errors": []
+}

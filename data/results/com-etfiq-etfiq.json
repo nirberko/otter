@@ -8,8 +8,8 @@
     "kind": "url",
     "ref": "https://mcp.etfiq.com"
   },
-  "scannedAt": "2026-09-23T09:31:50.486Z",
-  "durationMs": 218,
+  "scannedAt": "2026-10-08T11:35:59.312Z",
+  "durationMs": 343,
   "layers": {
     "metadata": true,
     "static": false
@@ -17,8 +17,11 @@
   "tools": [
     {
       "name": "etf_search",
-      "descriptionHash": "dfe7c2c40c95fd1bfda9b5952c6abb9210fa7dc8c11fd0cd4c0ab08e66f9ff2f",
-      "description": "Find US listed ETFs by ticker, fund name, or a word from the name. Use this FIRST when the user names a fund loosely, then etf_profile with the ticker it returns. Refuses rather than returning a near match."
+      "descriptionHash": "a386481f11ef9e20c71d45e48a0838417f2cff4895cf8a265062c454b4563cab",
+      "description": "Find US listed ETFs by ticker, fund name, or a word from the name. Use this FIRST when the user names a fund loosely, then etf_profile with the ticker it returns. Refuses rather than returning a near match: a refusal says why, and for a fund it means ETFIQ does not publish it.",
+      "labels": [
+        "public-sink"
+      ]
     },
     {
       "name": "etf_profile",
@@ -78,17 +81,115 @@
     },
     {
       "name": "etf_holders",
-      "descriptionHash": "addc66e2e3f3be5562367a8f0f7edd789238de80dc77c7cfbba1a18f1aac03e2",
-      "description": "Which US listed ETFs hold a given company, ranked by how much of each fund it is. USE THIS for any \"which ETFs hold X\", \"which fund holds the most X\", or \"how do I get exposure to X\" question, where X is a company rather than a fund. Takes a company name or its ticker. Returns every holder with the "
+      "descriptionHash": "0e0a70d5988ec2cb73a37ea135cf5e6766597e373a541a8061bedec072beae3b",
+      "description": "Which US listed ETFs hold a given company, ranked by how much of each fund it is. USE THIS for any \"which ETFs hold X\", \"which fund holds the most X\", or \"how do I get exposure to X\" question, where X is a company rather than a fund, and for \"which bond ETFs hold X's debt\". Takes a company name or i"
     },
     {
       "name": "etf_rankings",
       "descriptionHash": "f7ac8e84409d593d84ea4653f7ecf3293296ac8116eb5c766eba5371c9560632",
       "description": "The ranked lists ETFIQ publishes, or one of them. Each ranks ONE published figure inside a stated set: the cheapest funds in a theme, the leveraged funds furthest from their stated multiple, the buffer funds closest to their cap. Call with no argument for the list."
+    },
+    {
+      "name": "list_benchmarks",
+      "descriptionHash": "0e1fb8d9cb92cb41e4c766365445e1549202fbe7db5e97fcf37f75d4063ca6e0",
+      "description": "The ETFIQ benchmarks: published, rules-based yardsticks for model portfolios, each a written rule over broad, low-cost ETFs, grouped in families (strategic, tax-aware, factor, income, tactical, thematic) by stock share. Filter by family, or by band (a name such as moderate, a stock share such as 60,",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "get_benchmark",
+      "descriptionHash": "9146a1871f49cfee927cc7361ca8baba8ecbc2c1a0bce7b266a2a813e6a8a511",
+      "description": "One ETFIQ benchmark in full: its rule as the methodology states it, the funds and weights in force (with SEC series ids and each fund's expense ratio and its date), and every statistic ETFIQ computes for it by window (total return, return a year, volatility, maximum drawdown, Sharpe ratio, turnover,"
+    },
+    {
+      "name": "compare_to_benchmark",
+      "descriptionHash": "17a19afea302c04e2ef84e1350699d371d75b643e2d227206acfc0f7991ef632",
+      "description": "How an allocation ETF did against the ETFIQ benchmark for its band (set by the fund's look-through stock share), over the same dates: total returns by window and the difference, risk and cost, as ETFIQ published them for that fund. Takes a ticker such as AOR. Refuses, and estimates nothing, when ETF",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "build_portfolio",
+      "descriptionHash": "b6923884ed313709342b0b58041e38f184ad243b7482c884fc19f68715363a56",
+      "description": "Builds a custom portfolio of US listed ETFs from construction choices about the PORTFOLIO and shows the rule it applied (ETFIQ custom construction rule, version 1): stocks at the chosen band's point, international stocks 40% of the stocks outside themes, themes 10% of stocks in equal parts, commodit",
+      "labels": [
+        "private-data",
+        "public-sink"
+      ]
     }
   ],
-  "findings": [],
-  "score": 100,
-  "scoreBreakdown": {},
+  "findings": [
+    {
+      "id": "MCP-TOOL-POISON-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description issues instructions to the model",
+      "detail": "Description of \"build_portfolio\" contains imperative instructions directed at the AI assistant rather than describing the tool. This is the core tool-poisoning technique.",
+      "evidence": {
+        "source": "tool:build_portfolio",
+        "snippet": "Builds a custom portfolio of US listed ETFs from construction choices about the PORTFOLIO and shows the rule it applied (ETFIQ custom construction rule, version…"
+      },
+      "confidence": 0.7,
+      "remediation": "Treat the server as untrusted; the model may obey embedded instructions."
+    },
+    {
+      "id": "MCP-TOOL-POISON-006",
+      "severity": "low",
+      "category": "tool-poisoning",
+      "title": "Anomalously long tool description",
+      "detail": "Description of \"build_portfolio\" is 1617 chars, far longer than this server's median (300). Overlong descriptions are a common place to bury instructions.",
+      "evidence": {
+        "source": "tool:build_portfolio",
+        "snippet": "Builds a custom portfolio of US listed ETFs from construction choices about the PORTFOLIO and shows the rule it applied (ETFIQ custom construction rule, version…"
+      },
+      "confidence": 0.4
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp.etfiq.com\" exposes tools that together enable an exfiltration flow. Untrusted content: etfiq_page · Private data: etf_holdings, build_portfolio · Public sink: etf_search, list_benchmarks, compare_to_benchmark, build_portfolio.",
+      "evidence": {
+        "source": "server:mcp.etfiq.com",
+        "snippet": "Untrusted content: etfiq_page · Private data: etf_holdings, build_portfolio · Public sink: etf_search, list_benchmarks, compare_to_benchmark, build_portfolio"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"etf_search\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:etf_search",
+        "snippet": "before: \"Find US listed ETFs by ticker, fund name, or a word from the name. Use this FIRST when the user names a fund loosely, then etf_profile with the ticker it returns. Refuses rather than returning a near match.\" → after: \"Find US listed ETFs by ticker, fund name, or a word from the name. Use this FIRST when the user names a fund loosely, then etf_profile with the ticker it returns. Refuses rather than returning a near match: a refusal says why, and for a fund it means ETFIQ does not publish it.\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"etf_holders\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:etf_holders",
+        "snippet": "before: \"Which US listed ETFs hold a given company, ranked by how much of each fund it is. USE THIS for any \"which ETFs hold X\", \"which fund holds the most X\", or \"how do I get exposure to X\" question, where X is a company rather than a fund. Takes a company name or its ticker. Returns every holder with the \" → after: \"Which US listed ETFs hold a given company, ranked by how much of each fund it is. USE THIS for any \"which ETFs hold X\", \"which fund holds the most X\", or \"how do I get exposure to X\" question, where X is a company rather than a fund, and for \"which bond ETFs hold X's debt\". Takes a company name or i\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    }
+  ],
+  "score": 45,
+  "scoreBreakdown": {
+    "tool-poisoning": 35,
+    "toxic-flow": 20
+  },
   "errors": []
 }

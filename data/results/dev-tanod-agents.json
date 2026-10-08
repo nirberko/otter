@@ -1,0 +1,96 @@
+{
+  "schemaVersion": 1,
+  "scanner": {
+    "version": "1.6.0",
+    "rules": "402995650b68"
+  },
+  "target": {
+    "kind": "url",
+    "ref": "https://tanod.dev/mcp/agents"
+  },
+  "scannedAt": "2026-10-08T11:36:35.458Z",
+  "durationMs": 2276,
+  "layers": {
+    "metadata": true,
+    "static": false
+  },
+  "tools": [
+    {
+      "name": "query_agent_index",
+      "descriptionHash": "1eb36a032f7b83f202e200f400682e1178ee4b5cb480bca4b425fb585b58c89a",
+      "description": "agentscan: query a daily cross-registry index of x402 endpoints and MCP servers. Input: optional `source`, `category`, `network`, `min_price_usd`, `max_price_usd`, `q` (name/url substring), `page` and `page_size` (<= 100). Returns current-snapshot records (source, id, name, url, category, price_usd,",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "get_endpoint_history",
+      "descriptionHash": "b9b027b6864b0b8983fbc1886cc37b2745efd2e93a8d864243be632b8072f1d0",
+      "description": "agentscan: presence and price history of ONE indexed record. Input: `source` and `id`, or `url`. Returns the record plus its dated presence rows and the points where its price changed over time. Typically 0.1-2 s. Price: USD 0.05. Free: 5 history lookups per IP per UTC day. Records not in the index ",
+      "labels": [
+        "untrusted-content",
+        "private-data"
+      ]
+    },
+    {
+      "name": "export_agent_index",
+      "descriptionHash": "337c9ed5215544ac11ccda2f265585635efff4a588b3f13fd0828037a7d0e6ce",
+      "description": "agentscan: export a filtered slice of the index. Input: optional `source`, `category`, `network`, `format` (json | csv) and `limit` (<= 5,000). Returns the matching current-snapshot records. Typically 0.2-3 s. Price: USD 0.25; no free tier. Data is aggregated public-registry data, not an endorsement",
+      "labels": [
+        "private-data",
+        "destructive"
+      ]
+    },
+    {
+      "name": "bulk_agent_index",
+      "descriptionHash": "53b9e6c645a50d20007bbdc857ca9b1687b3b514f422b29f5eb783eaff39329b",
+      "description": "agentscan: download the full current snapshot of the index (all sources, per-source row cap, gzipped). Input: optional `source` to restrict to one source. Returns every current-snapshot record. Typically 1-5 s. Price: USD 2; no free tier, and a per-IP daily cap. Data is aggregated public-registry da",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "scan_agent_package",
+      "descriptionHash": "0c0ab28359a4934868c9c5578dfd8d3b48be42e9796ab646766fcf7a057f188a",
+      "description": "toolsniff: static security scan of an AI-agent skill (SKILL.md bundle) or MCP server package. Call this before installing or enabling one. Input: `source` (npm:name[@version] | pypi:name[==version] | github:owner/repo[@ref][//subdir] | https://github.com/owner/repo[/tree/ref/dir] | clawhub:[owner/]s",
+      "labels": [
+        "private-data",
+        "public-sink",
+        "destructive"
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"scan_agent_package\" references sensitive artifacts (ssh key, .env, credentials). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:scan_agent_package",
+        "snippet": "toolsniff: static security scan of an AI-agent skill (SKILL.md bundle) or MCP server package. Call this before installing or enabling one. Input: `source` (npm:…"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"agents\" exposes tools that together enable an exfiltration flow. Untrusted content: get_endpoint_history · Private data: query_agent_index, get_endpoint_history, export_agent_index, bulk_agent_index, scan_agent_package · Public sink: scan_agent_package · Destructive: export_agent_index, scan_agent_package.",
+      "evidence": {
+        "source": "server:agents",
+        "snippet": "Untrusted content: get_endpoint_history · Private data: query_agent_index, get_endpoint_history, export_agent_index, bulk_agent_index, scan_agent_package · Public sink: scan_agent_package · Destructive: export_agent_index, scan_agent_package"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 60,
+  "scoreBreakdown": {
+    "tool-poisoning": 20,
+    "toxic-flow": 20
+  },
+  "errors": []
+}

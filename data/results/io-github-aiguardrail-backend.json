@@ -6,10 +6,10 @@
   },
   "target": {
     "kind": "url",
-    "ref": "https://backendai-x4m1.onrender.com/mcp-http/mcp"
+    "ref": "https://api.collarguardrail.com/mcp-http/mcp"
   },
-  "scannedAt": "2026-09-17T09:35:01.689Z",
-  "durationMs": 1620,
+  "scannedAt": "2026-10-08T11:38:26.274Z",
+  "durationMs": 1565,
   "layers": {
     "metadata": true,
     "static": false
@@ -17,8 +17,13 @@
   "tools": [
     {
       "name": "evaluate_trade",
-      "descriptionHash": "6cdd3c62368ee872b0a1bcd258b54fc78a4ac5e465b80cb91190c70e7026d935",
-      "description": "Pre-trade risk check for a proposed trade. Call this BEFORE executing\nany trade and treat a \"deny\" decision as a hard stop.\n\nEvaluated at a fixed Tier 1 ceiling ($5,000 notional) — MCP callers do\nnot get COLR tier gating. For higher tiers, use the REST API with\nwallet-signature authentication.",
+      "descriptionHash": "18eca39ceffccd9121a3a82d43e7e8fe12c1e43dcdf0dd973517ce2e66eb8d9e",
+      "description": "Pre-trade risk check for a proposed trade. Call this BEFORE executing\nany trade and treat a \"deny\" decision as a hard stop.\n\nEvaluated at a fixed Tier 1 ceiling ($5,000 notional). For higher\nlimits, use `evaluate_trade_paid` (Tier 2, $25,000) which settles an\nx402 payment on-chain."
+    },
+    {
+      "name": "evaluate_trade_paid",
+      "descriptionHash": "91b1d2f8abbe012186dced1719a3b09e5f4049248fb66c1099d33aa882f60c20",
+      "description": "Pre-trade risk check gated by an x402 payment. Evaluated as COLR\nTier 2: $25,000 notional ceiling, 10/25 per-minute rate limits.\nNo COLR holdings are required — the on-chain payment is the\ncredential.\n\nFLOW\n----\n1. Call WITHOUT payment_proof → the tool returns a\n   `PaymentRequiredOutput` describing",
       "labels": [
         "private-data"
       ]
@@ -53,8 +58,36 @@
       ]
     }
   ],
-  "findings": [],
-  "score": 100,
-  "scoreBreakdown": {},
+  "findings": [
+    {
+      "id": "MCP-TOOL-POISON-006",
+      "severity": "low",
+      "category": "tool-poisoning",
+      "title": "Anomalously long tool description",
+      "detail": "Description of \"evaluate_trade_paid\" is 644 chars, far longer than this server's median (120). Overlong descriptions are a common place to bury instructions.",
+      "evidence": {
+        "source": "tool:evaluate_trade_paid",
+        "snippet": "Pre-trade risk check gated by an x402 payment. Evaluated as COLR Tier 2: $25,000 notional ceiling, 10/25 per-minute rate limits. No COLR holdings are required —…"
+      },
+      "confidence": 0.4
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"evaluate_trade\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:evaluate_trade",
+        "snippet": "before: \"Pre-trade risk check for a proposed trade. Call this BEFORE executing\nany trade and treat a \"deny\" decision as a hard stop.\n\nEvaluated at a fixed Tier 1 ceiling ($5,000 notional) — MCP callers do\nnot get COLR tier gating. For higher tiers, use the REST API with\nwallet-signature authentication.\" → after: \"Pre-trade risk check for a proposed trade. Call this BEFORE executing\nany trade and treat a \"deny\" decision as a hard stop.\n\nEvaluated at a fixed Tier 1 ceiling ($5,000 notional). For higher\nlimits, use `evaluate_trade_paid` (Tier 2, $25,000) which settles an\nx402 payment on-chain.\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    }
+  ],
+  "score": 79,
+  "scoreBreakdown": {
+    "tool-poisoning": 22
+  },
   "errors": []
 }

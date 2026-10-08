@@ -1,0 +1,109 @@
+{
+  "schemaVersion": 1,
+  "scanner": {
+    "version": "1.6.0",
+    "rules": "402995650b68"
+  },
+  "target": {
+    "kind": "url",
+    "ref": "https://pixever.app/mcp"
+  },
+  "scannedAt": "2026-10-08T11:34:40.750Z",
+  "durationMs": 1050,
+  "layers": {
+    "metadata": true,
+    "static": false
+  },
+  "tools": [
+    {
+      "name": "pixever_info",
+      "descriptionHash": "b3121dab09efc9c73acb71eb7678e553975db911d8e0aaf98acc1e20b8d7ae23",
+      "description": "Identidad y estado público de un Pixever: nombre (si está disclosed), privacidad, estado de ciclo de vida, y la vida free — `state` ('open'|'closed'), `open_until` (hasta cuándo sigue abierto a contenido nuevo) y `risk_counter_active` (true solo en los 7 días previos a un corte de extensión, fin de "
+    },
+    {
+      "name": "pixever_media_list",
+      "descriptionHash": "b82945f0499be5570b061813db73bae0bec0e2702df3d964c5d6dd1a6bcbba9e",
+      "description": "Lista paginada (cursor-based) de media visible del feed de un Pixever. Pixevers públicos no requieren `token`; cerrados/semi-privados sí (el x-guest-token de un invitado ya registrado). Usa `pageInfo.endCursor` de la respuesta como `after` para pedir la siguiente página. Solo lectura.",
+      "labels": [
+        "untrusted-content",
+        "private-data"
+      ]
+    },
+    {
+      "name": "pixever_upload_link",
+      "descriptionHash": "ca5a457a83449bc6c51ef0c4805aedf58747433be5762640f63af77f1d86a4ae",
+      "description": "Construye la URL pública de la puerta de subida (/p/:slug) de un Pixever, agregando el acceso del invitado como ?access= si se provee `token`. Si el espacio está cerrado (vida free agotada), no ofrece el enlace: devuelve `ok:false` con `code: FREE_LIFE_CLOSED` y un mensaje en positivo (sigue visible",
+      "labels": [
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "pixever_upload_media",
+      "descriptionHash": "c06b4d48df589f6dd52a1bccd5b66a480fd5fb119ef7d77a6cba934a8d658289",
+      "description": "ÚNICA tool de escritura: descarga una imagen pública desde `source_url` y la sube a `POST /api/v1/pixevers/:slug/media` a nombre del invitado dueño de `token` (x-guest-token, requerido — sin token no hay escritura). Solo imágenes (jpeg/png/webp/heic/heif, máx 20 MB); no video, no creación de Pixever",
+      "labels": [
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "pixever_react",
+      "descriptionHash": "800b0512e844f203ecf01a88ca4eef4b34b17562a78b3c3fd71838d37f7d3f37",
+      "description": "Reacciona a un media con un emoji del catálogo, o quita la reacción propia (`remove:true`). Requiere `token` (x-guest-token) — sin identidad de invitado no hay reacción. `emoji` es requerido salvo con `remove:true` (uno de ❤️ 😂 😮 😢 🔥 👏). Con `remove:true` se ignora `emoji` y se usa DELETE. Erro",
+      "labels": [
+        "private-data",
+        "destructive"
+      ]
+    },
+    {
+      "name": "pixever_star",
+      "descriptionHash": "fc88294103248762cea40b978eea45ebfd15321258c455e5a4c1ab2c12608ef0",
+      "description": "Pone o quita la estrella de un media — funciona como un 'like': el toggle la pone si no estaba, o la quita si ya estaba. Requiere `token` (x-guest-token) — sin identidad de invitado no hay estrella. Devuelve `starred` (estado después del toggle) y `count` (total de estrellas del media). Errores real",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "pixever_interactions",
+      "descriptionHash": "dfbbf821d5d1ebaca9b4e04082f47d63e30ad9d5dd6327d07274cfea7c0f27c8",
+      "description": "Agregado de interacciones de un media: `star` (count, recent_actors, starred_by_me), `reactions` (chips con conteos, recent_actors) y `views` (count). `token` es opcional en espacios públicos; en closed/semi_private se requiere identidad (x-guest-token) o un x-view-secret válido ya resuelto por el h",
+      "labels": [
+        "private-data"
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"pixever_interactions\" references sensitive artifacts (secret). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:pixever_interactions",
+        "snippet": "Agregado de interacciones de un media: `star` (count, recent_actors, starred_by_me), `reactions` (chips con conteos, recent_actors) y `views` (count). `token` e…"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: pixever_media_list · Private data: pixever_media_list, pixever_upload_link, pixever_upload_media, pixever_react, pixever_star, pixever_interactions · Public sink: pixever_upload_link, pixever_upload_media · Destructive: pixever_react.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: pixever_media_list · Private data: pixever_media_list, pixever_upload_link, pixever_upload_media, pixever_react, pixever_star, pixever_interactions · Public sink: pixever_upload_link, pixever_upload_media · Destructive: pixever_react"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 60,
+  "scoreBreakdown": {
+    "tool-poisoning": 20,
+    "toxic-flow": 20
+  },
+  "errors": []
+}

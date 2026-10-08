@@ -1,0 +1,95 @@
+{
+  "schemaVersion": 1,
+  "scanner": {
+    "version": "1.6.0",
+    "rules": "402995650b68"
+  },
+  "target": {
+    "kind": "url",
+    "ref": "https://heritagedeed.com/mcp/public"
+  },
+  "scannedAt": "2026-10-08T11:35:57.193Z",
+  "durationMs": 2861,
+  "layers": {
+    "metadata": true,
+    "static": false
+  },
+  "tools": [
+    {
+      "name": "list_coverage",
+      "descriptionHash": "1bb6903f559f01c92990818a46cae82bb9aebab389f095a38f91b6e7923bf2f4",
+      "description": "Where HeritageDeed can run a title search: states and counties (with the main cities), plus the\n    report price and what every report includes. Call this before ordering if you are unsure of the county.",
+      "labels": [
+        "destructive"
+      ]
+    },
+    {
+      "name": "check_coverage",
+      "descriptionHash": "e8c24ad00943af4532aa263547f93ef404660368d52b586b01d77c1844eda0cc",
+      "description": "Check whether a county (or a borough/city such as Brooklyn, Tampa, Houston) can be searched.\n    Returns the exact `state` and `county` values to pass to order_title_search."
+    },
+    {
+      "name": "check_address",
+      "descriptionHash": "4d1cf0dbe7cf5813c5cb8acb21874bce1c1f5a44ed5299331d87879f2088875d",
+      "description": "Check that an address matches a real parcel in the county's records BEFORE ordering (takes a\n    few seconds). status 'matched' = safe to order; 'not_found' = ask the user to correct the address;\n    'unavailable' = the county service is down right now (ordering still works, it retries).",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "order_title_search",
+      "descriptionHash": "fc4557a25f63daa3b755b6d50778ef9cb5e15939ce2cf439e983fa261c316011",
+      "description": "Order a title search report for a property. `address` is the street address (house number, street,\n    city, ZIP), `state` the two-letter code, `county` the county (or borough/city alias). Returns an order_id;\n    then poll get_order_status every ~20 seconds until status is 'complete' (usually 1 to ",
+      "labels": [
+        "untrusted-content",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "get_order_status",
+      "descriptionHash": "621b1c86108b20ed53216b5ceef62994488228b2787e71c9befe85cd10230abb",
+      "description": "Progress of an order: status ('pending', 'processing', 'complete', 'failed'), per-source progress, and\n    the error message if it failed. When complete, call get_report.",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "get_report",
+      "descriptionHash": "e262f0daf0d2c4088339879ccbd1a438078db43af6d65a814937576dc36a0a29",
+      "description": "The finished report as structured JSON: property and owner of record, risk score and summary, key\n    findings, chain-of-title counts, environmental and tax data, and the list of sources searched with their\n    status. Also returns the PDF link. Only works once get_order_status reports 'complete'.",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "get_sample_report",
+      "descriptionHash": "2c115c18b35f34bf17d1adab9f3a74324e75906ebc11ab8c80728b9a1750ac63",
+      "description": "A real finished report to look at before ordering: the Current Owner Search for 350 Fifth Avenue, New York\n    (Empire State Building), with its PDF."
+    },
+    {
+      "name": "get_terms",
+      "descriptionHash": "34959b82a7b4b749c132ca837477879ac8f3b5c49904c24ee5a84d20cfe79aab",
+      "description": "Terms, privacy, refund policy and the legal boundary of a report (what it is and is not)."
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"public\" exposes tools that together enable an exfiltration flow. Untrusted content: order_title_search, get_order_status · Private data: check_address, get_report · Public sink: order_title_search · Destructive: list_coverage.",
+      "evidence": {
+        "source": "server:public",
+        "snippet": "Untrusted content: order_title_search, get_order_status · Private data: check_address, get_report · Public sink: order_title_search · Destructive: list_coverage"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 80,
+  "scoreBreakdown": {
+    "toxic-flow": 20
+  },
+  "errors": []
+}

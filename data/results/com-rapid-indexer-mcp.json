@@ -1,0 +1,128 @@
+{
+  "schemaVersion": 1,
+  "scanner": {
+    "version": "1.6.0",
+    "rules": "402995650b68"
+  },
+  "target": {
+    "kind": "url",
+    "ref": "https://mcp.rapid-indexer.com/mcp"
+  },
+  "scannedAt": "2026-10-08T11:42:26.201Z",
+  "durationMs": 1970,
+  "layers": {
+    "metadata": true,
+    "static": false
+  },
+  "tools": [
+    {
+      "name": "get_account",
+      "descriptionHash": "c9bc4d7fc27c1247f96e3c037388e47599178ef3aa33b1e9ed0ffe3247891cc9",
+      "description": "Return the authenticated Rapid Indexer account (id, email, credits balance, created date). Use it to check credits before creating tasks.",
+      "labels": [
+        "untrusted-content",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "get_pricing",
+      "descriptionHash": "0b4991af78f2bc2568704fb16fb920c8864bf5c6c6c51e7944e140e1874993d8",
+      "description": "Return live credit costs: credits per URL for standard/VIP indexing and index checking, traffic price per 1,000 visitors, USD per credit, and whether VIP/traffic are currently enabled.",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "estimate_cost",
+      "descriptionHash": "03d307b3d364df4403e977429b9f1ab4b6fb1c960cc9d3b074413ad0cb50e160",
+      "description": "Estimate the credit and USD cost of an indexing or index-check task before submitting it, and whether the account balance covers it. Does not create anything."
+    },
+    {
+      "name": "submit_urls_for_indexing",
+      "descriptionHash": "8d12363d4d61cf44bbae37e33504040d6a079ddd0a81885e30371c04f8679a7b",
+      "description": "Create an indexing task: Rapid Indexer signals Googlebot to crawl each URL so Google discovers it fast. SPENDS CREDITS immediately (standard ~2 credits/URL, VIP ~10 credits/URL). Run estimate_cost first and confirm with the user for large batches. Standard queue starts within minutes; VIP starts imm",
+      "labels": [
+        "untrusted-content",
+        "public-sink",
+        "destructive"
+      ]
+    },
+    {
+      "name": "check_index_status",
+      "descriptionHash": "090a5f899728b99f2c2e75d0b34299b3cb153085bd32d39f67ab1f9dc2e13a94",
+      "description": "Create an index-check task that reports, per URL, whether Google currently has it in the index (indexed / unindexed). Cheap (~0.1 credit per URL) but still SPENDS CREDITS. Results arrive within a few minutes: poll get_task, then read get_task_links. Does not submit anything to Google; use submit_url",
+      "labels": [
+        "untrusted-content",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "list_tasks",
+      "descriptionHash": "27944244a71efd6910fd6fb15b95e2e6f556f26d6950a3c483d009809c1e9702",
+      "description": "List the account's tasks, newest first, with per-link counts (indexed / unindexed / pending / error). Filter by type or status. Use it to find task ids."
+    },
+    {
+      "name": "get_task",
+      "descriptionHash": "6b8a62df83607914af9708a39bc5a8e5dbd5032e8eb81fe1f87b148fe45d6467",
+      "description": "Fetch one task, refreshing its status from the provider first. Returns status (pending/processing/completed/failed) and progress counts. Poll this after creating a task."
+    },
+    {
+      "name": "get_task_links",
+      "descriptionHash": "a19ac08274670e72498aebc42351b731feb3c2e679661a3a4f5c0f9f5b2a1882",
+      "description": "Return each URL in an indexing or index-check task with its status (indexed / unindexed / pending / error). Filter by status and paginate with limit/offset for big tasks. Always includes a summary count.",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "create_traffic_campaign",
+      "descriptionHash": "c73b76a86686112b71e72e6795947a6703c49906aecbd86adb35c7e20492c2b1",
+      "description": "Send AI-driven, human-like visitors to a URL (geo, device, referrer and on-page behaviour are configurable). SPENDS CREDITS immediately: see get_pricing (credits per 1,000 visitors). visitors/days must not exceed 1,000 per day. Confirm with the user before creating. Returns the task id; poll get_tas",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "create_ctr_campaign",
+      "descriptionHash": "600a9e204905471f8ef4cb92b6c95656c17c15052f2a623c4bd74c8907091ae4",
+      "description": "Send visitors who search the given keywords on a search engine (Google by default), find the target URL in the results and click it, then browse like a human. SPENDS CREDITS immediately (same rate as traffic, per visitor). Confirm with the user before creating. Use list_search_engines for valid sear",
+      "labels": [
+        "untrusted-content",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "list_search_engines",
+      "descriptionHash": "79b058f092bffa5e4ed2822d48a4debe8f76a7380b2cf57ee9d13a8c6995d960",
+      "description": "Return the search engines and marketplaces accepted by create_ctr_campaign.search_engine."
+    },
+    {
+      "name": "check_service_health",
+      "descriptionHash": "94286c18efcdbd53588b760bb3362a9bd6af4a9b265c0455a9c34a558cb3d8aa",
+      "description": "Ping the Rapid Indexer API and report version and enabled features (indexer, checker, traffic, ctr). Also validates that the configured API key works.",
+      "labels": [
+        "private-data"
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: get_account, get_pricing, submit_urls_for_indexing, check_index_status, get_task_links, create_ctr_campaign · Private data: check_service_health · Public sink: get_account, submit_urls_for_indexing, check_index_status, create_traffic_campaign, create_ctr_campaign · Destructive: submit_urls_for_indexing.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: get_account, get_pricing, submit_urls_for_indexing, check_index_status, get_task_links, create_ctr_campaign · Private data: check_service_health · Public sink: get_account, submit_urls_for_indexing, check_index_status, create_traffic_campaign, create_ctr_campaign · Destructive: submit_urls_for_indexing"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 80,
+  "scoreBreakdown": {
+    "toxic-flow": 20
+  },
+  "errors": []
+}

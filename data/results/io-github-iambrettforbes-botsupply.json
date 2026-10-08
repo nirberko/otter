@@ -1,0 +1,92 @@
+{
+  "schemaVersion": 1,
+  "scanner": {
+    "version": "1.6.0",
+    "rules": "402995650b68"
+  },
+  "target": {
+    "kind": "url",
+    "ref": "https://botsupply.onrender.com/mcp"
+  },
+  "scannedAt": "2026-10-08T11:39:28.662Z",
+  "durationMs": 401,
+  "layers": {
+    "metadata": true,
+    "static": false
+  },
+  "tools": [
+    {
+      "name": "list_catalog",
+      "descriptionHash": "70087bab6b9d3a81244080c6472d197f1e485c3e8921190875207df70f836fe8",
+      "description": "List live BotSupply SKUs, credit prices, short descriptions, and what a purchase does not include. Payloads stay behind purchase. recipe.book-table, when listed, is recipe documentation only and does not place a reservation."
+    },
+    {
+      "name": "open_wallet",
+      "descriptionHash": "e122781917982a4ec3ea6d0f0e1944c3602feeae504d06f432da8c2bff9761eb",
+      "description": "Create a wallet and return wallet_id plus api_key once, with balance_credits 0. Same as POST /v1/wallets. This does not look up an existing wallet. Keep the api_key; later tools need it as Authorization: Bearer or as api_key.",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "get_balance",
+      "descriptionHash": "c84dfa53feb95b170abba7bba6f249f908a7cecff3028bc2f57c5f918a83424a",
+      "description": "Return the authenticated wallet id and prepaid credit balance. Same as GET /v1/balance. Does not return the API key.",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "purchase",
+      "descriptionHash": "47eae0feaa1daeddd39248f48b98937ca87a8855a940d79ab80e240916d262b7",
+      "description": "Buy one live catalog SKU with prepaid credits. Sends { sku } to POST /v1/purchase and returns that JSON, including the pack or recipe payload. Does not place a reservation. recipe.book-table is documentation the buying agent runs itself. An unknown SKU is rejected. Insufficient balance returns an er",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "create_checkout",
+      "descriptionHash": "5646d41ad7c397c6bdae6048b1c924dec1dc51896e0d7e65b2d8b226fbe3b838",
+      "description": "Start a Stripe Checkout credit top-up. Same as POST /v1/wallets/:id/checkout. Returns the checkout url (open that URL; it keeps Stripe's hosted-page fragment). credits is an integer from 100 to 100000. Credits are applied only after Stripe reports the session paid. Returns the API error when Stripe ",
+      "labels": [
+        "untrusted-content",
+        "public-sink"
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"open_wallet\" references sensitive artifacts (api_key, authorization, bearer). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:open_wallet",
+        "snippet": "Create a wallet and return wallet_id plus api_key once, with balance_credits 0. Same as POST /v1/wallets. This does not look up an existing wallet. Keep the api…"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: open_wallet, create_checkout · Private data: open_wallet, get_balance · Public sink: open_wallet, purchase, create_checkout.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: open_wallet, create_checkout · Private data: open_wallet, get_balance · Public sink: open_wallet, purchase, create_checkout"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 60,
+  "scoreBreakdown": {
+    "tool-poisoning": 20,
+    "toxic-flow": 20
+  },
+  "errors": []
+}

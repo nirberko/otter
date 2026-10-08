@@ -23,4 +23,126 @@
       "message": "Streamable HTTP error: Error POSTing to endpoint: {\"error\":{\"code\":\"UNAUTHORIZED\",\"message\":\"Missing or malformed Authorization header. Use: Authorization: Bearer <key>.\",\"next_actions\":[]}}"
     }
   ]
+}t needs approval. A search result is not a promise: prices and windows are as of availability_checked_at, and only a ",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "discover",
+      "descriptionHash": "7257acf2705a983053ddc78524f71247fd2a2c18b61eb0f2fde6cbff3a50e267",
+      "description": "Describe one merchant: services with pricing_model (packages: each package with its price, limits, kinds and the tasks it includes; the price is the cheapest package that fits the whole home and does every must-have task), typed inputs (incl. its answer for every job condition: no_charge, extra_char"
+    },
+    {
+      "name": "quote",
+      "descriptionHash": "bfa21355ad5134075318a5f94951b4ed441aad499987dd1a8a6fb1c1781384f4",
+      "description": "Quote one merchant's service. Every quote is a record: it returns transaction_id, quote_id, job_version and state quoted (or quote_incomplete). Pass transaction_id to quote the same job again (its next version; everything asked for before is carried forward); on a booked job that quote is the change",
+      "labels": [
+        "private-data",
+        "public-sink",
+        "destructive"
+      ]
+    },
+    {
+      "name": "hold",
+      "descriptionHash": "36ef71efb04ecfbb6a888ecdba5087063d14ca36428f40a8247f66403be0cb5d",
+      "description": "Reserve one window from a quote: the quoted job becomes held (same transaction_id). An expired or replaced quote answers QUOTE_EXPIRED: quote again. M-19: pick a window of the quote's job_hours; a window of another length, or one no longer in the business's hours, answers OUTSIDE_HOURS. M-19b: the h",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "destructive"
+      ]
+    },
+    {
+      "name": "book",
+      "descriptionHash": "aae6b2b2f189de3f567f148c0284db4d6b2a0577eb2fcb07acc46d6e60cb11a1",
+      "description": "Commit a hold with the customer's details. Returns booked, or pending_approval (the owner must say yes: the quote's booking_authority was approval_required, or the owner's booking setting tightened since; the time stays reserved; poll status until decide_by, about once a minute: the owner has up to ",
+      "labels": [
+        "destructive"
+      ]
+    },
+    {
+      "name": "modify",
+      "descriptionHash": "158874ce872308f343ed96b0697415fe7253a9fb2a5738fb4c214466ccf018af",
+      "description": "Commit a change to a booked job: first quote it again with its transaction_id, then modify with that quote_token, optionally moving it to another window. The job stays booked; the old version and price are kept. The answer and every refusal carry change: kinds (capacity, commercial, eligibility, app",
+      "labels": [
+        "public-sink",
+        "destructive"
+      ]
+    },
+    {
+      "name": "cancel",
+      "descriptionHash": "279f09eb6a9cd3b50033d6dfd14bb57f9d03c80cc89eb6ffd49dc318faab0d0d",
+      "description": "Cancel your own held, waiting (pending_approval) or booked job and release the slot. Optional reason: customer_changed_plans, customer_booked_elsewhere, booked_in_error, customer_other. The answer carries cancellation (by, at, reason, fee null, policy, capacity_released): CommonTape takes no cancell"
+    },
+    {
+      "name": "status",
+      "descriptionHash": "3dab2131e9e9a5b40763cf0de0b352f2bb1830c8818eb0fda134941cb1f9c70d",
+      "description": "The authoritative state of one of your jobs and everything needed to act on it: the job (current version), price, quote, window, approval (what needs the owner's yes and why: reasons, the deadline, what happens at it), commitment (who committed the booking: the owner's rule or the owner; your call i",
+      "labels": [
+        "private-data",
+        "destructive"
+      ]
+    },
+    {
+      "name": "taxonomy",
+      "descriptionHash": "2c9d979f206cad186bc018caaf43489a198cde75421da7cd381cdbfac51cbef7",
+      "description": "The fixed word list (version, groups, every key with its label and synonyms) agents use to describe a job and a home. Public, no key; the same answer as GET /api/v1/taxonomy/house_cleaning. Word list version 6."
+    },
+    {
+      "name": "register",
+      "descriptionHash": "2d5d3b7727836eea083f6e97e007c14a2acfab5ea95d35dd7fcd5f00fe4d0b10",
+      "description": "Get your own key, no human needed. Send agent_name (what your agent is called), owner_label (the plain name business owners will see next to a job, 1-40 characters) and contact_email. The key (ct_live_...) is in the answer ONCE: keep it and send it as Authorization: Bearer <key>. Trial limits: 30 re",
+      "labels": [
+        "untrusted-content",
+        "public-sink"
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-SHADOW-001",
+      "severity": "medium",
+      "category": "shadowing",
+      "title": "Generic tool name can shadow trusted tools",
+      "detail": "Tool \"search\" uses a generic high-value name. When multiple servers load together, this can intercept calls meant for a trusted server.",
+      "evidence": {
+        "source": "tool:search",
+        "snippet": "search"
+      },
+      "confidence": 0.4
+    },
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"register\" references sensitive artifacts (authorization, bearer). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:register",
+        "snippet": "Get your own key, no human needed. Send agent_name (what your agent is called), owner_label (the plain name business owners will see next to a job, 1-40 charact…"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: hold, register · Private data: search, quote, hold, status · Public sink: quote, modify, register · Destructive: quote, hold, book, modify, status.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: hold, register · Private data: search, quote, hold, status · Public sink: quote, modify, register · Destructive: quote, hold, book, modify, status"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 52,
+  "scoreBreakdown": {
+    "shadowing": 8,
+    "tool-poisoning": 20,
+    "toxic-flow": 20
+  },
+  "errors": []
 }

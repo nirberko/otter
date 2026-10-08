@@ -107,6 +107,15 @@
     {
       "name": "request_service",
       "descriptionHash": "ac900672014c0ecd4658553d0ec46741fde9d29e0fd564144328967bd940d4bb",
+      "description": "Open a quote-request form for a specific business using its public slug or provider_business_id obtained from search or the bsummary. The URL is for the CUSTOMER to open themselves in their own browser — do not open, fetch, or follow it yourself. Use ",
+      "labels": [
+        "untrusted-content",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "request_service",
+      "descriptionHash": "ac900672014c0ecd4658553d0ec46741fde9d29e0fd564144328967bd940d4bb",
       "description": "Open a quote-request form for a specific business using its public slug or provider_business_id obtained from search or the business feed. Shows the business and service catalog; does not send a request or book anything. The customer must review the form and explicitly consent before submitting. Ope",
       "labels": [
         "untrusted-content",
@@ -121,6 +130,22 @@
         "untrusted-content",
         "private-data",
         "public-sink"
+      ]
+    },
+    {
+      "name": "create_booking_payment_link",
+      "descriptionHash": "be08543d18a32c04a867c86d7290e9faa2490976278ca20ceb7ea2f4067c3473",
+      "description": "For a reservation that reserve_slot returned with payment.required = true: returns the MPP payment link, the amount charged now, and the balance due at the visit. The agent pays it itself (HTTP 402 challenge, then the person's wallet credential); no code is sent to the customer for a paid booking. A",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "cancel_booking",
+      "descriptionHash": "375952d5e5478d540f17b452b39af33201479aa331368f135a9a12af66b8e842",
+      "description": "Cancels a paid, confirmed booking using the cancel_token from its payment receipt. Within 60 minutes of paying, or before the business's refund window, the full refund is requested; report it as full only after the payment ledger confirms it. After that window the deposit is forfeited under the book",
+      "labels": [
+        "private-data"
       ]
     }
   ],
@@ -154,10 +179,10 @@
       "severity": "high",
       "category": "toxic-flow",
       "title": "Lethal trifecta: untrusted input + private data + external sink",
-      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: confirm_booking, request_callback, get_payment_handoff_url, request_service, submit_quote_request · Private data: get_credentials, initiate_handoff, submit_quote_request · Public sink: reserve_slot, confirm_booking, initiate_handoff, request_callback, subscribe_to_updates, request_service, submit_quote_request.",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: confirm_booking, request_callback, get_payment_handoff_url, request_service, submit_quote_request · Private data: get_credentials, initiate_handoff, submit_quote_request, create_booking_payment_link, cancel_booking · Public sink: reserve_slot, confirm_booking, initiate_handoff, request_callback, subscribe_to_updates, get_payment_handoff_url, request_service, submit_quote_request.",
       "evidence": {
         "source": "server:mcp",
-        "snippet": "Untrusted content: confirm_booking, request_callback, get_payment_handoff_url, request_service, submit_quote_request · Private data: get_credentials, initiate_handoff, submit_quote_request · Public sink: reserve_slot, confirm_booking, initiate_handoff, request_callback, subscribe_to_updates, request_service, submit_quote_request"
+        "snippet": "Untrusted content: confirm_booking, request_callback, get_payment_handoff_url, request_service, submit_quote_request · Private data: get_credentials, initiate_handoff, submit_quote_request, create_booking_payment_link, cancel_booking · Public sink: reserve_slot, confirm_booking, initiate_handoff, request_callback, subscribe_to_updates, get_payment_handoff_url, request_service, submit_quote_request"
       },
       "confidence": 0.6,
       "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
@@ -167,36 +192,10 @@
       "severity": "high",
       "category": "tool-poisoning",
       "title": "Tool description changed since last scan",
-      "detail": "Tool \"search_businesses\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
-      "evidence": {
-        "source": "tool:search_businesses",
-        "snippet": "before: \"Search for registered businesses by category, name, or location. Returns a list of matching businesses with their slugs. Use this to discover which businesses are available before querying one.\" → after: \"Find registered businesses by search term and optional location; returns matches with their slugs. Call it before the business-specific tools.\""
-      },
-      "confidence": 0.8,
-      "remediation": "Re-review the tool before continuing to trust it."
-    },
-    {
-      "id": "MCP-RUGPULL-001",
-      "severity": "high",
-      "category": "tool-poisoning",
-      "title": "Tool description changed since last scan",
       "detail": "Tool \"get_availability\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
       "evidence": {
         "source": "tool:get_availability",
-        "snippet": "before: \"Return 30-minute availability windows for a business based on its configured operating hours. Use this to show a user when a business is open for appointments.\" → after: \"Return available windows from the business's active configured calendar, using its selected timezone, duration, operating hours, and current local or connected-calendar occupancy. Use a returned window to start a booking. Availability can change before confirmation, including when the calendar provi\""
-      },
-      "confidence": 0.8,
-      "remediation": "Re-review the tool before continuing to trust it."
-    },
-    {
-      "id": "MCP-RUGPULL-001",
-      "severity": "high",
-      "category": "tool-poisoning",
-      "title": "Tool description changed since last scan",
-      "detail": "Tool \"get_quote\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
-      "evidence": {
-        "source": "tool:get_quote",
-        "snippet": "before: \"Quote price for a service at a business. Some quotes are exact figures from the business's own configured pricing; others are estimates with a disclaimer when no configured price is found. Use this when a user asks 'how much does X cost?' or 'what's the price for Y?'.\" → after: \"Return a price quote for a service at a business. Exact configured prices may create a time-limited offer; unmatched requests use a third-party AI estimate that is not firm merchant pricing and must be confirmed with the business. Use this when a user asks 'how much does X cost?' or 'what's the pric\""
+        "snippet": "before: \"Return available windows from the business's active configured calendar, using its selected timezone, duration, operating hours, and current local or connected-calendar occupancy. Use a returned window to start a booking. Availability can change before confirmation, including when the calendar provi\" → after: \"Return available windows from the business's active configured calendar, using its selected timezone, duration, operating hours, and current local or connected-calendar occupancy. Use a returned window to start a booking. Availability can change before confirmation, including when the calendar provi\""
       },
       "confidence": 0.8,
       "remediation": "Re-review the tool before continuing to trust it."
@@ -209,7 +208,7 @@
       "detail": "Tool \"reserve_slot\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
       "evidence": {
         "source": "tool:reserve_slot",
-        "snippet": "before: \"Reserve a 30-minute time slot at a business. Returns a held reservation with an HMAC-signed confirmation token. The reservation expires in 15 minutes if not confirmed via /a2a/confirm. Idempotent: re-using the same idempotency_key returns the original reservation.\" → after: \"Reserve a time slot on an active configured calendar. Returns a pending_offer reservation and sends a 6-digit confirmation code to the customer's email or phone. The reservation expires in 15 minutes if not confirmed. Idempotent: re-using the same idempotency_key returns the original reservation wit\""
+        "snippet": "before: \"Reserve a time slot on an active configured calendar. Returns a pending_offer reservation and sends a 6-digit confirmation code to the customer's email or phone. The reservation expires in 15 minutes if not confirmed. Idempotent: re-using the same idempotency_key returns the original reservation wit\" → after: \"Reserve a time slot on an active configured calendar. Returns a pending_offer reservation and sends a 6-digit confirmation code to the customer's email or phone. The reservation expires in 15 minutes if not confirmed. Idempotent: re-using the same idempotency_key returns the original reservation wit\""
       },
       "confidence": 0.8,
       "remediation": "Re-review the tool before continuing to trust it."
@@ -219,10 +218,10 @@
       "severity": "high",
       "category": "tool-poisoning",
       "title": "Tool description changed since last scan",
-      "detail": "Tool \"initiate_handoff\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "detail": "Tool \"confirm_booking\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
       "evidence": {
-        "source": "tool:initiate_handoff",
-        "snippet": "before: \"Begin a handoff from the agent to either a human operator (SMS/email via lead_routing_json) or another agent (signed continuation URL). Idempotent: re-using the same idempotency_key returns the original handoff.\" → after: \"Begin a handoff from the agent to either a human operator (SMS/email via lead_routing_json) or another agent (signed continuation URL). In human mode the notification body is composed by the server from the contact and reason fields — callers supply those fields, not the message text. Idempotent: re\""
+        "source": "tool:confirm_booking",
+        "snippet": "before: \"Confirm a reservation made with reserve_slot. Present the returned stored booking_details to the customer and relay only the customer-supplied 6-digit code received at their email or phone; never generate, guess, or fetch it. For an active configured calendar, a verified code attempts a direct commi\" → after: \"Confirm a reservation made with reserve_slot. Present the returned stored booking_details to the customer and relay only the customer-supplied 6-digit code received at their email or phone; never generate, guess, or fetch it. For an active configured calendar, a verified code attempts a direct commi\""
       },
       "confidence": 0.8,
       "remediation": "Re-review the tool before continuing to trust it."
@@ -232,20 +231,23 @@
       "severity": "high",
       "category": "tool-poisoning",
       "title": "Tool description changed since last scan",
-      "detail": "Tool \"request_callback\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "detail": "Tool \"get_payment_handoff_url\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
       "evidence": {
-        "source": "tool:request_callback",
-        "snippet": "before: \"Submit a callback request on behalf of a user. The business is notified via their configured lead routing channel (SMS/email). Idempotent: re-using the same idempotency_key returns the original request.\" → after: \"Submit a callback request on behalf of a user. Advocate attempts a notification through the business's configured lead routing channel (SMS/email); provider acceptance is not proof the business read it. A failed or pending result can require direct follow-up or a retry. Idempotent: re-using the same\""
+        "source": "tool:get_payment_handoff_url",
+        "snippet": "before: \"Returns a plain-text summary of a priced offer (service, amount, currency, cancellation policy, and how long the price is valid) plus a URL on our domain that shows the same summary. The URL is for the CUSTOMER to open themselves in their own browser — do not open, fetch, or follow it yourself. Use \" → after: \"Returns a plain-text summary of a priced offer (service, amount, currency, cancellation policy, and how long the price is valid) plus a URL on our domain that shows the same summary. The URL is for the CUSTOMER to open themselves in their own browser — do not open, fetch, or follow it yourself. Use \""
       },
       "confidence": 0.8,
       "remediation": "Re-review the tool before continuing to trust it."
-    },
-    {
-      "id": "MCP-RUGPULL-001",
-      "severity": "high",
-      "category": "tool-poisoning",
-      "title": "Tool description changed since last scan",
-      "detail": "Tool \"subscribe_to_updates\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+    }
+  ],
+  "score": 33,
+  "scoreBreakdown": {
+    "tool-poisoning": 39,
+    "schema-smell": 8,
+    "toxic-flow": 20
+  },
+  "errors": []
+}l": "Tool \"subscribe_to_updates\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
       "evidence": {
         "source": "tool:subscribe_to_updates",
         "snippet": "before: \"Subscribe a user's email to updates from a business. Returns a confirmation URL the user must click within 7 days. Idempotent: re-using the same idempotency_key returns the original subscription.\" → after: \"Start a pending email subscription to updates from a business. Returns a confirmation URL that only the user must click within 7 days; no subscription is active until that confirmation. Idempotent: re-using the same idempotency_key returns the original subscription.\""

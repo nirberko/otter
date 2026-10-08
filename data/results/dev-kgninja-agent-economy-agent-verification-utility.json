@@ -8,8 +8,8 @@
     "kind": "url",
     "ref": "https://agent-economy.kgninja.dev/mcp"
   },
-  "scannedAt": "2026-09-17T09:34:33.616Z",
-  "durationMs": 1306,
+  "scannedAt": "2026-10-08T11:37:38.848Z",
+  "durationMs": 1807,
   "layers": {
     "metadata": true,
     "static": false
@@ -30,15 +30,23 @@
     },
     {
       "name": "quote_verify_evidence",
-      "descriptionHash": "5acd81d2d9e9d6e44b901a900ec8ac9a626d43d11c42020fec676ba227c8c96c",
-      "description": "Validate a complete verification request and return a free quote when the margin policy passes."
+      "descriptionHash": "052da3138be70e002a4463c3644fc644d1bdc4a7fd2ffb37e81098aff89b1268",
+      "description": "Obtain a free bound quote for deterministic checks on supplied JSON before deciding to purchase. After a successful free precheck at POST /validate-request, supply the unchanged intent and its precheck_receipt.receipt_digest. Creates or reuses a persisted quote and records observability events; no p",
+      "labels": [
+        "private-data",
+        "public-sink",
+        "destructive"
+      ]
     },
     {
       "name": "prepare_verify_evidence_purchase",
-      "descriptionHash": "504e8025baca09c631f497de0125d672bcb2146a015d724f720212833e32aed0",
-      "description": "After a successful free precheck, create or reuse a bound quote and return the exact HTTP request that will produce the x402 challenge. Do not pay until the binding, price, network, asset, payTo, and expiry match local policy.",
+      "descriptionHash": "1a36f8fd3288d157968fbd548c02d70281778ff74344711a9cd8000207749f5e",
+      "description": "Prepare an HTTP purchase request for deterministic JSON verification after a successful free precheck; a prior quote tool call is optional. After a successful free precheck at POST /validate-request, supply the unchanged intent and its precheck_receipt.receipt_digest. Creates or reuses a persisted q",
       "labels": [
-        "public-sink"
+        "untrusted-content",
+        "private-data",
+        "public-sink",
+        "destructive"
       ]
     },
     {
@@ -52,17 +60,54 @@
   ],
   "findings": [
     {
+      "id": "MCP-TOOL-POISON-006",
+      "severity": "low",
+      "category": "tool-poisoning",
+      "title": "Anomalously long tool description",
+      "detail": "Description of \"quote_verify_evidence\" is 1345 chars, far longer than this server's median (199). Overlong descriptions are a common place to bury instructions.",
+      "evidence": {
+        "source": "tool:quote_verify_evidence",
+        "snippet": "Obtain a free bound quote for deterministic checks on supplied JSON before deciding to purchase. After a successful free precheck at POST /validate-request, sup…"
+      },
+      "confidence": 0.4
+    },
+    {
+      "id": "MCP-TOOL-POISON-006",
+      "severity": "low",
+      "category": "tool-poisoning",
+      "title": "Anomalously long tool description",
+      "detail": "Description of \"prepare_verify_evidence_purchase\" is 1475 chars, far longer than this server's median (199). Overlong descriptions are a common place to bury instructions.",
+      "evidence": {
+        "source": "tool:prepare_verify_evidence_purchase",
+        "snippet": "Prepare an HTTP purchase request for deterministic JSON verification after a successful free precheck; a prior quote tool call is optional. After a successful f…"
+      },
+      "confidence": 0.4
+    },
+    {
       "id": "MCP-TOXIC-FLOW-001",
-      "severity": "medium",
+      "severity": "high",
       "category": "toxic-flow",
-      "title": "Toxic flow: untrusted input can reach an external sink",
-      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: get_revenue_goal_status · Public sink: prepare_verify_evidence_purchase · Destructive: verify_evidence.",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: get_revenue_goal_status, prepare_verify_evidence_purchase · Private data: quote_verify_evidence, prepare_verify_evidence_purchase · Public sink: quote_verify_evidence, prepare_verify_evidence_purchase · Destructive: quote_verify_evidence, prepare_verify_evidence_purchase, verify_evidence.",
       "evidence": {
         "source": "server:mcp",
-        "snippet": "Untrusted content: get_revenue_goal_status · Public sink: prepare_verify_evidence_purchase · Destructive: verify_evidence"
+        "snippet": "Untrusted content: get_revenue_goal_status, prepare_verify_evidence_purchase · Private data: quote_verify_evidence, prepare_verify_evidence_purchase · Public sink: quote_verify_evidence, prepare_verify_evidence_purchase · Destructive: quote_verify_evidence, prepare_verify_evidence_purchase, verify_evidence"
       },
-      "confidence": 0.45,
+      "confidence": 0.6,
       "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"quote_verify_evidence\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:quote_verify_evidence",
+        "snippet": "before: \"Validate a complete verification request and return a free quote when the margin policy passes.\" → after: \"Obtain a free bound quote for deterministic checks on supplied JSON before deciding to purchase. After a successful free precheck at POST /validate-request, supply the unchanged intent and its precheck_receipt.receipt_digest. Creates or reuses a persisted quote and records observability events; no p\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
     },
     {
       "id": "MCP-RUGPULL-001",
@@ -72,29 +117,16 @@
       "detail": "Tool \"prepare_verify_evidence_purchase\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
       "evidence": {
         "source": "tool:prepare_verify_evidence_purchase",
-        "snippet": "before: \"Create or reuse a quote and return the exact HTTP purchase request that will first produce an x402 402 challenge.\" → after: \"After a successful free precheck, create or reuse a bound quote and return the exact HTTP request that will produce the x402 challenge. Do not pay until the binding, price, network, asset, payTo, and expiry match local policy.\""
-      },
-      "confidence": 0.8,
-      "remediation": "Re-review the tool before continuing to trust it."
-    },
-    {
-      "id": "MCP-RUGPULL-001",
-      "severity": "high",
-      "category": "tool-poisoning",
-      "title": "Tool description changed since last scan",
-      "detail": "Tool \"verify_evidence\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
-      "evidence": {
-        "source": "tool:verify_evidence",
-        "snippet": "before: \"Run deterministic checks and return Ed25519-signed evidence after explicit x402 approval. Before paying, compare network, asset, amount, payTo, resource, maximum-payment policy, and expected risk reduction.\" → after: \"Run deterministic checks and return Ed25519-signed evidence after one explicitly authorized x402 payment. A free precheck receipt and a matching bound payment requirement are required before signing.\""
+        "snippet": "before: \"After a successful free precheck, create or reuse a bound quote and return the exact HTTP request that will produce the x402 challenge. Do not pay until the binding, price, network, asset, payTo, and expiry match local policy.\" → after: \"Prepare an HTTP purchase request for deterministic JSON verification after a successful free precheck; a prior quote tool call is optional. After a successful free precheck at POST /validate-request, supply the unchanged intent and its precheck_receipt.receipt_digest. Creates or reuses a persisted q\""
       },
       "confidence": 0.8,
       "remediation": "Re-review the tool before continuing to trust it."
     }
   ],
-  "score": 62,
+  "score": 49,
   "scoreBreakdown": {
-    "toxic-flow": 8,
-    "tool-poisoning": 30
+    "tool-poisoning": 31,
+    "toxic-flow": 20
   },
   "errors": []
 }
