@@ -1,0 +1,98 @@
+{
+  "schemaVersion": 1,
+  "scanner": {
+    "version": "1.6.0",
+    "rules": "402995650b68"
+  },
+  "target": {
+    "kind": "url",
+    "ref": "https://whobuildsit.com/mcp"
+  },
+  "scannedAt": "2026-10-09T11:27:51.376Z",
+  "durationMs": 377,
+  "layers": {
+    "metadata": true,
+    "static": false
+  },
+  "tools": [
+    {
+      "name": "search_parts",
+      "descriptionHash": "4963e7f35b667796511cffed440dcc9d2a05b331e310d6ef821f11b77e02b7da",
+      "description": "Find parts by keyword and/or numeric specification. Units are understood: \"3000 psi\" also matches parts rated in bar; \"Ø40 mm\", \"1250 °C\", \"10 GHz\" work. Returns matching parts with supplier, key specs and a URL.",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "search_suppliers",
+      "descriptionHash": "1dfeb35b91f4ead2a72a1703b98c58f466c51be4f38940e7be0e99cb98a00caa",
+      "description": "Find companies that can make something — by process (e.g. \"5-axis machining\", \"vacuum brazing\"), material, certification (e.g. \"AS9100D\"), category, or country. Most space hardware is made to drawing by contract manufacturers that have no product catalogue; this is how to find them."
+    },
+    {
+      "name": "get_supplier",
+      "descriptionHash": "3cba8e3bdcb2e74a3b921e6454d85383487e09a3e70f04027ad8b5ab4c538779",
+      "description": "Full profile: what they make, capabilities (process, tolerance, envelope, material, lead time), certifications claimed, categories and products. Contact details are not returned — use the profile URL.",
+      "labels": [
+        "untrusted-content",
+        "private-data"
+      ]
+    },
+    {
+      "name": "get_part",
+      "descriptionHash": "5a6b2059276daa22277c72a3297126f63031a8d5ee6aa0f2db11feb6b384648e",
+      "description": "All specifications for one part, whether the manufacturer confirmed them, and the supplier."
+    },
+    {
+      "name": "explain_standard",
+      "descriptionHash": "05fa1b8636a5fcfc2dc1564e493a2dc3205660f5145fd925d6fd3a6613c238c8",
+      "description": "What a standard (AS9100D, NADCAP, ECSS, ISO 9001, MIL-STD …) certifies, why a buyer cares, what it is typically required for, and which suppliers in the index claim it."
+    },
+    {
+      "name": "request_quote",
+      "descriptionHash": "476736bef3e1edccab055f6b88f8596ca903db88381b12e77ccf11ecf49ed46d",
+      "description": "Send a quote request to whobuildsit, which reviews it and passes it to suppliers who can make the part. Before calling, ASK THE USER for their work email and explicit consent to share the request and email with suppliers — never invent an email. Give a part_id or supplier_slug from earlier results w",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "list_categories",
+      "descriptionHash": "c4a34e2482877ccf576b17c5912cb6a69ccfcd42c90b2ff7c5a151db555e047d",
+      "description": "The part tree (segment → assembly → component) with supplier counts. Use to see what the index covers and where it has gaps."
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOOL-POISON-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description issues instructions to the model",
+      "detail": "Description of \"request_quote\" contains imperative instructions directed at the AI assistant rather than describing the tool. This is the core tool-poisoning technique.",
+      "evidence": {
+        "source": "tool:request_quote",
+        "snippet": "Send a quote request to whobuildsit, which reviews it and passes it to suppliers who can make the part. Before calling, ASK THE USER for their work email and ex…"
+      },
+      "confidence": 0.7,
+      "remediation": "Treat the server as untrusted; the model may obey embedded instructions."
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: search_parts, get_supplier · Private data: get_supplier · Public sink: request_quote.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: search_parts, get_supplier · Private data: get_supplier · Public sink: request_quote"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 60,
+  "scoreBreakdown": {
+    "tool-poisoning": 20,
+    "toxic-flow": 20
+  },
+  "errors": []
+}

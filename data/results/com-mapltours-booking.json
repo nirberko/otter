@@ -8,8 +8,8 @@
     "kind": "url",
     "ref": "https://mapltours.com/mcp"
   },
-  "scannedAt": "2026-10-03T10:08:12.393Z",
-  "durationMs": 2081,
+  "scannedAt": "2026-10-09T11:38:27.557Z",
+  "durationMs": 1527,
   "layers": {
     "metadata": true,
     "static": false
@@ -48,7 +48,7 @@
     },
     {
       "name": "list_tours",
-      "descriptionHash": "2fe7d85dc13e3192680b01df529950ba61db99338ce73305100c90244499bb11",
+      "descriptionHash": "85643a24693e7990c3082c0032f04043cd24e27c1367f71df3b5f1822af660e0",
       "description": "List the 20 private tours and day packages MAPL Tours runs in Jamaica (Dunn's River, Blue Hole, bamboo rafting, Rick's Cafe, zipline, ATV, horseback and more). fromPriceUsd is the price for the smallest party; priceUnit says whether it covers a party of up to N people or one person. Use get_tour wit",
       "labels": [
         "private-data"
@@ -56,8 +56,8 @@
     },
     {
       "name": "get_tour",
-      "descriptionHash": "99074b495b246654e840812de979f2a219f55fc4b910c817e40d544134bb6100",
-      "description": "Details for one tour: what it includes, ages, fitness, what to bring, the exact total for a party size, and the earliest bookable date. Read-only."
+      "descriptionHash": "b5064b2e4a43c5a05c2eedfb1c516f779df81ef123f9e25c9f1e6643f56457bc",
+      "description": "Details for one tour: what it includes, ages, fitness, what to bring, how long the outing takes from hotels in Montego Bay, Ocho Rios and Negril (fromHotelAndBack; duration is the time at the activity, or Full day / Half day), the exact total for a party size, and the earliest bookable date. Read-on"
     },
     {
       "name": "start_tour_booking",
@@ -74,25 +74,75 @@
       "labels": [
         "private-data"
       ]
+    },
+    {
+      "name": "book_and_pay_transfer",
+      "descriptionHash": "1013799e80f7dea69b0932ae0f4d3dd79a89a9ceb9953afcb74e3a5966950acc",
+      "description": "Book an airport transfer and pay for it now with a Stripe shared payment token (spt_...) the traveller approved, for example from their Link wallet. CHARGES the traveller. Before calling: get the exact price with get_transfer_quote, tell the traveller the price and the cancellation terms (get_bookin",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink"
+      ]
     }
   ],
   "findings": [
+    {
+      "id": "MCP-TOOL-POISON-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description issues instructions to the model",
+      "detail": "Description of \"book_and_pay_transfer\" contains imperative instructions directed at the AI assistant rather than describing the tool. This is the core tool-poisoning technique.",
+      "evidence": {
+        "source": "tool:book_and_pay_transfer",
+        "snippet": "Book an airport transfer and pay for it now with a Stripe shared payment token (spt_...) the traveller approved, for example from their Link wallet. CHARGES the…"
+      },
+      "confidence": 0.7,
+      "remediation": "Treat the server as untrusted; the model may obey embedded instructions."
+    },
     {
       "id": "MCP-TOXIC-FLOW-001",
       "severity": "high",
       "category": "toxic-flow",
       "title": "Lethal trifecta: untrusted input + private data + external sink",
-      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: get_transfer_quote · Private data: get_transfer_quote, list_tours, start_tour_booking, get_booking_terms · Public sink: find_transfer_destination, get_transfer_quote, start_transfer_booking.",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: get_transfer_quote, book_and_pay_transfer · Private data: get_transfer_quote, list_tours, start_tour_booking, get_booking_terms, book_and_pay_transfer · Public sink: find_transfer_destination, get_transfer_quote, start_transfer_booking, book_and_pay_transfer.",
       "evidence": {
         "source": "server:mcp",
-        "snippet": "Untrusted content: get_transfer_quote · Private data: get_transfer_quote, list_tours, start_tour_booking, get_booking_terms · Public sink: find_transfer_destination, get_transfer_quote, start_transfer_booking"
+        "snippet": "Untrusted content: get_transfer_quote, book_and_pay_transfer · Private data: get_transfer_quote, list_tours, start_tour_booking, get_booking_terms, book_and_pay_transfer · Public sink: find_transfer_destination, get_transfer_quote, start_transfer_booking, book_and_pay_transfer"
       },
       "confidence": 0.6,
       "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"list_tours\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:list_tours",
+        "snippet": "before: \"List the 20 private tours and day packages MAPL Tours runs in Jamaica (Dunn's River, Blue Hole, bamboo rafting, Rick's Cafe, zipline, ATV, horseback and more). fromPriceUsd is the price for the smallest party; priceUnit says whether it covers a party of up to N people or one person. Use get_tour wit\" → after: \"List the 20 private tours and day packages MAPL Tours runs in Jamaica (Dunn's River, Blue Hole, bamboo rafting, Rick's Cafe, zipline, ATV, horseback and more). fromPriceUsd is the price for the smallest party; priceUnit says whether it covers a party of up to N people or one person. Use get_tour wit\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"get_tour\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:get_tour",
+        "snippet": "before: \"Details for one tour: what it includes, ages, fitness, what to bring, the exact total for a party size, and the earliest bookable date. Read-only.\" → after: \"Details for one tour: what it includes, ages, fitness, what to bring, how long the outing takes from hotels in Montego Bay, Ocho Rios and Negril (fromHotelAndBack; duration is the time at the activity, or Full day / Half day), the exact total for a party size, and the earliest bookable date. Read-on\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
     }
   ],
-  "score": 80,
+  "score": 45,
   "scoreBreakdown": {
+    "tool-poisoning": 35,
     "toxic-flow": 20
   },
   "errors": []

@@ -8,8 +8,8 @@
     "kind": "url",
     "ref": "https://api.fromerica.com/mcp"
   },
-  "scannedAt": "2026-09-27T10:14:36.536Z",
-  "durationMs": 444,
+  "scannedAt": "2026-10-09T11:37:59.822Z",
+  "durationMs": 488,
   "layers": {
     "metadata": true,
     "static": false
@@ -37,8 +37,8 @@
     },
     {
       "name": "screen_restricted_party",
-      "descriptionHash": "84e3a28dd9ee0d3db1e5ad6475b7863851c3bbb3583a923f703768727916f17c",
-      "description": "Check a company or person name against the U.S. Consolidated Screening List (Commerce, State and Treasury: OFAC SDN, BIS Entity List and others), refreshed daily. Returns possible matches with their source list and match strength. A match is not a legal determination."
+      "descriptionHash": "8db11853ca3e496ea64f6c0e33cd965e60d5d80caecfd07910551a4ddcd1680a",
+      "description": "Check a company or person name against the U.S. Consolidated Screening List (Commerce, State and Treasury: OFAC SDN, BIS Entity List and others), refreshed daily. Returns possible matches with their source list and match strength. A match is not a legal determination, and no match does not mean the "
     },
     {
       "name": "verify_fmc_license",
@@ -46,9 +46,17 @@
       "description": "Check whether a company appears on the Federal Maritime Commission's list of licensed and bonded Ocean Transportation Intermediaries (ocean freight forwarders and NVOCCs), by company name or license number. Returns license number, type, location and renewal date."
     },
     {
+      "name": "find_schedule_b",
+      "descriptionHash": "7058b453946507f96c96584e2acb16233726b268b9ec1a598107b55d678bb6b2",
+      "description": "Search the official U.S. Census Bureau Schedule B (10-digit export classification used to file Electronic Export Information) by product words or by code prefix. Returns up to 50 codes with their official description and a link to each code's page (unit of quantity, when EEI is required, HS code use",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
       "name": "find_us_exporters",
-      "descriptionHash": "814806f544010ff36e57d50e2fbb5ae8fcc2e6d23bf05a02768b51c855cc95b9",
-      "description": "Search the Fromerica directory of U.S. manufacturers and exporters by product. If no company is listed yet, returns the link where an importer can post a free request for quote that is shown to matching U.S. suppliers.",
+      "descriptionHash": "b672e9981aef8476dccca6474db9e48d3463dedf75d741ee81514f14f1638a55",
+      "description": "Search the Fromerica directory of U.S. manufacturers and exporters by product. If no company is listed yet, returns the link where an importer can post a free request for quote that is shown to matching U.S. suppliers. Companies on the paid Pro plan are listed first and marked paid_placement=true.",
       "labels": [
         "untrusted-content",
         "public-sink"
@@ -58,21 +66,48 @@
   "findings": [
     {
       "id": "MCP-TOXIC-FLOW-001",
-      "severity": "medium",
+      "severity": "high",
       "category": "toxic-flow",
-      "title": "Toxic flow: untrusted input can reach an external sink",
-      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: find_us_exporters · Public sink: find_us_exporters.",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: find_us_exporters · Private data: find_schedule_b · Public sink: find_us_exporters.",
       "evidence": {
         "source": "server:mcp",
-        "snippet": "Untrusted content: find_us_exporters · Public sink: find_us_exporters"
+        "snippet": "Untrusted content: find_us_exporters · Private data: find_schedule_b · Public sink: find_us_exporters"
       },
-      "confidence": 0.45,
+      "confidence": 0.6,
       "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"screen_restricted_party\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:screen_restricted_party",
+        "snippet": "before: \"Check a company or person name against the U.S. Consolidated Screening List (Commerce, State and Treasury: OFAC SDN, BIS Entity List and others), refreshed daily. Returns possible matches with their source list and match strength. A match is not a legal determination.\" → after: \"Check a company or person name against the U.S. Consolidated Screening List (Commerce, State and Treasury: OFAC SDN, BIS Entity List and others), refreshed daily. Returns possible matches with their source list and match strength. A match is not a legal determination, and no match does not mean the \""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"find_us_exporters\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:find_us_exporters",
+        "snippet": "before: \"Search the Fromerica directory of U.S. manufacturers and exporters by product. If no company is listed yet, returns the link where an importer can post a free request for quote that is shown to matching U.S. suppliers.\" → after: \"Search the Fromerica directory of U.S. manufacturers and exporters by product. If no company is listed yet, returns the link where an importer can post a free request for quote that is shown to matching U.S. suppliers. Companies on the paid Pro plan are listed first and marked paid_placement=true.\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
     }
   ],
-  "score": 92,
+  "score": 50,
   "scoreBreakdown": {
-    "toxic-flow": 8
+    "toxic-flow": 20,
+    "tool-poisoning": 30
   },
   "errors": []
 }

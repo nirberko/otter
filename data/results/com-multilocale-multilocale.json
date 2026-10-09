@@ -85,36 +85,53 @@
     {
       "name": "update_phrase",
       "descriptionHash": "b380dd5fef4e281b988477a2ade44d76e350675612e9c203071d67a0d22b5308",
-      "description": "Update the translation value for a specific phrase key and language in a MultiLocale project. Phrases may be shared across projects — updating affects all projects that share the key. Clears machine-translation flags since the value is now human-edited.",
+      "description": "Update the translation value for a specific phrbebeb3960a3ed417bc2f06072abe2af803e11ad3bd37f9e0",
+      "description": "Use this when someone asks who is on their MultiLocale team or what role each person has. Returns each member's display name and role, up to 100 members (no emails, ids or contact details). Not for inviting or removing people.",
       "labels": [
-        "public-sink"
+        "untrusted-content",
+        "private-data"
       ]
     },
     {
+      "name": "add_phrase",
+      "descriptionHash": "847d2e01be499629c35a771284d683fe80089f7fc74e3c4d3556ffc3b315b207",
+      "description": "Use this when someone asks to add a new string or key to their app's translations. Returns the created key with one machine translation per configured locale, made from the source text in the default locale. A key that already exists returns already-exists and is left unchanged. Not for changing an "
+    },
+    {
+      "name": "update_phrase",
+      "descriptionHash": "1a660c9d0992a02b60b1f902eed0878ddcabd6a942971a0ba57a236f63724008",
+      "description": "Use this when someone asks to fix or change the text of one key in one language. Returns the previous and new text and the projects sharing that string; the change applies in all of them and marks the text as human-edited. Not for adding a new key."
+    },
+    {
       "name": "add_locale",
-      "descriptionHash": "c93c50c8eee4fdff8ef20812cf55438ce6c21a92092d29b25a0203fa4ea807e4",
-      "description": "Add a new locale to a project and generate translations for every key currently missing in that locale. Uses the default-locale value as the source for each translation."
+      "descriptionHash": "aa8f6d45a95e373a43ae45417c8a647b71be05a7986481d21935784ec258b8db",
+      "description": "Use this when someone asks to add a new language to a project and translate their strings into it. Returns the updated language list and how many strings were machine-translated, one per key, all before anything is saved, so a very large project can time out. Not for a language the project already h"
     },
     {
       "name": "share_phrase",
-      "descriptionHash": "629125c8ce37af09e48b620040019fa4d34224b30596dc038916fd590097cfdc",
-      "description": "Attach every locale translation for one key in a source project to one or more target projects. The underlying phrase rows become shared, so future edits affect every attached project.",
+      "descriptionHash": "63dd9989fe734cf546bafe39073fd4aa52aadd39274785e18df52f3d2fded2d1",
+      "description": "Use this when someone asks to reuse a key's translations in other projects, such as a common button label. Returns the target projects and how many language rows were attached, up to 25 targets; later edits to that string apply in every attached project. Not for a copy that can differ per project.",
       "labels": [
         "public-sink"
       ]
     },
     {
       "name": "delete_phrase",
-      "descriptionHash": "ff9ff292f050e202a7eb71518c98b905b1640c00dda0ae581e2ed6d9b6df1dce",
-      "description": "Permanently delete every locale translation for one key in a project. If a phrase is shared with other projects, this deletes the shared row for those projects too, rather than only detaching the project.",
+      "descriptionHash": "c006fe0b545c28e9db9aba7f966657f449b4ebdb46ff090f56adc5afa087597e",
+      "description": "Use this when someone asks to remove a key from their translations. Returns how many language rows were deleted and which other projects shared them; a shared string is deleted permanently for those projects too. Not for removing only one language's translation.",
       "labels": [
         "destructive"
       ]
     },
     {
+      "name": "open_multilocale",
+      "descriptionHash": "b2b84020b5cddfd7ce7e53935ae39ef20e9f164106c2b975eff5647d90911ac7",
+      "description": "Use this when someone wants to open Multilocale and browse their workspace interactively. Localization projects, strings and translations. Starts with up to 100 items. Not for changing data."
+    },
+    {
       "name": "show_project_overview",
-      "descriptionHash": "fd90cab826c541aba96c4b039df57cf84a82476f6559e44b2054f8c71e31551a",
-      "description": "Render a bounded overview for a known MultiLocale project. Use this after listing projects or when the user provides a project id or name. It shows safe project metadata and up to 24 configured locales without downloading the project phrase dictionary."
+      "descriptionHash": "98619496dc894a10d13172ac0e8089c7a3c4e8f17ba396a7c8a2d88c6515eae5",
+      "description": "Use this when someone wants a quick overview of one of their localization projects. Returns an overview card with the project's default locale, up to 24 configured locales and timestamps. Not for translation completeness."
     }
   ],
   "findings": [
@@ -131,23 +148,257 @@
       "confidence": 0.55
     },
     {
-      "id": "MCP-TOXIC-FLOW-001",
+      "id": "MCP-SCHEMA-SMELL-001",
       "severity": "medium",
+      "category": "schema-smell",
+      "title": "Read-only tool requests dangerous parameters",
+      "detail": "Tool \"add_locale\" appears informational but accepts parameters (context) that enable code/file/secret access.",
+      "evidence": {
+        "source": "tool:add_locale",
+        "snippet": "project, locale, model, context"
+      },
+      "confidence": 0.55
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
       "category": "toxic-flow",
-      "title": "Toxic flow: untrusted input can reach an external sink",
-      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: list_team_members · Public sink: list_team_members, update_phrase, share_phrase · Destructive: add_phrase, delete_phrase.",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: list_team_members · Private data: export_locale_dictionary, list_team_members · Public sink: find_duplicate_phrase_values, share_phrase · Destructive: delete_phrase.",
       "evidence": {
         "source": "server:mcp",
-        "snippet": "Untrusted content: list_team_members · Public sink: list_team_members, update_phrase, share_phrase · Destructive: add_phrase, delete_phrase"
+        "snippet": "Untrusted content: list_team_members · Private data: export_locale_dictionary, list_team_members · Public sink: find_duplicate_phrase_values, share_phrase · Destructive: delete_phrase"
       },
-      "confidence": 0.45,
+      "confidence": 0.6,
       "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"list_projects\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:list_projects",
+        "snippet": "before: \"List all MultiLocale projects the authenticated user has access to. Returns a bounded Markdown and structured preview of project ids, names, locales, and timestamps.\" → after: \"Use this when someone asks which localization projects they have in MultiLocale. Returns each project's id, name, default locale, languages and timestamps, up to 100 projects. Not for listing the strings inside a project.\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"get_project\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:get_project",
+        "snippet": "before: \"Fetch a single MultiLocale project by id or name. Returns bounded Markdown and structured project metadata, including name, configured locales, and timestamps.\" → after: \"Use this when someone asks about one localization project, such as which languages it has or its default locale. Returns the project's id, name, default locale, configured locales and creation and edit times. Not for how complete its translations are.\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"add_project\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:add_project",
+        "snippet": "before: \"Create a MultiLocale project with a default locale and optional additional locales. Refuses to create a duplicate project name in the authenticated organization.\" → after: \"Use this when someone asks to create a new localization project with a given name and languages. Returns the new project with its default locale and locales; if the name is taken it returns already-exists and creates nothing. Not for adding a language to an existing project.\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"update_project\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:update_project",
+        "snippet": "before: \"Update a MultiLocale project’s default locale, complete locale list, or translation context. Project names are intentionally not changed because phrases reference the project name.\" → after: \"Use this when someone asks to change a project's default locale, replace its list of languages, or set its translation context. Returns which fields changed. The language list is replaced as a whole, no strings are translated or deleted, and the project name stays fixed. Not for adding a language wi\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"list_phrases\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:list_phrases",
+        "snippet": "before: \"List translation phrases for a MultiLocale project. Optionally filter by language or key. Returns a bounded Markdown and structured preview of id, key, language, and value.\" → after: \"Use this when someone asks to see the translation strings in a project, optionally in one language or for one key. Returns up to 100 phrases with id, key, language and value, plus the total count. Not for finding strings by the words they contain.\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"get_phrase\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:get_phrase",
+        "snippet": "before: \"Fetch translations for one exact phrase key in a MultiLocale project. Returns a bounded Markdown and structured preview across locales, or a single locale when language is provided.\" → after: \"Use this when someone asks how one exact key is translated, in every language or in one. Returns that key's text per locale, up to 24 locales and 2,000 characters each, with machine-translation flags and the projects sharing it, and renders a phrase card. Not for searching keys by text.\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"search_phrases\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:search_phrases",
+        "snippet": "before: \"Search translation phrases for a MultiLocale project by matching a query string against phrase keys and values. Returns a bounded Markdown and structured preview of matching ids, keys, languages, and values.\" → after: \"Use this when someone asks to find translation strings that contain a word or phrase, in their keys or text. Returns up to 100 matches with id, key, language and value from a case-insensitive match within one project. Not for one exact key.\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"find_duplicate_phrase_values\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:find_duplicate_phrase_values",
+        "snippet": "before: \"Find keys in a bounded scan of one MultiLocale project whose default-locale translations have the same value. The result explicitly reports when the scan or output preview is truncated.\" → after: \"Use this when someone wants to clean up a project by finding keys that repeat the same default-language text. Returns up to 25 repeated values with the keys that share them, scanning 1,000 default-locale strings by default and at most 2,000. Not for untranslated strings.\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"find_missing_translations\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:find_missing_translations",
+        "snippet": "before: \"Report missing keys in a bounded scan of one locale or up to 10 configured locales, compared with the project default locale. The result explicitly reports partial locale or phrase scans and never creates translations.\" → after: \"Use this when someone asks which strings are not translated yet, or how complete each language is. Returns completion percentages and up to 25 missing keys per locale, for one locale or up to 10, compared with the default locale. Nothing is translated or written. Not for filling in the missing trans\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"export_locale_dictionary\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:export_locale_dictionary",
+        "snippet": "before: \"Export one locale of a MultiLocale project as bounded, sorted key/value entries. Results are API-paginated with a maximum of 50 entries per call and each value is capped at 500 characters.\" → after: \"Use this when someone wants the key and value pairs of one language, for example to review or copy a translation file. Returns up to 50 entries per call (25 by default) sorted by key, values cut to 500 characters, with nextSkip for the next page. Not for a complete file download, which the MultiLoca\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"list_team_members\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:list_team_members",
+        "snippet": "before: \"List a bounded roster for the authenticated MultiLocale organization. Returns only each member's display name and role. Email addresses, member IDs, role IDs, phone, country, and signup device details are excluded.\" → after: \"Use this when someone asks who is on their MultiLocale team or what role each person has. Returns each member's display name and role, up to 100 members (no emails, ids or contact details). Not for inviting or removing people.\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"add_phrase\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:add_phrase",
+        "snippet": "before: \"Create a new key in a project’s default locale and generate translations for every other configured locale. Omit value to use the key as its source value. Refuses to overwrite an existing key.\" → after: \"Use this when someone asks to add a new string or key to their app's translations. Returns the created key with one machine translation per configured locale, made from the source text in the default locale. A key that already exists returns already-exists and is left unchanged. Not for changing an \""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"update_phrase\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:update_phrase",
+        "snippet": "before: \"Update the translation value for a specific phrase key and language in a MultiLocale project. Phrases may be shared across projects — updating affects all projects that share the key. Clears machine-translation flags since the value is now human-edited.\" → after: \"Use this when someone asks to fix or change the text of one key in one language. Returns the previous and new text and the projects sharing that string; the change applies in all of them and marks the text as human-edited. Not for adding a new key.\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"add_locale\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:add_locale",
+        "snippet": "before: \"Add a new locale to a project and generate translations for every key currently missing in that locale. Uses the default-locale value as the source for each translation.\" → after: \"Use this when someone asks to add a new language to a project and translate their strings into it. Returns the updated language list and how many strings were machine-translated, one per key, all before anything is saved, so a very large project can time out. Not for a language the project already h\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"share_phrase\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:share_phrase",
+        "snippet": "before: \"Attach every locale translation for one key in a source project to one or more target projects. The underlying phrase rows become shared, so future edits affect every attached project.\" → after: \"Use this when someone asks to reuse a key's translations in other projects, such as a common button label. Returns the target projects and how many language rows were attached, up to 25 targets; later edits to that string apply in every attached project. Not for a copy that can differ per project.\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"delete_phrase\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:delete_phrase",
+        "snippet": "before: \"Permanently delete every locale translation for one key in a project. If a phrase is shared with other projects, this deletes the shared row for those projects too, rather than only detaching the project.\" → after: \"Use this when someone asks to remove a key from their translations. Returns how many language rows were deleted and which other projects shared them; a shared string is deleted permanently for those projects too. Not for removing only one language's translation.\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"show_project_overview\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:show_project_overview",
+        "snippet": "before: \"Render a bounded overview for a known MultiLocale project. Use this after listing projects or when the user provides a project id or name. It shows safe project metadata and up to 24 configured locales without downloading the project phrase dictionary.\" → after: \"Use this when someone wants a quick overview of one of their localization projects. Returns an overview card with the project's default locale, up to 24 configured locales and timestamps. Not for translation completeness.\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
     }
   ],
-  "score": 84,
+  "score": 14,
   "scoreBreakdown": {
-    "schema-smell": 8,
-    "toxic-flow": 8
+    "schema-smell": 12,
+    "toxic-flow": 20,
+    "tool-poisoning": 54
   },
   "errors": []
 }

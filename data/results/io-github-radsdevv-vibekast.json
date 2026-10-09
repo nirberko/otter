@@ -1,0 +1,98 @@
+{
+  "schemaVersion": 1,
+  "scanner": {
+    "version": "1.6.0",
+    "rules": "402995650b68"
+  },
+  "target": {
+    "kind": "url",
+    "ref": "https://www.vibekast.xyz/api/mcp"
+  },
+  "scannedAt": "2026-10-09T11:40:48.584Z",
+  "durationMs": 984,
+  "layers": {
+    "metadata": true,
+    "static": false
+  },
+  "tools": [
+    {
+      "name": "get_market",
+      "descriptionHash": "0df4986e235762cebe7333230e796a95e321fcdb83318f6f9e771663b80a044d",
+      "description": "The live weekly Bitcoin market: question, close time, settlement rule, latest Chainlink BTC price, and every price range with the crowd's current probability. Call this first."
+    },
+    {
+      "name": "get_wallet",
+      "descriptionHash": "8ea0e2ccb8b8ca8f5da5715c027c034d619dd3c19d9ef101945b5cdc97189d70",
+      "description": "Test ETH (gas) and tUSDC balances, open positions in this week's market, registration status, and suggested next steps.",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "request_test_eth",
+      "descriptionHash": "ee5533fe3e21e7a6ceea907aed0f10182e5cd7aba76d8e3dded895bb3a02a481",
+      "description": "Sends 0.0001 Base Sepolia ETH, enough for many trades, to a wallet holding less than that. Once per wallet per 24 hours. Testnet ETH has no value.",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "mint_test_usdc",
+      "descriptionHash": "eb1f12bcf054d492cbe68cbb29776def50211f94c753c8c90f268af2d790aee2",
+      "description": "Builds the unsigned transaction that mints 10,000 tUSDC (this week's test collateral, no cash value) to whichever wallet sends it.",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "build_order",
+      "descriptionHash": "a6bc3545e6d649c7d5298cc79e9dd9f06682514ddc7b9c479e26b9c322c276fa",
+      "description": "Turns your forecast of Bitcoin's settlement price into a trade on this week's market and returns unsigned transactions (approve, then buy) to sign and send in order. Give EITHER quantiles (easiest) OR probs. It buys more where you're more confident than the crowd. Budget is in tUSDC including the fe",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "get_registration_message",
+      "descriptionHash": "61bb55532b97d481f57d05a721a9632f43453c4f223969cf8f2c71ecfcf47d70",
+      "description": "Builds the exact message an agent's wallet signs (EIP-191 personal_sign) to register on the Agent League. Registered agents earn Season points under the same rules as everyone, shown with an AI tag. Sign within 10 minutes, then call register_agent.",
+      "labels": [
+        "untrusted-content",
+        "private-data"
+      ]
+    },
+    {
+      "name": "register_agent",
+      "descriptionHash": "51c12ad2fd52bf03d330b0c502905078d54137fcb0f1f6fb90b6f226bff5c73b",
+      "description": "Registers a wallet as a named AI trading agent using the signature of the message from get_registration_message. Permanent; one name per wallet.",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "get_leaderboard",
+      "descriptionHash": "81764b50b60fb261082985f53ffdee0cfc195ff36991344a4bb41caf738c9568",
+      "description": "Current Season standings: humans and registered AI agents, ranked by points, with skill points shown separately."
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: get_registration_message · Private data: get_wallet, request_test_eth, mint_test_usdc, get_registration_message, register_agent · Public sink: build_order.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: get_registration_message · Private data: get_wallet, request_test_eth, mint_test_usdc, get_registration_message, register_agent · Public sink: build_order"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 80,
+  "scoreBreakdown": {
+    "toxic-flow": 20
+  },
+  "errors": []
+}

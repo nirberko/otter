@@ -1,0 +1,106 @@
+{
+  "schemaVersion": 1,
+  "scanner": {
+    "version": "1.6.0",
+    "rules": "402995650b68"
+  },
+  "target": {
+    "kind": "url",
+    "ref": "https://nookal.usefulapi.io/mcp"
+  },
+  "scannedAt": "2026-10-09T11:35:34.458Z",
+  "durationMs": 521,
+  "layers": {
+    "metadata": true,
+    "static": false
+  },
+  "tools": [
+    {
+      "name": "nookal_list_locations",
+      "descriptionHash": "f417bfcde067565f6f5ada074941989ca636edd8ea7429a15608922cd3efd842",
+      "description": "List the clinic's locations (id, name, address, time zone, active). Location ids are needed by most other tools. Only the locations your API client was granted are returned. Nookal GraphQL: locations."
+    },
+    {
+      "name": "nookal_list_staff",
+      "descriptionHash": "77e5ac736c1403fa386bbe9d7c0c5830fa7e86725478563985983b9d47c0798b",
+      "description": "List staff members and practitioners (id, name, title, speciality, email, location ids, whether they are a provider / bookable online / active). Use the staff ids as provider_ids in list_appointments and staff_ids in get_availability. Nookal GraphQL: staff.",
+      "labels": [
+        "untrusted-content",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "nookal_list_services",
+      "descriptionHash": "04db34db6826fb4c558765609e9ca2bac5f1c32ce1eaa67a1e978e757dd47966",
+      "description": "List the appointment types / services offered (id, name, category, duration in minutes, price, location, online-booking settings). Use a service id in get_availability. Nookal GraphQL: services."
+    },
+    {
+      "name": "nookal_list_classes",
+      "descriptionHash": "a2548ca32eb8b5fee739966d617adb2d83435bc0bacf4773aef33066f4509584",
+      "description": "List the class types offered (id, name, category, duration, price, location, online-booking settings) — the class definitions, not individual sessions. Nookal GraphQL: classes."
+    },
+    {
+      "name": "nookal_get_availability",
+      "descriptionHash": "6a5079baf89de47dc165f794a905d85d341946a584b246e8045ea0f7cd1ee008",
+      "description": "Get the free appointment slots per date between two dates (max 60 days, Nookal's limit), optionally for given locations, practitioners and a service. Each slot has its date, start time (24h, clinic local time), provider id and location id. Read-only: it does not book anything. Nookal GraphQL: availa"
+    },
+    {
+      "name": "nookal_list_appointments",
+      "descriptionHash": "4a5b00ff14b97ac80645298040d6787b5b5a7551a7a567992a6e48020e1475de",
+      "description": "List appointments (date, start/end time, status, type, client, practitioner, case, location, arrived / did-not-arrive flags, notes), filtered by date range, location, client, practitioner, type and status. Dates are clinic local. Nookal GraphQL: appointments."
+    },
+    {
+      "name": "nookal_search_clients",
+      "descriptionHash": "1cbb40628d2987ba13741d8024d95d9fe5e77954c2ff75fff9f37229c68ecc99",
+      "description": "Find clients (patients) by name, date of birth, mobile, email or id. Returns id, name, date of birth, location, active/deceased flags and contact details. With partial_match, names match on their first letters (e.g. 'Sm' finds Smith). Nookal GraphQL: clients.",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "nookal_get_client",
+      "descriptionHash": "55e72d1f1aa741a09c8cce152966a0f51049b3b53f3bce2fa14539c5a014511d",
+      "description": "Get one client (patient) by id: name, date of birth, contact details, addresses, alerts, allergies, notes, occupation, referring doctor and their treatment cases; optionally a summary of their invoices (totals and balances). Health-fund, pension and online-booking codes are not returned. Nookal Grap",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "nookal_list_cases",
+      "descriptionHash": "5c1df28f1f5394309dec273c0b40e9199ef4867a1655bf4b60c9955236f69691",
+      "description": "List treatment cases (id, client, title, start and referral dates, referrer, primary practitioner, notes), filtered by client, case or practitioner. Nookal GraphQL: cases."
+    },
+    {
+      "name": "nookal_list_invoices",
+      "descriptionHash": "3e2f1cce19374b1b1eedcf34d4f2f3e06b84ba0366bd2949954a278c87f7b246",
+      "description": "List invoices with their line items and payments (number, client, case, location, practitioner, date, subtotal, tax, total, paid, balance), filtered by location, invoice id or creation date. For one client's invoices use get_client with include_invoices. Nookal GraphQL: invoices."
+    },
+    {
+      "name": "nookal_list_payments",
+      "descriptionHash": "1d15e549c8cc8b58c04f3026dd83d0821e276b6b2003007aee5bc25e5cfe0813",
+      "description": "List payments received against invoices (method, amount, date, reference, invoice, client, location), filtered by invoice or payment date. Nookal GraphQL: payments."
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: nookal_list_staff, nookal_search_clients · Private data: nookal_search_clients, nookal_get_client · Public sink: nookal_list_staff, nookal_search_clients.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: nookal_list_staff, nookal_search_clients · Private data: nookal_search_clients, nookal_get_client · Public sink: nookal_list_staff, nookal_search_clients"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 80,
+  "scoreBreakdown": {
+    "toxic-flow": 20
+  },
+  "errors": []
+}

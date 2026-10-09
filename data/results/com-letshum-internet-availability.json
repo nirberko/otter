@@ -8,8 +8,8 @@
     "kind": "url",
     "ref": "https://mcp.letshum.com/mcp"
   },
-  "scannedAt": "2026-09-12T09:02:49.506Z",
-  "durationMs": 823,
+  "scannedAt": "2026-10-09T11:38:18.792Z",
+  "durationMs": 591,
   "layers": {
     "metadata": true,
     "static": false
@@ -17,12 +17,110 @@
   "tools": [
     {
       "name": "check_availability",
-      "descriptionHash": "f70cf6d758ef938a0b4fcbc01eb45de45601bb57d5f416ff79f1d48c359f6346",
-      "description": "Resolve a U.S. street address or apartment and return internet providers and ISPs, including broadband, fiber, and cable plans, speeds, and known pricing. Start with address. Pass lookupId alone to resume processing. Continue clarification with candidateId alone, or candidateId with unit when reques"
+      "descriptionHash": "ca587e34c604a20ed6c422b55f3987be0a30bcd78d13459c387cb0bd824dd379",
+      "description": "Start with {address}; continue only with a returned candidate_id and requested unit, {lookup_id} to poll, or the current question_set_id and answers. FCC findings are area-level evidence. Select only returned executable offer_id values."
+    },
+    {
+      "name": "validate_order",
+      "descriptionHash": "64642894ee7d247da778731b713efc8494a581aeb12a728cf8fa9d23029f10f2",
+      "description": "Start: {\"lookup_id\":\"<returned lookup_id>\",\"offer_id\":\"<returned offer_id>\"}. Poll: {\"checkout_id\":\"<returned checkout_id>\"}. Edit: {\"checkout_id\":\"<returned checkout_id>\",\"expected_revision\":<current revision>,\"details\":{<changed fields>}}. Use exactly one shape. Customer, installation, consents an",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "create_order",
+      "descriptionHash": "e4bff5759d28d322dc804fd21c582e902542fd18606ff75a1648859ff200e827",
+      "description": "Only after presenting the current review and obtaining authorization for its terms_hash, commit with its validation_token and one stable idempotency_key. After a lost or uncertain response, call get_order first; do not blindly resubmit."
+    },
+    {
+      "name": "get_order",
+      "descriptionHash": "53707168836d6d6e4ba2344bd43e7f7d17643daa2c21a82cd89be4629f5e7f64",
+      "description": "Retrieve recorded fulfillment evidence with checkout_id, especially after a lost or uncertain create_order response. Public statuses do not prove ISP acceptance or installation confirmation."
     }
   ],
-  "findings": [],
-  "score": 100,
-  "scoreBreakdown": {},
+  "findings": [
+    {
+      "id": "MCP-TOOL-POISON-002",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description tells the model to hide behavior",
+      "detail": "Description of \"validate_order\" instructs the model to conceal actions from the user.",
+      "evidence": {
+        "source": "tool:validate_order",
+        "snippet": "Start: {\"lookup_id\":\"<returned lookup_id>\",\"offer_id\":\"<returned offer_id>\"}. Poll: {\"checkout_id\":\"<returned checkout_id>\"}. Edit: {\"checkout_id\":\"<returned ch…"
+      },
+      "confidence": 0.75
+    },
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"validate_order\" references sensitive artifacts (authorization). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:validate_order",
+        "snippet": "Start: {\"lookup_id\":\"<returned lookup_id>\",\"offer_id\":\"<returned offer_id>\"}. Poll: {\"checkout_id\":\"<returned checkout_id>\"}. Edit: {\"checkout_id\":\"<returned ch…"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOOL-POISON-006",
+      "severity": "low",
+      "category": "tool-poisoning",
+      "title": "Anomalously long tool description",
+      "detail": "Description of \"validate_order\" is 2442 chars, far longer than this server's median (236). Overlong descriptions are a common place to bury instructions.",
+      "evidence": {
+        "source": "tool:validate_order",
+        "snippet": "Start: {\"lookup_id\":\"<returned lookup_id>\",\"offer_id\":\"<returned offer_id>\"}. Poll: {\"checkout_id\":\"<returned checkout_id>\"}. Edit: {\"checkout_id\":\"<returned ch…"
+      },
+      "confidence": 0.4
+    },
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"create_order\" references sensitive artifacts (authorization). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:create_order",
+        "snippet": "Only after presenting the current review and obtaining authorization for its terms_hash, commit with its validation_token and one stable idempotency_key. After …"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: validate_order · Private data: validate_order · Public sink: validate_order.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: validate_order · Private data: validate_order · Public sink: validate_order"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"check_availability\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:check_availability",
+        "snippet": "before: \"Resolve a U.S. street address or apartment and return internet providers and ISPs, including broadband, fiber, and cable plans, speeds, and known pricing. Start with address. Pass lookupId alone to resume processing. Continue clarification with candidateId alone, or candidateId with unit when reques\" → after: \"Start with {address}; continue only with a returned candidate_id and requested unit, {lookup_id} to poll, or the current question_set_id and answers. FCC findings are area-level evidence. Select only returned executable offer_id values.\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    }
+  ],
+  "score": 42,
+  "scoreBreakdown": {
+    "tool-poisoning": 38,
+    "toxic-flow": 20
+  },
   "errors": []
 }

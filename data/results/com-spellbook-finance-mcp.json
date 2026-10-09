@@ -8,8 +8,8 @@
     "kind": "url",
     "ref": "https://api.spellbook-finance.com/mcp"
   },
-  "scannedAt": "2026-10-03T09:57:51.443Z",
-  "durationMs": 2080,
+  "scannedAt": "2026-10-09T11:28:01.468Z",
+  "durationMs": 1342,
   "layers": {
     "metadata": true,
     "static": false
@@ -452,8 +452,8 @@
     },
     {
       "name": "spellbook_ebay_automation_set",
-      "descriptionHash": "15b852358b5959bef01c0a5c26acf0011494e9273a44c35f8a3b26f40cb1a208",
-      "description": "Set one workspace's eBay automation mode, which decides whether SpellBook lists and reprices on eBay by itself. This changes public eBay behavior for the workspace, only the workspace owner may call it, and the agent sets a mode only after the seller chose one. The modes: manual: Nothing lists or re",
+      "descriptionHash": "d995a91d75cd83e20b0753834bb7a4c0a9f830010a518025e98c65b913732240",
+      "description": "Set one workspace's eBay automation mode, which decides whether SpellBook lists and reprices on eBay by itself, whether that automation lists basic lands, and how many copies one listing may carry. This changes public eBay behavior for the workspace, only the workspace owner may call it, and the age",
       "labels": [
         "public-sink"
       ]
@@ -738,6 +738,35 @@
       "description": "Read which of the signed-in seller's buyers ordered more than once, across every channel SpellBook syncs orders from, and what happened after a free card shipped in an order. Returns overview counts and shares, weekly returning-order shares overall and per channel, buyerList with each repeat buyer's"
     },
     {
+      "name": "spellbook_returned_package_lookup",
+      "descriptionHash": "b612c0685eb28346b9ef18b40a643c46cdac44c97c3d65fadfcdc730bbb0d2c8",
+      "description": "Find shipped orders by marketplace order id, order label, tracking number, pull session id, or part of a buyer name or street line, and read each order's shipment facts with its newest return case. Use it when a package came back to the seller, such as a USPS return to sender, before calling spellbo"
+    },
+    {
+      "name": "spellbook_returned_package_record",
+      "descriptionHash": "fa661d636bbeb0f697fb4542c75b06f1ffa926f1c2c66888dbf585029a328e0e",
+      "description": "Record that shipped packages came back to the seller unopened, such as a USPS return to sender. Pass the sessionId of each order from spellbook_returned_package_lookup and one returnReason for the batch. Each order gets one return case, held with every line unconfirmed. A reship starts from that hel",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "spellbook_returned_package_reship_prepare",
+      "descriptionHash": "7ca16202766eb40f5a37bb3dcf9830895879acc39930591f5cea825d814c5783",
+      "description": "Prepare the reship of returned packages recorded with spellbook_returned_package_record. Pass each caseId, with correctedDestination when the address on file is wrong or missing. Returns one row per case with the destination address, card count, computed weight in ounces and shipping bucket (pwe, pa",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "spellbook_returned_package_reship_tracking",
+      "descriptionHash": "7961f2d0502d4f5ef9ea9a2dfa94d87900fff8866e0f18d4f015abf3022ef6be",
+      "description": "Record the tracking number of the new label for a reshipped return. The case then resolves with resolution reship. Pass each caseId prepared with spellbook_returned_package_reship_prepare and the tracking number of the label the seller bought. Returns one row per case with status recorded, already_r",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
       "name": "spellbook_inventory_location_confirm",
       "descriptionHash": "0b315430856f125e16e92a79c67b0cf2ce184521cf4bbb71b0b0feafbd71a271",
       "description": "Save up to 25 existing Item bin locations after comparing each expectedBins observation with current state. A fresh Item query is required before and after the save."
@@ -819,14 +848,27 @@
       "confidence": 0.55
     },
     {
+      "id": "MCP-TOOL-POISON-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description issues instructions to the model",
+      "detail": "Description of \"spellbook_returned_package_lookup\" contains imperative instructions directed at the AI assistant rather than describing the tool. This is the core tool-poisoning technique.",
+      "evidence": {
+        "source": "tool:spellbook_returned_package_lookup",
+        "snippet": "Find shipped orders by marketplace order id, order label, tracking number, pull session id, or part of a buyer name or street line, and read each order's shipme…"
+      },
+      "confidence": 0.7,
+      "remediation": "Treat the server as untrusted; the model may obey embedded instructions."
+    },
+    {
       "id": "MCP-TOXIC-FLOW-001",
       "severity": "high",
       "category": "toxic-flow",
       "title": "Lethal trifecta: untrusted input + private data + external sink",
-      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: spellbook_guides, spellbook_pokemon_arbitrage_spreads, spellbook_manapool_connect_link, spellbook_item_photo_upload_link, spellbook_tcg_extension_pairing, spellbook_seller_plan_checkout_link, spellbook_japan_source_scan · Private data: spellbook_buy_targets, spellbook_deck_import_limitless, spellbook_inventory_bin_ensure, spellbook_purchase_incoming_record, spellbook_tcg_listing_preview, spellbook_tcg_listing_export, spellbook_manapool_connect_link, spellbook_ebay_connection_status, spellbook_return_address, spellbook_sealed_product_search, spellbook_support_report, spellbook_customer_evidence_record, spellbook_customer_evidence_get, spellbook_customer_evidence_list, spellbook_collection_buying_record, spellbook_inventory_items_query, spellbook_sealed_portfolio_record, spellbook_sealed_portfolio_open, spellbook_sealed_recovered_component_record, spellbook_sale_record · Public sink: spellbook_ebay_publish, spellbook_manapool_sync_apply, spellbook_sealed_listing_submit, spellbook_tcg_listing_preview, spellbook_pokemon_tcg_staged_preview, spellbook_tcg_listing_export, spellbook_manapool_connect_link, spellbook_item_photo_upload_link, spellbook_sku_exact_price_lock_set, spellbook_pricing_profile_create, spellbook_pricing_profile_activate, spellbook_pricing_amendment_create, spellbook_pricing_amendment_update, spellbook_pricing_amendment_delete, spellbook_ebay_automation_set, spellbook_manapool_automation_set, spellbook_return_address_save, spellbook_agent_gap_report, spellbook_collection_buying_record, spellbook_sealed_recovered_component_record, spellbook_order_proof_photos · Destructive: spellbook_movers, spellbook_pokemon_arbitrage_spreads, spellbook_deck_import_limitless, spellbook_pokemon_metagame_overview, spellbook_pokemon_metagame_archetype, spellbook_pokemon_metagame_card, spellbook_ebay_publish, spellbook_ebay_reprice, spellbook_ebay_job_status, spellbook_manapool_sync_preview, spellbook_sealed_listing_pause, spellbook_pricing_amendment_get, spellbook_pricing_amendment_delete, spellbook_pricing_amendment_preview, spellbook_alert_delete.",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: spellbook_guides, spellbook_pokemon_arbitrage_spreads, spellbook_manapool_connect_link, spellbook_item_photo_upload_link, spellbook_tcg_extension_pairing, spellbook_seller_plan_checkout_link, spellbook_japan_source_scan · Private data: spellbook_buy_targets, spellbook_deck_import_limitless, spellbook_inventory_bin_ensure, spellbook_purchase_incoming_record, spellbook_tcg_listing_preview, spellbook_tcg_listing_export, spellbook_manapool_connect_link, spellbook_ebay_connection_status, spellbook_return_address, spellbook_sealed_product_search, spellbook_support_report, spellbook_customer_evidence_record, spellbook_customer_evidence_get, spellbook_customer_evidence_list, spellbook_collection_buying_record, spellbook_inventory_items_query, spellbook_sealed_portfolio_record, spellbook_sealed_portfolio_open, spellbook_sealed_recovered_component_record, spellbook_sale_record, spellbook_returned_package_record, spellbook_returned_package_reship_prepare, spellbook_returned_package_reship_tracking · Public sink: spellbook_ebay_publish, spellbook_manapool_sync_apply, spellbook_sealed_listing_submit, spellbook_tcg_listing_preview, spellbook_pokemon_tcg_staged_preview, spellbook_tcg_listing_export, spellbook_manapool_connect_link, spellbook_item_photo_upload_link, spellbook_sku_exact_price_lock_set, spellbook_pricing_profile_create, spellbook_pricing_profile_activate, spellbook_pricing_amendment_create, spellbook_pricing_amendment_update, spellbook_pricing_amendment_delete, spellbook_ebay_automation_set, spellbook_manapool_automation_set, spellbook_return_address_save, spellbook_agent_gap_report, spellbook_collection_buying_record, spellbook_sealed_recovered_component_record, spellbook_order_proof_photos · Destructive: spellbook_movers, spellbook_pokemon_arbitrage_spreads, spellbook_deck_import_limitless, spellbook_pokemon_metagame_overview, spellbook_pokemon_metagame_archetype, spellbook_pokemon_metagame_card, spellbook_ebay_publish, spellbook_ebay_reprice, spellbook_ebay_job_status, spellbook_manapool_sync_preview, spellbook_sealed_listing_pause, spellbook_pricing_amendment_get, spellbook_pricing_amendment_delete, spellbook_pricing_amendment_preview, spellbook_alert_delete.",
       "evidence": {
         "source": "server:mcp",
-        "snippet": "Untrusted content: spellbook_guides, spellbook_pokemon_arbitrage_spreads, spellbook_manapool_connect_link, spellbook_item_photo_upload_link, spellbook_tcg_extension_pairing, spellbook_seller_plan_checkout_link, spellbook_japan_source_scan · Private data: spellbook_buy_targets, spellbook_deck_import_limitless, spellbook_inventory_bin_ensure, spellbook_purchase_incoming_record, spellbook_tcg_listing_preview, spellbook_tcg_listing_export, spellbook_manapool_connect_link, spellbook_ebay_connection_status, spellbook_return_address, spellbook_sealed_product_search, spellbook_support_report, spellbook_customer_evidence_record, spellbook_customer_evidence_get, spellbook_customer_evidence_list, spellbook_collection_buying_record, spellbook_inventory_items_query, spellbook_sealed_portfolio_record, spellbook_sealed_portfolio_open, spellbook_sealed_recovered_component_record, spellbook_sale_record · Public sink: spellbook_ebay_publish, spellbook_manapool_sync_apply, spellbook_sealed_listing_submit, spellbook_tcg_listing_preview, spellbook_pokemon_tcg_staged_preview, spellbook_tcg_listing_export, spellbook_manapool_connect_link, spellbook_item_photo_upload_link, spellbook_sku_exact_price_lock_set, spellbook_pricing_profile_create, spellbook_pricing_profile_activate, spellbook_pricing_amendment_create, spellbook_pricing_amendment_update, spellbook_pricing_amendment_delete, spellbook_ebay_automation_set, spellbook_manapool_automation_set, spellbook_return_address_save, spellbook_agent_gap_report, spellbook_collection_buying_record, spellbook_sealed_recovered_component_record, spellbook_order_proof_photos · Destructive: spellbook_movers, spellbook_pokemon_arbitrage_spreads, spellbook_deck_import_limitless, spellbook_pokemon_metagame_overview, spellbook_pokemon_metagame_archetype, spellbook_pokemon_metagame_card, spellbook_ebay_publish, spellbook_ebay_reprice, spellbook_ebay_job_status, spellbook_manapool_sync_preview, spellbook_sealed_listing_pause, spellbook_pricing_amendment_get, spellbook_pricing_amendment_delete, spellbook_pricing_amendment_preview, spellbook_alert_delete"
+        "snippet": "Untrusted content: spellbook_guides, spellbook_pokemon_arbitrage_spreads, spellbook_manapool_connect_link, spellbook_item_photo_upload_link, spellbook_tcg_extension_pairing, spellbook_seller_plan_checkout_link, spellbook_japan_source_scan · Private data: spellbook_buy_targets, spellbook_deck_import_limitless, spellbook_inventory_bin_ensure, spellbook_purchase_incoming_record, spellbook_tcg_listing_preview, spellbook_tcg_listing_export, spellbook_manapool_connect_link, spellbook_ebay_connection_status, spellbook_return_address, spellbook_sealed_product_search, spellbook_support_report, spellbook_customer_evidence_record, spellbook_customer_evidence_get, spellbook_customer_evidence_list, spellbook_collection_buying_record, spellbook_inventory_items_query, spellbook_sealed_portfolio_record, spellbook_sealed_portfolio_open, spellbook_sealed_recovered_component_record, spellbook_sale_record, spellbook_returned_package_record, spellbook_returned_package_reship_prepare, spellbook_returned_package_reship_tracking · Public sink: spellbook_ebay_publish, spellbook_manapool_sync_apply, spellbook_sealed_listing_submit, spellbook_tcg_listing_preview, spellbook_pokemon_tcg_staged_preview, spellbook_tcg_listing_export, spellbook_manapool_connect_link, spellbook_item_photo_upload_link, spellbook_sku_exact_price_lock_set, spellbook_pricing_profile_create, spellbook_pricing_profile_activate, spellbook_pricing_amendment_create, spellbook_pricing_amendment_update, spellbook_pricing_amendment_delete, spellbook_ebay_automation_set, spellbook_manapool_automation_set, spellbook_return_address_save, spellbook_agent_gap_report, spellbook_collection_buying_record, spellbook_sealed_recovered_component_record, spellbook_order_proof_photos · Destructive: spellbook_movers, spellbook_pokemon_arbitrage_spreads, spellbook_deck_import_limitless, spellbook_pokemon_metagame_overview, spellbook_pokemon_metagame_archetype, spellbook_pokemon_metagame_card, spellbook_ebay_publish, spellbook_ebay_reprice, spellbook_ebay_job_status, spellbook_manapool_sync_preview, spellbook_sealed_listing_pause, spellbook_pricing_amendment_get, spellbook_pricing_amendment_delete, spellbook_pricing_amendment_preview, spellbook_alert_delete"
       },
       "confidence": 0.6,
       "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
@@ -836,62 +878,23 @@
       "severity": "high",
       "category": "tool-poisoning",
       "title": "Tool description changed since last scan",
-      "detail": "Tool \"spellbook_guides\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "detail": "Tool \"spellbook_ebay_automation_set\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
       "evidence": {
-        "source": "tool:spellbook_guides",
-        "snippet": "before: \"Find a cataloged SpellBook Finance customer-agent guide for seller setup and onboarding, selling, pricing, sealed EV, or choosing a card or sealed-product strategy for a budget and workload. Use it when a customer asks how to make money with Magic, what to do with a bankroll or store credit, whether\" → after: \"Find a cataloged SpellBook Finance customer-agent guide for seller setup and onboarding, selling, pricing, sealed EV, or choosing a card or sealed-product strategy for a budget and workload. Use it when a customer asks how to make money with Magic, what to do with a bankroll or store credit, whether\""
+        "source": "tool:spellbook_ebay_automation_set",
+        "snippet": "before: \"Set one workspace's eBay automation mode, which decides whether SpellBook lists and reprices on eBay by itself. This changes public eBay behavior for the workspace, only the workspace owner may call it, and the agent sets a mode only after the seller chose one. The modes: manual: Nothing lists or re\" → after: \"Set one workspace's eBay automation mode, which decides whether SpellBook lists and reprices on eBay by itself, whether that automation lists basic lands, and how many copies one listing may carry. This changes public eBay behavior for the workspace, only the workspace owner may call it, and the age\""
       },
       "confidence": 0.8,
       "remediation": "Re-review the tool before continuing to trust it."
-    },
-    {
-      "id": "MCP-RUGPULL-001",
-      "severity": "high",
-      "category": "tool-poisoning",
-      "title": "Tool description changed since last scan",
-      "detail": "Tool \"spellbook_skill\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
-      "evidence": {
-        "source": "tool:spellbook_skill",
-        "snippet": "before: \"Read the step-by-step procedure SpellBook Finance wrote for a whole customer task, in full. getting-started takes a new seller from sign-in through supplies, bin labels, a first tracked card, and connected marketplaces. buy-loop covers inspecting buy facts and recording what happened. physical-place\" → after: \"Read the step-by-step procedure SpellBook Finance wrote for a whole customer task, in full. getting-started takes a new seller from sign-in through supplies, bin labels, a first tracked card, and connected marketplaces. buy-loop covers inspecting buy facts and recording what happened. collection-buy\""
-      },
-      "confidence": 0.8,
-      "remediation": "Re-review the tool before continuing to trust it."
-    },
-    {
-      "id": "MCP-RUGPULL-001",
-      "severity": "high",
-      "category": "tool-poisoning",
-      "title": "Tool description changed since last scan",
-      "detail": "Tool \"spellbook_box_ev_rankings\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
-      "evidence": {
-        "source": "tool:spellbook_box_ev_rankings",
-        "snippet": "before: \"Read sealed-product EV rankings, defaulting to the highest modeled EV ratio first. Returns exact product IDs, market prices, modeled total EV, the acquirableFloorUsd and evRatioBasis used for the stored EV ratios when present, market-basis ratios, market-price spreads, shipping-aware ratios, per-pac\" → after: \"Read sealed-product EV rankings, defaulting to the highest modeled EV ratio first. Returns exact product IDs, market prices, modeled total EV, the acquirableFloorUsd and evRatioBasis used for the stored EV ratios when present, market-basis ratios, market-price spreads, shipping-aware ratios, per-pac\""
-      },
-      "confidence": 0.8,
-      "remediation": "Re-review the tool before continuing to trust it."
-    },
-    {
-      "id": "MCP-RUGPULL-001",
-      "severity": "medium",
-      "category": "tool-poisoning",
-      "title": "Tool removed since last scan",
-      "detail": "Tool \"spellbook_experiment_eligibility\" is no longer advertised. Removal can precede a shadowing replacement from another server.",
-      "evidence": {
-        "source": "tool:spellbook_experiment_eligibility",
-        "snippet": "removed: spellbook_experiment_eligibility"
-      },
-      "confidence": 0.5
-    },
-    {
-      "id": "MCP-RUGPULL-001",
-      "severity": "medium",
-      "category": "tool-poisoning",
-      "title": "Tool removed since last scan",
-      "detail": "Tool \"spellbook_experiment_cross_channel\" is no longer advertised. Removal can precede a shadowing replacement from another server.",
-      "evidence": {
-        "source": "tool:spellbook_experiment_cross_channel",
-        "snippet": "removed: spellbook_experiment_cross_channel"
-      },
+    }
+  ],
+  "score": 32,
+  "scoreBreakdown": {
+    "tool-poisoning": 40,
+    "schema-smell": 8,
+    "toxic-flow": 20
+  },
+  "errors": []
+},
       "confidence": 0.5
     },
     {

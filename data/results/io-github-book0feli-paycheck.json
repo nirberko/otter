@@ -6,10 +6,10 @@
   },
   "target": {
     "kind": "url",
-    "ref": "https://lumierepaycheck.org/mcp"
+    "ref": "https://lumierepaycheck.org/mcp?plans=1"
   },
-  "scannedAt": "2026-10-03T09:59:24.818Z",
-  "durationMs": 1376,
+  "scannedAt": "2026-10-09T11:29:48.445Z",
+  "durationMs": 1107,
   "layers": {
     "metadata": true,
     "static": false
@@ -17,15 +17,15 @@
   "tools": [
     {
       "name": "check_endpoint",
-      "descriptionHash": "0d0983c312cadfa9bf71ee11d72294b76b7e3711b6beff3273269c69eefd7d0d",
-      "description": "Get the trust verdict for one x402 endpoint: score (0-100), grade (A-F), and verdict (proceed, caution, avoid, free, or insufficient_data), plus uptime, delivery-test status, and payout-wallet incidents. Use it when you're deciding whether an endpoint is trustworthy at all, before you have a price q",
+      "descriptionHash": "bbd8ee3af3a25c41858d861d7a8db53cebaba76747e9a33dd0971e56c7c34d7c",
+      "description": "Get the trust verdict for one x402 endpoint: score (0-100), grade (A-F), and verdict (proceed, caution, avoid, free, or insufficient_data), plus uptime, delivery-test status, payout-wallet incidents, and how many independent buyers stand behind the seller's buyer wallets (we count customers, not wal",
       "labels": [
         "private-data"
       ]
     },
     {
       "name": "check_payment",
-      "descriptionHash": "378af8c18f3d1c2cf649e2193ac95996a6d03385479d1cd94c80256b5054a9a4",
+      "descriptionHash": "49f98355f8269c0c1abb8b4a8c741c17fc9a3b40c9dcb3ca9b953af5d119f7a1",
       "description": "Decide whether a specific x402 payment should go through: returns allow true/false with reasons. Checks the endpoint's trust verdict, that the amount is within your cap and not above the monitored price, and that the payTo wallet matches the one we've observed (catches swapped or hijacked wallets). ",
       "labels": [
         "private-data"
@@ -33,10 +33,12 @@
     },
     {
       "name": "report_outcome",
-      "descriptionHash": "96ce0d043b0c77a51d14848991677ffa5cfc09d814b5552ecfae669ab60f360a",
-      "description": "Report whether a paid x402 call delivered a usable response, using the receipt from a Lumière PayCheck allow decision (the paid /v1/authorize API). Applies only to payments made with such a receipt, within 24 hours; reporting is optional. Not for checking endpoints (use check_endpoint or check_payme",
+      "descriptionHash": "dc4c2e4da4b2b4705e681d2a7eb13272b5ece212278f5b492992def3426eb797",
+      "description": "After paying an x402 endpoint, report whether you got what you paid for. Free, optional, and open to every agent: send the receipt from a Lumière PayCheck allow decision (paid plans), or the endpoint url plus the payment's transaction hash (anyone; we verify the payment on-chain, Base or Solana, wit",
       "labels": [
-        "private-data"
+        "untrusted-content",
+        "private-data",
+        "public-sink"
       ]
     },
     {
@@ -54,7 +56,7 @@
     },
     {
       "name": "get_full_report",
-      "descriptionHash": "c70edbb095c386c0741837b17744278158e4a51f495b386017ac2821e46490d9",
+      "descriptionHash": "1f6c3c0f3819eb170e8714552cd97c0a7291dde9679d3aa04360815b30bfdc18",
       "description": "Get instructions for buying the detailed paid report on one x402 endpoint (score breakdown, current price quote, wallet and price history, test-payment results). Returns the report URL, price, and network; it doesn't buy the report itself. The report is an x402 endpoint that your agent pays with any",
       "labels": [
         "untrusted-content",
@@ -62,8 +64,77 @@
       ]
     }
   ],
-  "findings": [],
-  "score": 100,
-  "scoreBreakdown": {},
+  "findings": [
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp?plans=1\" exposes tools that together enable an exfiltration flow. Untrusted content: report_outcome, get_full_report · Private data: check_endpoint, check_payment, report_outcome, top_endpoints, get_full_report · Public sink: report_outcome.",
+      "evidence": {
+        "source": "server:mcp?plans=1",
+        "snippet": "Untrusted content: report_outcome, get_full_report · Private data: check_endpoint, check_payment, report_outcome, top_endpoints, get_full_report · Public sink: report_outcome"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"check_endpoint\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:check_endpoint",
+        "snippet": "before: \"Get the trust verdict for one x402 endpoint: score (0-100), grade (A-F), and verdict (proceed, caution, avoid, free, or insufficient_data), plus uptime, delivery-test status, and payout-wallet incidents. Use it when you're deciding whether an endpoint is trustworthy at all, before you have a price q\" → after: \"Get the trust verdict for one x402 endpoint: score (0-100), grade (A-F), and verdict (proceed, caution, avoid, free, or insufficient_data), plus uptime, delivery-test status, payout-wallet incidents, and how many independent buyers stand behind the seller's buyer wallets (we count customers, not wal\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"check_payment\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:check_payment",
+        "snippet": "before: \"Decide whether a specific x402 payment should go through: returns allow true/false with reasons. Checks the endpoint's trust verdict, that the amount is within your cap and not above the monitored price, and that the payTo wallet matches the one we've observed (catches swapped or hijacked wallets). \" → after: \"Decide whether a specific x402 payment should go through: returns allow true/false with reasons. Checks the endpoint's trust verdict, that the amount is within your cap and not above the monitored price, and that the payTo wallet matches the one we've observed (catches swapped or hijacked wallets). \""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"report_outcome\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:report_outcome",
+        "snippet": "before: \"Report whether a paid x402 call delivered a usable response, using the receipt from a Lumière PayCheck allow decision (the paid /v1/authorize API). Applies only to payments made with such a receipt, within 24 hours; reporting is optional. Not for checking endpoints (use check_endpoint or check_payme\" → after: \"After paying an x402 endpoint, report whether you got what you paid for. Free, optional, and open to every agent: send the receipt from a Lumière PayCheck allow decision (paid plans), or the endpoint url plus the payment's transaction hash (anyone; we verify the payment on-chain, Base or Solana, wit\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"get_full_report\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:get_full_report",
+        "snippet": "before: \"Get instructions for buying the detailed paid report on one x402 endpoint (score breakdown, current price quote, wallet and price history, test-payment results). Returns the report URL, price, and network; it doesn't buy the report itself. The report is an x402 endpoint that your agent pays with any\" → after: \"Get instructions for buying the detailed paid report on one x402 endpoint (score breakdown, current price quote, wallet and price history, test-payment results). Returns the report URL, price, and network; it doesn't buy the report itself. The report is an x402 endpoint that your agent pays with any\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    }
+  ],
+  "score": 43,
+  "scoreBreakdown": {
+    "toxic-flow": 20,
+    "tool-poisoning": 38
+  },
   "errors": []
 }
