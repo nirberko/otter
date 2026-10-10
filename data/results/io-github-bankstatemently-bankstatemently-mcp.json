@@ -8,8 +8,8 @@
     "kind": "url",
     "ref": "https://api.bankstatemently.com/mcp"
   },
-  "scannedAt": "2026-09-16T09:27:14.167Z",
-  "durationMs": 3146,
+  "scannedAt": "2026-10-10T10:47:48.652Z",
+  "durationMs": 3334,
   "layers": {
     "metadata": true,
     "static": false
@@ -68,6 +68,19 @@
       ]
     },
     {
+      "name": "adjudicate_transfers",
+      "descriptionHash": "d52ff1f6e9c6186a10c0dcd04c75cb36ad8e7cc439de1f33527efcf2f12bc8a2",
+      "description": "Decide whether ambiguous pairs from list_transfers are transfers. Pass \"verdict\" when the user has told you; leave it out to let the AI judge decide. Returns the updated list_transfers answer."
+    },
+    {
+      "name": "adjudicate_outflows",
+      "descriptionHash": "19cc00d0dd5292bd174598f00fe57e8b4bb2ff2022785b760e1925a76085441b",
+      "description": "Decide where an \"unresolved\" debit from list_outflows went (the documents' claims conflict and nothing settles them). Pass \"verdict\" and \"transactionIds\" when the user has told you; leave \"verdict\" out to let the AI judge decide the named rows, or every unresolved row. Returns the updated list_outfl",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
       "name": "get_credits",
       "descriptionHash": "ed8a1087416d0513e17a46a981ca32d2f401c98a77f36f4dfba703cb4599a47f",
       "description": "Your remaining Bankstatemently credits — the processing quota, NOT credit/debit transactions. Use for: how many credits do I have, remaining pages, plan limits, quota, how many pages can I upload. 1 credit = 1 page of bank statement processing. Also reports your plan's operational limits (max pages ",
@@ -77,9 +90,24 @@
       ]
     },
     {
+      "name": "list_memories",
+      "descriptionHash": "850043870407c87cad75af15ab0ae3083e73cdd1e3b9dbc7876eef16bc6fdc0c",
+      "description": "List your memories, default memory first. The default memory covers the whole workspace. Named memories include name, situation and scope. Free to use — no credits consumed."
+    },
+    {
+      "name": "create_memory",
+      "descriptionHash": "76682db61684b3425ce7b0c1483f539763d7a4b6db5f57f319316b9f18951d05",
+      "description": "Create a named memory: a scoped lens over your accounts and dates with a user-authored name, optional situation (\"bookkeeping\", \"divorce\" or \"estate\"), and ChatScope. Free to use — no credits consumed."
+    },
+    {
+      "name": "update_memory",
+      "descriptionHash": "651c29bffc07318cffbac5a4fe93fa251c721517acf1a7e7b9fe214b00aa9001",
+      "description": "Rename or rescope an existing named memory, or update its situation. The default memory is immutable. Free to use — no credits consumed."
+    },
+    {
       "name": "rate_statement",
-      "descriptionHash": "58cbca832f82f39dba95ba93a51962237c97cc7aa6dac3f3dd59c118c055fc37",
-      "description": "Report how well a previously converted bank statement was parsed: submit a 1-5 rating, optionally with structured feedback (only accepted when the rating is 3 or below) and use-case tags. Calling this again for the same document updates your existing rating without clearing feedback already submitte",
+      "descriptionHash": "59fe7bbcf82b0200fa2f8b3fe237468a239f9632d5931ba3aaafee2017a2a164",
+      "description": "Report how well a previously converted bank statement was parsed: submit a 1-5 rating, optionally with structured feedback at any rating. Your rating counts toward the average ratings shown on bankstatemently.com. Calling this again for the same document updates your existing rating without clearing",
       "labels": [
         "private-data",
         "public-sink"
@@ -105,8 +133,11 @@
     },
     {
       "name": "group_by",
-      "descriptionHash": "7d5765545e1c8b41f4024d97839c60d1ad9a160781b7708b53e7e9f2e774b1a6",
-      "description": "Group transactions by a dimension (month/category/merchant/account/currency) and apply a metric to each group. Results are per-currency. Scope defaults to all your completed statements; pass \"scope\" to narrow to specific accounts/products and/or a date range."
+      "descriptionHash": "488d97e2f4fe7f9a7165152bdc4c5aebb40c8b6206c5c96f865e095cbab20b00",
+      "description": "Group transactions by a dimension (month/category/counterparty/account/currency) and apply a metric to each group. Results are per-currency. The \"counterparty\" dimension keys on the printed counterparty, else a printed account mask (••1234), else the description's name tokens, so a rail word or refe",
+      "labels": [
+        "private-data"
+      ]
     },
     {
       "name": "top_n",
@@ -125,8 +156,17 @@
     },
     {
       "name": "list_transfers",
-      "descriptionHash": "a9413a7e68ee77697ca9cfe214ad899ca59c6ff9c54fa5b1c47c3cbf2f86fd25",
+      "descriptionHash": "2e82080b31fc36c017125ea96f007ce3f7d2631cde983377bf628211f1de42c4",
       "description": "Match transfers between your own accounts. A transfer is TWO transactions — a debit leaving one of your accounts and a credit arriving in another — matched as two sides of the same movement (amount and date aligned); account-level successions (an account closing into a successor) are matched too. A "
+    },
+    {
+      "name": "list_outflows",
+      "descriptionHash": "4bed930fe8afd5ff5d46c08b7eb327b68ebef4edfaeda167d772a001badea0cb",
+      "description": "Every debit that left your accounts — in no confirmed transfer between your own accounts, and not a fee — each in ONE destination whose kind is also its next step: \"own-account\" (a printed account mask that names one of your accounts and no matched credit was found: ask for that account's statement)",
+      "labels": [
+        "untrusted-content",
+        "private-data"
+      ]
     }
   ],
   "findings": [
@@ -172,72 +212,18 @@
       "severity": "high",
       "category": "toxic-flow",
       "title": "Lethal trifecta: untrusted input + private data + external sink",
-      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: request_upload, convert_statement, get_statement · Private data: request_upload, convert_statement, get_statement, categorize_statement, dismiss_statement, get_credits, rate_statement, list_transactions · Public sink: request_upload, get_statement, get_credits, rate_statement · Destructive: categorize_statement, dismiss_statement.",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: request_upload, convert_statement, get_statement, list_outflows · Private data: request_upload, convert_statement, get_statement, categorize_statement, dismiss_statement, adjudicate_outflows, get_credits, rate_statement, list_transactions, group_by, list_outflows · Public sink: request_upload, get_statement, get_credits, rate_statement · Destructive: categorize_statement, dismiss_statement.",
       "evidence": {
         "source": "server:mcp",
-        "snippet": "Untrusted content: request_upload, convert_statement, get_statement · Private data: request_upload, convert_statement, get_statement, categorize_statement, dismiss_statement, get_credits, rate_statement, list_transactions · Public sink: request_upload, get_statement, get_credits, rate_statement · Destructive: categorize_statement, dismiss_statement"
+        "snippet": "Untrusted content: request_upload, convert_statement, get_statement, list_outflows · Private data: request_upload, convert_statement, get_statement, categorize_statement, dismiss_statement, adjudicate_outflows, get_credits, rate_statement, list_transactions, group_by, list_outflows · Public sink: request_upload, get_statement, get_credits, rate_statement · Destructive: categorize_statement, dismiss_statement"
       },
       "confidence": 0.6,
       "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
-    },
-    {
-      "id": "MCP-RUGPULL-001",
-      "severity": "high",
-      "category": "tool-poisoning",
-      "title": "Tool description changed since last scan",
-      "detail": "Tool \"rate_statement\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
-      "evidence": {
-        "source": "tool:rate_statement",
-        "snippet": "before: \"Report how well a previously converted bank statement was parsed: submit a 1-5 rating, optionally with structured feedback (only accepted when the rating is 3 or below) and use-case tags. Calling this again for the same document updates your existing rating and clears any previous feedback tied to i\" → after: \"Report how well a previously converted bank statement was parsed: submit a 1-5 rating, optionally with structured feedback (only accepted when the rating is 3 or below) and use-case tags. Calling this again for the same document updates your existing rating without clearing feedback already submitte\""
-      },
-      "confidence": 0.8,
-      "remediation": "Re-review the tool before continuing to trust it."
     }
   ],
-  "score": 49,
+  "score": 58,
   "scoreBreakdown": {
-    "tool-poisoning": 31,
-    "toxic-flow": 20
-  },
-  "errors": []
-}on change. Silent description changes are how a trusted server turns malicious after review.",
-      "evidence": {
-        "source": "tool:rate_statement",
-        "snippet": "before: \"Report how well a previously converted bank statement was parsed: submit a 1-5 rating, optionally with structured feedback (only accepted when the rating is 3 or below) and use-case tags. Calling this again for the same document updates your existing rating without clearing feedback already submitte\" → after: \"Report how well a previously converted bank statement was parsed: submit a 1-5 rating, optionally with structured feedback at any rating. Your rating counts toward the average ratings shown on bankstatemently.com. Calling this again for the same document updates your existing rating without clearing\""
-      },
-      "confidence": 0.8,
-      "remediation": "Re-review the tool before continuing to trust it."
-    },
-    {
-      "id": "MCP-RUGPULL-001",
-      "severity": "high",
-      "category": "tool-poisoning",
-      "title": "Tool description changed since last scan",
-      "detail": "Tool \"group_by\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
-      "evidence": {
-        "source": "tool:group_by",
-        "snippet": "before: \"Group transactions by a dimension (month/category/merchant/account/currency) and apply a metric to each group. Results are per-currency. Scope defaults to all your completed statements; pass \"scope\" to narrow to specific accounts/products and/or a date range.\" → after: \"Group transactions by a dimension (month/category/counterparty/account/currency) and apply a metric to each group. Results are per-currency. The \"counterparty\" dimension keys on the printed counterparty, else a printed account mask (••1234), else the description's name tokens, so a rail word or refe\""
-      },
-      "confidence": 0.8,
-      "remediation": "Re-review the tool before continuing to trust it."
-    },
-    {
-      "id": "MCP-RUGPULL-001",
-      "severity": "high",
-      "category": "tool-poisoning",
-      "title": "Tool description changed since last scan",
-      "detail": "Tool \"list_transfers\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
-      "evidence": {
-        "source": "tool:list_transfers",
-        "snippet": "before: \"Match transfers between your own accounts. A transfer is TWO transactions — a debit leaving one of your accounts and a credit arriving in another — matched as two sides of the same movement (amount and date aligned); account-level successions (an account closing into a successor) are matched too. A \" → after: \"Match transfers between your own accounts. A transfer is TWO transactions — a debit leaving one of your accounts and a credit arriving in another — matched as two sides of the same movement (amount and date aligned); account-level successions (an account closing into a successor) are matched too. A \""
-      },
-      "confidence": 0.8,
-      "remediation": "Re-review the tool before continuing to trust it."
-    }
-  ],
-  "score": 42,
-  "scoreBreakdown": {
-    "tool-poisoning": 38,
+    "tool-poisoning": 22,
     "toxic-flow": 20
   },
   "errors": []

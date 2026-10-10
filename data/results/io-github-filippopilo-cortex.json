@@ -8,8 +8,8 @@
     "kind": "url",
     "ref": "https://skynetlab-cortex-saas-mcp.cortex-320.workers.dev/mcp"
   },
-  "scannedAt": "2026-09-27T10:07:59.061Z",
-  "durationMs": 157,
+  "scannedAt": "2026-10-10T10:48:48.416Z",
+  "durationMs": 240,
   "layers": {
     "metadata": true,
     "static": false
@@ -17,10 +17,11 @@
   "tools": [
     {
       "name": "search",
-      "descriptionHash": "29a25bc612996777bb7c65e34ead01baa88f09cb59023d14646b2ceb847f14e4",
-      "description": "Use this when the answer depends on the user's own context: facts about them or their work, decisions they made, preferences or constraints they stated, or anything they refer back to from an earlier conversation (\"as we agreed\", \"my project\", \"the client we discussed\"). Use it as well when the user",
+      "descriptionHash": "75a53a805b425252e7ce4ce8527a6ff155f76a698395bf75d1d2d641b166b84f",
+      "description": "Use this at the start of a conversation when the user's request about their own work, projects or plans could benefit from relevant context saved in earlier conversations. Use this when the answer depends on the user's own context: facts about them or their work, decisions they made, preferences or ",
       "labels": [
         "untrusted-content",
+        "private-data",
         "destructive"
       ]
     },
@@ -42,11 +43,11 @@
     },
     {
       "name": "cortex_write",
-      "descriptionHash": "5a94930951e3d87e3b29d4c44912fc2e93afe944f30aafc3200ccd7faa3f2aa0",
-      "description": "Use this whenever the user tells you to remember, note down, keep or save something, in any language. Use it as well when they state something they will need again later and would not want to repeat: a decision and the reason behind it, a stable fact about them or their work, a preference or a const",
+      "descriptionHash": "33920c737acc516f0480de6778d85fb64498af4892c8dd9f7dd62560c0b4b72c",
+      "description": "Use this when the user explicitly asks you to remember, note down, keep or save something, in any language: save the requested content within all the limits below. If they ask to save an idea or draft, preserve its provisional status. Within the user's authorized use of Cortex for ongoing memory, al",
       "labels": [
         "private-data",
-        "destructive"
+        "public-sink"
       ]
     },
     {
@@ -69,6 +70,18 @@
     }
   ],
   "findings": [
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"search\" references sensitive artifacts (credentials). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:search",
+        "snippet": "Use this at the start of a conversation when the user's request about their own work, projects or plans could benefit from relevant context saved in earlier con…"
+      },
+      "confidence": 0.65
+    },
     {
       "id": "MCP-SHADOW-001",
       "severity": "medium",
@@ -111,12 +124,24 @@
       "severity": "high",
       "category": "tool-poisoning",
       "title": "Description references secrets/credentials",
-      "detail": "Description of \"cortex_write\" references sensitive artifacts (credentials, password). A tool description has no reason to mention credentials.",
+      "detail": "Description of \"cortex_write\" references sensitive artifacts (credentials, password, authorization). A tool description has no reason to mention credentials.",
       "evidence": {
         "source": "tool:cortex_write",
-        "snippet": "Use this whenever the user tells you to remember, note down, keep or save something, in any language. Use it as well when they state something they will need ag…"
+        "snippet": "Use this when the user explicitly asks you to remember, note down, keep or save something, in any language: save the requested content within all the limits bel…"
       },
       "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOOL-POISON-006",
+      "severity": "low",
+      "category": "tool-poisoning",
+      "title": "Anomalously long tool description",
+      "detail": "Description of \"cortex_write\" is 1970 chars, far longer than this server's median (314). Overlong descriptions are a common place to bury instructions.",
+      "evidence": {
+        "source": "tool:cortex_write",
+        "snippet": "Use this when the user explicitly asks you to remember, note down, keep or save something, in any language: save the requested content within all the limits bel…"
+      },
+      "confidence": 0.4
     },
     {
       "id": "MCP-TOOL-POISON-001",
@@ -130,12 +155,52 @@
       },
       "confidence": 0.7,
       "remediation": "Treat the server as untrusted; the model may obey embedded instructions."
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: search, fetch, cortex_recall · Private data: search, cortex_write · Public sink: cortex_write · Destructive: search, cortex_forget.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: search, fetch, cortex_recall · Private data: search, cortex_write · Public sink: cortex_write · Destructive: search, cortex_forget"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"search\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:search",
+        "snippet": "before: \"Use this when the answer depends on the user's own context: facts about them or their work, decisions they made, preferences or constraints they stated, or anything they refer back to from an earlier conversation (\"as we agreed\", \"my project\", \"the client we discussed\"). Use it as well when the user\" → after: \"Use this at the start of a conversation when the user's request about their own work, projects or plans could benefit from relevant context saved in earlier conversations. Use this when the answer depends on the user's own context: facts about them or their work, decisions they made, preferences or \""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"cortex_write\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:cortex_write",
+        "snippet": "before: \"Use this whenever the user tells you to remember, note down, keep or save something, in any language. Use it as well when they state something they will need again later and would not want to repeat: a decision and the reason behind it, a stable fact about them or their work, a preference or a const\" → after: \"Use this when the user explicitly asks you to remember, note down, keep or save something, in any language: save the requested content within all the limits below. If they ask to save an idea or draft, preserve its provisional status. Within the user's authorized use of Cortex for ongoing memory, al\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
     }
   ],
-  "score": 53,
+  "score": 28,
   "scoreBreakdown": {
+    "tool-poisoning": 40,
     "shadowing": 12,
-    "tool-poisoning": 35
+    "toxic-flow": 20
   },
   "errors": []
 }

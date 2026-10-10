@@ -8,13 +8,51 @@
     "kind": "url",
     "ref": "https://ioswarm.io/mcp"
   },
-  "scannedAt": "2026-08-28T16:52:01.866Z",
-  "durationMs": 783,
+  "scannedAt": "2026-10-10T10:53:04.692Z",
+  "durationMs": 753,
   "layers": {
     "metadata": true,
     "static": false
   },
   "tools": [
+    {
+      "name": "market.pulse",
+      "descriptionHash": "81f87958cd101f23c94fd3fbeccf5ffe0d7a0e3a341e0110d3868cdd5a37a47b",
+      "description": "FREE, no key, no account: live prices for BTC, ETH, SOL, AMZN and NVDA with the session's change, plus today's news — the platform's newest published news digest parsed into stories with source links, and the market wire's latest headlines. Refreshed every minute (prices) and every ten minutes (news"
+    },
+    {
+      "name": "search",
+      "descriptionHash": "4b5bbb3b7b088b1ad3ad5602908edb8de8a17e453af85f14a7d29c909ad003d7",
+      "description": "Search the swarm's published research: the featured shelf, the operator's daily news / markets / AI digests, and — when a key is presented — the caller's own reports. Every hit is a finished, cited, evidence-graded report. Returns {results:[{id,title,url}]}; pass an id to fetch. No key needed for th",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "fetch",
+      "descriptionHash": "8879e546b0d53157615e9fe867013fc31fbde01449ccb913a69dee13a2191332",
+      "description": "Read one report by the id search returned: the full markdown text with its citations and evidence header, plus title, url and metadata. Public reports need no key; a caller's own reports need theirs.",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "web.search",
+      "descriptionHash": "353caa6f44418cbc431274c7c506aec7f6eabcdff7e2a95837bd0e5268d21829",
+      "description": "FREE, no key, no account: LIVE web search, 25 queries a day per caller, up to 5 results each ({results:[{url,title,snippet,published}], quota, report}). This is the open web, not the published corpus — for the platform's finished reports use `search`. Over the daily quota the paid leg is $0.02 per c",
+      "labels": [
+        "untrusted-content",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "news.brief",
+      "descriptionHash": "b0852d6afcf6f4303e29e4369412aa881854733e6b30e21dd56c9bea9da78a69",
+      "description": "PAID, 5¢ per call over x402 (USDC on Base, no account): today's market-news brief — this platform's newest published news digest synthesized with the live market wire into a cited bullet list, every finding ending with its source URL. No input required; the settle happens over HTTP, where the paymen",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
     {
       "name": "route.classify",
       "descriptionHash": "78c44b4ebb6eb0a93cbd62dcf1e34d2a12023c7445eb3046ef7359b846445149",
@@ -37,6 +75,15 @@
       "descriptionHash": "9a0d82fd5dc6362d7d54ea4c82e750e5e4a0fb1d89a7630f8ff79760f2cb472d",
       "description": "A run's status and metadata. Poll until status is completed/failed/cancelled.",
       "labels": [
+        "destructive"
+      ]
+    },
+    {
+      "name": "runs.wait",
+      "descriptionHash": "cfbff80a0886734d0b0833fc5e93727bb3a47b7eb28e0d652cf1d32c86af3851",
+      "description": "Block until a run finishes, then return its record — and its report when it completed. Runs take 3–10 minutes; call this instead of polling runs.get in a loop. Returns early with timed_out=true after timeout_secs (default 90, max 240): call it again with the same run_id to keep waiting. Never charge",
+      "labels": [
+        "private-data",
         "destructive"
       ]
     },
@@ -77,6 +124,42 @@
   ],
   "findings": [
     {
+      "id": "MCP-SHADOW-001",
+      "severity": "medium",
+      "category": "shadowing",
+      "title": "Generic tool name can shadow trusted tools",
+      "detail": "Tool \"search\" uses a generic high-value name. When multiple servers load together, this can intercept calls meant for a trusted server.",
+      "evidence": {
+        "source": "tool:search",
+        "snippet": "search"
+      },
+      "confidence": 0.4
+    },
+    {
+      "id": "MCP-SHADOW-001",
+      "severity": "medium",
+      "category": "shadowing",
+      "title": "Generic tool name can shadow trusted tools",
+      "detail": "Tool \"fetch\" uses a generic high-value name. When multiple servers load together, this can intercept calls meant for a trusted server.",
+      "evidence": {
+        "source": "tool:fetch",
+        "snippet": "fetch"
+      },
+      "confidence": 0.4
+    },
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"web.search\" references sensitive artifacts (authorization). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:web.search",
+        "snippet": "FREE, no key, no account: LIVE web search, 25 queries a day per caller, up to 5 results each ({results:[{url,title,snippet,published}], quota, report}). This is…"
+      },
+      "confidence": 0.65
+    },
+    {
       "id": "MCP-TOOL-POISON-003",
       "severity": "high",
       "category": "tool-poisoning",
@@ -99,11 +182,26 @@
         "snippet": "The launchable modes with a one-line contract for each. Static; never charged, no credentials needed."
       },
       "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: search, fetch, web.search, news.brief · Private data: runs.launch, runs.wait, billing.topup_terms, modes.list · Public sink: web.search · Destructive: route.classify, runs.launch, runs.get, runs.wait, runs.report.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: search, fetch, web.search, news.brief · Private data: runs.launch, runs.wait, billing.topup_terms, modes.list · Public sink: web.search · Destructive: route.classify, runs.launch, runs.get, runs.wait, runs.report"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
     }
   ],
-  "score": 70,
+  "score": 33,
   "scoreBreakdown": {
-    "tool-poisoning": 30
+    "shadowing": 12,
+    "tool-poisoning": 35,
+    "toxic-flow": 20
   },
   "errors": []
 }

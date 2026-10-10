@@ -8,8 +8,8 @@
     "kind": "url",
     "ref": "https://api.pcbgenerator.com/mcp/"
   },
-  "scannedAt": "2026-10-03T10:00:34.324Z",
-  "durationMs": 354,
+  "scannedAt": "2026-10-10T10:49:43.891Z",
+  "durationMs": 959,
   "layers": {
     "metadata": true,
     "static": false
@@ -27,7 +27,7 @@
     },
     {
       "name": "design_tr_module",
-      "descriptionHash": "64ed03830f88fdb437edf47edc495e3645e5cd5960d35c93d09be33d4dc95b74",
+      "descriptionHash": "44e0d07be6b69bc9d84c40c3220766b766088b7169a661b5a72e4481a0956445",
       "description": "Design a T/R (transmit/receive) module that shares ONE antenna between a transmitter and a receiver. Designs both chains through the existing engines, selects the shared front end (a T/R switch, or a circulator with a receive-path limiter), and returns four safety budgets: TX-to-RX isolation against"
     },
     {
@@ -40,8 +40,8 @@
     },
     {
       "name": "run_stackup_solver",
-      "descriptionHash": "8db4c0182e2332d5a47ae3e0cdd0b89d38eb15d054fa6cf7d24f2b485b4c6b3f",
-      "description": "Run the impedance-aware stackup constraint solver to find optimal PCB configurations. Use when the user wants ranked material/thickness/copper solutions for a given layer count and frequency. Returns scored and ranked feasible stackups. Each solution's prepreg_thickness_mm is the catalog BASE (pre-l",
+      "descriptionHash": "b4c837637cb693fc4bb9adcef6ea1d337a7b6fd288985dc586cad5bba0c2ae9f",
+      "description": "Run the impedance-aware stackup constraint solver to find optimal PCB configurations. Use when the user wants ranked material/thickness/copper solutions for a given layer count and frequency. Returns scored and ranked feasible stackups. Each solution's prepreg_thickness_mm is ONE prepreg layer: prep",
       "labels": [
         "destructive"
       ]
@@ -75,6 +75,53 @@
       ]
     },
     {
+      "name": "run_ota_link",
+      "descriptionHash": "06d2af218fce1581c94fa18f50f6cda573a2b52779a3462a62da670e461e6e64",
+      "description": "Compute a one-way over-the-air link budget — EIRP, free-space path loss (Friis), received power, link margin against receiver sensitivity, a closes/marginal/fails verdict, and the maximum range — using the SAME engine behind POST /api/ota-link/compute. Receiver sensitivity is reused from a prior lin",
+      "labels": [
+        "public-sink",
+        "destructive"
+      ]
+    },
+    {
+      "name": "run_radar_performance",
+      "descriptionHash": "b80385bce4da4645afebb290b19f251be9273ac7b8ec160bc93b281f4adef894",
+      "description": "Compute radar performance — the monostatic range equation (received power, SNR vs range, maximum detection range, coherent/non-coherent integration gain) and pulsed-waveform relations (duty cycle, unambiguous range/velocity, range resolution, blind speeds) — using the SAME engine behind POST /api/ra",
+      "labels": [
+        "public-sink",
+        "destructive"
+      ]
+    },
+    {
+      "name": "run_planar_filter",
+      "descriptionHash": "2282f6d3cf4a9af64fbb1ba6bed3d3b40d380a2e99f2b17d456f2eae0ff3cbd6",
+      "description": "Synthesize a passive planar (copper-on-PCB) filter from analytical formulas: stepped-impedance / open-stub low-pass, or parallel-coupled / hairpin band-pass, Chebyshev or Butterworth. Returns per-section line impedances (Z0e/Z0o for coupled sections), width/spacing, quarter-wave lengths, the total o",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink",
+        "destructive"
+      ]
+    },
+    {
+      "name": "design_patch_antenna",
+      "descriptionHash": "5776f87d665e468d4d85a5c4c052a32ba3e5c96cc3e470361b24071b5c29443f",
+      "description": "Design a rectangular microstrip patch antenna (and, when both nx and ny are given, a uniform planar array of it) using the Balanis cavity/transmission-line + array-factor model — the SAME engine behind POST /api/antenna/patch/design and the Guided Phase IV antenna panel. The substrate (dk/df/h) deri",
+      "labels": [
+        "untrusted-content",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "run_glass_weave_analysis",
+      "descriptionHash": "26d5ef00adde26a9fd8064372755ca8ff2f599e9b09590aacda883cfe741e0a8",
+      "description": "Recommend PCB glass-weave (fiber-weave) styles for the current design: ranks catalogued styles by impedance variation and cost for the design frequency and marks the cheapest one meeting the impedance tolerance. Reuses the Phase-24 engine behind POST /api/glass-weave/recommend. Frequency is derived ",
+      "labels": [
+        "public-sink",
+        "destructive"
+      ]
+    },
+    {
       "name": "check_grounding",
       "descriptionHash": "af7cbdf6c852ca3fdbb6b0830d7a33d824dae383487cfa83bfa48463c763f2b6",
       "description": "Check a draft passage against the engine results computed in THIS session. It returns every figure no engine produced, and every claim it checks that the results do not support or contradict (for example a solver score called a loss), each in `findings` with the reason. Run it before publishing or h",
@@ -86,21 +133,48 @@
   "findings": [
     {
       "id": "MCP-TOXIC-FLOW-001",
-      "severity": "medium",
+      "severity": "high",
       "category": "toxic-flow",
-      "title": "Toxic flow: untrusted input can reach an external sink",
-      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: run_compliance_analysis · Public sink: run_thermal_analysis, run_pdn_analysis, run_compliance_analysis · Destructive: run_link_budget, run_stackup_solver, run_thermal_analysis, run_pdn_analysis, run_compliance_analysis, check_grounding.",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: run_compliance_analysis, run_planar_filter, design_patch_antenna · Private data: run_planar_filter · Public sink: run_thermal_analysis, run_pdn_analysis, run_compliance_analysis, run_ota_link, run_radar_performance, run_planar_filter, design_patch_antenna, run_glass_weave_analysis · Destructive: run_link_budget, run_stackup_solver, run_thermal_analysis, run_pdn_analysis, run_compliance_analysis, run_ota_link, run_radar_performance, run_planar_filter, run_glass_weave_analysis, check_grounding.",
       "evidence": {
         "source": "server:mcp",
-        "snippet": "Untrusted content: run_compliance_analysis · Public sink: run_thermal_analysis, run_pdn_analysis, run_compliance_analysis · Destructive: run_link_budget, run_stackup_solver, run_thermal_analysis, run_pdn_analysis, run_compliance_analysis, check_grounding"
+        "snippet": "Untrusted content: run_compliance_analysis, run_planar_filter, design_patch_antenna · Private data: run_planar_filter · Public sink: run_thermal_analysis, run_pdn_analysis, run_compliance_analysis, run_ota_link, run_radar_performance, run_planar_filter, design_patch_antenna, run_glass_weave_analysis · Destructive: run_link_budget, run_stackup_solver, run_thermal_analysis, run_pdn_analysis, run_compliance_analysis, run_ota_link, run_radar_performance, run_planar_filter, run_glass_weave_analysis, check_grounding"
       },
-      "confidence": 0.45,
+      "confidence": 0.6,
       "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"design_tr_module\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:design_tr_module",
+        "snippet": "before: \"Design a T/R (transmit/receive) module that shares ONE antenna between a transmitter and a receiver. Designs both chains through the existing engines, selects the shared front end (a T/R switch, or a circulator with a receive-path limiter), and returns four safety budgets: TX-to-RX isolation against\" → after: \"Design a T/R (transmit/receive) module that shares ONE antenna between a transmitter and a receiver. Designs both chains through the existing engines, selects the shared front end (a T/R switch, or a circulator with a receive-path limiter), and returns four safety budgets: TX-to-RX isolation against\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"run_stackup_solver\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:run_stackup_solver",
+        "snippet": "before: \"Run the impedance-aware stackup constraint solver to find optimal PCB configurations. Use when the user wants ranked material/thickness/copper solutions for a given layer count and frequency. Returns scored and ranked feasible stackups. Each solution's prepreg_thickness_mm is the catalog BASE (pre-l\" → after: \"Run the impedance-aware stackup constraint solver to find optimal PCB configurations. Use when the user wants ranked material/thickness/copper solutions for a given layer count and frequency. Returns scored and ranked feasible stackups. Each solution's prepreg_thickness_mm is ONE prepreg layer: prep\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
     }
   ],
-  "score": 92,
+  "score": 50,
   "scoreBreakdown": {
-    "toxic-flow": 8
+    "toxic-flow": 20,
+    "tool-poisoning": 30
   },
   "errors": []
 }
