@@ -8,8 +8,8 @@
     "kind": "url",
     "ref": "https://mcp.alphacreek.ai/mcp"
   },
-  "scannedAt": "2026-07-26T07:07:07.091Z",
-  "durationMs": 4863,
+  "scannedAt": "2026-10-11T10:54:46.994Z",
+  "durationMs": 1082,
   "layers": {
     "metadata": true,
     "static": false
@@ -17,65 +17,66 @@
   "tools": [
     {
       "name": "get_latest_filing",
-      "descriptionHash": "75972cea75ac3321a16e66cace3c3a38acb0d4b8b3c0554a5958af17075f1406",
-      "description": "Return latest filing metadata for a company or ticker."
+      "descriptionHash": "200e0c1cc5ff71e864b4c36122b9a7c3a775e7ee51711b3dffe1ad5e5ad332ee",
+      "description": "Return latest filing metadata for a company or ticker. If ticker and company are omitted, return newly ingested filings newest-first. Omit filing_registry in that mode to include both SEC and FCA. Company results include one metadata object; newly ingested results include a filings list. Each row in",
+      "labels": [
+        "private-data",
+        "public-sink"
+      ]
     },
     {
       "name": "list_filings",
-      "descriptionHash": "4589d436e88a5b5191dbff5b6e3c1f2fc629deea0236e7774fe09391152c08d9",
-      "description": "List available filings for a ticker (newest first) with artifact_document_id and dates. Use filing_registry=fca_nsm for UK FCA annual reports. Use this first when you need a specific reporting period."
+      "descriptionHash": "6076aae7448bd1b3898f82a0b4c6d33bdc71d2e6da40622c9e736d0653c58bb1",
+      "description": "List available filings for a ticker (newest first) with artifact_document_id and dates. Use filing_registry=fca_nsm for UK FCA NSM reports. Use this first when you need a specific reporting period, including DEF 14A proxy statements (pass document_type=DEF 14A). Each row includes Filing metadata obj",
+      "labels": [
+        "private-data",
+        "public-sink"
+      ]
     },
     {
       "name": "get_filing_toc",
-      "descriptionHash": "f556f2b5118de3e693d16cbb97d4cd42d02616fe4833faa3d458612f7b8b9841",
-      "description": "Return the full filing table of contents for one filing. If artifact_document_id is omitted, resolves the single latest filing for ticker/company (and optional document_type) only. Use list_filings first to discover a specific reporting period. For FCA filings, pass filing_registry=fca_nsm; TOC node",
+      "descriptionHash": "fa65920dff1800efd43202b87222a98abfb1760c360643b7df1915879065acd7",
+      "description": "Return the full filing table of contents for one filing. If artifact_document_id is omitted, resolves the single latest filing for ticker/company (and optional document_type) only. Use list_filings first to discover a specific reporting period. Pass document_type=DEF 14A for US proxy statements. For",
       "labels": [
         "untrusted-content"
       ]
     },
     {
       "name": "read_node_content",
-      "descriptionHash": "2f6e18805779c98d9117e3e1b6a3f4342262f76319f93d82bc4b36e4fb9dae5e",
-      "description": "Return content for one or more navigation nodes in a filing. Pass one node via node_id or several via node_ids, using the node ids from TOC lines. These are the same values shown as NODE_ID lines in read_node_content output. The authoritative node content is returned as plain MCP text only: an ARTIF",
+      "descriptionHash": "3748729e6c9f3ff34741f856577a82738b1980e42767b91c23eeeb79591a47fe",
+      "description": "Return content for one or more navigation nodes in a filing. Pass one node via node_id or several via node_ids, using the node ids from TOC lines (the same values shown as NODE_ID lines in this tool's output). Returns plain MCP text: an ARTIFACT_DOCUMENT_ID header, then per-node blocks with NODE_ID,"
+    },
+    {
+      "name": "search_sec_event_filings",
+      "descriptionHash": "6cfd0d51c2cd04b81db7035c6363a8a71f1655c2e467f1978c40ed893c2f6ee7",
+      "description": "Search US SEC filing nodes for a disclosure claim. The search covers 8-K, 6-K, 10-K, 10-Q, and 20-F. Omit document_type to search all of those forms. Pass document_type to search only the forms you name. Do not use this for DEF 14A.\nHow to search:\n1. Always pass concept_groups. Every group is requir",
       "labels": [
-        "untrusted-content"
+        "private-data",
+        "destructive"
       ]
     }
   ],
   "findings": [
     {
-      "id": "MCP-RUGPULL-001",
+      "id": "MCP-TOXIC-FLOW-001",
       "severity": "high",
-      "category": "tool-poisoning",
-      "title": "Tool description changed since last scan",
-      "detail": "Tool \"get_filing_toc\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: get_filing_toc · Private data: get_latest_filing, list_filings, search_sec_event_filings · Public sink: get_latest_filing, list_filings · Destructive: search_sec_event_filings.",
       "evidence": {
-        "source": "tool:get_filing_toc",
-        "snippet": "before: \"Return the full filing table of contents for one filing. If artifact_document_id is omitted, resolves the single latest filing for ticker/company (and optional document_type) only. Use list_filings first to discover a specific reporting period. For FCA filings, pass filing_registry=fca_nsm; TOC node\" → after: \"Return the full filing table of contents for one filing. If artifact_document_id is omitted, resolves the single latest filing for ticker/company (and optional document_type) only. Use list_filings first to discover a specific reporting period. For FCA filings, pass filing_registry=fca_nsm; TOC node\""
+        "source": "server:mcp",
+        "snippet": "Untrusted content: get_filing_toc · Private data: get_latest_filing, list_filings, search_sec_event_filings · Public sink: get_latest_filing, list_filings · Destructive: search_sec_event_filings"
       },
-      "confidence": 0.8,
-      "remediation": "Re-review the tool before continuing to trust it."
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
     }
   ],
   "score": 80,
   "scoreBreakdown": {
-    "tool-poisoning": 20
+    "toxic-flow": 20
   },
   "errors": []
-}t: get_filing_toc · Private data: get_latest_filing, list_filings, search_sec_event_filings · Public sink: get_latest_filing, list_filings.",
-      "evidence": {
-        "source": "server:mcp",
-        "snippet": "Untrusted content: get_filing_toc · Private data: get_latest_filing, list_filings, search_sec_event_filings · Public sink: get_latest_filing, list_filings"
-      },
-      "confidence": 0.6,
-      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
-    },
-    {
-      "id": "MCP-RUGPULL-001",
-      "severity": "high",
-      "category": "tool-poisoning",
-      "title": "Tool description changed since last scan",
-      "detail": "Tool \"get_latest_filing\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+}t_filing\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
       "evidence": {
         "source": "tool:get_latest_filing",
         "snippet": "before: \"Return latest filing metadata for a company or ticker.\" → after: \"Return latest filing metadata for a company or ticker. If ticker and company are omitted, return newly ingested filings newest-first. Omit filing_registry in that mode to include both SEC and FCA. Company results include one metadata object; newly ingested results include a filings list. Each row in\""

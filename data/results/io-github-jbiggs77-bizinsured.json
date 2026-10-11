@@ -8,8 +8,8 @@
     "kind": "url",
     "ref": "https://bizinsured.ai/mcp"
   },
-  "scannedAt": "2026-07-17T17:36:56.404Z",
-  "durationMs": 423,
+  "scannedAt": "2026-10-11T11:00:46.400Z",
+  "durationMs": 445,
   "layers": {
     "metadata": true,
     "static": false
@@ -17,32 +17,122 @@
   "tools": [
     {
       "name": "classify_business",
-      "descriptionHash": "025f22b4d69e94157e9eb82dcfe120a8966b0af1e66ffd9000164e220b7cbe44",
-      "description": "Takes a natural language business description and returns matched class codes (NAICS, ISO GL, NCCI WC). Always call this first to understand the user's business type before making recommendations."
-    },
-    {
-      "name": "get_carrier_recommendations",
-      "descriptionHash": "4ee740de4e5db56d9d082ef1aeb0a6f3273715913311611c4eef21303803fbc6",
-      "description": "Returns ranked carrier recommendations with estimated premium ranges for a small commercial risk."
-    },
-    {
-      "name": "explain_coverage",
-      "descriptionHash": "f1b8ba98762c4e222cde5c3ddb09e016564f7cab6f681cbe995b6851e81dbc43",
-      "description": "Explains a commercial insurance coverage type in plain language."
+      "descriptionHash": "334e7639bdd819d217e61a3c58d060b5c474e1cabcf8f0dd66d905437ffd4d35",
+      "description": "Use this first when the user describes what their business does, to find its insurance classification before suggesting coverages or estimating premiums. Pass only the business activity, for example 'bakery' or 'HVAC contractor'; leave out the business name, city and other details. Returns up to fiv"
     },
     {
       "name": "suggest_coverages",
-      "descriptionHash": "d609263d9567492cddeb10b951fa20567f3a6c818c77339e5d90dec63a6229ae",
-      "description": "Suggests which insurance coverages a business likely needs, ranked by importance."
+      "descriptionHash": "583c4073e876ff60448eba696539dcae19eaa876ce469fc23a5d4fccd4260fe8",
+      "description": "Use this when the user asks which commercial insurance coverages their business needs. Returns coverages ranked essential, recommended or optional, each with a reason, based on the confirmed class codes and the facts the user stated. Pass naics_code and iso_gl_code from classify_business after the u"
+    },
+    {
+      "name": "explain_coverage",
+      "descriptionHash": "a85e4c0408e03f983d8a3bdbfe0046b3252c94401f48b4961796b2c50a479826",
+      "description": "Use this when the user asks what a commercial insurance coverage is or how two coverages differ. Returns a plain-language explanation of one coverage type; call it once per coverage. It cannot tell whether a specific policy covers a specific claim."
+    },
+    {
+      "name": "get_carrier_recommendations",
+      "descriptionHash": "1635701015eb8e7596e2797182ca7b5857e2d11b0aa48f286148449fa15c726c",
+      "description": "Use this when the user wants premium estimates or carrier options for BOP, GL, WC or commercial_auto and you have the confirmed classification, the business's state, annual revenue and at least one coverage. Returns carriers whose appetite data matches, market budget estimates (not quotes) with sour",
+      "labels": [
+        "private-data"
+      ]
     },
     {
       "name": "connect_with_agent",
-      "descriptionHash": "c64d20e3f965287ad69e7989f6c274d0222eb091f465f94860c7ea33de28fbaa",
-      "description": "Generates a handoff to connect the user with a matched independent agent."
+      "descriptionHash": "a45f2443ca4d4ac6c16826aedb8a5f3c136f4852e8f155093db13b6c1ea6bf70",
+      "description": "Use this only when the user asks to speak with an agent, get real quotes or have their coverage reviewed. Saves a referral with the business details, and the linked estimate when you pass recommendation_id, for review by a licensed agent: the BizInsured team for Ohio businesses, or a partner agent e",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink"
+      ]
     }
   ],
-  "findings": [],
-  "score": 100,
-  "scoreBreakdown": {},
+  "findings": [
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: connect_with_agent · Private data: get_carrier_recommendations, connect_with_agent · Public sink: connect_with_agent.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: connect_with_agent · Private data: get_carrier_recommendations, connect_with_agent · Public sink: connect_with_agent"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"classify_business\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:classify_business",
+        "snippet": "before: \"Takes a natural language business description and returns matched class codes (NAICS, ISO GL, NCCI WC). Always call this first to understand the user's business type before making recommendations.\" → after: \"Use this first when the user describes what their business does, to find its insurance classification before suggesting coverages or estimating premiums. Pass only the business activity, for example 'bakery' or 'HVAC contractor'; leave out the business name, city and other details. Returns up to fiv\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"get_carrier_recommendations\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:get_carrier_recommendations",
+        "snippet": "before: \"Returns ranked carrier recommendations with estimated premium ranges for a small commercial risk.\" → after: \"Use this when the user wants premium estimates or carrier options for BOP, GL, WC or commercial_auto and you have the confirmed classification, the business's state, annual revenue and at least one coverage. Returns carriers whose appetite data matches, market budget estimates (not quotes) with sour\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"explain_coverage\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:explain_coverage",
+        "snippet": "before: \"Explains a commercial insurance coverage type in plain language.\" → after: \"Use this when the user asks what a commercial insurance coverage is or how two coverages differ. Returns a plain-language explanation of one coverage type; call it once per coverage. It cannot tell whether a specific policy covers a specific claim.\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"suggest_coverages\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:suggest_coverages",
+        "snippet": "before: \"Suggests which insurance coverages a business likely needs, ranked by importance.\" → after: \"Use this when the user asks which commercial insurance coverages their business needs. Returns coverages ranked essential, recommended or optional, each with a reason, based on the confirmed class codes and the facts the user stated. Pass naics_code and iso_gl_code from classify_business after the u\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"connect_with_agent\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:connect_with_agent",
+        "snippet": "before: \"Generates a handoff to connect the user with a matched independent agent.\" → after: \"Use this only when the user asks to speak with an agent, get real quotes or have their coverage reviewed. Saves a referral with the business details, and the linked estimate when you pass recommendation_id, for review by a licensed agent: the BizInsured team for Ohio businesses, or a partner agent e\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    }
+  ],
+  "score": 41,
+  "scoreBreakdown": {
+    "toxic-flow": 20,
+    "tool-poisoning": 39
+  },
   "errors": []
 }

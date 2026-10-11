@@ -1,0 +1,102 @@
+{
+  "schemaVersion": 1,
+  "scanner": {
+    "version": "1.6.0",
+    "rules": "402995650b68"
+  },
+  "target": {
+    "kind": "url",
+    "ref": "https://rev-ai.usefulapi.io/mcp"
+  },
+  "scannedAt": "2026-10-11T11:07:16.987Z",
+  "durationMs": 729,
+  "layers": {
+    "metadata": true,
+    "static": false
+  },
+  "tools": [
+    {
+      "name": "revai_get_account",
+      "descriptionHash": "9c7909fd29421afde71c85baed08248341074423dcd4397e6a6f38aa959b7188",
+      "description": "The Rev.ai account behind the token: email, free, purchased, total and invoiced balance (USD) and whether HIPAA is on. GET /account.",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "revai_list_jobs",
+      "descriptionHash": "90b7c3c14f287188e7fd048155d13d0599d7db335a3819145cac68cf61643466",
+      "description": "List transcription jobs from the last 30 days, newest first: id, status (in_progress, transcribed, failed), name, duration, language, failure reason. Page with starting_after = the previous reply's next_starting_after. GET /jobs."
+    },
+    {
+      "name": "revai_get_job",
+      "descriptionHash": "17400394fb17e7184b5041865c7686ca1ba7c6f1e0521bf00a8e5f559f7f9fab",
+      "description": "One transcription job by id: status (in_progress, transcribed, failed), timestamps, duration, language, failure reason. Poll this until status is transcribed. GET /jobs/{id}."
+    },
+    {
+      "name": "revai_submit_job",
+      "descriptionHash": "c1a420c51c3f2ca97039e3775367c68aef7c715ef5f9b76fe85dbdbe5f14f0c7",
+      "description": "WRITE: start an asynchronous machine transcription job for an audio or video file at a public URL. It uses Rev.ai credit (free credit first). Returns the job with status in_progress; then poll revai_get_job and read the result with revai_get_transcript. Human transcription is not offered. POST /jobs",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "revai_delete_job",
+      "descriptionHash": "9a9e57682d4da2f98bf2d93dd56b6777ee3e5baedcc7a7c289dc8cd660d82d28",
+      "description": "WRITE: permanently delete a finished (transcribed or failed) job with its media and transcript. This cannot be undone. A job still in progress cannot be deleted. DELETE /jobs/{id}.",
+      "labels": [
+        "destructive"
+      ]
+    },
+    {
+      "name": "revai_get_transcript",
+      "descriptionHash": "f04c9f48b99d5702eedeb21629cba8c137d7fb150f9332b23eb5e3c0050f5f86",
+      "description": "The transcript of a transcribed job. format=text (default) is plain text with speaker labels and timestamps; format=segments is a list of {speaker, start, end, text} per speaker turn (seconds). Long transcripts are paged: repeat with next_offset until it is null. GET /jobs/{id}/transcript.",
+      "labels": [
+        "untrusted-content",
+        "destructive"
+      ]
+    },
+    {
+      "name": "revai_get_summary",
+      "descriptionHash": "f765ffa41153204a3ada9307c315d476fa607617e6d753646a162da9dad858e0",
+      "description": "The summary of a transcribed job. It exists only if the job was submitted with summarization_type. Paged by character like revai_get_transcript. GET /jobs/{id}/transcript/summary.",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "revai_get_captions",
+      "descriptionHash": "55e18cfe49c4bb1e57cbad9fa657b6427f2a4772ed1af9336a92530598ec2f1c",
+      "description": "Captions for a transcribed job as SRT (default) or WebVTT. Long files are paged by character: repeat with next_offset until it is null. For multichannel jobs pass speaker_channel. GET /jobs/{id}/captions.",
+      "labels": [
+        "private-data"
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: revai_get_account, revai_submit_job, revai_get_transcript, revai_get_summary · Private data: revai_get_account, revai_submit_job, revai_get_captions · Public sink: revai_get_account, revai_submit_job · Destructive: revai_delete_job, revai_get_transcript.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: revai_get_account, revai_submit_job, revai_get_transcript, revai_get_summary · Private data: revai_get_account, revai_submit_job, revai_get_captions · Public sink: revai_get_account, revai_submit_job · Destructive: revai_delete_job, revai_get_transcript"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 80,
+  "scoreBreakdown": {
+    "toxic-flow": 20
+  },
+  "errors": []
+}

@@ -8,8 +8,8 @@
     "kind": "url",
     "ref": "https://sorsa.app/mcp"
   },
-  "scannedAt": "2026-08-01T06:43:31.153Z",
-  "durationMs": 902,
+  "scannedAt": "2026-10-11T10:55:15.366Z",
+  "durationMs": 1361,
   "layers": {
     "metadata": true,
     "static": false
@@ -23,7 +23,7 @@
     {
       "name": "analyse_product_full",
       "descriptionHash": "0cc82d9e7ca2a09d53c327a814383e5d1cf0cd177c475f9a02590dae0345a7a0",
-      "description": "Full analysis of an Amazon product by ASIN — everything in analyse_product\n    plus seller/stock breakdown, buy-box hhistory and variations. Slower and\n    heavier than analyse_product; use when the user wants seller-level or\n    historical detail in one shot. Costs 1 analyse credit unless the ASIN w"
+      "description": "Full analysis of an Amazon product by ASIN — everything in analyse_product\n    plus seller/stock breakdown, buy-box history and variations. Slower and\n    heavier than analyse_product; use when the user wants seller-level or\n    historical detail in one shot. Costs 1 analyse credit unless the ASIN w"
     },
     {
       "name": "get_product_sellers",
@@ -152,6 +152,29 @@
       "description": "Add a product to the user's sourcing list (their buy list). Call when\n    the user says 'add this to my buy list' — typically after analysing a\n    product, passing through the numbers from the analysis. sourced_from is\n    where they'd buy it (retailer/site)."
     },
     {
+      "name": "add_purchase",
+      "descriptionHash": "e934c268e748c8f70dd46ff22a5824f425ba39adf6139440d34703f4b0002ffc",
+      "description": "Add an item the user has BOUGHT to their Items Purchased list (the\n    next step after sourcing). Returns the created item incl. its `id` —\n    use that id with generate_sku and create_listing. cost is per unit;\n    sourced_from is the retailer/site they bought from.\n\n    projected_sale_price: defau"
+    },
+    {
+      "name": "generate_sku",
+      "descriptionHash": "ff0b492670deae35c71c6941c36a99d177013c6f3dde7c6f032a9ea94b780f75",
+      "description": "Generate a SKU for a purchased item (from its title/cost/qty using the\n    user's SKU convention) and save it to the row. Pass the `id` returned by\n    add_purchase or shown in get_items_purchased. Do this before create_listing.\n    Returns the item with its new listing_sku."
+    },
+    {
+      "name": "create_listing",
+      "descriptionHash": "0a9b1402d7ff2a414dd82fe3036252a25ac1537d4c1d872620542577be0a5762",
+      "description": "Create the Amazon listing for a purchased item — the final step.\n    Requires the item to have an ASIN, a listing_sku (run generate_sku first)\n    and a sale price.\n\n    SALE PRICE RULE: set `sale_price` to the product's 90-day average price\n    (from analyse_product) as a sensible default — but ALW",
+      "labels": [
+        "destructive"
+      ]
+    },
+    {
+      "name": "set_cog",
+      "descriptionHash": "df17eafae68f044f04134a27c72195789a3401df43d772e435abe53c90e33a5c",
+      "description": "Set the cost of goods (COG) for a SKU — the per-unit price the user\n    paid. Feeds profit/ROI across the whole app and the repricer's floors.\n    cost in the user's currency (e.g. £). Pass cost=0 or empty to clear it."
+    },
+    {
       "name": "get_items_purchased",
       "descriptionHash": "9e7abc9f9dfe6930133ec348d995057a0546ab4829299fdf71748d07846f003b",
       "description": "Items the user has actually purchased from their sourcing list,\n    including listing status (SKU, listing errors). Call when the user asks\n    what they've bought or about listing progress."
@@ -256,8 +279,8 @@
     },
     {
       "name": "start_a2a_finder_scan",
-      "descriptionHash": "cc58297994a9202641abcdd7030ad998495739093b2a154b779f450fe01ba345",
-      "description": "Start an A2A Finder scan: check a list of ASINs for profitable\n    Amazon-to-Amazon flips across marketplaces (buy on one Amazon country, sell\n    on another). Up to 100 ASINs. Optional `countries` = list of country codes\n    to compare (e.g. [\"UK\",\"DE\",\"FR\"]); defaults to all. Uses the shared Keepa"
+      "descriptionHash": "6d53abce8238b509da0fd98e019a12818ade07bcb2b627e550fe1ba83dfd1959",
+      "description": "Start an A2A Finder scan: check a list of ASINs for profitable\n    Amazon-to-Amazon flips across marketplaces (buy on one Amazon country, sell\n    on another). Up to 100 ASINs. Optional `countries` = list of country codes\n    to compare (e.g. [\"UK\",\"DE\",\"FR\"]); defaults to all. Uses the user's saved"
     },
     {
       "name": "get_a2a_finder_status",
@@ -270,83 +293,70 @@
       "description": "List the user's recent A2A Finder scan jobs and their status. Call to\n    find a job_id whose results to fetch."
     },
     {
-      "name": "start_wholesale_scan",
-      "descriptionHash": "7241d4f74965c6fd882000e6f45fc8cb6970ae6fdf956a9f91432e226d048ef5",
-      "description": "Start a Wholesale Scanner run against a supplier price list. Each item in\n    `products` is a dict with 'title', 'price' (cost per unit), and 'ean'\n    (barcode — needed to match, the default scan is EAN-based). Up to 500 items.\n    Matches each product to Amazon and returns profit/ROI. Returns a jo",
+      "name": "get_keepa_key_status",
+      "descriptionHash": "cbba5cb8b3e2b1582cfbfe362a5e07bf65e5d0164d8e80c851780dd56bb4b0a5",
+      "description": "Whether the user has connected their own Keepa API key (needed for\n    find_products). If not connected, tell them to add it in Sorsa Settings.\n    Never returns the key itself.",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "find_products",
+      "descriptionHash": "0fbf30dffe030288b4feaae4031b112f729c29bce7ff201beb5c9f3243d4f6ca",
+      "description": "Search Amazon via Keepa's Product Finder and return the matching ASINs\n    (up to 100). Runs on the USER'S OWN Keepa key — call get_keepa_key_status\n    first; if not connected, tell them to add their key in Sorsa Settings.\n\n    Provide at least one filter. Prices are in the marketplace's currency\n ",
       "labels": [
         "destructive"
       ]
     },
     {
-      "name": "get_wholesale_status",
-      "descriptionHash": "814c18261dd7c4359451c9f04902a3f964e3454b19eb2772bb9bd3b99e28c304",
-      "description": "Status and results of a Wholesale Scanner run. Returns progress % and,\n    once complete, each supplier product matched to Amazon with sell price,\n    profit and ROI.",
+      "name": "create_finder_monitor",
+      "descriptionHash": "08c3542f1aaa33fea98b1c1d63fc7b4536706de6d197ab323acca70b44aff933",
+      "description": "Create a LIVE Keepa Product Finder monitor from the same filters as\n    find_products. It runs on the user's OWN Keepa key and sends a Discord\n    alert to `webhook_url` whenever a NEW product starts matching the filters —\n    the saved/recurring version of find_products.\n\n    REQUIRED: a `name` for",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "request_ungate_check",
+      "descriptionHash": "506d45fa931daa71552fc17cd37943d659e467ea9f82120b611f0fb7a7e23396",
+      "description": "Request an ungate check for one or more gated ASINs. For each ASIN this\n    confirms it's gated (via the eligibility check) and, if so, QUEUES a job that\n    the user's Sorsa browser extension works through — it opens the Seller Central\n    approval request in their own logged-in session and reports",
       "labels": [
         "destructive"
       ]
     },
     {
-      "name": "get_wholesale_jobs",
-      "descriptionHash": "aefbd97350b893070fc6f0e05eb67e977861dd2939a1f2d2859d68ba5f2eefcc",
-      "description": "List the user's recent Wholesale Scanner jobs and their status. Call to\n    find a job_id whose results to fetch."
+      "name": "get_ungate_status",
+      "descriptionHash": "0bdfa9d50bcc1fbfdfb468163b5200e7df932b55018a50cd3fd7abd3e7ff92c0",
+      "description": "Status + outcome of an ungate job. Status is queued | in_progress |\n    completed | failed | expired; outcome (when set) is approved,\n    already_approved, documents_required, not_accepting_applications,\n    login_required or unknown.\n\n    While status is 'queued' or 'in_progress', CALL THIS AGAIN a"
     },
     {
-      "name": "start_reverse_source_scan",
-      "descriptionHash": "f39cd372e1dbf1cf3108b28cd0e039897ac41b542a9d0e7d779af5ae2873b56f",
-      "description": "Start a Reverse Source scan: for each ASIN, search Google Shopping for a\n    cheaper source than Amazon — i.e. where to buy the product to flip it. Up\n    to 250 ASINs. Uses the shared Keepa scan key (counts against the user's\n    daily scan credits). Returns a job_id — poll get_reverse_source_statu"
+      "name": "get_ungate_suppliers",
+      "descriptionHash": "6e8cb3b2c8b7d53988072cee6f85c5f02c1cd25fb343f50138e952f65ce79a45",
+      "description": "Suppliers (manufacturers / authorised distributors / wholesalers that\n    issue proper invoices) for a brand or category, with how many Sorsa users\n    confirmed each one got them ungated for that brand. Provide a brand and/or a\n    category.",
+      "labels": [
+        "untrusted-content"
+      ]
     },
     {
-      "name": "get_reverse_source_status",
-      "descriptionHash": "a2a92846aa8727223e59baeae5a7c21f6105183f5df60761f74fabdf7c4302c9",
-      "description": "Status and results of a Reverse Source scan started with\n    start_reverse_source_scan. Returns progress % and, once complete, the\n    cheapest Google Shopping source found per ASIN (retailer, price, link)."
+      "name": "get_ungate_brands",
+      "descriptionHash": "ffeb3b0f5558a815fc35fdac5928a4709c79a65d8f68f418be34701ed128c7a2",
+      "description": "The curated Sorsa ungate brand list (~1300 brands), each with a\n    representative ASIN that can be run through request_ungate_check. Use this to\n    look up the ASIN for a brand the user names (e.g. \"can you ungate me for\n    Adidas?\" -> find Adidas here -> request_ungate_check([that asin])), or to",
+      "labels": [
+        "destructive"
+      ]
     },
     {
-      "name": "get_reverse_source_jobs",
-      "descriptionHash": "61c81fd3d9c4acb54f584a7fadd62e9c8a47a3a5043879f5fca2fb5a61585d33",
-      "description": "List the user's recent Reverse Source scan jobs and their status. Call\n    to find a job_id whose results to fetch."
+      "name": "confirm_ungate_supplier",
+      "descriptionHash": "aebb444104aafb02fbd5eb3ebf56544b7bc08f13647a9cff095db67b123b1556",
+      "description": "Record that a supplier's invoice got the user approved (ungated) for a\n    brand. This increments that supplier's confirmation count for the brand so\n    other users see which suppliers actually work.",
+      "labels": [
+        "private-data"
+      ]
     },
     {
-      "name": "get_repricer_items",
-      "descriptionHash": "1c585367a88875a10725f5da6ddb4c524bc8f75666439acefca8d2973805dcdb",
-      "description": "The user's repricer SKUs with live pricing state: current price, Buy Box\n    price, lowest FBA price, cost/min/max, strategy, computed profit/ROI at the\n    current price, floor price and stock. Call when the user asks what the\n    repricer is doing, whether they hold the Buy Box on something, or wh"
-    },
-    {
-      "name": "get_repricer_log",
-      "descriptionHash": "0f9ff162ad1b376ec0a106e9a15b753dd5acc1ba1e6f3ecab4f065602e6ba501",
-      "description": "Recent repricer price changes, newest first: SKU, old → new price, the\n    reason, the reference price it repriced against (Buy Box / lowest FBA) and\n    whether the floor or ceiling capped the move. Call when the user asks what\n    the repricer changed recently or why a price moved. limit max 500."
-    },
-    {
-      "name": "get_repricer_stats",
-      "descriptionHash": "d571ae09624bec146c31a4b322a3435a784f478e2949060f256883b5b9988977",
-      "description": "Repricer dashboard summary: total/active SKU counts, per-status\n    breakdown, Buy Box wins and win %, items matching the Buy Box exactly,\n    units actively repricing and the last update time. Call first for broad\n    questions like 'how's the repricer doing?'."
-    },
-    {
-      "name": "get_repricer_settings",
-      "descriptionHash": "0e45bba9faeaea0902b423c21386f5be62e4e0f8e137d63f88d4a3f1e3d9def9",
-      "description": "The user's global repricer settings: whether repricing is globally\n    enabled, seller ID, default strategy, default minimum ROI, allowed\n    strategies and VAT registration. Read-only — changing settings is\n    web-app only."
-    }
-  ],
-  "findings": [
-    {
-      "id": "MCP-TOXIC-FLOW-001",
-      "severity": "high",
-      "category": "toxic-flow",
-      "title": "Lethal trifecta: untrusted input + private data + external sink",
-      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: get_notifications, get_dashboard_summary, get_deal_tasks, add_storefront_monitor, get_oa_retailers · Private data: get_deal_results · Public sink: create_deal_task · Destructive: get_credits, start_wholesale_scan, get_wholesale_status.",
-      "evidence": {
-        "source": "server:mcp",
-        "snippet": "Untrusted content: get_notifications, get_dashboard_summary, get_deal_tasks, add_storefront_monitor, get_oa_retailers · Private data: get_deal_results · Public sink: create_deal_task · Destructive: get_credits, start_wholesale_scan, get_wholesale_status"
-      },
-      "confidence": 0.6,
-      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
-    }
-  ],
-  "score": 80,
-  "scoreBreakdown": {
-    "toxic-flow": 20
-  },
-  "errors": []
-}ption": "Whether the user has connected their own Google Sheet (a deployed Apps\n    Script web app) that run_sheet_action can trigger. If not connected, tell\n    them to add their web-app URL in Sorsa Settings. Never returns the URL.",
+      "name": "get_sheet_status",
+      "descriptionHash": "af92a04851e06b34e0d9d8a9ef460be499938becb824697ef8a3b77cdece8d0f",
+      "description": "Whether the user has connected their own Google Sheet (a deployed Apps\n    Script web app) that run_sheet_action can trigger. If not connected, tell\n    them to add their web-app URL in Sorsa Settings. Never returns the URL.",
       "labels": [
         "untrusted-content"
       ]
@@ -383,8 +393,8 @@
     },
     {
       "name": "start_reverse_source_scan",
-      "descriptionHash": "f39cd372e1dbf1cf3108b28cd0e039897ac41b542a9d0e7d779af5ae2873b56f",
-      "description": "Start a Reverse Source scan: for each ASIN, search Google Shopping for a\n    cheaper source than Amazon — i.e. where to buy the product to flip it. Up\n    to 250 ASINs. Uses the shared Keepa scan key (counts against the user's\n    daily scan credits). Returns a job_id — poll get_reverse_source_statu"
+      "descriptionHash": "3b8701c64eebfff9b72ddc4e60e469b5cb2eb02c61e9410c990782359062f846",
+      "description": "Start a Reverse Source scan: for each ASIN, search Google Shopping for a\n    cheaper source than Amazon — i.e. where to buy the product to flip it. Up\n    to 250 ASINs. Uses the user's saved Keepa key if they've added one in\n    settings; otherwise the shared scan key (which counts against their dai"
     },
     {
       "name": "get_reverse_source_status",
@@ -447,10 +457,10 @@
       "severity": "high",
       "category": "toxic-flow",
       "title": "Lethal trifecta: untrusted input + private data + external sink",
-      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: get_notifications, get_dashboard_summary, get_deal_tasks, add_storefront_monitor, get_oa_retailers, get_ungate_suppliers, get_sheet_status · Private data: get_deal_results, get_keepa_key_status, confirm_ungate_supplier · Public sink: create_deal_task, create_finder_monitor, run_sheet_action · Destructive: get_credits, create_listing, find_products, request_ungate_check, run_sheet_action, start_wholesale_scan, get_wholesale_status.",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: get_notifications, get_dashboard_summary, get_deal_tasks, add_storefront_monitor, get_oa_retailers, get_ungate_suppliers, get_sheet_status · Private data: get_deal_results, get_keepa_key_status, confirm_ungate_supplier · Public sink: create_deal_task, create_finder_monitor, run_sheet_action · Destructive: get_credits, create_listing, find_products, request_ungate_check, get_ungate_brands, run_sheet_action, start_wholesale_scan, get_wholesale_status.",
       "evidence": {
         "source": "server:mcp",
-        "snippet": "Untrusted content: get_notifications, get_dashboard_summary, get_deal_tasks, add_storefront_monitor, get_oa_retailers, get_ungate_suppliers, get_sheet_status · Private data: get_deal_results, get_keepa_key_status, confirm_ungate_supplier · Public sink: create_deal_task, create_finder_monitor, run_sheet_action · Destructive: get_credits, create_listing, find_products, request_ungate_check, run_sheet_action, start_wholesale_scan, get_wholesale_status"
+        "snippet": "Untrusted content: get_notifications, get_dashboard_summary, get_deal_tasks, add_storefront_monitor, get_oa_retailers, get_ungate_suppliers, get_sheet_status · Private data: get_deal_results, get_keepa_key_status, confirm_ungate_supplier · Public sink: create_deal_task, create_finder_monitor, run_sheet_action · Destructive: get_credits, create_listing, find_products, request_ungate_check, get_ungate_brands, run_sheet_action, start_wholesale_scan, get_wholesale_status"
       },
       "confidence": 0.6,
       "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."

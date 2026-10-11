@@ -8,19 +8,109 @@
     "kind": "url",
     "ref": "https://mcp.council-ai.app/mcp"
   },
-  "scannedAt": "2026-07-30T06:49:05.230Z",
-  "durationMs": 379,
+  "scannedAt": "2026-10-11T11:04:43.720Z",
+  "durationMs": 560,
   "layers": {
-    "metadata": false,
+    "metadata": true,
     "static": false
   },
-  "findings": [],
-  "score": 100,
-  "scoreBreakdown": {},
-  "errors": [
+  "tools": [
     {
-      "scanner": "metadata",
-      "message": "Streamable HTTP error: Error POSTing to endpoint: {\"jsonrpc\":\"2.0\",\"error\":{\"code\":-32001,\"message\":\"Unauthorized — invalid or missing MCP token\"},\"id\":null}"
+      "name": "council_query",
+      "descriptionHash": "22740481ca46bebb000dfae43b1b79e33d3ecb8c0c02f68719b8479f9b9b605a",
+      "description": "Send a prompt to a council of frontier AI models across 9 labs (Anthropic, OpenAI, Google, xAI, DeepSeek, Qwen, Mistral, Moonshot, z.ai). Returns each model's independent response plus a moderator-synthesized consensus answer with an agreement score and the key point of disagreement, when one exists",
+      "labels": [
+        "untrusted-content",
+        "public-sink",
+        "destructive"
+      ]
+    },
+    {
+      "name": "council_result",
+      "descriptionHash": "a9aa73608f28b70f28a2d944d431b1828d25f9f38a5ac61f5eb5028c181fdff1",
+      "description": "Fetch the result of a council_query started with async=true. Returns status \"running\" while the council is still working (wait 30-60 seconds and call again), the full synthesis + per-model responses once complete, or status \"failed\" with the error. Polling is free — the council run itself was alread",
+      "labels": [
+        "destructive"
+      ]
+    },
+    {
+      "name": "council_query_with_rag",
+      "descriptionHash": "abaad68bef68c90dd1d3ee71a2e8f6bf2e35a95a0b2b948e0e7bfa4b5e3ab002",
+      "description": "Like council_query, but first retrieves the most relevant passages from the user's personal Council RAG library (uploaded PDFs, Word docs, contracts, research papers, codebases) and injects them into every model's prompt. Use when the question is about content the user has uploaded — contract review"
+    },
+    {
+      "name": "council_review",
+      "descriptionHash": "c5b72427c5077c6c5d63d169bbdb38f8042f0e9a1186a2a82d56eff336762e74",
+      "description": "Multi-model code review. Sends a unified diff (or code snippet) to multiple frontier AI models from different labs in parallel, each acting as an independent reviewer with an explicit verdict + findings contract. Returns a verdict-first synthesis: overall SHIP/NO-SHIP, consensus score, confirmed fin",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "library_search",
+      "descriptionHash": "2d2d167bdbaba9e8380a8b951cb430587ff74bf06e076d778ac658a31cc52f74",
+      "description": "Semantic search over the user's Council RAG library (uploaded PDFs, Word docs, contracts, research papers, codebases). Returns top-K chunks with source filename and page number. No model call, no budget consumption. Use to find direct quotes, check what the library contains, or scope a follow-up cou"
+    },
+    {
+      "name": "library_list",
+      "descriptionHash": "025b2cf9b84fbf0b946c6688d5a55a555a4e39c43ed8e23995dfab8d0a2f3e8a",
+      "description": "List the documents in the user's Council RAG library. Returns id, filename, source type, ingestion status, chunk count, and upload date for each document. No retrieval, no budget consumption.",
+      "labels": [
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "library_upload",
+      "descriptionHash": "90bae0bce3359d406f94e859d863ee8d3ac5e86130632daa0a8d917ee1887031",
+      "description": "Upload a document into the user's Council RAG library so future council_query_with_rag and library_search calls can retrieve it. Accepts PDF, Word (docx), text, and markdown files as base64 — images are not supported. Max 10MB per file via MCP (the web library at https://council-ai.app/settings?tab=",
+      "labels": [
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "library_delete",
+      "descriptionHash": "41e7e7379c4443d68ab96c4b2c1fa5cc0be3fb7bf11e736dc3c488d57258a86f",
+      "description": "Permanently delete a document from the user's Council RAG library — the record, every indexed chunk, AND the stored file are removed. This cannot be undone; re-adding the document requires uploading it again. Get document IDs from library_list. Use when the user asks to remove a document or when the",
+      "labels": [
+        "private-data",
+        "public-sink",
+        "destructive"
+      ]
+    },
+    {
+      "name": "council_models",
+      "descriptionHash": "4e92595002865fdc24366d83de8e9680b274276d311a0c250ba29c13b5a628f7",
+      "description": "List the AI models available to the current user. Returns ID, provider, tier, context window, and capability flags (web search, vision, streaming). Use the IDs returned here as the `models` array argument to council_query / council_query_with_rag."
+    },
+    {
+      "name": "council_usage",
+      "descriptionHash": "31f06116f72dead6cd713caeaa371467d08717983469548db75fa9863b874620",
+      "description": "Return the user's current monthly cost-budget consumption (current spend, budget cap, percentage used, days until reset). Use to decide whether to warn the user before invoking another council_query, or to suggest using cheaper models. Per Council's rule: never show dollar amounts to the user in the",
+      "labels": [
+        "destructive"
+      ]
     }
-  ]
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: council_query · Private data: council_review, library_list, library_upload, library_delete · Public sink: council_query, library_list, library_upload, library_delete · Destructive: council_query, council_result, library_delete, council_usage.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: council_query · Private data: council_review, library_list, library_upload, library_delete · Public sink: council_query, library_list, library_upload, library_delete · Destructive: council_query, council_result, library_delete, council_usage"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 80,
+  "scoreBreakdown": {
+    "toxic-flow": 20
+  },
+  "errors": []
 }

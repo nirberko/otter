@@ -8,19 +8,93 @@
     "kind": "url",
     "ref": "https://api.jentic.com/mcp"
   },
-  "scannedAt": "2026-07-17T17:36:57.677Z",
-  "durationMs": 278,
+  "scannedAt": "2026-10-11T11:00:47.438Z",
+  "durationMs": 1102,
   "layers": {
-    "metadata": false,
+    "metadata": true,
     "static": false
   },
-  "findings": [],
-  "score": 100,
-  "scoreBreakdown": {},
-  "errors": [
+  "tools": [
     {
-      "scanner": "metadata",
-      "message": "Streamable HTTP error: Error POSTing to endpoint: {\"error\":\"unauthorized\",\"error_description\":\"Unauthenticated identity detected in MCP request. Please complete OAuth flow.\"}"
+      "name": "list_credentials",
+      "descriptionHash": "cecf1cb6a211940033ac55224a3733d3dd543e9a16141b71bb61deda3bca3746",
+      "description": "Use this tool to list all API credentials the authenticated agent has access to.\nUse this if a user asks \"What APIs can I use?\", \"What credentials do I have access to?\", \"What apps are available to me?\", \"What APIs are available to me?\"\nThis is useful for debugging or to understand what API credenti",
+      "labels": [
+        "untrusted-content",
+        "private-data"
+      ]
+    },
+    {
+      "name": "search_apis",
+      "descriptionHash": "45037fff49cb5b553f8066d7eb4ea0f428becb30f02c0ee582c831f8475145c9",
+      "description": "Use this tool to explore for available actions or information based on what the user wants to do (e.g., 'find Discord servers', 'send a message').\nUse this to discover what APIs and operations exist in the Jentic catalogue.\n\nExecution is moving to self-hosted Jentic One: to run a discovered\noperatio",
+      "labels": [
+        "untrusted-content",
+        "public-sink",
+        "destructive"
+      ]
+    },
+    {
+      "name": "load_execution_info",
+      "descriptionHash": "7455a2eacb2b49d78e02e10ae1ba02ba3a2383cc777e2c5e2aef07edf1e36da4",
+      "description": "Use this tool to get the full execution contract for a specific operation\n(its inputs, outputs, and authentication requirements).\nThis tool must use the operation UUIDs returned from the search_apis tool.\n\nDEPRECATION NOTICE: This tool is being deprecated on 20 September 2026.\nExecution is moving to",
+      "labels": [
+        "destructive"
+      ]
+    },
+    {
+      "name": "execute",
+      "descriptionHash": "85ad5febcedb74b5185762a650b945c9560e2e80d0e3288655d3b0144cf841dd",
+      "description": "Use this tool to execute the chosen action for the user using the provided details.\nAlways include `inputs` even if there are none.\nTo reduce context, use `include_paths` to return only the fields you need from the output.\n\nDEPRECATION NOTICE: This tool is being deprecated on 20 September 2026.\nExec",
+      "labels": [
+        "destructive"
+      ]
     }
-  ]
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"list_credentials\" references sensitive artifacts (credentials). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:list_credentials",
+        "snippet": "Use this tool to list all API credentials the authenticated agent has access to. Use this if a user asks \"What APIs can I use?\", \"What credentials do I have acc…"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-SHADOW-001",
+      "severity": "medium",
+      "category": "shadowing",
+      "title": "Generic tool name can shadow trusted tools",
+      "detail": "Tool \"execute\" uses a generic high-value name. When multiple servers load together, this can intercept calls meant for a trusted server.",
+      "evidence": {
+        "source": "tool:execute",
+        "snippet": "execute"
+      },
+      "confidence": 0.4
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: list_credentials, search_apis · Private data: list_credentials · Public sink: search_apis · Destructive: search_apis, load_execution_info, execute.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: list_credentials, search_apis · Private data: list_credentials · Public sink: search_apis · Destructive: search_apis, load_execution_info, execute"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 52,
+  "scoreBreakdown": {
+    "tool-poisoning": 20,
+    "shadowing": 8,
+    "toxic-flow": 20
+  },
+  "errors": []
 }

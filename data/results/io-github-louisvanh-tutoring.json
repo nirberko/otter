@@ -8,8 +8,8 @@
     "kind": "url",
     "ref": "https://itutoronline.com/api/mcp"
   },
-  "scannedAt": "2026-07-22T06:46:45.951Z",
-  "durationMs": 1374,
+  "scannedAt": "2026-10-11T11:01:18.371Z",
+  "durationMs": 1792,
   "layers": {
     "metadata": true,
     "static": false
@@ -22,8 +22,8 @@
     },
     {
       "name": "get_tutor",
-      "descriptionHash": "2b341518d86b22ff2700f0a1aed7b0aaa35910f5dd0cf389ceda3a9ea84811fe",
-      "description": "Get the full public profile for one tutor by their user id (the id shown in search results or in a /tutor_profile/<id> URL): headline, description, subjects, academic levels, rate, rating, credentials, languages, and how to book.",
+      "descriptionHash": "f8c23183535dc7e95aeda2e933831287dde74cd7306242b0f972f24d10927921",
+      "description": "Get the full public profile for one tutor: headline, description, subjects, academic levels, rate, rating, credentials, languages, and how to book. Identify the tutor by the id from a search_tutors result, or by the last part of their profile URL.",
       "labels": [
         "untrusted-content",
         "private-data"
@@ -31,8 +31,8 @@
     },
     {
       "name": "get_tutor_reviews",
-      "descriptionHash": "41ed058bb5923ed6c4f066981f3b72d253bdb7b27e5baa61c59fc6f661907441",
-      "description": "Get recent written reviews and the average score for a tutor, by their user id.",
+      "descriptionHash": "2030ea5bba406506ad811b20d5aad633f91907bdf874c5c722972faf269a901d",
+      "description": "Get recent written reviews and the average score for a tutor.",
       "labels": [
         "untrusted-content"
       ]
@@ -54,10 +54,9 @@
     },
     {
       "name": "request_human_tutor",
-      "descriptionHash": "bc0dbb89698dcd794b45953355ea5b0b82a5c96251c338689ddfd57478d9b3e4",
-      "description": "Hand a tutoring request to the iTutorOnline team so they can line up a human tutor. Provide the subject and any details; optionally a contact email. Also returns tutors the student can book immediately.",
+      "descriptionHash": "d36d012815c8fe0941c8bd8311232899aa6e0e4779754fea744beedb4bc61ade",
+      "description": "Hand a tutoring request to the iTutorOnline team so they can line up a human tutor. Requires the subject AND an email address the team can reply to — ask the student for one before calling this, because there is no other way to reach them afterwards. If they will not share an email, use search_tutor",
       "labels": [
-        "private-data",
         "public-sink"
       ]
     }
@@ -71,27 +70,79 @@
       "detail": "Description of \"get_tutor\" references sensitive artifacts (credentials). A tool description has no reason to mention credentials.",
       "evidence": {
         "source": "tool:get_tutor",
-        "snippet": "Get the full public profile for one tutor by their user id (the id shown in search results or in a /tutor_profile/<id> URL): headline, description, subjects, ac…"
+        "snippet": "Get the full public profile for one tutor: headline, description, subjects, academic levels, rate, rating, credentials, languages, and how to book. Identify the…"
       },
       "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOOL-POISON-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description issues instructions to the model",
+      "detail": "Description of \"request_human_tutor\" contains imperative instructions directed at the AI assistant rather than describing the tool. This is the core tool-poisoning technique.",
+      "evidence": {
+        "source": "tool:request_human_tutor",
+        "snippet": "Hand a tutoring request to the iTutorOnline team so they can line up a human tutor. Requires the subject AND an email address the team can reply to — ask the st…"
+      },
+      "confidence": 0.7,
+      "remediation": "Treat the server as untrusted; the model may obey embedded instructions."
     },
     {
       "id": "MCP-TOXIC-FLOW-001",
       "severity": "high",
       "category": "toxic-flow",
       "title": "Lethal trifecta: untrusted input + private data + external sink",
-      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: get_tutor, get_tutor_reviews · Private data: get_tutor, request_human_tutor · Public sink: request_human_tutor.",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: get_tutor, get_tutor_reviews · Private data: get_tutor · Public sink: request_human_tutor.",
       "evidence": {
         "source": "server:mcp",
-        "snippet": "Untrusted content: get_tutor, get_tutor_reviews · Private data: get_tutor, request_human_tutor · Public sink: request_human_tutor"
+        "snippet": "Untrusted content: get_tutor, get_tutor_reviews · Private data: get_tutor · Public sink: request_human_tutor"
       },
       "confidence": 0.6,
       "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"get_tutor\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:get_tutor",
+        "snippet": "before: \"Get the full public profile for one tutor by their user id (the id shown in search results or in a /tutor_profile/<id> URL): headline, description, subjects, academic levels, rate, rating, credentials, languages, and how to book.\" → after: \"Get the full public profile for one tutor: headline, description, subjects, academic levels, rate, rating, credentials, languages, and how to book. Identify the tutor by the id from a search_tutors result, or by the last part of their profile URL.\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"get_tutor_reviews\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:get_tutor_reviews",
+        "snippet": "before: \"Get recent written reviews and the average score for a tutor, by their user id.\" → after: \"Get recent written reviews and the average score for a tutor.\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"request_human_tutor\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:request_human_tutor",
+        "snippet": "before: \"Hand a tutoring request to the iTutorOnline team so they can line up a human tutor. Provide the subject and any details; optionally a contact email. Also returns tutors the student can book immediately.\" → after: \"Hand a tutoring request to the iTutorOnline team so they can line up a human tutor. Requires the subject AND an email address the team can reply to — ask the student for one before calling this, because there is no other way to reach them afterwards. If they will not share an email, use search_tutor\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
     }
   ],
-  "score": 60,
+  "score": 41,
   "scoreBreakdown": {
-    "tool-poisoning": 20,
+    "tool-poisoning": 39,
     "toxic-flow": 20
   },
   "errors": []

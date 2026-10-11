@@ -1,0 +1,70 @@
+{
+  "schemaVersion": 1,
+  "scanner": {
+    "version": "1.6.0",
+    "rules": "402995650b68"
+  },
+  "target": {
+    "kind": "url",
+    "ref": "https://sugufax.com/api/mcp.php"
+  },
+  "scannedAt": "2026-10-11T10:57:40.398Z",
+  "durationMs": 1261,
+  "layers": {
+    "metadata": true,
+    "static": false
+  },
+  "tools": [
+    {
+      "name": "get_fax_price",
+      "descriptionHash": "ab26e74065ea20aede791fed08eb82a2df0dca737348f82e9cfd3fe32d85e9a9",
+      "description": "送信先とページ数からFAXの料金（日本円・税込）を確認します。送信先が対応しているか（携帯電話番号・0990・0570などは不可）もわかります。何も送信されません。"
+    },
+    {
+      "name": "send_fax",
+      "descriptionHash": "29f8297ddd857daa41ca2595d7dcecfa5c46a14dd6cfe687a4029d9813d61720",
+      "description": "FAXの送信を受け付け、Stripeのお支払いURL（checkout_url、日本円）を返します。お支払いが完了すると自動で送信されます。書類（いずれか1つ）：\"upload_id\"（create_upload_link で作成、ユーザーの端末にあるファイル用）、\"file\"（ChatGPTで添付されたファイル、自動入力）、\"document_url\"（公開PDFの直接HTTPSリンク）、\"document_base64\"（700KBまでの小さなファイルのみ）。PDF・JPG・PNG、最大10MB・100ページ。scheduled_at を指定すると、その日時（日本時間）に送信します。",
+      "labels": [
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "get_fax_status",
+      "descriptionHash": "6ba0101efa9c69c2065915954be413e8825e6b1aa7511c4898c60a5e852840b7",
+      "description": "send_fax の結果の token を使って、FAXの送信状況（お支払い待ち・予約中・送信中・完了など）を確認します。完了していれば送信完了レポートのURLも返します。",
+      "labels": [
+        "untrusted-content",
+        "private-data"
+      ]
+    },
+    {
+      "name": "create_upload_link",
+      "descriptionHash": "59004dae9ca6af4075f6c5fcb1ce81e8dd74fddba5919947fc02042643b03fa2",
+      "description": "FAX書類（PDF・JPG・PNG、最大10MB）をアップロードするための、安全なワンタイムURL（30分有効）を作成します。スマートフォンやパソコンからアップロードでき、カメラ撮影にも対応しています。ユーザーが upload_url でアップロードした後、upload_id を send_fax に渡します。リンクの作成では何も送信されず、料金もかかりません。",
+      "labels": [
+        "public-sink"
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp.php\" exposes tools that together enable an exfiltration flow. Untrusted content: get_fax_status · Private data: send_fax, get_fax_status · Public sink: send_fax, create_upload_link.",
+      "evidence": {
+        "source": "server:mcp.php",
+        "snippet": "Untrusted content: get_fax_status · Private data: send_fax, get_fax_status · Public sink: send_fax, create_upload_link"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 80,
+  "scoreBreakdown": {
+    "toxic-flow": 20
+  },
+  "errors": []
+}

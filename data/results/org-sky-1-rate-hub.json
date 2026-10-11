@@ -1,0 +1,89 @@
+{
+  "schemaVersion": 1,
+  "scanner": {
+    "version": "1.6.0",
+    "rules": "402995650b68"
+  },
+  "target": {
+    "kind": "url",
+    "ref": "https://x402-v1.sky-1.org/mcp"
+  },
+  "scannedAt": "2026-10-11T11:07:00.692Z",
+  "durationMs": 2910,
+  "layers": {
+    "metadata": true,
+    "static": false
+  },
+  "tools": [
+    {
+      "name": "get_categories",
+      "descriptionHash": "f82705c707fee6f60dcf16b85d95d4c862cd12b7277ac9501f2b3ffc085c157d",
+      "description": "Coin categories (GET /v1/categories): each category id and name with the catalog uids that belong to it, for example layer-1 or stablecoins. Join it with uids from get_rates or search_assets to group holdings. It changes about once a day; as_of says when it was refreshed. A coin can be in several ca"
+    },
+    {
+      "name": "get_daily",
+      "descriptionHash": "440285da888f7a70d9d85e67b85c82f6aab48deba1a1c3c702cb5ab1e280a70b",
+      "description": "Immutable daily rates for uids and UTC days (POST /v1/rates/daily). Days are UTC calendar dates (YYYY-MM-DD) in the past. Crypto history older than about a year is served at daily granularity from daily candles (source s8) back to the earliest day each asset has; an asset with no such history is out",
+      "labels": [
+        "untrusted-content",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "get_meta",
+      "descriptionHash": "16a68e2c794c33c77f91f08b3437098e23d7dd9e09825be717ea022c5fb8f2f9",
+      "description": "API limits, supported quote currencies, and build info (GET /v1/meta)."
+    },
+    {
+      "name": "get_rates",
+      "descriptionHash": "b1680cbd718cf56cd198797d3e30522070044675fdcfdea8efb01ad41f3ff40e",
+      "description": "Batch indicative prices for catalog uids (POST /v1/rates). Prices are decimal strings. Uids are class-ranged (uid = class*1e8+seq; 1=fiat e.g. usd 100000001, 2=crypto e.g. btc 200000001). Use search_assets to find uids. Per-rate status: ok = fresh price; stale = last known price, upstream is late (s",
+      "labels": [
+        "untrusted-content",
+        "public-sink",
+        "destructive"
+      ]
+    },
+    {
+      "name": "get_series",
+      "descriptionHash": "81aae0dbe54ac24a30619fdf07ef6d3ac9c482180db1e0539a6fb1c9ef57bce5",
+      "description": "Price history of one asset for charts (GET /v1/rates/series). Crypto: every range. Fiat: 1d and 7d from rate-hub's own readings taken about every 30 minutes; 30d, 90d, 1y and max one point per UTC day from the daily archive (it has a start day, days without a document are skipped, a cold range fills",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "get_top",
+      "descriptionHash": "ebf8bd69f5a029b043c7fd61c647455a41642d7927fa1101f3b7a33ad9235331",
+      "description": "Top crypto assets by market rank (GET /v1/top), with change and, by default, the market block (rank, market cap, volume, supply). Size: about 1 KB per asset with market (both copies of the result), smaller without. Default limit is 20 (max 250); pass include_market=false for a compact list. Items th"
+    },
+    {
+      "name": "search_assets",
+      "descriptionHash": "3789447d4eb703a317c6a51a9be14ef250ad0876f884859a1c95b7f24689e235",
+      "description": "Catalog lookup (GET /v1/assets); use it to turn tickers or names into uids. Filters: q (free text), symbol, symbols (several tickers in one call), candidate (the uid of a candidates entry; registers that coin on demand; use alone), chain+contract (an unknown Solana mint can be registered on demand; ",
+      "labels": [
+        "destructive"
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: get_daily, get_rates · Private data: get_series · Public sink: get_daily, get_rates · Destructive: get_rates, search_assets.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: get_daily, get_rates · Private data: get_series · Public sink: get_daily, get_rates · Destructive: get_rates, search_assets"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 80,
+  "scoreBreakdown": {
+    "toxic-flow": 20
+  },
+  "errors": []
+}

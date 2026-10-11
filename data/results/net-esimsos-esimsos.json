@@ -1,0 +1,96 @@
+{
+  "schemaVersion": 1,
+  "scanner": {
+    "version": "1.6.0",
+    "rules": "402995650b68"
+  },
+  "target": {
+    "kind": "url",
+    "ref": "https://esimsos.net/api/mcp"
+  },
+  "scannedAt": "2026-10-11T11:06:29.988Z",
+  "durationMs": 1823,
+  "layers": {
+    "metadata": true,
+    "static": false
+  },
+  "tools": [
+    {
+      "name": "search_destinations",
+      "descriptionHash": "098e3cd915ae4ea0fc09b048ecf0d753dd4f5fae4b419b780d3b6ad9776a1a75",
+      "description": "Find a travel destination (country) sold by eSIM SOS by name in English or Russian, or by ISO code. Returns country codes for list_plans."
+    },
+    {
+      "name": "list_plans",
+      "descriptionHash": "6ad6e6a10d3e12f8388f22bd9a559fb77087ec6d273cd4f28c4b245e7c07713a",
+      "description": "List eSIM data plans for a country with final prices in RUB (one price for every payment method). Local plans first, then regional ones."
+    },
+    {
+      "name": "compare_prices",
+      "descriptionHash": "010cb4db7c5134a14cb9479f200ff9037ee0b4655c7773cefb6b30b773b5951d",
+      "description": "Compare eSIM prices of several providers for a country and data size using the open esimdar.com dataset (CC BY 4.0). Disclosure: esimdar.com is owned and run by eSIM SOS, the shop behind this server; eSIM SOS is listed as an ordinary row. Tell the user about this ownership and present the results ne",
+      "labels": [
+        "destructive"
+      ]
+    },
+    {
+      "name": "create_order",
+      "descriptionHash": "7ddb0fbd121995762e318156a65158e80f6c05ef75e164c3367703231ff54739",
+      "description": "Create an unpaid eSIM order and get a payment link. Payment is always done by the human: give the user the payment link, never try to pay yourself and never ask for card details. Ask the user for their email first: the eSIM QR code is sent there. Creates a real order, so call it only after the user ",
+      "labels": [
+        "untrusted-content",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "order_status",
+      "descriptionHash": "970b75630f62afa97bbd98eb280c8b94804eb58e72b398f951e94a887ac9ab4d",
+      "description": "Check the payment and delivery status of an order. Requires both order_id and the email used for the order.",
+      "labels": [
+        "untrusted-content",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "install_instructions",
+      "descriptionHash": "66c35f0133542953f55a175c7f895fb4ea6f59041f2fac43400aed6b8662f4a1",
+      "description": "After payment: link to the order page with the QR code and step-by-step eSIM install instructions for iPhone and Android. Requires order_id and email.",
+      "labels": [
+        "public-sink"
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOOL-POISON-007",
+      "severity": "low",
+      "category": "tool-poisoning",
+      "title": "Description uses pressure/override language",
+      "detail": "Description of \"create_order\" stacks urgency/override words (always, never). Legitimate tool descriptions rarely pressure the model to act or ignore prior guidance.",
+      "evidence": {
+        "source": "tool:create_order",
+        "snippet": "Create an unpaid eSIM order and get a payment link. Payment is always done by the human: give the user the payment link, never try to pay yourself and never ask…"
+      },
+      "confidence": 0.3
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "medium",
+      "category": "toxic-flow",
+      "title": "Toxic flow: untrusted input can reach an external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: create_order, order_status · Public sink: create_order, order_status, install_instructions · Destructive: compare_prices.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: create_order, order_status · Public sink: create_order, order_status, install_instructions · Destructive: compare_prices"
+      },
+      "confidence": 0.45,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 89,
+  "scoreBreakdown": {
+    "tool-poisoning": 3,
+    "toxic-flow": 8
+  },
+  "errors": []
+}

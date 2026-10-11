@@ -8,8 +8,8 @@
     "kind": "url",
     "ref": "https://api.favcrm.io/mcp"
   },
-  "scannedAt": "2026-10-08T11:38:12.480Z",
-  "durationMs": 2811,
+  "scannedAt": "2026-10-11T10:58:02.004Z",
+  "durationMs": 2941,
   "layers": {
     "metadata": true,
     "static": false
@@ -1489,6 +1489,52 @@
       "labels": [
         "private-data"
       ]
+    },
+    {
+      "name": "get_customer_brief",
+      "descriptionHash": "f45b21639c03eb884330453e7ae940dfbdcb310adc38910f7750a9d786722e11",
+      "description": "Read-only customer brief for one account: details, tags, linked conversations with cached summaries, and open CRM tasks. Only records you may read are included. A section you cannot access is returned as null and listed in availableSections. Does not call the AI model.",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "get_conversation_summary",
+      "descriptionHash": "cff49b7c3c326e4442d1d267ae80c07a91815adf042dddd2e22b0db089da4056",
+      "description": "Read the cached AI summary of a conversation with freshness information. Read-only: never calls the model, never bills, never writes. Returns summary null when no cache exists. Use refresh_conversation_summary to regenerate."
+    },
+    {
+      "name": "refresh_conversation_summary",
+      "descriptionHash": "058abf9a9572a12de56faf1025dd08d57c19b4e7aef773b476df89d41a92ea03",
+      "description": "Regenerate the AI summary of one conversation on explicit user request. Uses the model and is billed to company credits. Respects the cooldown and quiet-period rules, so it may return the current cache instead. Never sends a message or changes tags or tasks."
+    },
+    {
+      "name": "list_crm_tasks",
+      "descriptionHash": "9cb6ca82392b8e219f0e4c4dacbf8cea292c0d04c2cb6d4a53b5fcee796ffb26",
+      "description": "List CRM follow-up tasks you may see (portal tasks, owned by users). Filter by status, owner (\"mine\" or ownerId), linked account, dueWindow overdue or today (company timezone), or exact dueAfter/dueBefore datetimes with a zone. Returns the true total and pages. Unassigned tasks cannot be filtered he"
+    },
+    {
+      "name": "get_crm_task",
+      "descriptionHash": "df418c52c2f4f2fa5413a5f3ad2d32e9c6b3d9b67db8819ffa708d1b6fd0242b",
+      "description": "Get one CRM follow-up task you may see, with its UTC due instant and the company timezone. Unseen and missing tasks return not found."
+    },
+    {
+      "name": "create_crm_task",
+      "descriptionHash": "43ec7091f338f55335177b23a59bb8b80fecaa5ece542e3b75ea18beb97389e9",
+      "description": "Create a CRM follow-up task for you or, where your assignment policy allows, another active member. Optionally link it to a CRM account or conversation you can see. dueAt must be an exact datetime with a timezone; resolve relative dates such as \"tomorrow\" with the user first."
+    },
+    {
+      "name": "update_crm_task",
+      "descriptionHash": "06e4fd60f89dd7e7697ff530abad5fd0b0e4f0ebc455729a59b81dab21f50c2c",
+      "description": "Update a CRM follow-up task you can work: title, description, dueAt (exact datetime, or null to clear), owner (users.id, or null to unassign), status (done sets completion) or priority. Changing the linked account or conversation is not supported; create a new task instead."
+    },
+    {
+      "name": "backfill_conversation_summaries",
+      "descriptionHash": "c5ae84360a7d2de8c5f30a5b97ab8f44de9bdda382772f252f11fbb46f7af350",
+      "description": "Find conversations with no usable cached AI summary (missing or malformed; legacy valid caches are never touched) and generate them, at most limit per call (default 10, max 10). Newest activity first; only conversations you may read are considered. Default dryRun=true lists candidates with no model ",
+      "labels": [
+        "destructive"
+      ]
     }
   ],
   "findings": [
@@ -1518,22 +1564,34 @@
       "confidence": 0.65
     },
     {
+      "id": "MCP-TOOL-POISON-006",
+      "severity": "low",
+      "category": "tool-poisoning",
+      "title": "Anomalously long tool description",
+      "detail": "Description of \"backfill_conversation_summaries\" is 865 chars, far longer than this server's median (96). Overlong descriptions are a common place to bury instructions.",
+      "evidence": {
+        "source": "tool:backfill_conversation_summaries",
+        "snippet": "Find conversations with no usable cached AI summary (missing or malformed; legacy valid caches are never touched) and generate them, at most limit per call (def…"
+      },
+      "confidence": 0.4
+    },
+    {
       "id": "MCP-TOXIC-FLOW-001",
       "severity": "high",
       "category": "toxic-flow",
       "title": "Lethal trifecta: untrusted input + private data + external sink",
-      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: get_dashboard_stats, list_tickets, get_ticket_stats, search_crm, mark_invoice_sent, list_campaigns, create_campaign, list_notification_logs, list_conversations, list_notes, validate_promotion, accept_team_invite_request, list_posts, get_post, generate_image, list_categories, list_post_types, list_post_type_fields, append_post_block, reorder_post_blocks, get_conversation_messages, get_attachment_text, list_templates, create_template, list_knowledge_documents, get_knowledge_document, scrape_knowledge_url, register_organisation_request · Private data: create_account, detach_tags, earn_loyalty_points, list_survey_invitations, create_survey_invitation, create_deal, list_contacts, get_contact, create_contact, update_contact, set_primary_contact, delete_contact, list_custom_fields, get_custom_field_values, search_crm, record_invoice_payment, create_subscription, clone, delete_promotion, check_plan_operation, create_team_member_invite, accept_team_invite_request, accept_team_invite_verify, switch_company, append_post_block, get_conversation_messages, get_attachment_text, query_company_knowledge, list_knowledge_documents, get_knowledge_document, scrape_knowledge_url, add_knowledge_text, delete_knowledge_document, restore_knowledge_document, register_organisation_request, register_organisation_verify · Public sink: preview_customer_import, update_account, create_survey, search_crm, mark_invoice_sent, list_campaigns, create_campaign, undo_campaign_send, validate_campaign, list_conversations, create_broadcast, clone, create_team_member_invite, accept_team_invite_request, get_post, create_post, update_post, delete_post, restore_post, generate_image, generate_post_cover, attach_post_cover_from_job, upload_post_cover_from_url, list_categories, create_category, update_category, delete_category, restore_category, list_post_types, create_post_type, list_post_type_fields, create_post_type_field, update_post_type, delete_post_type, restore_post_type, update_post_type_field, delete_post_type_field, restore_post_type_field, reorder_post_type_fields, append_post_block, replace_post_block, remove_post_block, reorder_post_blocks, post_workroom_message, create_inbox_reply_suggestion, request_send_approval, create_template, register_organisation_request · Destructive: delete_account, delete_tag, archive_survey, delete_deal, delete_contact, delete_custom_field, delete_task, delete_invoice, delete_campaign, delete_promotion, delete_service_package, delete_post, delete_category, delete_post_type, delete_post_type_field, remove_post_block, delete_segment, execute_tool, delete_knowledge_document.",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: get_dashboard_stats, list_tickets, get_ticket_stats, search_crm, mark_invoice_sent, list_campaigns, create_campaign, list_notification_logs, list_conversations, list_notes, validate_promotion, accept_team_invite_request, list_posts, get_post, generate_image, list_categories, list_post_types, list_post_type_fields, append_post_block, reorder_post_blocks, get_conversation_messages, get_attachment_text, list_templates, create_template, list_knowledge_documents, get_knowledge_document, scrape_knowledge_url, register_organisation_request · Private data: create_account, detach_tags, earn_loyalty_points, list_survey_invitations, create_survey_invitation, create_deal, list_contacts, get_contact, create_contact, update_contact, set_primary_contact, delete_contact, list_custom_fields, get_custom_field_values, search_crm, record_invoice_payment, create_subscription, clone, delete_promotion, check_plan_operation, create_team_member_invite, accept_team_invite_request, accept_team_invite_verify, switch_company, append_post_block, get_conversation_messages, get_attachment_text, query_company_knowledge, list_knowledge_documents, get_knowledge_document, scrape_knowledge_url, add_knowledge_text, delete_knowledge_document, restore_knowledge_document, register_organisation_request, register_organisation_verify, get_customer_brief · Public sink: preview_customer_import, update_account, create_survey, search_crm, mark_invoice_sent, list_campaigns, create_campaign, undo_campaign_send, validate_campaign, list_conversations, create_broadcast, clone, create_team_member_invite, accept_team_invite_request, get_post, create_post, update_post, delete_post, restore_post, generate_image, generate_post_cover, attach_post_cover_from_job, upload_post_cover_from_url, list_categories, create_category, update_category, delete_category, restore_category, list_post_types, create_post_type, list_post_type_fields, create_post_type_field, update_post_type, delete_post_type, restore_post_type, update_post_type_field, delete_post_type_field, restore_post_type_field, reorder_post_type_fields, append_post_block, replace_post_block, remove_post_block, reorder_post_blocks, post_workroom_message, create_inbox_reply_suggestion, request_send_approval, create_template, register_organisation_request · Destructive: delete_account, delete_tag, archive_survey, delete_deal, delete_contact, delete_custom_field, delete_task, delete_invoice, delete_campaign, delete_promotion, delete_service_package, delete_post, delete_category, delete_post_type, delete_post_type_field, remove_post_block, delete_segment, execute_tool, delete_knowledge_document, backfill_conversation_summaries.",
       "evidence": {
         "source": "server:mcp",
-        "snippet": "Untrusted content: get_dashboard_stats, list_tickets, get_ticket_stats, search_crm, mark_invoice_sent, list_campaigns, create_campaign, list_notification_logs, list_conversations, list_notes, validate_promotion, accept_team_invite_request, list_posts, get_post, generate_image, list_categories, list_post_types, list_post_type_fields, append_post_block, reorder_post_blocks, get_conversation_messages, get_attachment_text, list_templates, create_template, list_knowledge_documents, get_knowledge_document, scrape_knowledge_url, register_organisation_request · Private data: create_account, detach_tags, earn_loyalty_points, list_survey_invitations, create_survey_invitation, create_deal, list_contacts, get_contact, create_contact, update_contact, set_primary_contact, delete_contact, list_custom_fields, get_custom_field_values, search_crm, record_invoice_payment, create_subscription, clone, delete_promotion, check_plan_operation, create_team_member_invite, accept_team_invite_request, accept_team_invite_verify, switch_company, append_post_block, get_conversation_messages, get_attachment_text, query_company_knowledge, list_knowledge_documents, get_knowledge_document, scrape_knowledge_url, add_knowledge_text, delete_knowledge_document, restore_knowledge_document, register_organisation_request, register_organisation_verify · Public sink: preview_customer_import, update_account, create_survey, search_crm, mark_invoice_sent, list_campaigns, create_campaign, undo_campaign_send, validate_campaign, list_conversations, create_broadcast, clone, create_team_member_invite, accept_team_invite_request, get_post, create_post, update_post, delete_post, restore_post, generate_image, generate_post_cover, attach_post_cover_from_job, upload_post_cover_from_url, list_categories, create_category, update_category, delete_category, restore_category, list_post_types, create_post_type, list_post_type_fields, create_post_type_field, update_post_type, delete_post_type, restore_post_type, update_post_type_field, delete_post_type_field, restore_post_type_field, reorder_post_type_fields, append_post_block, replace_post_block, remove_post_block, reorder_post_blocks, post_workroom_message, create_inbox_reply_suggestion, request_send_approval, create_template, register_organisation_request · Destructive: delete_account, delete_tag, archive_survey, delete_deal, delete_contact, delete_custom_field, delete_task, delete_invoice, delete_campaign, delete_promotion, delete_service_package, delete_post, delete_category, delete_post_type, delete_post_type_field, remove_post_block, delete_segment, execute_tool, delete_knowledge_document"
+        "snippet": "Untrusted content: get_dashboard_stats, list_tickets, get_ticket_stats, search_crm, mark_invoice_sent, list_campaigns, create_campaign, list_notification_logs, list_conversations, list_notes, validate_promotion, accept_team_invite_request, list_posts, get_post, generate_image, list_categories, list_post_types, list_post_type_fields, append_post_block, reorder_post_blocks, get_conversation_messages, get_attachment_text, list_templates, create_template, list_knowledge_documents, get_knowledge_document, scrape_knowledge_url, register_organisation_request · Private data: create_account, detach_tags, earn_loyalty_points, list_survey_invitations, create_survey_invitation, create_deal, list_contacts, get_contact, create_contact, update_contact, set_primary_contact, delete_contact, list_custom_fields, get_custom_field_values, search_crm, record_invoice_payment, create_subscription, clone, delete_promotion, check_plan_operation, create_team_member_invite, accept_team_invite_request, accept_team_invite_verify, switch_company, append_post_block, get_conversation_messages, get_attachment_text, query_company_knowledge, list_knowledge_documents, get_knowledge_document, scrape_knowledge_url, add_knowledge_text, delete_knowledge_document, restore_knowledge_document, register_organisation_request, register_organisation_verify, get_customer_brief · Public sink: preview_customer_import, update_account, create_survey, search_crm, mark_invoice_sent, list_campaigns, create_campaign, undo_campaign_send, validate_campaign, list_conversations, create_broadcast, clone, create_team_member_invite, accept_team_invite_request, get_post, create_post, update_post, delete_post, restore_post, generate_image, generate_post_cover, attach_post_cover_from_job, upload_post_cover_from_url, list_categories, create_category, update_category, delete_category, restore_category, list_post_types, create_post_type, list_post_type_fields, create_post_type_field, update_post_type, delete_post_type, restore_post_type, update_post_type_field, delete_post_type_field, restore_post_type_field, reorder_post_type_fields, append_post_block, replace_post_block, remove_post_block, reorder_post_blocks, post_workroom_message, create_inbox_reply_suggestion, request_send_approval, create_template, register_organisation_request · Destructive: delete_account, delete_tag, archive_survey, delete_deal, delete_contact, delete_custom_field, delete_task, delete_invoice, delete_campaign, delete_promotion, delete_service_package, delete_post, delete_category, delete_post_type, delete_post_type_field, remove_post_block, delete_segment, execute_tool, delete_knowledge_document, backfill_conversation_summaries"
       },
       "confidence": 0.6,
       "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
     }
   ],
-  "score": 50,
+  "score": 49,
   "scoreBreakdown": {
-    "tool-poisoning": 30,
+    "tool-poisoning": 31,
     "toxic-flow": 20
   },
   "errors": []

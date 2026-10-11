@@ -6,10 +6,10 @@
   },
   "target": {
     "kind": "url",
-    "ref": "https://getclippy.co/mcp"
+    "ref": "https://mcclipface.com/mcp"
   },
-  "scannedAt": "2026-10-03T09:56:07.212Z",
-  "durationMs": 1401,
+  "scannedAt": "2026-10-11T10:55:37.658Z",
+  "durationMs": 1368,
   "layers": {
     "metadata": true,
     "static": false
@@ -17,8 +17,8 @@
   "tools": [
     {
       "name": "find_coupons",
-      "descriptionHash": "a0ff6992236f15e33937430de88c5339e317a3b881c2f7bd751d6a8a34fc7bb4",
-      "description": "McClipFace (formerly Clippy): look up current coupon codes and deals for one store from its live affiliate-network feeds (same data as GET https://mcclipface.com/api/coupons). Use it once the shopper has chosen a store, before checkout. Returns up to 20 ranked offers (offers recently reported as not",
+      "descriptionHash": "fdbe045964c06006cfc6f671ab5bb1841e864eef11f9a76eeac5613719d2c553",
+      "description": "Look up current coupon codes and deals for one store the shopper names. Use it when the shopper asks for coupons, deals or savings at a store, or has opted in to coupon checks. For a product with no store named, use find_product_coupons; for general deals or deals matching the shopper's interests, d",
       "labels": [
         "untrusted-content",
         "public-sink"
@@ -26,8 +26,8 @@
     },
     {
       "name": "find_product_coupons",
-      "descriptionHash": "c01155ac36f7451ef9fa67e6f8e25b42061abd63a2fc6f2162d01b72d150a780",
-      "description": "Finds current coupon codes for a specific product across all the stores McClipFace (formerly Clippy) covers, with codes that only work on that product listed first. Codes come from affiliate networks and a licensed coupon data partner (same data as GET https://mcclipface.com/api/coupons?product=...)",
+      "descriptionHash": "562a11a3a224077eee4179a7b7aedc2a07b90d06a56511a245928818d8ece735",
+      "description": "Find current coupon codes for a specific product the shopper names, e.g. \"Dyson vacuum\", across all the stores McClipFace covers. Use it when the shopper names a product rather than a store. For a named store, use find_coupons; for general deals or interests, discover_deals. Codes come from affiliat",
       "labels": [
         "untrusted-content",
         "public-sink"
@@ -35,8 +35,8 @@
     },
     {
       "name": "get_deals",
-      "descriptionHash": "00a1005889e58c6adae9dd54faf02fbd90876f15b280f4dfcb73eadcc87e4262",
-      "description": "A current selection of McClipFace (formerly Clippy) deals across stores, at most one offer per store, from codes from affiliate networks and a licensed coupon data partner (same data as GET https://mcclipface.com/api/deals). To personalize a digest, do the matching on your side: pass the store names",
+      "descriptionHash": "c454c2e767041778baeb087a9c1fa9d419f76fc441f564d05392cabd5a9fc95c",
+      "description": "Deprecated: use discover_deals instead (no arguments for general deals, or the categories or keywords the shopper stated); this tool keeps working for existing callers. To search one named store, use find_coupons; for a named product, find_product_coupons. Current McClipFace deals across stores, at ",
       "labels": [
         "untrusted-content",
         "public-sink"
@@ -44,32 +44,107 @@
     },
     {
       "name": "report_coupon_result",
-      "descriptionHash": "603ec5413f3892555fd2b8773c4de721230545a3b3e50929f6fe84e1ba85c9c0",
-      "description": "Records whether a McClipFace (formerly Clippy) coupon code worked at checkout (merchant, code, worked or rejected). Stores no personal or cart data. Call only after the user has tried the code. Report once per code per checkout, after the final attempt: every result when the shopper has Community mo",
+      "descriptionHash": "8c5a8c93fcfe013739fd93dad22bfaee9808d440725b4734d8181fbb2d2af33f",
+      "description": "Record whether a McClipFace coupon code or no-code deal tried at checkout worked (merchant and code for codes; offer_id for no-code deals). Not a lookup. Stores no personal or cart data. Optional and off by default (Private mode, which lasts until the shopper changes it). Report only after the shopp",
       "labels": [
         "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "discover_deals",
+      "descriptionHash": "e992fb2a06205d500009e73b5b6cf5d94bee4f6858241483e7cbd5b508738638",
+      "description": "The main tool for finding deals across stores whenever the shopper doesn't name one store or product. Call it with no arguments for general deals (\"any good deals today?\", \"something cool on sale\"): a curated selection, one per store, by verification, freshness and discount. Pass relevant shopping c",
+      "labels": [
+        "untrusted-content",
         "public-sink"
       ]
     }
   ],
   "findings": [
     {
+      "id": "MCP-SCHEMA-SMELL-001",
+      "severity": "medium",
+      "category": "schema-smell",
+      "title": "Read-only tool requests dangerous parameters",
+      "detail": "Tool \"report_coupon_result\" appears informational but accepts parameters (code) that enable code/file/secret access.",
+      "evidence": {
+        "source": "tool:report_coupon_result",
+        "snippet": "merchant, code, outcome, eligibility, offer_id, reason"
+      },
+      "confidence": 0.55
+    },
+    {
       "id": "MCP-TOXIC-FLOW-001",
       "severity": "high",
       "category": "toxic-flow",
       "title": "Lethal trifecta: untrusted input + private data + external sink",
-      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: find_coupons, find_product_coupons, get_deals · Private data: report_coupon_result · Public sink: find_coupons, find_product_coupons, get_deals, report_coupon_result.",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: find_coupons, find_product_coupons, get_deals, discover_deals · Private data: report_coupon_result · Public sink: find_coupons, find_product_coupons, get_deals, report_coupon_result, discover_deals.",
       "evidence": {
         "source": "server:mcp",
-        "snippet": "Untrusted content: find_coupons, find_product_coupons, get_deals · Private data: report_coupon_result · Public sink: find_coupons, find_product_coupons, get_deals, report_coupon_result"
+        "snippet": "Untrusted content: find_coupons, find_product_coupons, get_deals, discover_deals · Private data: report_coupon_result · Public sink: find_coupons, find_product_coupons, get_deals, report_coupon_result, discover_deals"
       },
       "confidence": 0.6,
       "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"find_coupons\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:find_coupons",
+        "snippet": "before: \"McClipFace (formerly Clippy): look up current coupon codes and deals for one store from its live affiliate-network feeds (same data as GET https://mcclipface.com/api/coupons). Use it once the shopper has chosen a store, before checkout. Returns up to 20 ranked offers (offers recently reported as not\" → after: \"Look up current coupon codes and deals for one store the shopper names. Use it when the shopper asks for coupons, deals or savings at a store, or has opted in to coupon checks. For a product with no store named, use find_product_coupons; for general deals or deals matching the shopper's interests, d\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"find_product_coupons\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:find_product_coupons",
+        "snippet": "before: \"Finds current coupon codes for a specific product across all the stores McClipFace (formerly Clippy) covers, with codes that only work on that product listed first. Codes come from affiliate networks and a licensed coupon data partner (same data as GET https://mcclipface.com/api/coupons?product=...)\" → after: \"Find current coupon codes for a specific product the shopper names, e.g. \"Dyson vacuum\", across all the stores McClipFace covers. Use it when the shopper names a product rather than a store. For a named store, use find_coupons; for general deals or interests, discover_deals. Codes come from affiliat\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"get_deals\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:get_deals",
+        "snippet": "before: \"A current selection of McClipFace (formerly Clippy) deals across stores, at most one offer per store, from codes from affiliate networks and a licensed coupon data partner (same data as GET https://mcclipface.com/api/deals). To personalize a digest, do the matching on your side: pass the store names\" → after: \"Deprecated: use discover_deals instead (no arguments for general deals, or the categories or keywords the shopper stated); this tool keeps working for existing callers. To search one named store, use find_coupons; for a named product, find_product_coupons. Current McClipFace deals across stores, at \""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"report_coupon_result\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:report_coupon_result",
+        "snippet": "before: \"Records whether a McClipFace (formerly Clippy) coupon code worked at checkout (merchant, code, worked or rejected). Stores no personal or cart data. Call only after the user has tried the code. Report once per code per checkout, after the final attempt: every result when the shopper has Community mo\" → after: \"Record whether a McClipFace coupon code or no-code deal tried at checkout worked (merchant and code for codes; offer_id for no-code deals). Not a lookup. Stores no personal or cart data. Optional and off by default (Private mode, which lasts until the shopper changes it). Report only after the shopp\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
     }
   ],
-  "score": 80,
+  "score": 35,
   "scoreBreakdown": {
-    "toxic-flow": 20
+    "schema-smell": 8,
+    "toxic-flow": 20,
+    "tool-poisoning": 38
   },
   "errors": []
 }

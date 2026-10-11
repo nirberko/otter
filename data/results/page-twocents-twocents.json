@@ -8,8 +8,8 @@
     "kind": "url",
     "ref": "https://twocents.page/mcp"
   },
-  "scannedAt": "2026-07-26T07:11:08.274Z",
-  "durationMs": 149,
+  "scannedAt": "2026-10-11T11:07:02.753Z",
+  "durationMs": 225,
   "layers": {
     "metadata": true,
     "static": false
@@ -17,31 +17,54 @@
   "tools": [
     {
       "name": "share_page",
-      "descriptionHash": "a56542cff0b0b87bac6f6ce314abf3d960f85f77fd8ec0ec5622fa8390197b13",
-      "description": "Share a self-contained HTML page and get back a review link to send to people. Reviewers open the link and pin notes directly on the page — no login or install. Call again with the same room id to update the page; connected reviewers see the update live. Use get_feedback to collect the notes. Rooms ",
+      "descriptionHash": "9fc2b81c9a4e535db07597c69764409753d82b3e36899b5486fef443988f9bd8",
+      "description": "Share a page or document and get back a review link to send to people. Pass \"html\" for a self-contained page, or \"markdown\" for a plan, spec, PR description or report — markdown is rendered to a styled, readable document for you, so prefer it whenever the thing you want a human to approve is prose r",
       "labels": [
         "untrusted-content",
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "share_pages",
+      "descriptionHash": "a3a9c114cc8832a169d5c5fbf93bbeab0b507155ae90ace84b3e99017ba52f6f",
+      "description": "Publish a multi-page set — an entry page plus the pages it links to — into one room as a single atomic operation. Either the whole set lands or nothing changes, so a reviewer never opens a page whose links point at pages that were never stored. Use this instead of calling share_page N times whenever",
+      "labels": [
+        "untrusted-content",
+        "private-data",
         "public-sink"
       ]
     },
     {
       "name": "get_feedback",
-      "descriptionHash": "ddecfdae23dc59d04441636942f9160b1dae3b3042d36b18e619ac03f89bd114",
-      "description": "Fetch the reviewer notes for a page shared with share_page, as markdown grouped by page with the anchor text/selector for each note so you can locate and apply it. Show your human each new note and apply only the ones they approve. Pass the note ids already decided in earlier sessions as \"handled\" t"
+      "descriptionHash": "6bc2b81ab35e56ad0c1d71853bec9f71140945e8879071982c6c53b731d8b7d0",
+      "description": "Fetch the reviewer notes for a page shared with share_page, as markdown grouped by page. Each note carries the anchored text, the element and its markup as the reviewer saw it, so you can locate and apply it; each page heading carries a URL to read the whole page back, so you never have to guess whi",
+      "labels": [
+        "untrusted-content",
+        "private-data"
+      ]
+    },
+    {
+      "name": "resolve_feedback",
+      "descriptionHash": "b567f29b45c6614f9c7bb7882069d344e6510b970f3f04dfba3f8ff42f5f364a",
+      "description": "Mark notes resolved once you have actually applied them. This is what closes the loop: the note leaves the active list for every later get_feedback, and the reviewer who wrote it sees it marked resolved on the page — live, if they have it open — instead of finding their old note sitting next to cont",
+      "labels": [
+        "untrusted-content"
+      ]
     }
   ],
   "findings": [
     {
       "id": "MCP-TOXIC-FLOW-001",
-      "severity": "medium",
+      "severity": "high",
       "category": "toxic-flow",
-      "title": "Toxic flow: untrusted input can reach an external sink",
-      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: share_page · Public sink: share_page.",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: share_page, share_pages, get_feedback, resolve_feedback · Private data: share_page, share_pages, get_feedback · Public sink: share_page, share_pages.",
       "evidence": {
         "source": "server:mcp",
-        "snippet": "Untrusted content: share_page · Public sink: share_page"
+        "snippet": "Untrusted content: share_page, share_pages, get_feedback, resolve_feedback · Private data: share_page, share_pages, get_feedback · Public sink: share_page, share_pages"
       },
-      "confidence": 0.45,
+      "confidence": 0.6,
       "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
     },
     {
@@ -52,7 +75,7 @@
       "detail": "Tool \"share_page\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
       "evidence": {
         "source": "tool:share_page",
-        "snippet": "before: \"Share a self-contained HTML page and get back a review link to send to people. Reviewers open the link and pin notes directly on the page — no login or install. Call again with the same room id to update the page; connected reviewers see the update live. Use get_feedback to collect the notes.\" → after: \"Share a self-contained HTML page and get back a review link to send to people. Reviewers open the link and pin notes directly on the page — no login or install. Call again with the same room id to update the page; connected reviewers see the update live. Use get_feedback to collect the notes. Rooms \""
+        "snippet": "before: \"Share a self-contained HTML page and get back a review link to send to people. Reviewers open the link and pin notes directly on the page — no login or install. Call again with the same room id to update the page; connected reviewers see the update live. Use get_feedback to collect the notes. Rooms \" → after: \"Share a page or document and get back a review link to send to people. Pass \"html\" for a self-contained page, or \"markdown\" for a plan, spec, PR description or report — markdown is rendered to a styled, readable document for you, so prefer it whenever the thing you want a human to approve is prose r\""
       },
       "confidence": 0.8,
       "remediation": "Re-review the tool before continuing to trust it."
@@ -65,15 +88,15 @@
       "detail": "Tool \"get_feedback\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
       "evidence": {
         "source": "tool:get_feedback",
-        "snippet": "before: \"Fetch the reviewer notes for a page shared with share_page, as markdown grouped by page with the anchor text/selector for each note so you can locate and apply it.\" → after: \"Fetch the reviewer notes for a page shared with share_page, as markdown grouped by page with the anchor text/selector for each note so you can locate and apply it. Show your human each new note and apply only the ones they approve. Pass the note ids already decided in earlier sessions as \"handled\" t\""
+        "snippet": "before: \"Fetch the reviewer notes for a page shared with share_page, as markdown grouped by page with the anchor text/selector for each note so you can locate and apply it. Show your human each new note and apply only the ones they approve. Pass the note ids already decided in earlier sessions as \"handled\" t\" → after: \"Fetch the reviewer notes for a page shared with share_page, as markdown grouped by page. Each note carries the anchored text, the element and its markup as the reviewer saw it, so you can locate and apply it; each page heading carries a URL to read the whole page back, so you never have to guess whi\""
       },
       "confidence": 0.8,
       "remediation": "Re-review the tool before continuing to trust it."
     }
   ],
-  "score": 62,
+  "score": 50,
   "scoreBreakdown": {
-    "toxic-flow": 8,
+    "toxic-flow": 20,
     "tool-poisoning": 30
   },
   "errors": []
