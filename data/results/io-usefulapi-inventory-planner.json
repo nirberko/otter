@@ -1,0 +1,103 @@
+{
+  "schemaVersion": 1,
+  "scanner": {
+    "version": "1.6.0",
+    "rules": "402995650b68"
+  },
+  "target": {
+    "kind": "url",
+    "ref": "https://inventory-planner.usefulapi.io/mcp"
+  },
+  "scannedAt": "2026-10-12T12:28:41.299Z",
+  "durationMs": 541,
+  "layers": {
+    "metadata": true,
+    "static": false
+  },
+  "tools": [
+    {
+      "name": "inventoryplanner_list_variants",
+      "descriptionHash": "c4fe676c919193c152a2c74e4cc2d8679541fdb58072e63554063b31cf0b75cd",
+      "description": "List product variants with Inventory Planner's computed metrics (forecast, replenishment, days to sell out, lost revenue, lead time, review period and ~200 more). Always pass `fields` to pick the metrics you need (default: id,sku,lead_time,review_period,replenishment,oos,under_value; oos = forecaste",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "inventoryplanner_get_variant",
+      "descriptionHash": "c2916514348b6c571c8d938e33a7653887a88789e92dd11fc6ac45f746742956",
+      "description": "One variant by its Inventory Planner id, with the metrics named in `fields` (default: id,sku,lead_time,review_period,replenishment,oos,under_value). GET /api/v1/variants/{id}."
+    },
+    {
+      "name": "inventoryplanner_list_variant_vendors",
+      "descriptionHash": "60e865297a75205aaa1b805ce45bcbc195cee813d1b5f3eab0c35773f756750e",
+      "description": "The vendors a variant can be ordered from, with cost_price, landing_cost_price, vendor_reference (vendor SKU), vendor_name, vendor_packaging (MOQ) and uom_ordering. GET /api/v1/variants/{id}/vendors."
+    },
+    {
+      "name": "inventoryplanner_get_variant_vendor",
+      "descriptionHash": "7b309defbed7626f728ab24a88ac01f421512e87169a1880e7f6e17efb28750b",
+      "description": "One vendor's terms for a variant: cost_price, landing_cost_price, vendor_reference, vendor_name, vendor_packaging (MOQ), uom_ordering. vendor_id is the vendor name in lowercase. GET /api/v1/variants/{id}/vendors/{vendor_id}."
+    },
+    {
+      "name": "inventoryplanner_list_purchase_orders",
+      "descriptionHash": "06050bf29d9e825e2b985357110ada462f172ba4116ed2fafcc01cad2d72435b",
+      "description": "List stock orders: purchase orders, transfers and assembly orders (the `type` field is \"po\"/empty, \"transfer\" or \"assembly\"). Filter with `filters`, e.g. {\"status\": \"OPEN\", \"vendor\": \"Acme\", \"expected_date_lt\": \"2026-11-01\"}. Default fields: id,reference,status,type,vendor,warehouse,source,created_d"
+    },
+    {
+      "name": "inventoryplanner_get_purchase_order",
+      "descriptionHash": "a1f4537ad0f6946dd578c2a42ab02a7bb40da2f9bba1eae78c4e5e23c847f304",
+      "description": "One purchase order, transfer or assembly order by id, with its header fields (reference, status, vendor, warehouse, dates, addresses, totals, notes) and line items. GET /api/v1/purchase-orders/{id}."
+    },
+    {
+      "name": "inventoryplanner_list_purchase_order_items",
+      "descriptionHash": "18f64bfa3507d7f6d79ef696fb0f5d64b47ef85388cfc781a5d3fdc48e071639",
+      "description": "The line items of a purchase order: variant id, sku, title, ordered quantity (replenishment), received quantity and received_history, cost price, tax, discount and stock snapshots. GET /api/v1/purchase-orders/{id}/items."
+    },
+    {
+      "name": "inventoryplanner_get_purchase_order_connections",
+      "descriptionHash": "d31cba3c15863283cb8e121811c242e6cff5774e1f910cce7312dc1d600d15e4",
+      "description": "Whether and how a purchase order was saved to connected systems (ERP, accounting): per connection the status (success, error, run, queued), save_po flag and the PO's id and reference there. Read-only. GET /api/v1/purchase-orders/{id}/connections.",
+      "labels": [
+        "destructive"
+      ]
+    },
+    {
+      "name": "inventoryplanner_get_purchase_order_stock_update",
+      "descriptionHash": "ab37bbf419c1f819744ce71308962925fe647c2977941bee0990f04c43d897f6",
+      "description": "The stock updates a purchase order has computed: per warehouse (wh) the items with stock_before, delta and error. for_destination false reads the source warehouse of a transfer. Read-only: nothing is pushed. GET /api/v1/purchase-orders/{id}/stock-update."
+    },
+    {
+      "name": "inventoryplanner_create_draft_purchase_order",
+      "descriptionHash": "363ad66a45c9027d862c8334cc7f6f1a223e085f545f48031f1e72debd2ff4aa",
+      "description": "WRITE: create a purchase order with status \"draft\" in Inventory Planner (POST /api/v1/purchase-orders). A draft is only a plan inside Inventory Planner: it is NOT sent to the vendor, NOT saved to any connected system and moves no stock or money. Purchase orders only (no transfers or assembly orders)",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "inventoryplanner_update_draft_purchase_order",
+      "descriptionHash": "68e3522b1b5cbc0849a3e7a32b04683870e6afa438e1de6a6fec129fb76b6c61",
+      "description": "WRITE: change the reference, expected date or notes of a purchase order that is still a draft (PATCH /api/v1/purchase-orders/{id}). The order is read first and refused unless its status is \"draft\". It never changes the status, sends the order, or touches line items or received quantities."
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "medium",
+      "category": "toxic-flow",
+      "title": "Toxic flow: untrusted input can reach an external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: inventoryplanner_list_variants · Public sink: inventoryplanner_create_draft_purchase_order · Destructive: inventoryplanner_get_purchase_order_connections.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: inventoryplanner_list_variants · Public sink: inventoryplanner_create_draft_purchase_order · Destructive: inventoryplanner_get_purchase_order_connections"
+      },
+      "confidence": 0.45,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 92,
+  "scoreBreakdown": {
+    "toxic-flow": 8
+  },
+  "errors": []
+}

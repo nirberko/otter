@@ -8,8 +8,8 @@
     "kind": "url",
     "ref": "https://tollbooth-oauth2-collector.fastmcp.app/mcp"
   },
-  "scannedAt": "2026-08-11T05:33:58.623Z",
-  "durationMs": 1112,
+  "scannedAt": "2026-10-12T12:12:53.287Z",
+  "durationMs": 4078,
   "layers": {
     "metadata": true,
     "static": false
@@ -17,16 +17,13 @@
   "tools": [
     {
       "name": "store_code",
-      "descriptionHash": "d52ccd21e5bc6bc501e6db219b7fa876d5ea1a14a05ee1ce57c8dd909d15abbc",
-      "description": "Store an encrypted OAuth2 authorization code.\n\nCalled by the serverless callback function after the browser redirect.\nThe code is encrypted with SHA-256(state) before storage.\n\nArgs:\n    code: The authorization code from the OAuth provider.\n    state: The state token (patron npub) from the authoriza",
-      "labels": [
-        "private-data"
-      ]
+      "descriptionHash": "9d8d432515b228a54a7718aa2473e64d4f3a17b907060564bb89f630d3bdedab",
+      "description": "Store a sealed OAuth2 authorization code.\n\nCalled by the serverless callback function after the browser redirect. The\n``state`` carries BOTH the patron npub (the lookup/retrieve key) and the\noperator npub (the PUBLIC key the code is sealed to) — see the SDK's\n``pack_oauth_state``. The code is sealed"
     },
     {
       "name": "retrieve_code",
-      "descriptionHash": "dcb4ac8ff83282306fe8ff97b6bfe82d60e40f7e66bde6270d2aaa1b76ff3953",
-      "description": "Retrieve a stored authorization code (one-time read, auto-deleted).\n\nCalled by the originating MCP server to pick up the code after the user\nhas authorized in the browser. Returns the encrypted code which the\ncaller decrypts using the same state token.\n\nArgs:\n    state: The state token (patron npub)",
+      "descriptionHash": "33a7ad9fe0a2feb86ffe39d190dba119d946dd883ac8b0035a0c36f9938f3f8e",
+      "description": "Retrieve a stored authorization code (one-time read, auto-deleted).\n\nCalled by the originating MCP server to pick up the code after the user\nhas authorized in the browser. Returns the encrypted code which the\ncaller decrypts using the same state token.",
       "labels": [
         "private-data"
       ]
@@ -56,9 +53,21 @@
       "detail": "Description of \"store_code\" references sensitive artifacts (authorization). A tool description has no reason to mention credentials.",
       "evidence": {
         "source": "tool:store_code",
-        "snippet": "Store an encrypted OAuth2 authorization code. Called by the serverless callback function after the browser redirect. The code is encrypted with SHA-256(state) b…"
+        "snippet": "Store a sealed OAuth2 authorization code. Called by the serverless callback function after the browser redirect. The ``state`` carries BOTH the patron npub (the…"
       },
       "confidence": 0.65
+    },
+    {
+      "id": "MCP-SCHEMA-SMELL-001",
+      "severity": "medium",
+      "category": "schema-smell",
+      "title": "Read-only tool requests dangerous parameters",
+      "detail": "Tool \"store_code\" appears informational but accepts parameters (code) that enable code/file/secret access.",
+      "evidence": {
+        "source": "tool:store_code",
+        "snippet": "code, state"
+      },
+      "confidence": 0.55
     },
     {
       "id": "MCP-TOOL-POISON-003",
@@ -89,18 +98,45 @@
       "severity": "high",
       "category": "toxic-flow",
       "title": "Lethal trifecta: untrusted input + private data + external sink",
-      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: service_status · Private data: store_code, retrieve_code, service_status · Public sink: service_status.",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: service_status · Private data: retrieve_code, service_status · Public sink: service_status.",
       "evidence": {
         "source": "server:mcp",
-        "snippet": "Untrusted content: service_status · Private data: store_code, retrieve_code, service_status · Public sink: service_status"
+        "snippet": "Untrusted content: service_status · Private data: retrieve_code, service_status · Public sink: service_status"
       },
       "confidence": 0.6,
       "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"store_code\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:store_code",
+        "snippet": "before: \"Store an encrypted OAuth2 authorization code.\n\nCalled by the serverless callback function after the browser redirect.\nThe code is encrypted with SHA-256(state) before storage.\n\nArgs:\n    code: The authorization code from the OAuth provider.\n    state: The state token (patron npub) from the authoriza\" → after: \"Store a sealed OAuth2 authorization code.\n\nCalled by the serverless callback function after the browser redirect. The\n``state`` carries BOTH the patron npub (the lookup/retrieve key) and the\noperator npub (the PUBLIC key the code is sealed to) — see the SDK's\n``pack_oauth_state``. The code is sealed\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"retrieve_code\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:retrieve_code",
+        "snippet": "before: \"Retrieve a stored authorization code (one-time read, auto-deleted).\n\nCalled by the originating MCP server to pick up the code after the user\nhas authorized in the browser. Returns the encrypted code which the\ncaller decrypts using the same state token.\n\nArgs:\n    state: The state token (patron npub)\" → after: \"Retrieve a stored authorization code (one-time read, auto-deleted).\n\nCalled by the originating MCP server to pick up the code after the user\nhas authorized in the browser. Returns the encrypted code which the\ncaller decrypts using the same state token.\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
     }
   ],
-  "score": 45,
+  "score": 33,
   "scoreBreakdown": {
-    "tool-poisoning": 35,
+    "tool-poisoning": 39,
+    "schema-smell": 8,
     "toxic-flow": 20
   },
   "errors": []

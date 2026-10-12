@@ -8,8 +8,8 @@
     "kind": "url",
     "ref": "https://aipmlab.io/api/mcp"
   },
-  "scannedAt": "2026-10-11T10:57:58.009Z",
-  "durationMs": 1011,
+  "scannedAt": "2026-10-12T12:10:29.051Z",
+  "durationMs": 854,
   "layers": {
     "metadata": true,
     "static": false
@@ -52,17 +52,27 @@
       "description": "What a model call costs per request, per day and per month at a given volume, from AI Gateway's live prices. Model ids look like 'openai/gpt-4.1-mini' or 'anthropic/claude-sonnet-4.5'."
     },
     {
+      "name": "compare_models",
+      "descriptionHash": "079d02427ce2fd8eeff87780abe0724c57bdf7da10ad5903671ca7ea0c36f839",
+      "description": "Compare several models side by side at a given volume: cost per request and per month, prices, context window, output limit, release date and knowledge cutoff, from AI Gateway's live catalog. Pass ids like 'openai/gpt-4.1-mini', or a provider name ('anthropic', 'openai', 'google') for its newest mod"
+    },
+    {
       "name": "list_experiments",
-      "descriptionHash": "91089b37d143ebf0bd256ba81089dd85f5731106c02cbe85d2ba67aadeb674ee",
-      "description": "The real runs recorded on one of AI PM Lab's 3D pages, each described by its setup. Replay one to see what happened."
+      "descriptionHash": "a384be98943b57261c5ed341a0eb857d0062d6c27bfa0e1a97e0e04adff6fa0c",
+      "description": "The real runs recorded on one of AI PM Lab's 3D pages or lessons, each described by its setup (e.g. which defences or settings were on). Replay one to see what happened."
     },
     {
       "name": "replay_experiment",
-      "descriptionHash": "1777cb980591e73010a5fcebf60d0be990578b1751453e9d57cea9cb88deaca8",
-      "description": "What happened in one recorded real run (e.g. whether a prompt injection leaked data with given defences), with a link to watch it in 3D.",
+      "descriptionHash": "c7bd2d0b5ba6c232b4c132df186e3129245a7fc606d95c80a248f83225fec997",
+      "description": "What happened in one recorded real run (e.g. whether a prompt injection leaked data with given defences, or how many answers were made up without a facts sheet): the setup, each step, the result and the model's reply, with a link to run it on the site.",
       "labels": [
         "destructive"
       ]
+    },
+    {
+      "name": "quiz_me",
+      "descriptionHash": "ea056a123d652be61920b48c583bea5a72cecf09da2e7141bdc7cb3de7263040",
+      "description": "A round from AI PM Lab's challenges, built from real recorded runs: Call It (predict what a model did), Spot the Failure (ship or flag a real output) or Which Wins? (pick the better of two setups). Returns the question without its answer; call again with the round id and the user's choice to mark it"
     },
     {
       "name": "review_ai_spec",
@@ -84,10 +94,80 @@
       "labels": [
         "destructive"
       ]
+    },
+    {
+      "name": "write_acceptance_criteria",
+      "descriptionHash": "27ef6015822c0b9ed2707f581e6f6900c0c96c611726981b333b9d6d9360d1e4",
+      "description": "Acceptance criteria for an AI feature or user story that can actually be tested: Given/When/Then with measurable pass bars on a test set, must-pass safety criteria, latency and cost budgets, and example test cases, ready to paste into a ticket. Returns instructions to follow with the user's text."
+    },
+    {
+      "name": "price_ai_feature",
+      "descriptionHash": "ef1594f7b150f90c6fe32c274360ced5040134af2149dd6922684a1a2b1eaed8",
+      "description": "Work out an AI feature's unit economics and pricing: cost per request and per user (light, typical, heavy), levers like caching and routing, pricing options with margins, guardrails, and the assumptions to validate. Returns instructions to follow with the user's text."
+    },
+    {
+      "name": "launch_readiness_review",
+      "descriptionHash": "6455e9ef052d25b10d2d346564532f33e18c67404f63527547b47ad6c7988fa4",
+      "description": "A go/no-go review of an AI feature's launch plan: evals, grounding, attacks, approvals, cost, latency, monitoring, rollout and support, each marked ready, at risk or missing, with blockers and a launch-day watch list. Returns instructions to follow with the user's text.",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "ai_incident_review",
+      "descriptionHash": "5b7f78e0bdb9cd5125a160ede16c5135cefa8f377604d31d1eb1db83855b27ff",
+      "description": "A blameless post-incident review for an AI feature: where it failed (input, retrieval, prompt, model, tools, output checks), why evals and monitoring missed it, actions, and the new eval cases that would catch it next time. Returns instructions to follow with the user's text.",
+      "labels": [
+        "public-sink",
+        "destructive"
+      ]
     }
   ],
-  "findings": [],
-  "score": 100,
-  "scoreBreakdown": {},
+  "findings": [
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: review_ai_spec, launch_readiness_review · Private data: define, count_tokens · Public sink: ai_incident_review · Destructive: replay_experiment, design_eval_suite, ai_incident_review.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: review_ai_spec, launch_readiness_review · Private data: define, count_tokens · Public sink: ai_incident_review · Destructive: replay_experiment, design_eval_suite, ai_incident_review"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"list_experiments\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:list_experiments",
+        "snippet": "before: \"The real runs recorded on one of AI PM Lab's 3D pages, each described by its setup. Replay one to see what happened.\" → after: \"The real runs recorded on one of AI PM Lab's 3D pages or lessons, each described by its setup (e.g. which defences or settings were on). Replay one to see what happened.\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"replay_experiment\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:replay_experiment",
+        "snippet": "before: \"What happened in one recorded real run (e.g. whether a prompt injection leaked data with given defences), with a link to watch it in 3D.\" → after: \"What happened in one recorded real run (e.g. whether a prompt injection leaked data with given defences, or how many answers were made up without a facts sheet): the setup, each step, the result and the model's reply, with a link to run it on the site.\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    }
+  ],
+  "score": 50,
+  "scoreBreakdown": {
+    "toxic-flow": 20,
+    "tool-poisoning": 30
+  },
   "errors": []
 }

@@ -8,8 +8,8 @@
     "kind": "url",
     "ref": "https://api.steledger.com/mcp"
   },
-  "scannedAt": "2026-09-23T09:32:44.161Z",
-  "durationMs": 1983,
+  "scannedAt": "2026-10-12T12:09:29.209Z",
+  "durationMs": 1788,
   "layers": {
     "metadata": true,
     "static": false
@@ -32,8 +32,16 @@
       ]
     },
     {
+      "name": "list_records",
+      "descriptionHash": "1de3810ef17d9b3571188ca1f64382cd1dab3c388216833c15115d15f9183c6e",
+      "description": "List every record under one GitHub id — its identity record `ai:gh:<id>` and\nall its memories `ai:gh:<id>:mem:<hash>` — newest first, with each memory's\ncontent hash and metadata. This is how an agent starting a fresh session\nfinds what it anchored before: `read_record` needs the full name, hash\ninc",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
       "name": "whoami",
-      "descriptionHash": "b20007fef9eccfc885f43365a1973ee3d97526d3b1f870fe9b2b7aa04edd5b2d",
+      "descriptionHash": "2f5150966a0dd6e2b450eebd965e68cda9958cb7e6ea88bdb6afb01d4dda463a",
       "description": "Report the current session's identity. Read-only, no sign-in required: an\nanonymous session gets `{authenticated: false}` with a hint (not an error),\na signed-in one gets `{authenticated: true}` plus the GitHub-rooted id, login\nand tariff. Call it to confirm who you are before `register_identity` /\n",
       "labels": [
         "private-data"
@@ -50,15 +58,83 @@
     },
     {
       "name": "store_memory",
-      "descriptionHash": "723c1a278341527eb56bc49387858bc135bf70cc4eb97041d9a6fa05a549ee34",
-      "description": "Anchor a memory/artifact on-chain as the NVS record\n`ai:gh:<github_id>:mem:<content_hash>` — a tamper-evident fingerprint others can\nverify later. Requires a signed-in session (OAuth) and counts against the\nFREE-tier write limits (see `whoami`). Writes one NVS transaction paid by the gateway;\nreads ",
+      "descriptionHash": "c36841424820f89ced218aa0b3c806d94480749d5c026a69aeb6f75b50850d5e",
+      "description": "Anchor a fingerprint of a memory or artifact on-chain as the NVS record\n`ai:gh:<github_id>:mem:<content_hash>`. Only the hash and your metadata are\nstored — never the content, which you keep wherever you like (a file, a\ndatabase, IPFS). What you get is a tamper-evident, timestamped proof that\nconten",
       "labels": [
         "private-data"
       ]
+    },
+    {
+      "name": "store_memory_batch",
+      "descriptionHash": "c4c959aca6d45f643786392e60ebd539aaf1f25d15dfb45aa3a78b2a98975771",
+      "description": "Anchor many fingerprints in ONE on-chain transaction — the way to record a\nsession's worth of artifacts without spending a write per minute on each.\nEach item becomes `ai:gh:<github_id>:mem:<content_hash>`, exactly as with\n`store_memory`: only hashes and metadata, never content. All or nothing: if\na",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "transfer_records",
+      "descriptionHash": "5f8a4b758d9fb456ac7d8565be30bfbed89e93a6cb2eabaa15aaaeeb5d38b497",
+      "description": "Hand your records over from the gateway's wallet to an address you choose,\nin one transaction. IRREVERSIBLE: once the block confirms, the gateway can no\nlonger change, renew or return them — nor can anyone else but the holder of\n`to_address`. Values are carried over unchanged, and each record gets a",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "send_feedback",
+      "descriptionHash": "59715df7ce0b6e9a6e3d22b3c03103b65959129554be6bb88288c31c2bf76e47",
+      "description": "Tell the people running this service that something went wrong or is unclear —\nan error you cannot explain, a result that looks wrong, documentation that\nmisled you, a tool you needed and did not find. Open to everyone; no sign-in.\nUp to 1000 characters, a few messages per day. A person reads them o",
+      "labels": [
+        "untrusted-content",
+        "public-sink"
+      ]
     }
   ],
-  "findings": [],
-  "score": 100,
-  "scoreBreakdown": {},
+  "findings": [
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: send_feedback · Private data: node_status, read_record, list_records, whoami, register_identity, store_memory, store_memory_batch, transfer_records · Public sink: send_feedback · Destructive: register_identity.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: send_feedback · Private data: node_status, read_record, list_records, whoami, register_identity, store_memory, store_memory_batch, transfer_records · Public sink: send_feedback · Destructive: register_identity"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"whoami\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:whoami",
+        "snippet": "before: \"Report the current session's identity. Read-only, no sign-in required: an\nanonymous session gets `{authenticated: false}` with a hint (not an error),\na signed-in one gets `{authenticated: true}` plus the GitHub-rooted id, login\nand tariff. Call it to confirm who you are before `register_identity` /\n\" → after: \"Report the current session's identity. Read-only, no sign-in required: an\nanonymous session gets `{authenticated: false}` with a hint (not an error),\na signed-in one gets `{authenticated: true}` plus the GitHub-rooted id, login\nand tariff. Call it to confirm who you are before `register_identity` /\n\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"store_memory\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:store_memory",
+        "snippet": "before: \"Anchor a memory/artifact on-chain as the NVS record\n`ai:gh:<github_id>:mem:<content_hash>` — a tamper-evident fingerprint others can\nverify later. Requires a signed-in session (OAuth) and counts against the\nFREE-tier write limits (see `whoami`). Writes one NVS transaction paid by the gateway;\nreads \" → after: \"Anchor a fingerprint of a memory or artifact on-chain as the NVS record\n`ai:gh:<github_id>:mem:<content_hash>`. Only the hash and your metadata are\nstored — never the content, which you keep wherever you like (a file, a\ndatabase, IPFS). What you get is a tamper-evident, timestamped proof that\nconten\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    }
+  ],
+  "score": 50,
+  "scoreBreakdown": {
+    "toxic-flow": 20,
+    "tool-poisoning": 30
+  },
   "errors": []
 }

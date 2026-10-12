@@ -8,8 +8,8 @@
     "kind": "url",
     "ref": "https://app.forthclear.io/mcp"
   },
-  "scannedAt": "2026-08-28T16:44:14.258Z",
-  "durationMs": 388,
+  "scannedAt": "2026-10-12T12:10:35.534Z",
+  "durationMs": 1423,
   "layers": {
     "metadata": true,
     "static": false
@@ -27,8 +27,19 @@
     },
     {
       "name": "request_quote",
-      "descriptionHash": "a9f137bda7153215e76e1529ab95e2fbfd311a93c7d5958bdf29418d1c55d77f",
-      "description": "Request a bulk quote for a product (buyer tool)"
+      "descriptionHash": "1bbf27d081306de63057ed73ef43bedbd8b30e2685432567c38218e3c3769ba1",
+      "description": "Request a bulk quote for a product (buyer tool). Works without credentials: buyer_email is required and is where the seller replies. Anonymous quotes are limited to 5 per hour per IP; a buyer X-Agent-Token binds the quote to the buyer's account instead.",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "get_quote_status",
+      "descriptionHash": "7f8284ef828ffeaf7aac47f566cf5747030d0bf3f12477c9512167d37b1144b3",
+      "description": "Read back a quote you filed: status (pending, responded, accepted, rejected, completed), the seller's price and shipping once they reply, and what to do next. Pass the status_token request_quote returned; a buyer X-Agent-Token or account key can read its own quotes without one.",
+      "labels": [
+        "private-data"
+      ]
     },
     {
       "name": "create_listing",
@@ -60,8 +71,8 @@
     },
     {
       "name": "bulk_mark_shipped",
-      "descriptionHash": "d88a1b82512b71e848c18215420dc8a538ecd668bcff62030b65355fa86d755b",
-      "description": "Mark up to 200 of the calling seller's orders as shipped, optionally writing a shared tracking number / URL / carrier to every order. Thin adapter over POST /api/seller/orders/bulk-mark-shipped — same per-order ownership filter, idempotent re-runs, auto-detected carrier when only a tracking number i",
+      "descriptionHash": "78583b9c14a5bc549ac789679a7c2d5bfcfdf2a8a42dbe42a21186e31408c83a",
+      "description": "Mark up to 200 of the calling seller's orders as shipped, optionally writing a shared tracking number / URL / carrier to every order. Thin adapter over POST /api/seller/orders/bulk-mark-shipped — same per-order ownership filter, auto-detected carrier when only a tracking number is supplied. Supplyin",
       "labels": [
         "public-sink"
       ]
@@ -87,9 +98,56 @@
       "name": "quick_buy",
       "descriptionHash": "67ff379739563482b0a484cf590a6f8664abca606028bac281f57dc3fd73a4af",
       "description": "One-step purchase for products with instant checkout enabled (seller opt-in) and orders under bulk threshold. For products without instant checkout or larger orders, use request_quote instead."
+    },
+    {
+      "name": "search_inventory_semantic",
+      "descriptionHash": "56934adeaaa93d3f6aed03df71cdb7e76155d6de272eab5e643e19634ec2f4a6",
+      "description": "Semantic catalog search: ranks listings by similarity to a natural-language description (e.g. 'something like AirPods but cheaper'). Returns the search_inventory product shape plus a similarity score in [0, 1]. No credentials needed.",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "get_order_status",
+      "descriptionHash": "37bdd99071a20a212a7a5dba214bd74312efdfe0a03285a0801827b1baaf777f",
+      "description": "Status, tracking and inspection deadline for an order owned by the authenticated buyer (X-MCP-API-Key of the order's buyer, or a buyer X-Agent-Token).",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "open_dispute",
+      "descriptionHash": "371cacb1b76a5caae0263bc0707f2e89909b0c7c7f5bcea40ed68ec6c9d4727c",
+      "description": "Open a dispute on a delivered order awaiting the buyer's confirmation. Moves the order to 'issue_reported', records the issue and notifies admins. Requires the order's buyer (X-MCP-API-Key or buyer X-Agent-Token).",
+      "labels": [
+        "untrusted-content",
+        "private-data"
+      ]
+    },
+    {
+      "name": "subscribe_to_query",
+      "descriptionHash": "70599afb13e77c71955d7c544eecb590e524f2dc03c63fa80f56aeef34fea131",
+      "description": "Save a search for the calling agent principal. New matching listings are sent to each channel: webhook (HMAC-signed POST), email, or a pollable resource at /api/mcp/resources/subscriptions/{id}. Requires credentials.",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink"
+      ]
     }
   ],
   "findings": [
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"request_quote\" references sensitive artifacts (credentials). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:request_quote",
+        "snippet": "Request a bulk quote for a product (buyer tool). Works without credentials: buyer_email is required and is where the seller replies. Anonymous quotes are limite…"
+      },
+      "confidence": 0.65
+    },
     {
       "id": "MCP-TOOL-POISON-002",
       "severity": "high",
@@ -103,23 +161,73 @@
       "confidence": 0.75
     },
     {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"search_inventory_semantic\" references sensitive artifacts (credentials). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:search_inventory_semantic",
+        "snippet": "Semantic catalog search: ranks listings by similarity to a natural-language description (e.g. 'something like AirPods but cheaper'). Returns the search_inventor…"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"subscribe_to_query\" references sensitive artifacts (credentials). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:subscribe_to_query",
+        "snippet": "Save a search for the calling agent principal. New matching listings are sent to each channel: webhook (HMAC-signed POST), email, or a pollable resource at /api…"
+      },
+      "confidence": 0.65
+    },
+    {
       "id": "MCP-TOXIC-FLOW-001",
-      "severity": "medium",
+      "severity": "high",
       "category": "toxic-flow",
-      "title": "Toxic flow: untrusted input can reach an external sink",
-      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: seller_inbox_summarise · Public sink: bulk_update_listings, bulk_mark_shipped, bulk_export_orders · Destructive: seller_inbox_summarise.",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: seller_inbox_summarise, open_dispute, subscribe_to_query · Private data: request_quote, get_quote_status, search_inventory_semantic, get_order_status, open_dispute, subscribe_to_query · Public sink: bulk_update_listings, bulk_mark_shipped, bulk_export_orders, subscribe_to_query · Destructive: seller_inbox_summarise.",
       "evidence": {
         "source": "server:mcp",
-        "snippet": "Untrusted content: seller_inbox_summarise · Public sink: bulk_update_listings, bulk_mark_shipped, bulk_export_orders · Destructive: seller_inbox_summarise"
+        "snippet": "Untrusted content: seller_inbox_summarise, open_dispute, subscribe_to_query · Private data: request_quote, get_quote_status, search_inventory_semantic, get_order_status, open_dispute, subscribe_to_query · Public sink: bulk_update_listings, bulk_mark_shipped, bulk_export_orders, subscribe_to_query · Destructive: seller_inbox_summarise"
       },
-      "confidence": 0.45,
+      "confidence": 0.6,
       "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"request_quote\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:request_quote",
+        "snippet": "before: \"Request a bulk quote for a product (buyer tool)\" → after: \"Request a bulk quote for a product (buyer tool). Works without credentials: buyer_email is required and is where the seller replies. Anonymous quotes are limited to 5 per hour per IP; a buyer X-Agent-Token binds the quote to the buyer's account instead.\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"bulk_mark_shipped\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:bulk_mark_shipped",
+        "snippet": "before: \"Mark up to 200 of the calling seller's orders as shipped, optionally writing a shared tracking number / URL / carrier to every order. Thin adapter over POST /api/seller/orders/bulk-mark-shipped — same per-order ownership filter, idempotent re-runs, auto-detected carrier when only a tracking number i\" → after: \"Mark up to 200 of the calling seller's orders as shipped, optionally writing a shared tracking number / URL / carrier to every order. Thin adapter over POST /api/seller/orders/bulk-mark-shipped — same per-order ownership filter, auto-detected carrier when only a tracking number is supplied. Supplyin\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
     }
   ],
-  "score": 72,
+  "score": 40,
   "scoreBreakdown": {
-    "tool-poisoning": 20,
-    "toxic-flow": 8
+    "tool-poisoning": 40,
+    "toxic-flow": 20
   },
   "errors": []
 }

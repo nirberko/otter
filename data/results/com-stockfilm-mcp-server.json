@@ -8,8 +8,8 @@
     "kind": "url",
     "ref": "https://mcp.stockfilm.com/mcp"
   },
-  "scannedAt": "2026-08-01T06:44:01.798Z",
-  "durationMs": 1004,
+  "scannedAt": "2026-10-12T12:09:29.454Z",
+  "durationMs": 1249,
   "layers": {
     "metadata": true,
     "static": false
@@ -29,9 +29,26 @@
       ]
     },
     {
+      "name": "create_4k_checkout",
+      "descriptionHash": "4ff02cd7396802bab71f1f6c03401953cf5d610d770fbfe3b1e75ce5c2eae415",
+      "description": "Create or resume Stripe hosted checkout for a quoted 4K license. Call ONLY after the user explicitly approves the quoted clip, total price, resolution, license scope, territory, term, and terms. Returns a checkout URL and private order token. The user pays securely in Stripe; never collect card deta",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
       "name": "find_similar_footage",
       "descriptionHash": "6856419909221c4db63ce7b172f8ca0a670c59ddbb87219884468e494e770fd3",
       "description": "Find visually similar vintage clips by providing a clip ID. Returns clips with similar visual content from the Stockfilm archive."
+    },
+    {
+      "name": "get_4k_order",
+      "descriptionHash": "f6d30a11b5eb195aa1c941e91e7932f7c4106f2aaf0b052c425f8c8dc574c697",
+      "description": "Verify a 4K order's payment with Stripe and retrieve the license, receipt, and private master download after payment. Requires the private order token from create_4k_checkout. May activate an already-paid license. Never claim purchase completed until purchase_completed is true. If delivery_status is",
+      "labels": [
+        "untrusted-content",
+        "private-data"
+      ]
     },
     {
       "name": "get_clip_details",
@@ -43,16 +60,24 @@
     },
     {
       "name": "license_clip",
-      "descriptionHash": "5f4174868961bdd4fec74942a70e2a4745f9278f672e86603ab3a0e3e499acb2",
-      "description": "License a vintage clip from Stockfilm. Costs $10 USD in USDC (Solana or Base). Returns the x402 endpoint URL for payment. License is royalty-free, worldwide, perpetual. To complete payment, use an x402-compatible agent framework or wallet.",
+      "descriptionHash": "2539f31ebce851711fb273abc79a1d37faa1b66ed67f096233d6c5fa6f4f2fbd",
+      "description": "Get licensing options for a clip without charging the user. The website offers 4K masters for eligible clips; the separate x402 product is 144p. Review availability, exact price, and terms on the clip page before purchase. This tool does not issue a license or process payment.",
       "labels": [
-        "private-data"
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "quote_4k_license",
+      "descriptionHash": "d15e36b7e1be8c803f4dc6a600dce1ae189415e1fb67dc724a8092ad5016adcc",
+      "description": "Quote an eligible, unwatermarked 4K master using the website's direct license pricing. Verifies actual resolution and licensing availability. Ask for the buyer email and desired use, territory, and term. Does not charge the user. Show the complete quote and terms before requesting checkout approval.",
+      "labels": [
+        "public-sink"
       ]
     },
     {
       "name": "search_vintage_footage",
-      "descriptionHash": "a8340a665404ddcac26131bf3e89c3340cfcf228c5fca50c0058eb4a3143a9ff",
-      "description": "Search Stockfilm's archive of 217,000+ authentic vintage home movie clips from the 1930s-1980s. Returns clips with metadata, pricing, thumbnails, and licensing info. All footage is real 8mm/Super 8 film — no AI-generated content."
+      "descriptionHash": "212da7d166c7cef2115caad1d554d3e6be92782e6b44262d17dac1f8793d1eff",
+      "description": "Search Stockfilm's archive of authentic vintage home movie clips from the 1930s-1980s. Returns clips with metadata, pricing, thumbnails, and licensing info. All footage is real 8mm/Super 8 film — no AI-generated content."
     }
   ],
   "findings": [
@@ -61,18 +86,45 @@
       "severity": "high",
       "category": "toxic-flow",
       "title": "Lethal trifecta: untrusted input + private data + external sink",
-      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: get_clip_details · Private data: license_clip · Public sink: check_clip_rights.",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: get_4k_order, get_clip_details, license_clip · Private data: create_4k_checkout, get_4k_order · Public sink: check_clip_rights, quote_4k_license.",
       "evidence": {
         "source": "server:mcp",
-        "snippet": "Untrusted content: get_clip_details · Private data: license_clip · Public sink: check_clip_rights"
+        "snippet": "Untrusted content: get_4k_order, get_clip_details, license_clip · Private data: create_4k_checkout, get_4k_order · Public sink: check_clip_rights, quote_4k_license"
       },
       "confidence": 0.6,
       "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"license_clip\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:license_clip",
+        "snippet": "before: \"License a vintage clip from Stockfilm. Costs $10 USD in USDC (Solana or Base). Returns the x402 endpoint URL for payment. License is royalty-free, worldwide, perpetual. To complete payment, use an x402-compatible agent framework or wallet.\" → after: \"Get licensing options for a clip without charging the user. The website offers 4K masters for eligible clips; the separate x402 product is 144p. Review availability, exact price, and terms on the clip page before purchase. This tool does not issue a license or process payment.\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"search_vintage_footage\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:search_vintage_footage",
+        "snippet": "before: \"Search Stockfilm's archive of 217,000+ authentic vintage home movie clips from the 1930s-1980s. Returns clips with metadata, pricing, thumbnails, and licensing info. All footage is real 8mm/Super 8 film — no AI-generated content.\" → after: \"Search Stockfilm's archive of authentic vintage home movie clips from the 1930s-1980s. Returns clips with metadata, pricing, thumbnails, and licensing info. All footage is real 8mm/Super 8 film — no AI-generated content.\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
     }
   ],
-  "score": 80,
+  "score": 50,
   "scoreBreakdown": {
-    "toxic-flow": 20
+    "toxic-flow": 20,
+    "tool-poisoning": 30
   },
   "errors": []
 }

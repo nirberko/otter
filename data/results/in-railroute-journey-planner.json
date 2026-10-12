@@ -8,19 +8,84 @@
     "kind": "url",
     "ref": "https://www.railroute.in/api/mcp"
   },
-  "scannedAt": "2026-09-10T09:04:57.872Z",
-  "durationMs": 412,
+  "scannedAt": "2026-10-12T12:10:25.402Z",
+  "durationMs": 2074,
   "layers": {
-    "metadata": false,
+    "metadata": true,
     "static": false
   },
-  "findings": [],
-  "score": 100,
-  "scoreBreakdown": {},
-  "errors": [
+  "tools": [
     {
-      "scanner": "metadata",
-      "message": "Streamable HTTP error: Error POSTing to endpoint: {\"error\":\"unauthorized\",\"error_description\":\"An access token is required.\",\"resource_metadata\":\"https://www.railroute.in/.well-known/oauth-protected-resource/api/mcp\"}"
+      "name": "find_place",
+      "descriptionHash": "0b2ec9aa8bdab3fafcc977829659811e502d86fece19f37cb66cf86cf8b0a2e9",
+      "description": "Turn what somebody typed into RailRoute place ids. ALWAYS call this before plan_journey. A place is a city with all of its stations and airports — Mumbai covers CSMT, LTT, Dadar, Bandra Terminus and the airport — so the planner can choose the right terminal rather than making the traveller do it. Ty"
+    },
+    {
+      "name": "plan_journey",
+      "descriptionHash": "8d7f7076b97ad3eaeab4ccf9e267481f98abe0438546d0da1ea6457acb4667c7",
+      "description": "Every practical way to get from one place to another: direct trains with their fares per class, journeys with one change of train, flights, mixed train-and-flight itineraries, and GOVERNMENT BUSES from the state road transport corporations, priced from their own reservation systems. This is the whol",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "check_train_options",
+      "descriptionHash": "0594beb7d6b82ef9b0abde5174fea5c04cc59f2cf649c9a3aad818849df1f14d",
+      "description": "Live seat availability per class for one train on one date, plus every other way to book it when the through ticket will not confirm: a split at an intermediate station, boarding earlier, alighting later. This is the tool that rescues a waitlisted train. It spends a metered upstream call, so ask it ",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "train_schedule",
+      "descriptionHash": "d10ef63e6d8454a011235489169b3b80d638c62685da84d8395852a0cc062194",
+      "description": "Every stop of one train with its scheduled arrival and departure, in order. Scheduled times only — this says nothing about where the train is today."
+    },
+    {
+      "name": "station_departures",
+      "descriptionHash": "0c0ebf5176efbea1cd43c7a42766989b71dd813d4005c1b557f16b05e1f16a0d",
+      "description": "Every train scheduled to call at a station, in departure order — the enquiry board, not a journey plan. Use plan_journey when somebody wants to get somewhere; use this when they are asking what leaves from here. Scheduled times only."
+    },
+    {
+      "name": "journey_calendar",
+      "descriptionHash": "0454d5332a07530381822292b71ce45c987c89aa00bd8599d0110d213639b9a1",
+      "description": "Day-by-day service over a span of dates for a station pair: which days have a direct train and which have none, plus the weekly pattern. Use this when somebody is flexible about when they travel, or asks 'does it run on Sundays'. Timetable only — it says nothing about seats.",
+      "labels": [
+        "destructive"
+      ]
+    },
+    {
+      "name": "nearby_stations",
+      "descriptionHash": "d65f16918020228dc84f9fd836bcef54650ea4e6300e28563952737517f80ac7",
+      "description": "Other railway stations within a radius of one station, nearest first. Useful when a place has no service of its own and the traveller needs to know what is reachable — the planner already does this internally, so reach for it only when somebody asks the question directly."
+    },
+    {
+      "name": "next_confirmed_date",
+      "descriptionHash": "0f45245b5641867326d0e85939cae96bec75ee092079021aa638d5afeed5e071",
+      "description": "Search forward up to a month for the first date this route can actually be travelled with a confirmed berth — direct trains and one-change journeys together. Use it when a traveller is flexible about WHEN and the date they asked for is waitlisted. EXPENSIVE: it checks seats across dozens of trains a",
+      "labels": [
+        "public-sink"
+      ]
     }
-  ]
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "medium",
+      "category": "toxic-flow",
+      "title": "Toxic flow: untrusted input can reach an external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: check_train_options · Public sink: plan_journey, next_confirmed_date · Destructive: journey_calendar.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: check_train_options · Public sink: plan_journey, next_confirmed_date · Destructive: journey_calendar"
+      },
+      "confidence": 0.45,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 92,
+  "scoreBreakdown": {
+    "toxic-flow": 8
+  },
+  "errors": []
 }

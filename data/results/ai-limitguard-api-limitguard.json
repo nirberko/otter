@@ -1,0 +1,118 @@
+{
+  "schemaVersion": 1,
+  "scanner": {
+    "version": "1.6.0",
+    "rules": "402995650b68"
+  },
+  "target": {
+    "kind": "url",
+    "ref": "https://api.limitguard.ai/mcp"
+  },
+  "scannedAt": "2026-10-12T12:07:15.092Z",
+  "durationMs": 2446,
+  "layers": {
+    "metadata": true,
+    "static": false
+  },
+  "tools": [
+    {
+      "name": "check_entity",
+      "descriptionHash": "dc21445f955316ea3106c50781d1be81d052b5324efdf436de307311964dcc1d",
+      "description": "Company check via the Limitguard API.\n\n        Company check on a business: sanctions screening and country risk, the\n        Dutch KVK register for an NL company, and the website domain when you send\n        it. Returns trust_score (0-100, 100 = best), trust_level (high means low\n        risk), clu",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "get_trust_score",
+      "descriptionHash": "8957322eb94ac23567c9f9fe159b3a0362ec420edd412255a50c7e032b934e95",
+      "description": "Look up your own most recent trust score for an entity you checked before, from your stored checks: score, level, when, which product, trend and how many checks are on record. Runs no new check and calls no data source. Free ($0).\n\n        Returns status \"found\" with trust_score, trust_level, checke",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "verify_wallet",
+      "descriptionHash": "b984aae62407ccc7e563739155551155c0626f4854ed8a8e84d5bf92a49a0887",
+      "description": "Screen a wallet: OFAC SDN address match, on-chain signals (contract check, native and USDC balance, transaction count, first seen on Base) and named risk rules with up to 3 advice items. On Base, also reports any ERC-8004 agent the wallet owns and its open on-chain reputation as descriptive signals,",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "get_risk_score",
+      "descriptionHash": "a77e8787ceaf0adfb7a529909fe37ae336ac9e58c7952460b0023ddbd3aa0b6b",
+      "description": "Quick risk score from sanctions screening and country risk only.\n\n        Faster than check_entity: no register or domain lookup.\n        Use when you only need basic risk evaluation. Returns risk_score (0-100,\n        100 = riskiest), risk_level (high means high risk, the reverse of\n        check_e"
+    },
+    {
+      "name": "get_compliance_report",
+      "descriptionHash": "9d1fbbd54f8b203e27354c70ac53b88b6a115a88e112093d67010f579ad967dc",
+      "description": "Per-entity report built from one real check.\n\n            Registry identity, sanctions and PEP screens, domain signals, risk score\n            with the rules that fired, correlations, every finding as a ranked action, a per-source\n            status table (ok / unavailable / error) and a report hash",
+      "labels": [
+        "private-data",
+        "destructive"
+      ]
+    },
+    {
+      "name": "sanctions_preview",
+      "descriptionHash": "5211da28de9f077bbdc7e1f3108096d7dda4bce810c81c4267f20595199881c1",
+      "description": "Free yes/no sanctions preview against the local OFAC SDN, EU and UN lists.\n\n            Returns possible_match, lists_checked, list_dates and list_note only,\n            never an entry. 10 per caller per UTC day, shared with POST /v1/sanctions/preview,\n            and key holders share a ceiling of ",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "wallet_sanctions_preview",
+      "descriptionHash": "18f90f92ae10ef776337cfc669285e52e364db08ac736f5f789be4e578eb1e10",
+      "description": "Free yes/no check of a wallet address against the OFAC SDN list.\n\n            Returns wallet_address (canonical), chain_id, sanctioned, lists,\n            as_of (the list's publication date), status (ok or stale), source\n            and upgrade, which names the full wallet screen (the verify_wallet\n",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "sanctions_screen",
+      "descriptionHash": "32fbb623074418b7ccfaeaaae1f501089cfa3346c17e8619bec7e74c7be50c36",
+      "description": "Sanctions screen against the local OFAC SDN, EU and UN lists: matched entries.\n\n            Each match carries its list, entry id, entry type, programmes,\n            countries, listing date and match score (exact normalised or\n            word-order-insensitive name match only). A name match is not"
+    },
+    {
+      "name": "check_agent_wallet",
+      "descriptionHash": "547785f65c2ee4a53a53fa64567b0682f6c8d98f2b25d4f8f2421927ed2a1047",
+      "description": "Check a counterparty agent's EVM wallet in one call: OFAC SDN digital-currency address list match, Base USDC and ETH balance, ERC-8004 identity registration (and, given an agent id, that agent's owner and payment wallet) and open ERC-8004 feedback, which is not scored. $0.75.\n\n            Returns ve",
+      "labels": [
+        "untrusted-content",
+        "private-data"
+      ]
+    },
+    {
+      "name": "verify_lead",
+      "descriptionHash": "664f80af1ea106044275cbae48f710b0eb87a41842181a4395cd2c8ea782757e",
+      "description": "Verify a NL/BE sales lead against the registers in one call: real and active, VAT, mail server, IBAN, sanctions; a 0-100 lead score. $0.27.\n\n            Returns verdict (real_active, real_inactive, not_found, ambiguous,\n            unverifiable or sanctioned), lead_score, the company as registered,\n",
+      "labels": [
+        "private-data",
+        "public-sink"
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: wallet_sanctions_preview, check_agent_wallet · Private data: get_trust_score, verify_wallet, get_compliance_report, wallet_sanctions_preview, check_agent_wallet, verify_lead · Public sink: check_entity, sanctions_preview, wallet_sanctions_preview, verify_lead · Destructive: get_compliance_report.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: wallet_sanctions_preview, check_agent_wallet · Private data: get_trust_score, verify_wallet, get_compliance_report, wallet_sanctions_preview, check_agent_wallet, verify_lead · Public sink: check_entity, sanctions_preview, wallet_sanctions_preview, verify_lead · Destructive: get_compliance_report"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 80,
+  "scoreBreakdown": {
+    "toxic-flow": 20
+  },
+  "errors": []
+}

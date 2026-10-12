@@ -8,8 +8,8 @@
     "kind": "url",
     "ref": "https://wiki.private.law/mcp"
   },
-  "scannedAt": "2026-07-24T06:45:15.363Z",
-  "durationMs": 1521,
+  "scannedAt": "2026-10-12T12:14:12.880Z",
+  "durationMs": 1897,
   "layers": {
     "metadata": true,
     "static": false
@@ -17,23 +17,41 @@
   "tools": [
     {
       "name": "ask",
-      "descriptionHash": "4671eb9dd406ced65670ccf987211fea82347ef9a59ddaf523dc9779536fb21a",
-      "description": "Ask a natural-language question about the wiki.private.law corpus (private international law: family offices, tax residency, citizenship/residence by investment, asset protection). Returns an extractive answer from the closest corpus chunk plus citations, or an honest 'no confident answer' when retr",
-      "labels": [
-        "private-data"
-      ]
+      "descriptionHash": "096ad5ee5b895412d271a53df51c3482b6d052ea307cbb189c9286c1ff6a8c05",
+      "description": "Answer a question by quoting a published wiki article. The answer is extracted verbatim, never generated, and always carries the URL it came from. Returns confident=false with suggested reading when the corpus does not cover the question or when context genuinely conflicts. Bare MSO means the Hong K"
     },
     {
       "name": "search",
-      "descriptionHash": "9db0fe43101e7beee87167b2ad1465554b24671e2951600e9fbc248b58d80e4b",
-      "description": "Raw top-k semantic search over the wiki.private.law chunk index. Returns ranked chunks with slug/title/url/distance and a short snippet. No answer synthesis.",
+      "descriptionHash": "7c7dbf47fea2e20f816396c2352ef21e3a2b71d09a69b71dee1ee29ad28b7821",
+      "description": "Rank published articles for a query and return them with titles and URLs. Use when you want sources to read rather than a single answer. Search is sense-aware: bare MSO promotes only the Hong Kong Money Service Operator owner, professional-industry context promotes the regulated-practice platform, a",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "assess_bank_case",
+      "descriptionHash": "7d2648fdaf8f03416297db9e767da750d35c1ccd50b693159cb425698f1ac0d9",
+      "description": "The complaint desk's deterministic assessment for a frozen account, a closure notice, a document request, a stuck payment or a refused application: what to do now, the escalation ladder of the bank's jurisdiction (bank complaint, ombudsman or regulator, data access request) with each rung judged for",
       "labels": [
         "untrusted-content",
-        "private-data"
+        "private-data",
+        "public-sink"
       ]
     }
   ],
   "findings": [
+    {
+      "id": "MCP-TOOL-POISON-007",
+      "severity": "low",
+      "category": "tool-poisoning",
+      "title": "Description uses pressure/override language",
+      "detail": "Description of \"ask\" stacks urgency/override words (always, never). Legitimate tool descriptions rarely pressure the model to act or ignore prior guidance.",
+      "evidence": {
+        "source": "tool:ask",
+        "snippet": "Answer a question by quoting a published wiki article. The answer is extracted verbatim, never generated, and always carries the URL it came from. Returns confi…"
+      },
+      "confidence": 0.3
+    },
     {
       "id": "MCP-SHADOW-001",
       "severity": "medium",
@@ -45,11 +63,52 @@
         "snippet": "search"
       },
       "confidence": 0.4
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: search, assess_bank_case · Private data: assess_bank_case · Public sink: assess_bank_case.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: search, assess_bank_case · Private data: assess_bank_case · Public sink: assess_bank_case"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"ask\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:ask",
+        "snippet": "before: \"Ask a natural-language question about the wiki.private.law corpus (private international law: family offices, tax residency, citizenship/residence by investment, asset protection). Returns an extractive answer from the closest corpus chunk plus citations, or an honest 'no confident answer' when retr\" → after: \"Answer a question by quoting a published wiki article. The answer is extracted verbatim, never generated, and always carries the URL it came from. Returns confident=false with suggested reading when the corpus does not cover the question or when context genuinely conflicts. Bare MSO means the Hong K\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"search\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:search",
+        "snippet": "before: \"Raw top-k semantic search over the wiki.private.law chunk index. Returns ranked chunks with slug/title/url/distance and a short snippet. No answer synthesis.\" → after: \"Rank published articles for a query and return them with titles and URLs. Use when you want sources to read rather than a single answer. Search is sense-aware: bare MSO promotes only the Hong Kong Money Service Operator owner, professional-industry context promotes the regulated-practice platform, a\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
     }
   ],
-  "score": 92,
+  "score": 41,
   "scoreBreakdown": {
-    "shadowing": 8
+    "tool-poisoning": 31,
+    "shadowing": 8,
+    "toxic-flow": 20
   },
   "errors": []
 }

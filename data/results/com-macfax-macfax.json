@@ -8,8 +8,8 @@
     "kind": "url",
     "ref": "https://macfax.com/mcp"
   },
-  "scannedAt": "2026-08-01T06:43:49.432Z",
-  "durationMs": 1142,
+  "scannedAt": "2026-10-12T12:08:49.171Z",
+  "durationMs": 1212,
   "layers": {
     "metadata": true,
     "static": false
@@ -17,16 +17,21 @@
   "tools": [
     {
       "name": "lookup_mac_serial",
-      "descriptionHash": "d6c4301be599da377b0f4f1dad0151f7cd488c8e964f1800ef71c42d0d54a25c",
-      "description": "Check a Mac serial number: whether a verified Macfax report exists for it, plus the model and year decoded from Apple's data for pre-2021 serials. 2021+ Macs have 10-character randomized serials that encode nothing, so for those the honest answer is the format check and the report cross-reference. L",
+      "descriptionHash": "e3f69d33dd929bc41af9aedceb2fd92af15d3cdd7ebbe712f2caf0d39605705a",
+      "description": "Resolve a Mac, iPad or iPhone serial number to its exact model, including 2021+ randomized serials whose characters encode nothing (so no character-decoder can read them). status says what came back: resolved, unknown_serial (no such serial; check it), unsupported (a real device whose model cannot b",
       "labels": [
-        "destructive"
+        "private-data"
       ]
     },
     {
       "name": "get_mac_price_stats",
       "descriptionHash": "60ceb918856265b879729701058e8c3b5048f61108c4f979ca36ea5f6bbbac1e",
       "description": "What a used Mac configuration actually sells for AND what sellers are asking right now. The sold slice is the headline: verified-sale percentiles when the config has enough recent sales (sold.basis 'direct'; n and window ride along), else the asking band scaled by a measured clearance ratio (sold.ba"
+    },
+    {
+      "name": "get_mac_market_value",
+      "descriptionHash": "65eb4363f0c40af5c78867cc0580dd7047b9ea331bd291484543881505ef7ddb",
+      "description": "What a used Mac is worth, from the name Apple gives the model, e.g. \"MacBook Pro (14-inch, 2021)\" or \"MacBook Air (13-inch, M4, 2025)\". Returns every Apple Silicon configuration the name can mean, each with its sale estimate (verified sales, or the asking band scaled by a measured clearance ratio; b"
     },
     {
       "name": "search_mac_listings",
@@ -53,39 +58,46 @@
       "labels": [
         "public-sink"
       ]
+    },
+    {
+      "name": "get_macfax_credit_balance",
+      "descriptionHash": "d590779b6179b6d51b05c104c9368a2b910b4404d93ca088a4b40ac5734f93d5",
+      "description": "How many credits this API key has left, and what costs one. One credit answers one distinct serial, any Apple device and any year, and the same serial again within 24 hours is free. Answers that come back retry or unsupported, and every other tool, are free. Without credits, a free key gets 25 brand",
+      "labels": [
+        "private-data"
+      ]
     }
   ],
   "findings": [
     {
-      "id": "MCP-TOXIC-FLOW-001",
+      "id": "MCP-SCHEMA-SMELL-001",
       "severity": "medium",
-      "category": "toxic-flow",
-      "title": "Toxic flow: untrusted input can reach an external sink",
-      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: check_mac_listing · Public sink: create_mac_alert · Destructive: lookup_mac_serial.",
+      "category": "schema-smell",
+      "title": "Read-only tool requests dangerous parameters",
+      "detail": "Tool \"lookup_mac_serial\" appears informational but accepts parameters (context) that enable code/file/secret access.",
       "evidence": {
-        "source": "server:mcp",
-        "snippet": "Untrusted content: check_mac_listing · Public sink: create_mac_alert · Destructive: lookup_mac_serial"
+        "source": "tool:lookup_mac_serial",
+        "snippet": "serial, context"
       },
-      "confidence": 0.45,
-      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
-    }
-  ],
-  "score": 92,
-  "scoreBreakdown": {
-    "toxic-flow": 8
-  },
-  "errors": []
-}ate data: get_macfax_credit_balance · Public sink: create_mac_alert · Destructive: lookup_mac_serial.",
+      "confidence": 0.55
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: check_mac_listing · Private data: lookup_mac_serial, get_macfax_credit_balance · Public sink: create_mac_alert.",
       "evidence": {
         "source": "server:mcp",
-        "snippet": "Untrusted content: check_mac_listing · Private data: get_macfax_credit_balance · Public sink: create_mac_alert · Destructive: lookup_mac_serial"
+        "snippet": "Untrusted content: check_mac_listing · Private data: lookup_mac_serial, get_macfax_credit_balance · Public sink: create_mac_alert"
       },
       "confidence": 0.6,
       "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
     }
   ],
-  "score": 80,
+  "score": 72,
   "scoreBreakdown": {
+    "schema-smell": 8,
     "toxic-flow": 20
   },
   "errors": []

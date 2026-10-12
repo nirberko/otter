@@ -1,0 +1,123 @@
+{
+  "schemaVersion": 1,
+  "scanner": {
+    "version": "1.6.0",
+    "rules": "402995650b68"
+  },
+  "target": {
+    "kind": "url",
+    "ref": "https://putit.online/mcp"
+  },
+  "scannedAt": "2026-10-12T12:29:02.669Z",
+  "durationMs": 5331,
+  "layers": {
+    "metadata": true,
+    "static": false
+  },
+  "tools": [
+    {
+      "name": "upload_file",
+      "descriptionHash": "ef33c96c7f979aa184730f12f5cf29a22317adba6c5f259caeb21957f163c8b5",
+      "description": "Put a file online and get a short public link. Pass text directly, or base64 with encoding=\"base64\" for binary files (images, PDFs, zips). An .html file becomes a web page; a .zip containing index.html becomes a website. Returns the URL and expires_at; anonymous callers also get a manage_token. Stat",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "create_upload_session",
+      "descriptionHash": "23990dba856802875f19738ed1f2b064c27b9c7c444c4231a17b4eb362621bcc",
+      "description": "For files too large to send inline: reserves a link and returns a one-time upload_url. PUT the raw bytes there (e.g. give the user the returned curl command), then poll get_link with the slug (and manage_token) until status is \"live\".",
+      "labels": [
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "publish_site",
+      "descriptionHash": "01d343d34db3a1e1d7dbd9ab1dd85a85d8207500aa39f94416fdbade76f43894",
+      "description": "Put a web page or small static site you created online instantly. Pass {\"files\": {\"index.html\": \"<!doctype html>…\", \"style.css\": \"…\", \"app.js\": \"…\"}} (paths relative to the site root; index.html required). Images can go in base64_files. Returns the public URL. Pages are served sandboxed on their own",
+      "labels": [
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "get_link",
+      "descriptionHash": "d9d7f6fe28ba986d8bbc875ac90cd524e43009217ba1bfd1d5798354fb26f377",
+      "description": "Status of a link: live, checking, publishing, unpublished, in_review, removed (by moderation: removed_reason + appeal_url), expired or awaiting_upload; plus expiry, size and views (null when the account’s plan has no view counts). Anonymous callers pass the manage_token they got on creation."
+    },
+    {
+      "name": "list_links",
+      "descriptionHash": "1ab1217335264e901449c70c79385e9d7194a2fa8dd366c881019b56deb6ebfc",
+      "description": "List the links in the connected Put It Online account (newest first, permanent first). Requires a connected account."
+    },
+    {
+      "name": "delete_link",
+      "descriptionHash": "8fa9fb85339a9d3b02f2dbe7480491c73fc8dc466f21c3780460f25847244c4f",
+      "description": "Permanently delete a link and its files. Account owners can delete their links; anonymous callers need the manage_token. This cannot be undone.",
+      "labels": [
+        "private-data",
+        "destructive"
+      ]
+    },
+    {
+      "name": "set_password",
+      "descriptionHash": "c2763d8adf1d35ba807331822f0367b46891a9ab2d2e05c8c404a0ff8ab3d047",
+      "description": "Protect a link with a password (visitors must enter it), or pass null to remove it. Requires a connected account whose plan includes passwords; otherwise returns a subscription_required error.",
+      "labels": [
+        "private-data",
+        "destructive"
+      ]
+    },
+    {
+      "name": "make_permanent",
+      "descriptionHash": "df5024b4175a75b1870d22490ba80e7fcdd086e94835e3cc37e39e3b00e7a47e",
+      "description": "Turn an expiring link into a permanent one (uses one of the plan's permanent slots; see get_account). Requires a connected account whose plan includes permanent links."
+    },
+    {
+      "name": "extend",
+      "descriptionHash": "d768b7b4c5311c2af9e8c74f8247439652dc3683223defeb8359561333c0b720",
+      "description": "Restart an expiring link's expiry clock (also brings back a recently expired link). Permanent links are unaffected. Requires a connected account whose plan includes extending."
+    },
+    {
+      "name": "get_account",
+      "descriptionHash": "79fe3c4fa2497d084680814b062e6ab400b16c2c05bc903ebe109740202aef91",
+      "description": "The connected account's plan, permanent-link slots used/available, size limit and features."
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"set_password\" references sensitive artifacts (password). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:set_password",
+        "snippet": "Protect a link with a password (visitors must enter it), or pass null to remove it. Requires a connected account whose plan includes passwords; otherwise return…"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: upload_file · Private data: upload_file, create_upload_session, publish_site, delete_link, set_password · Public sink: upload_file, create_upload_session, publish_site · Destructive: delete_link, set_password.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: upload_file · Private data: upload_file, create_upload_session, publish_site, delete_link, set_password · Public sink: upload_file, create_upload_session, publish_site · Destructive: delete_link, set_password"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 60,
+  "scoreBreakdown": {
+    "tool-poisoning": 20,
+    "toxic-flow": 20
+  },
+  "errors": []
+}

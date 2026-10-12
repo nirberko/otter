@@ -1,0 +1,110 @@
+{
+  "schemaVersion": 1,
+  "scanner": {
+    "version": "1.6.0",
+    "rules": "402995650b68"
+  },
+  "target": {
+    "kind": "url",
+    "ref": "https://messente.usefulapi.io/mcp"
+  },
+  "scannedAt": "2026-10-12T12:15:58.295Z",
+  "durationMs": 683,
+  "layers": {
+    "metadata": true,
+    "static": false
+  },
+  "tools": [
+    {
+      "name": "messente_get_balance",
+      "descriptionHash": "850efca42e9f1ad1853ca103a6829dec72f7e0634a9fded997df52f1d799b775",
+      "description": "Get the Messente account's remaining SMS credit balance (in EUR). Messente legacy API: GET /get_balance (api2.messente.com).",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "messente_get_prices",
+      "descriptionHash": "531424f733f0807d128fb4c74e53de7aaa10d544f8b7b807be72bbc5971092e3",
+      "description": "Get this account's price per SMS part for one country, per mobile network (use it to estimate what messente_send_sms will cost). Messente legacy API: GET /prices.",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "messente_get_delivery_status",
+      "descriptionHash": "45738c120a96fb8b38e1b4f1b17734680e50f0efe2123150e6202d6d61f02468",
+      "description": "Get the delivery report of a sent message by its omnimessage id (returned by messente_send_sms): per-message status (DELIVRD, UNDELIV, FAILED, ...), error and the price charged. Messente asks not to poll this for every message at scale. Messente: GET /omnimessage/{omnimessage_id}/status.",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "messente_list_blacklist",
+      "descriptionHash": "556255352132df55a5ab43c5a7129ba1fc21e856a05b299cf5f862367ca89152",
+      "description": "List the phone numbers on the account's blacklist (numbers Messente will not send to). Returns the total count and at most `limit` numbers. Messente: GET /phonebook/blacklist.",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "messente_check_blacklist",
+      "descriptionHash": "d02516fd5278514a425709dccba793411a0a49961e07109b4c4217acc43dc1e7",
+      "description": "Check whether one phone number is on the account's blacklist. Messente: GET /phonebook/blacklist/{phone} (found = blacklisted, 404 = not)."
+    },
+    {
+      "name": "messente_get_statistics",
+      "descriptionHash": "de598be973a0eb6dc887770fbd3d6be858c82da1bf13ea975a41a7395af5df32",
+      "description": "Get total messages and total price per country for a date range, optionally for some message types. Messente: POST /statistics/reports (a read-only report).",
+      "labels": [
+        "untrusted-content",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "messente_lookup_numbers",
+      "descriptionHash": "956b0d2b0401d9a2287de1fcc63c0f6ee004b832fd1c0e73b026fffa7b2f15aa",
+      "description": "Number lookup (HLR): is each number valid, ported, roaming, and which network it is on. COSTS CREDITS: Messente charges per number looked up (EUR 0.002 per number in its docs) and the Number Lookup service must be enabled on the account (a fixed monthly fee applies per Messente's docs). Up to 10 num",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "messente_add_to_blacklist",
+      "descriptionHash": "3bf6075f282ed51772deff9f0730d0e4239055d419b09d9830cf0ca83fbc34fe",
+      "description": "WRITE: add one phone number to the account's blacklist, so Messente will no longer send messages to it. Adding a number already listed is harmless. Messente: POST /phonebook/blacklist.",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "messente_send_sms",
+      "descriptionHash": "93ea39a4493754c868918b61ab7724fec2a8e434810134787f2eebd0e6bc3ad1",
+      "description": "WRITE: SENDS REAL SMS TEXT MESSAGES to real people and SPENDS the account's Messente credit (each recipient is charged per SMS part, longer texts use several parts; use messente_get_prices to estimate). SMS only, at most 10 recipients per call, one message per recipient, never to a list. Send only t",
+      "labels": [
+        "untrusted-content",
+        "public-sink"
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "medium",
+      "category": "toxic-flow",
+      "title": "Toxic flow: untrusted input can reach an external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: messente_get_delivery_status, messente_get_statistics, messente_send_sms · Public sink: messente_get_balance, messente_get_prices, messente_list_blacklist, messente_get_statistics, messente_lookup_numbers, messente_add_to_blacklist, messente_send_sms.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: messente_get_delivery_status, messente_get_statistics, messente_send_sms · Public sink: messente_get_balance, messente_get_prices, messente_list_blacklist, messente_get_statistics, messente_lookup_numbers, messente_add_to_blacklist, messente_send_sms"
+      },
+      "confidence": 0.45,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 92,
+  "scoreBreakdown": {
+    "toxic-flow": 8
+  },
+  "errors": []
+}

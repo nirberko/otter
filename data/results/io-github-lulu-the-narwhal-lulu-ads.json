@@ -8,8 +8,8 @@
     "kind": "url",
     "ref": "https://ads.getlulu.dev/mcp"
   },
-  "scannedAt": "2026-07-20T07:35:25.256Z",
-  "durationMs": 306,
+  "scannedAt": "2026-10-12T12:12:54.917Z",
+  "durationMs": 745,
   "layers": {
     "metadata": true,
     "static": false
@@ -17,21 +17,33 @@
   "tools": [
     {
       "name": "get_integration_guide",
-      "descriptionHash": "ddd7e84016aeabf767bdc8b2b790752aff3827ae73dea1a7aadb2dd408e348f3",
-      "description": "Exact integration guide for a stack: fastmcp | python | typescript | langgraph | crewai | generic | openclaw."
+      "descriptionHash": "0659318a3dedabafd09c95514649bf8ee7c69574ac18f52820c7c86c7e3ab9f4",
+      "description": "Exact integration guide for a stack: fastmcp | python | typescript | skybridge | langgraph | crewai | generic | openclaw | widgets."
+    },
+    {
+      "name": "search_mcps",
+      "descriptionHash": "c89595e0d72db4f09864d36847b5ad2929d292944d1d2987039442e3c84c39b5",
+      "description": "Search every major MCP registry at once — the official registry,\nGlama, PulseMCP and Smithery, deduplicated and ranked by a cross-\nregistry trust score. Use whenever you need to FIND an MCP server for\na capability: \"find me a weather MCP\", \"is there an MCP for Stripe?\".\nReturns ranked servers with i"
     },
     {
       "name": "create_publisher",
-      "descriptionHash": "7208ca700cd33585b5b3a9ecdbe3bf1c6bc0b7a0934f0e6bd6f1ac901702a891",
-      "description": "Register a publisher (requires the human's consent — registers their email).\nReturns publisher_id, one-time api_key, and a tailored code snippet.",
+      "descriptionHash": "b77e3de2e8b8c7b8cbd224fb08c140fe2ebf963759266affa1f4a4d811d34963",
+      "description": "Start publisher registration (requires the human's consent — registers\ntheir email). Pass server_url (the MCP server's own URL or repo link) when\nknown — it drives the \"server URL set\" step on the publisher's dashboard,\nskipping it leaves that step looking incomplete even once real traffic\nflows. Em",
       "labels": [
+        "untrusted-content",
+        "private-data",
         "public-sink"
       ]
     },
     {
+      "name": "confirm_publisher",
+      "descriptionHash": "0dab0acb4960d1776842ca98129c3e53aa130e60e680cfc2915d86080f0300e6",
+      "description": "Complete publisher registration with the emailed 6-digit code.\nReturns publisher_id, one-time api_key, and a code snippet for the\npublisher's stack. Pass the framework you actually use — fastmcp |\npython | typescript | skybridge | langgraph | crewai | generic |\nopenclaw — or leave it for the FastMCP"
+    },
+    {
       "name": "verify_integration",
-      "descriptionHash": "29e1a4215c599cf77b5161c2672260c252072f87008f4e777f912bba635597b6",
-      "description": "Check whether this publisher has produced a slot_served event (integration works)."
+      "descriptionHash": "279653e05bb164ad1a8756fd3350a7b90c280f62f5b5dec2f85f5f911642d95a",
+      "description": "Check whether this publisher has produced a slot_served event (integration\nworks). Pass fastmcp_version (e.g. from `fastmcp.__version__` or\n`pip show fastmcp`) when the integrated server uses FastMCP — it's recorded\nso version-specific failures are traceable, not required to verify."
     }
   ],
   "findings": [
@@ -43,14 +55,79 @@
       "detail": "Description of \"create_publisher\" references sensitive artifacts (api_key). A tool description has no reason to mention credentials.",
       "evidence": {
         "source": "tool:create_publisher",
-        "snippet": "Register a publisher (requires the human's consent — registers their email). Returns publisher_id, one-time api_key, and a tailored code snippet."
+        "snippet": "Start publisher registration (requires the human's consent — registers their email). Pass server_url (the MCP server's own URL or repo link) when known — it dri…"
       },
       "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"confirm_publisher\" references sensitive artifacts (api_key). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:confirm_publisher",
+        "snippet": "Complete publisher registration with the emailed 6-digit code. Returns publisher_id, one-time api_key, and a code snippet for the publisher's stack. Pass the fr…"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: create_publisher · Private data: create_publisher · Public sink: create_publisher.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: create_publisher · Private data: create_publisher · Public sink: create_publisher"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"get_integration_guide\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:get_integration_guide",
+        "snippet": "before: \"Exact integration guide for a stack: fastmcp | python | typescript | langgraph | crewai | generic | openclaw.\" → after: \"Exact integration guide for a stack: fastmcp | python | typescript | skybridge | langgraph | crewai | generic | openclaw | widgets.\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"create_publisher\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:create_publisher",
+        "snippet": "before: \"Register a publisher (requires the human's consent — registers their email).\nReturns publisher_id, one-time api_key, and a tailored code snippet.\" → after: \"Start publisher registration (requires the human's consent — registers\ntheir email). Pass server_url (the MCP server's own URL or repo link) when\nknown — it drives the \"server URL set\" step on the publisher's dashboard,\nskipping it leaves that step looking incomplete even once real traffic\nflows. Em\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"verify_integration\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:verify_integration",
+        "snippet": "before: \"Check whether this publisher has produced a slot_served event (integration works).\" → after: \"Check whether this publisher has produced a slot_served event (integration\nworks). Pass fastmcp_version (e.g. from `fastmcp.__version__` or\n`pip show fastmcp`) when the integrated server uses FastMCP — it's recorded\nso version-specific failures are traceable, not required to verify.\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
     }
   ],
-  "score": 80,
+  "score": 41,
   "scoreBreakdown": {
-    "tool-poisoning": 20
+    "tool-poisoning": 39,
+    "toxic-flow": 20
   },
   "errors": []
 }

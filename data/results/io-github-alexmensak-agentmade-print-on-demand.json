@@ -1,0 +1,95 @@
+{
+  "schemaVersion": 1,
+  "scanner": {
+    "version": "1.6.0",
+    "rules": "402995650b68"
+  },
+  "target": {
+    "kind": "url",
+    "ref": "https://pod.agentmade.dev/mcp/pay"
+  },
+  "scannedAt": "2026-10-12T12:10:58.651Z",
+  "durationMs": 1598,
+  "layers": {
+    "metadata": true,
+    "static": false
+  },
+  "tools": [
+    {
+      "name": "search_products",
+      "descriptionHash": "ab4f59a834cce09282f62c783734e2e4560713c45bfb23bd7b63373c6c368e1e",
+      "description": "Use this when the user wants their own picture, words or logo printed on a T-shirt, hoodie, sweatshirt or tote bag and delivered, as a gift or for themselves. Finds products by free text, category, colour and size. Returns product_id, image_url (a product photo, or null), colours, sizes and print pl"
+    },
+    {
+      "name": "get_product",
+      "descriptionHash": "134a20e64385fceec15ebd0689406ae7706343aa60f02a6d243a8e5f7a3a6561",
+      "description": "Full details for one product: colours with hex codes and product photos (images: url, view, style, alt; empty when none yet; ai_generated marks AI photos), sizes, variant ids, print placements with the print area in mm, placement presets (for example center_chest, left_chest, full_front, full_back),",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "validate_artwork",
+      "descriptionHash": "9cda78bc2b470af8ab40c9b4866e8f1625b43ccd635893eab3e7934517ff031f",
+      "description": "Upload artwork and check that it prints well on one product placement. Send exactly one of: artwork with svg (markup, best for text and logos), base64 (a PNG, JPEG or SVG file up to about 2 MB, no data: prefix) or url (a public HTTPS link to the file); file (a file object from your client); or uploa",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "create_mockup",
+      "descriptionHash": "573ccd00fd87ce1e91f80fe40982c41e172d44bf1b7b5a64d937cfd68d9b268c",
+      "description": "Render a preview PNG of the artwork on the product in the chosen colour and placement. style flat draws the placement; style packshot uses a product photo with the exact print at real size, or gives the flat preview with a note when no photo exists. Returns mockup_url, blank_image_url and image_prom"
+    },
+    {
+      "name": "quote",
+      "descriptionHash": "a3962d59cc0cfccbe05c4a20b8e8fc3ef8edd52444ffcbffbdb0f39666e5a029",
+      "description": "Price printed items delivered to one destination. Returns quote_id, the total that the payer pays (products, shipping and VAT where AgentMade collects it), what is not included, the delivery estimate and the expiry. Needs artwork_id values from validate_artwork. Charges nothing. For a destination wh"
+    },
+    {
+      "name": "purchase",
+      "descriptionHash": "a7adf679e3def8e1a2fdc5e02cb4420bea544d3fe82f7c2c9e90b984c537649d",
+      "description": "Turn a quote into an order. Needs quote_id, the full recipient address (it must match the quoted destination) and rights_attestation=true. contact_email is the payer's own email, never the gift recipient's. Returns order_id and payment.url: the order page where the person pays by card, Apple Pay or ",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "get_order",
+      "descriptionHash": "2c3035e07d1ec5bd5cf2313d0a7267912f9c8d0f91ed75467cacda5424c57dfa",
+      "description": "Current order status (AWAITING_PAYMENT, PAID, SUBMITTED, IN_PRODUCTION, SHIPPED, DELIVERED or an exception state), next_step in plain language, the payment link while unpaid, shipments and a timeline."
+    },
+    {
+      "name": "track_order",
+      "descriptionHash": "f41037b6c4e6435d7824ae96e4827e0a5642cc98594c599621570ddf20ec1791",
+      "description": "Carrier, tracking number and tracking link for each shipment of an order, and the delivery estimate."
+    },
+    {
+      "name": "cancel_order",
+      "descriptionHash": "b72d1d3ffe26086c15a13e7c64449036ce1a9e5f369dde2a8b4a1fc1ee9e5770",
+      "description": "Cancel an order. Unpaid: closes the payment link; nothing is charged. Paid and not yet in production: cancels and refunds in full. In production or shipped: cannot be cancelled; the error gives the reason. A second call on a cancelled order is safe."
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"pay\" exposes tools that together enable an exfiltration flow. Untrusted content: get_product, validate_artwork · Private data: validate_artwork · Public sink: validate_artwork, purchase.",
+      "evidence": {
+        "source": "server:pay",
+        "snippet": "Untrusted content: get_product, validate_artwork · Private data: validate_artwork · Public sink: validate_artwork, purchase"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 80,
+  "scoreBreakdown": {
+    "toxic-flow": 20
+  },
+  "errors": []
+}

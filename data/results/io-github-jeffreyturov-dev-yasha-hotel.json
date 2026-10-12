@@ -1,0 +1,102 @@
+{
+  "schemaVersion": 1,
+  "scanner": {
+    "version": "1.6.0",
+    "rules": "402995650b68"
+  },
+  "target": {
+    "kind": "url",
+    "ref": "https://yashahotel.com/mcp"
+  },
+  "scannedAt": "2026-10-12T12:13:22.645Z",
+  "durationMs": 1611,
+  "layers": {
+    "metadata": true,
+    "static": false
+  },
+  "tools": [
+    {
+      "name": "hotel_info",
+      "descriptionHash": "72818cb3c2ded23ae95b52d05c79ebe2ca049df7dff69ec8ef8ec8648b14d8fc",
+      "description": "Get canonical facts about Yasha Hotel: name, 3-star rating, address (27 Rue Joseph Junck, L-1839 Luxembourg, 100 m from Luxembourg central station), phone, email, amenity list, direct-booking discount percentage vs OTAs, and breakfast price per guest per night. Use this to answer any traveler questi",
+      "labels": [
+        "untrusted-content",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "list_rooms",
+      "descriptionHash": "7090365ecc5cd49420669087bf6d7fe885376abfdce92f862e981ee8caaaf8b2",
+      "description": "List every bookable room type at Yasha Hotel with id, name, description, guest capacity, bed type, size in m2, amenities and photo URLs. Use the returned room ids for check_availability and create_booking.",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "check_availability",
+      "descriptionHash": "1461a31fbe039ea0cc7ebe9a29fd94d3b67e32c2a0475cf207ee8c6f61cce207",
+      "description": "Check real-time room availability and exact total price for a stay at Yasha Hotel. Returns, per room type: available (boolean), nights, total_cents (exact stay total in euro cents, before extras/breakfast/promo), avg_night_cents and a per-night price breakdown. Direct rates are about 10% below Booki"
+    },
+    {
+      "name": "get_price_calendar",
+      "descriptionHash": "d23b53137f6ca6bb34022edbd6f2cea209f5843d0ba22fd71c011f5673d11d2f",
+      "description": "Get day-by-day nightly price (euro cents) and availability for one room at Yasha Hotel over a given month. Use it to suggest cheaper alternative dates when the requested dates are unavailable or expensive."
+    },
+    {
+      "name": "list_extras",
+      "descriptionHash": "c09150cddd8edfa30db77a5303b643019963cfb49bbc7d6ab2fa1a3e4d538e48",
+      "description": "List paid extras bookable at Yasha Hotel (e.g. late check-out, parking, baby bed) with price in euro cents and billing unit (per_stay, per_night, per_person_night). Buffet breakfast is a separate per-guest-per-night option — see hotel_info for its price."
+    },
+    {
+      "name": "validate_promo_code",
+      "descriptionHash": "905e44e52d8042800684ec1906e57f1e38dcb4b80fca30eb7cabee779c476174",
+      "description": "Validate a Yasha Hotel promo code. Returns whether the code is currently valid and the percentage discount it applies to the room price only (extras and breakfast excluded)."
+    },
+    {
+      "name": "create_booking",
+      "descriptionHash": "f9855f566f12e01cd8d12a1cda63b52fd58e9dc1b5efdaca887c901d18941763",
+      "description": "Create a real booking at Yasha Hotel. WORKFLOW: (1) call check_availability to confirm the room is available and know the exact price, (2) collect the traveler full name and email, (3) call this tool, (4) give the human the payment instructions from the response: the booking is only confirmed after ",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "get_booking_status",
+      "descriptionHash": "b8f134d45040fede6289a589129f12eca8c8e62540aa0ac76aebe38d2773879b",
+      "description": "Get the status of a Yasha Hotel booking created with create_booking (e.g. pending_payment, confirmed, payment_failed). Poll this after the human completes the Stripe card payment to confirm the reservation went through."
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"create_booking\" references sensitive artifacts (secret). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:create_booking",
+        "snippet": "Create a real booking at Yasha Hotel. WORKFLOW: (1) call check_availability to confirm the room is available and know the exact price, (2) collect the traveler …"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "medium",
+      "category": "toxic-flow",
+      "title": "Toxic flow: untrusted input can reach an external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: hotel_info, list_rooms · Public sink: hotel_info, create_booking.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: hotel_info, list_rooms · Public sink: hotel_info, create_booking"
+      },
+      "confidence": 0.45,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 72,
+  "scoreBreakdown": {
+    "tool-poisoning": 20,
+    "toxic-flow": 8
+  },
+  "errors": []
+}

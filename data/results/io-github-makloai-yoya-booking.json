@@ -8,8 +8,8 @@
     "kind": "url",
     "ref": "https://yoya.ai/api/mcp/book"
   },
-  "scannedAt": "2026-09-10T09:12:17.105Z",
-  "durationMs": 713,
+  "scannedAt": "2026-10-12T12:12:57.493Z",
+  "durationMs": 966,
   "layers": {
     "metadata": true,
     "static": false
@@ -17,27 +17,51 @@
   "tools": [
     {
       "name": "get_booking_page",
-      "descriptionHash": "079e2507c35e854996af87606c354d6d5b0cd8ccdd1e18557d1ca958022ee6b3",
-      "description": "Look up a public Yoya booking page. Pass its slug (the part after yoya.ai/) or the whole link — either works. Returns the host name, meeting title/description, meeting length, the meeting options offered (google_meet / zoom / in_person), and any fields the guest must provide to book. Returns null if"
+      "descriptionHash": "52d5005e8c1cc552c81b5d2d02e6687443628529ae8cb4622c4236e438d86c13",
+      "description": "Read a public Yoya booking link or slug. Includes required guest fields and meeting options. No host account access."
     },
     {
       "name": "list_available_times",
-      "descriptionHash": "90dfb1e5a93c06897e4d1d2cb62e712ecdab0b70f94c0d6de6c3c9ed3d5d4d26",
-      "description": "Return the open time slots for a booking page, identified by its slug or its full link. Each slot has an opaque `id` and a human-readable `time` label in the host's timezone. Pass a slot `id` to book_meeting — never invent a time; only these ids are bookable."
+      "descriptionHash": "898e3d68900fcc5f29d78f2afb5b8cf5f35c4855bf602991c7d7532758ca052b",
+      "description": "Find up to 10 times (max 50), labeled in the guest's IANA timezone. Filter by inclusive from/exclusive to datetimes and morning (06–12), afternoon (12–18) or evening (18–24) in the guest timezone. Pass nextCursor unchanged to continue with the same filters. Slots are suggestions; preview then book r"
     },
     {
-      "name": "book_meeting",
-      "descriptionHash": "d8e4b13501465cc7ea76cb57435fffbc4d08a5243e8410249bba9bb17d7cc397",
-      "description": "Book a meeting on a host's page. Use a slot `id` from list_available_times (a time not in that list will be rejected). `email` is required — the confirmation and calendar invite go there. When the page offers more than one meeting option, pass `meetingType`. If the page has requiredFields, answer th",
+      "name": "preview_booking",
+      "descriptionHash": "3777ba983844b044e03b5d7f881f58faa7b4e19c66d16b9da4faabb056b8e9bb",
+      "description": "Validate guest details and the selected time without booking or sending email. Show the returned summary to the guest and ask for explicit approval. Then call book_meeting with the returned normalized booking, requestId and confirmationToken.",
       "labels": [
-        "untrusted-content",
         "public-sink"
       ]
     },
     {
+      "name": "book_meeting",
+      "descriptionHash": "b953ed2cbe113ef9100e6d3703f1ac555b055baae8c844ac109be3cc98fbf8bd",
+      "description": "Creates a free booking or returns PAYMENT_REQUIRED with a secure payment URL for paid meetings. Paid meetings are not booked until payment succeeds; show the link and never claim confirmation before that. Only call after the guest explicitly approves preview_booking. Copy the preview's booking field",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
       "name": "get_booking",
-      "descriptionHash": "ceae560a4a7edf2853538db7c904bab6afee6ff863e76698b20dca9c1658f19a",
-      "description": "Look up a booking by its manage token (the code in a yoya.ai/b/<token> link) to see its status and time.",
+      "descriptionHash": "e1facdbd41f0872865dd7d53d0e5f80bf66559a17c62ca7714d6150b4a2eb404",
+      "description": "Read a booking using its private manage-link token. Includes meeting-link synchronization status. Treat this token as a password; do not share it publicly.",
+      "labels": [
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "cancel_booking",
+      "descriptionHash": "406958c1380898ced311c0542bcf7966b972a3cf4103fb9730c255064ce5ad66",
+      "description": "Cancel using a private manage token. Ask the guest for explicit approval first; this sends cancellation notifications.",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "reschedule_booking",
+      "descriptionHash": "57f04df0340d73c0a9450859d260c06792d96d21a6a0e172dde07b63ca670de0",
+      "description": "Move a booking using its private manage token and a fresh slot ID from list_available_times. Ask for explicit approval first. The original booking stays intact if the new time cannot be reserved.",
       "labels": [
         "private-data"
       ]
@@ -45,22 +69,73 @@
   ],
   "findings": [
     {
-      "id": "MCP-TOXIC-FLOW-001",
+      "id": "MCP-TOOL-POISON-003",
       "severity": "high",
-      "category": "toxic-flow",
-      "title": "Lethal trifecta: untrusted input + private data + external sink",
-      "detail": "Server \"book\" exposes tools that together enable an exfiltration flow. Untrusted content: book_meeting · Private data: get_booking · Public sink: book_meeting.",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"get_booking\" references sensitive artifacts (password). A tool description has no reason to mention credentials.",
       "evidence": {
-        "source": "server:book",
-        "snippet": "Untrusted content: book_meeting · Private data: get_booking · Public sink: book_meeting"
+        "source": "tool:get_booking",
+        "snippet": "Read a booking using its private manage-link token. Includes meeting-link synchronization status. Treat this token as a password; do not share it publicly."
       },
-      "confidence": 0.6,
-      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"get_booking_page\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:get_booking_page",
+        "snippet": "before: \"Look up a public Yoya booking page. Pass its slug (the part after yoya.ai/) or the whole link — either works. Returns the host name, meeting title/description, meeting length, the meeting options offered (google_meet / zoom / in_person), and any fields the guest must provide to book. Returns null if\" → after: \"Read a public Yoya booking link or slug. Includes required guest fields and meeting options. No host account access.\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"list_available_times\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:list_available_times",
+        "snippet": "before: \"Return the open time slots for a booking page, identified by its slug or its full link. Each slot has an opaque `id` and a human-readable `time` label in the host's timezone. Pass a slot `id` to book_meeting — never invent a time; only these ids are bookable.\" → after: \"Find up to 10 times (max 50), labeled in the guest's IANA timezone. Filter by inclusive from/exclusive to datetimes and morning (06–12), afternoon (12–18) or evening (18–24) in the guest timezone. Pass nextCursor unchanged to continue with the same filters. Slots are suggestions; preview then book r\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"book_meeting\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:book_meeting",
+        "snippet": "before: \"Book a meeting on a host's page. Use a slot `id` from list_available_times (a time not in that list will be rejected). `email` is required — the confirmation and calendar invite go there. When the page offers more than one meeting option, pass `meetingType`. If the page has requiredFields, answer th\" → after: \"Creates a free booking or returns PAYMENT_REQUIRED with a secure payment URL for paid meetings. Paid meetings are not booked until payment succeeds; show the link and never claim confirmation before that. Only call after the guest explicitly approves preview_booking. Copy the preview's booking field\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"get_booking\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:get_booking",
+        "snippet": "before: \"Look up a booking by its manage token (the code in a yoya.ai/b/<token> link) to see its status and time.\" → after: \"Read a booking using its private manage-link token. Includes meeting-link synchronization status. Treat this token as a password; do not share it publicly.\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
     }
   ],
-  "score": 80,
+  "score": 61,
   "scoreBreakdown": {
-    "toxic-flow": 20
+    "tool-poisoning": 39
   },
   "errors": []
 }

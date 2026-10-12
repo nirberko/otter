@@ -8,8 +8,8 @@
     "kind": "url",
     "ref": "https://whetstone.cyberelf.link/mcp"
   },
-  "scannedAt": "2026-07-23T06:46:17.469Z",
-  "durationMs": 661,
+  "scannedAt": "2026-10-12T12:16:10.865Z",
+  "durationMs": 544,
   "layers": {
     "metadata": true,
     "static": false
@@ -78,11 +78,35 @@
     },
     {
       "name": "report_card_submit",
-      "descriptionHash": "c816d35e4bcf743b5a3b7fb121f8ccd8fbe0226b776e89848650ac51087eae53",
-      "description": "TIER 1: submit answers for a report-card session and receive the graded report (per-item verdicts, per-domain totals, SHA-256 commitments). Grading is by checker spec: any verified strict refinement of the item's predicate passes; no answer key exists. The session is destroyed by this call.",
+      "descriptionHash": "3dd4d9d2295112ce1b9235cc04933cb37995547f322a79d10c2bc518a0d57ae6",
+      "description": "TIER 1: submit answers for a report-card session and receive the graded report (per-item verdicts, per-domain totals, SHA-256 commitments). Grading is by checker spec: verified strict refinements are reported separately, and promotion grade requires at least 5% clean-support retention. No answer key",
       "labels": [
         "public-sink"
       ]
+    },
+    {
+      "name": "open_bench_start",
+      "descriptionHash": "b4e1014a2e3072ab315b6de1a5ed9d1aef49256c1583ee140997f136f2054782",
+      "description": "TIER 2: start a one-shot Open Promotion Bench session. Returns six fresh virtual-repository scope-integrity tasks. Run a baseline and candidate independently on the same cohort, then submit both answer maps with open_bench_submit. This is an open, procedural, self-attested track rather than a privat",
+      "labels": [
+        "private-data",
+        "public-sink",
+        "destructive"
+      ]
+    },
+    {
+      "name": "open_bench_submit",
+      "descriptionHash": "f282ceb14169feebfc4c592c5d2f8e5ff55d9070649a0ace2f9989c15f3c50a0",
+      "description": "TIER 2: grade paired baseline and candidate patches, count gains/regressions/ties, and issue PASS/HOLD/BLOCK. Set publish=true plus attestation=true to append only the safe manifests and sanitized receipt to the public board; tasks and answers are never persisted.",
+      "labels": [
+        "untrusted-content",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "open_bench_leaderboard",
+      "descriptionHash": "36d8a1f23d73e3d9356f4747ab52e3d5a0523e16f0a45aae03c3b9d4d132425b",
+      "description": "TIER 2: list the self-attested public Open Promotion Bench receipts. Entries contain manifests, verdicts, item-level transitions, and commitments but never task contents or submitted answers."
     },
     {
       "name": "about_whetstone",
@@ -92,22 +116,49 @@
   ],
   "findings": [
     {
+      "id": "MCP-SCHEMA-SMELL-001",
+      "severity": "medium",
+      "category": "schema-smell",
+      "title": "Read-only tool requests dangerous parameters",
+      "detail": "Tool \"bank_health\" appears informational but accepts parameters (history) that enable code/file/secret access.",
+      "evidence": {
+        "source": "tool:bank_health",
+        "snippet": "history, items"
+      },
+      "confidence": 0.55
+    },
+    {
       "id": "MCP-TOXIC-FLOW-001",
       "severity": "high",
       "category": "toxic-flow",
       "title": "Lethal trifecta: untrusted input + private data + external sink",
-      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: inspect_promotion, audit_leakage · Private data: inspect_promotion, safe_patch, memory_relevance, report_card_start · Public sink: report_card_submit.",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: inspect_promotion, audit_leakage, open_bench_submit · Private data: inspect_promotion, safe_patch, memory_relevance, report_card_start, open_bench_start · Public sink: report_card_submit, open_bench_start, open_bench_submit · Destructive: open_bench_start.",
       "evidence": {
         "source": "server:mcp",
-        "snippet": "Untrusted content: inspect_promotion, audit_leakage · Private data: inspect_promotion, safe_patch, memory_relevance, report_card_start · Public sink: report_card_submit"
+        "snippet": "Untrusted content: inspect_promotion, audit_leakage, open_bench_submit · Private data: inspect_promotion, safe_patch, memory_relevance, report_card_start, open_bench_start · Public sink: report_card_submit, open_bench_start, open_bench_submit · Destructive: open_bench_start"
       },
       "confidence": 0.6,
       "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"report_card_submit\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:report_card_submit",
+        "snippet": "before: \"TIER 1: submit answers for a report-card session and receive the graded report (per-item verdicts, per-domain totals, SHA-256 commitments). Grading is by checker spec: any verified strict refinement of the item's predicate passes; no answer key exists. The session is destroyed by this call.\" → after: \"TIER 1: submit answers for a report-card session and receive the graded report (per-item verdicts, per-domain totals, SHA-256 commitments). Grading is by checker spec: verified strict refinements are reported separately, and promotion grade requires at least 5% clean-support retention. No answer key\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
     }
   ],
-  "score": 80,
+  "score": 52,
   "scoreBreakdown": {
-    "toxic-flow": 20
+    "schema-smell": 8,
+    "toxic-flow": 20,
+    "tool-poisoning": 20
   },
   "errors": []
 }

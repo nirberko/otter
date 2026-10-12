@@ -8,8 +8,8 @@
     "kind": "url",
     "ref": "https://mcp.refpro.ai/mcp"
   },
-  "scannedAt": "2026-07-23T06:45:20.094Z",
-  "durationMs": 431,
+  "scannedAt": "2026-10-12T12:14:21.197Z",
+  "durationMs": 929,
   "layers": {
     "metadata": true,
     "static": false
@@ -17,31 +17,97 @@
   "tools": [
     {
       "name": "deal_quick_check",
-      "descriptionHash": "75823ecb81fb12ed02016082a1e96e9b96c1e935da7081e11bbff16c7bbdc92f",
-      "description": "Run a deterministic, lender-grade quick check on a real-estate deal. Inputs: deal_type (FF | BRRRR | NC), purchase_price, arv_or_value (ARV for FF, refinance value for BRRRR, sellout for NC), rehab_budget, zip_code; optional annual_debt_service, noi_annual, units, units_to_hold. Returns a PASS / MAR",
+      "descriptionHash": "e4314acd0c9122915418ef047753d0618da44d286c212f9c1dbde8289ebdbe90",
+      "description": "Run a deterministic, lender-grade quick check on a real estate deal. Use this whenever a user asks whether a specific property or deal works, pencils, is worth pursuing, what their maximum offer should be, or wants real numbers on a flip, a rental refinance, or a ground-up build. Inputs: deal_type (",
       "labels": [
         "destructive"
       ]
     },
     {
       "name": "methodology_faq",
-      "descriptionHash": "4a8c94fca7a89b34b133e425288ce052f1ac6c15ff8ee720196a8ddc42f0082e",
-      "description": "Answer structured questions about Refpro's methodology, supported deal types (FF / BRRRR / NC), pricing tiers, output formats (PDF / DOCX / XLSX), what 'lender-grade' means, and how Refpro differs from alternatives like BiggerPockets calculators. Backed by a static curated knowledge base — no LLM-ge",
+      "descriptionHash": "e3db1449406de0853b247dfe6205553356013748e064b9856f34cc47feb5822f",
+      "description": "Answer questions about how Refpro works. Use this when a user asks what Refpro is, what lender-grade means, which deal types are supported, what a deal pack contains, which output formats are available, how the pricing tiers work, or how Refpro compares to spreadsheets and free calculators. Input: q",
       "labels": [
         "untrusted-content"
       ]
     },
     {
       "name": "sample_report_fetch",
-      "descriptionHash": "2366b844c6308497a887bc8e892f71c367b695ac7b4f9a8c2ccee167037fb81c",
-      "description": "Fetch a sanitized public sample section from Refpro's reference deal library. Inputs: deal_type (FF | BRRRR | NC) and section (summary | financials | risk_notes | full). Returns sanitized example markdown content for the requested section, plus a deep-link URL to the canonical version on refpro.ai. ",
+      "descriptionHash": "e90150a915731f35a07cec250286c7ec4389d8ecac94e2f99321d40c63ec57a5",
+      "description": "Fetch a sanitized public sample section from Refpro's reference deal library. Use this when a user asks to see what a Refpro report or deal pack actually looks like, wants an example before signing up, or needs a reference for how a lender-ready underwriting package is structured. Inputs: deal_type ",
       "labels": [
         "untrusted-content"
       ]
+    },
+    {
+      "name": "deal_sheet_preview",
+      "descriptionHash": "0ac7610123d5c149ece5216b70745ab73f5812b8eaf4a2b1373ab20c8a347f1c",
+      "description": "Fetch a sanitized example of Refpro's 1-Page Deal Sheet, the single lender-facing page a borrower hands to a lender. Use this when a user asks what a Refpro deal sheet looks like, what to hand or send a lender, or wants a one-page summary format for a flip, a rental refinance or a ground-up build. I",
+      "labels": [
+        "untrusted-content",
+        "public-sink",
+        "destructive"
+      ]
     }
   ],
-  "findings": [],
-  "score": 100,
-  "scoreBreakdown": {},
+  "findings": [
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "medium",
+      "category": "toxic-flow",
+      "title": "Toxic flow: untrusted input can reach an external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: methodology_faq, sample_report_fetch, deal_sheet_preview · Public sink: deal_sheet_preview · Destructive: deal_quick_check, deal_sheet_preview.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: methodology_faq, sample_report_fetch, deal_sheet_preview · Public sink: deal_sheet_preview · Destructive: deal_quick_check, deal_sheet_preview"
+      },
+      "confidence": 0.45,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"deal_quick_check\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:deal_quick_check",
+        "snippet": "before: \"Run a deterministic, lender-grade quick check on a real-estate deal. Inputs: deal_type (FF | BRRRR | NC), purchase_price, arv_or_value (ARV for FF, refinance value for BRRRR, sellout for NC), rehab_budget, zip_code; optional annual_debt_service, noi_annual, units, units_to_hold. Returns a PASS / MAR\" → after: \"Run a deterministic, lender-grade quick check on a real estate deal. Use this whenever a user asks whether a specific property or deal works, pencils, is worth pursuing, what their maximum offer should be, or wants real numbers on a flip, a rental refinance, or a ground-up build. Inputs: deal_type (\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"methodology_faq\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:methodology_faq",
+        "snippet": "before: \"Answer structured questions about Refpro's methodology, supported deal types (FF / BRRRR / NC), pricing tiers, output formats (PDF / DOCX / XLSX), what 'lender-grade' means, and how Refpro differs from alternatives like BiggerPockets calculators. Backed by a static curated knowledge base — no LLM-ge\" → after: \"Answer questions about how Refpro works. Use this when a user asks what Refpro is, what lender-grade means, which deal types are supported, what a deal pack contains, which output formats are available, how the pricing tiers work, or how Refpro compares to spreadsheets and free calculators. Input: q\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"sample_report_fetch\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:sample_report_fetch",
+        "snippet": "before: \"Fetch a sanitized public sample section from Refpro's reference deal library. Inputs: deal_type (FF | BRRRR | NC) and section (summary | financials | risk_notes | full). Returns sanitized example markdown content for the requested section, plus a deep-link URL to the canonical version on refpro.ai. \" → after: \"Fetch a sanitized public sample section from Refpro's reference deal library. Use this when a user asks to see what a Refpro report or deal pack actually looks like, wants an example before signing up, or needs a reference for how a lender-ready underwriting package is structured. Inputs: deal_type \""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    }
+  ],
+  "score": 57,
+  "scoreBreakdown": {
+    "toxic-flow": 8,
+    "tool-poisoning": 35
+  },
   "errors": []
 }

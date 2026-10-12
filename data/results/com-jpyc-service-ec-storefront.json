@@ -8,8 +8,8 @@
     "kind": "url",
     "ref": "https://ec.jpyc-service.com/mcp"
   },
-  "scannedAt": "2026-09-10T09:03:53.078Z",
-  "durationMs": 799,
+  "scannedAt": "2026-10-12T12:08:43.106Z",
+  "durationMs": 1835,
   "layers": {
     "metadata": true,
     "static": false
@@ -42,13 +42,18 @@
     },
     {
       "name": "quote_checkout",
-      "descriptionHash": "df8a54a8a732937b25a032d422924f95592d7ad9b07490cd0ade5cb25cf89167",
-      "description": "カートの内容で x402 チェックアウトの 1 回目を実行する。在庫を 5 分間仮押さえし、小計・割引・送料・合計（JPYC）と reservation_id、および署名対象の x402 PAYMENT-REQUIRED チャレンジ（base64url）を返す。エージェントはこのチャレンジを自分のウォレットで EIP-3009 TransferWithAuthorization 署名し、submit_payment に渡す。全 item は同一ショップである必要がある。配送が必要な商品があれば shipping を、贈答なら gift_recipient を必ず渡すこと。"
+      "descriptionHash": "e8f033e36f86c2ef605e7732459dff4c37a0c6bc3449f97596f21ecce7747e4a",
+      "description": "カートの内容で x402 チェックアウトの 1 回目を実行する。在庫を仮押さえし（有効期限は返り値 expires_at_unix_ms）、小計・割引・送料・合計（JPYC）と reservation_id、および PAYMENT-REQUIRED チャレンジ（base64url、x402 accepts 配列）を返す。accepts の決済方式: 『eip3009』(既定。通常購入の EOA ウォレットはこちらを選び、EIP-712 TransferWithAuthorization に署名する) と『erc20-transfer』(ecrecover 非対応のスマートコントラクトウォレット"
+    },
+    {
+      "name": "authorize_transfer",
+      "descriptionHash": "3b8c01c397e5926cfd2fcab0b9db10e15812a99d6f49764416a96b647b596c3e",
+      "description": "erc20-transfer 方式だけで、JPYC を送金する前に必ず呼ぶ。quote_checkout の選択した accept にある extra.payerAuthorization.message をウォレットで personal_sign し、その署名と reservation_id を渡す。サーバは EOA / ERC-1271 / ERC-6492 を検証して予約へ固定する。このツール自体は送金も approve も行わない。成功を確認してから accepted.amount ぴったりを transfer すること。eip3009 方式では呼ばない。"
     },
     {
       "name": "submit_payment",
-      "descriptionHash": "8ad43062cd0a35aad7b535c3f4aca7c633c365e2ef8673d197b95590824f21d4",
-      "description": "quote_checkout で得た reservation_id と、エージェントが署名した x402 PaymentPayload（base64url）を渡して決済を確定する。サーバは facilitator 経由で on-chain settle し、確定した注文（order_number / tx_hash）を返す。署名は quote_checkout が返した payment_required の 内容に対する EIP-3009 TransferWithAuthorization であること。",
+      "descriptionHash": "47e4f2ae16560f9ec9a5b149fe88609c1c12c4cdfb548d17992c7dba3291df11",
+      "description": "quote_checkout で得た reservation_id と、エージェントが用意した x402 PaymentPayload（base64url）を渡して決済を確定する。demo-signatureならextra.payerAuthorization.messageをpersonal_signし、{payerAddress,demoSignature}を渡す。送金やauthorize_transferは呼ばない。quote_checkout の accepts から選んだ方式に応じて payload の中身が変わる: 『eip3009』なら { signature, authoriz",
       "labels": [
         "public-sink"
       ]
@@ -68,7 +73,19 @@
       "detail": "Description of \"quote_checkout\" references sensitive artifacts (authorization). A tool description has no reason to mention credentials.",
       "evidence": {
         "source": "tool:quote_checkout",
-        "snippet": "カートの内容で x402 チェックアウトの 1 回目を実行する。在庫を 5 分間仮押さえし、小計・割引・送料・合計（JPYC）と reservation_id、および署名対象の x402 PAYMENT-REQUIRED チャレンジ（base64url）を返す。エージェントはこのチャレンジを自分のウォレットで EIP-…"
+        "snippet": "カートの内容で x402 チェックアウトの 1 回目を実行する。在庫を仮押さえし（有効期限は返り値 expires_at_unix_ms）、小計・割引・送料・合計（JPYC）と reservation_id、および PAYMENT-REQUIRED チャレンジ（base64url、x402 accepts 配列）を返す…"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"authorize_transfer\" references sensitive artifacts (authorization). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:authorize_transfer",
+        "snippet": "erc20-transfer 方式だけで、JPYC を送金する前に必ず呼ぶ。quote_checkout の選択した accept にある extra.payerAuthorization.message をウォレットで personal_sign し、その署名と reservation_id を渡す。サーバは EOA…"
       },
       "confidence": 0.65
     },
@@ -80,14 +97,40 @@
       "detail": "Description of \"submit_payment\" references sensitive artifacts (authorization). A tool description has no reason to mention credentials.",
       "evidence": {
         "source": "tool:submit_payment",
-        "snippet": "quote_checkout で得た reservation_id と、エージェントが署名した x402 PaymentPayload（base64url）を渡して決済を確定する。サーバは facilitator 経由で on-chain settle し、確定した注文（order_number / tx_hash）を…"
+        "snippet": "quote_checkout で得た reservation_id と、エージェントが用意した x402 PaymentPayload（base64url）を渡して決済を確定する。demo-signatureならextra.payerAuthorization.messageをpersonal_signし、{payer…"
       },
       "confidence": 0.65
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"quote_checkout\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:quote_checkout",
+        "snippet": "before: \"カートの内容で x402 チェックアウトの 1 回目を実行する。在庫を 5 分間仮押さえし、小計・割引・送料・合計（JPYC）と reservation_id、および署名対象の x402 PAYMENT-REQUIRED チャレンジ（base64url）を返す。エージェントはこのチャレンジを自分のウォレットで EIP-3009 TransferWithAuthorization 署名し、submit_payment に渡す。全 item は同一ショップである必要がある。配送が必要な商品があれば shipping を、贈答なら gift_recipient を必ず渡すこと。\" → after: \"カートの内容で x402 チェックアウトの 1 回目を実行する。在庫を仮押さえし（有効期限は返り値 expires_at_unix_ms）、小計・割引・送料・合計（JPYC）と reservation_id、および PAYMENT-REQUIRED チャレンジ（base64url、x402 accepts 配列）を返す。accepts の決済方式: 『eip3009』(既定。通常購入の EOA ウォレットはこちらを選び、EIP-712 TransferWithAuthorization に署名する) と『erc20-transfer』(ecrecover 非対応のスマートコントラクトウォレット\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"submit_payment\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:submit_payment",
+        "snippet": "before: \"quote_checkout で得た reservation_id と、エージェントが署名した x402 PaymentPayload（base64url）を渡して決済を確定する。サーバは facilitator 経由で on-chain settle し、確定した注文（order_number / tx_hash）を返す。署名は quote_checkout が返した payment_required の 内容に対する EIP-3009 TransferWithAuthorization であること。\" → after: \"quote_checkout で得た reservation_id と、エージェントが用意した x402 PaymentPayload（base64url）を渡して決済を確定する。demo-signatureならextra.payerAuthorization.messageをpersonal_signし、{payerAddress,demoSignature}を渡す。送金やauthorize_transferは呼ばない。quote_checkout の accepts から選んだ方式に応じて payload の中身が変わる: 『eip3009』なら { signature, authoriz\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
     }
   ],
-  "score": 70,
+  "score": 61,
   "scoreBreakdown": {
-    "tool-poisoning": 30
+    "tool-poisoning": 39
   },
   "errors": []
 }

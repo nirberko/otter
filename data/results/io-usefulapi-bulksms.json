@@ -1,0 +1,123 @@
+{
+  "schemaVersion": 1,
+  "scanner": {
+    "version": "1.6.0",
+    "rules": "402995650b68"
+  },
+  "target": {
+    "kind": "url",
+    "ref": "https://bulksms.usefulapi.io/mcp"
+  },
+  "scannedAt": "2026-10-12T12:15:55.878Z",
+  "durationMs": 810,
+  "layers": {
+    "metadata": true,
+    "static": false
+  },
+  "tools": [
+    {
+      "name": "bulksms_get_profile",
+      "descriptionHash": "1aeb110412739b0ee1f1e6a6c7ca7cc15c98af79acf10d99e1326b28ebd11b6e",
+      "description": "Show the BulkSMS account: username, credit balance, credit limit, whether credit transfer is allowed, the daily message quota (size and remaining today) and the sender ids this account may use. Company and billing details are left out. BulkSMS REST: GET /profile.",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "bulksms_list_messages",
+      "descriptionHash": "b191fc36730af5af08bb8dd6531ee67aee26f36c2dd44f51ac43273fe1c25cec",
+      "description": "List sent (SENT) and received (RECEIVED) SMS messages, newest first by default. BulkSMS limits the window to the last 7 days unless submission_date_from is given. To page newest-first, pass before_id = the smallest id of the previous page; with sort_order ASCENDING pass after_id = the largest id of ",
+      "labels": [
+        "untrusted-content",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "bulksms_get_message",
+      "descriptionHash": "824a6e2119ced187121c33f7ce85d2d7748d5d57ab50f99a66cbecd4159f16a6",
+      "description": "Get one sent or received message by its id: body, recipient, delivery status, number of parts and credit cost. BulkSMS REST: GET /messages/{id}.",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "bulksms_list_replies",
+      "descriptionHash": "caf3eb09bb0f0556a6c025cc31df3c5e62c8735038f83dcd962a1830f78fc6f8",
+      "description": "List the received (RECEIVED) replies linked to a sent message id. Only messages sent with a REPLIABLE sender have linked replies. An empty list means none or an unknown id. BulkSMS REST: GET /messages/{id}/relatedReceivedMessages.",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "bulksms_list_blocked_numbers",
+      "descriptionHash": "25f54dce5792ada44c8252ee1e7f054b04359efa08f9be336b5c4adbd4bac22c",
+      "description": "List phone numbers the account may not send to (added via the API, by a recipient replying STOP, or by BulkSMS). To page, pass min_id = the largest id of the previous page + 1. BulkSMS REST: GET /blocked-numbers.",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "bulksms_list_webhooks",
+      "descriptionHash": "6d3b56662ea304b5aca4ec8c2577173ddd10cea09693347f88db8657775a6a1f",
+      "description": "List the account's webhooks (name, trigger SENT/RECEIVED, active flag, invoke option). Only the host of each webhook URL is shown: the path and query can hold a secret. Read-only: webhooks are not changed by this server. BulkSMS REST: GET /webhooks.",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "bulksms_send_message",
+      "descriptionHash": "493e5459c1df77d64f1403aa8f8b2e1bec962d1d22f27f1e81762f4c9d7a35be",
+      "description": "WRITE: SENDS REAL SMS to real people and SPENDS CREDITS from the user's BulkSMS account; it cannot be undone or recalled. One message text to 1 to 10 phone numbers in international format (e.g. +447700900000). Cost = credits per message part x number of parts x number of recipients (about 1 credit p",
+      "labels": [
+        "private-data",
+        "public-sink",
+        "destructive"
+      ]
+    },
+    {
+      "name": "bulksms_block_number",
+      "descriptionHash": "374ed1636ddf7941fb047a2595cf18e1ab7c3e72396d3fa3cb299fe5fca52b04",
+      "description": "WRITE: adds ONE phone number to the account's blocked list, so that no further messages are sent to it (a send to a blocked number fails with FAILED.BLOCKED and still costs credits). This API has no way to remove a block again: do it only when the user asks for it. BulkSMS REST: POST /blocked-number",
+      "labels": [
+        "untrusted-content",
+        "public-sink",
+        "destructive"
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"bulksms_list_webhooks\" references sensitive artifacts (secret). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:bulksms_list_webhooks",
+        "snippet": "List the account's webhooks (name, trigger SENT/RECEIVED, active flag, invoke option). Only the host of each webhook URL is shown: the path and query can hold a…"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: bulksms_get_profile, bulksms_list_messages, bulksms_get_message, bulksms_list_replies, bulksms_list_webhooks, bulksms_block_number · Private data: bulksms_list_webhooks, bulksms_send_message · Public sink: bulksms_list_messages, bulksms_list_blocked_numbers, bulksms_list_webhooks, bulksms_send_message, bulksms_block_number · Destructive: bulksms_send_message, bulksms_block_number.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: bulksms_get_profile, bulksms_list_messages, bulksms_get_message, bulksms_list_replies, bulksms_list_webhooks, bulksms_block_number · Private data: bulksms_list_webhooks, bulksms_send_message · Public sink: bulksms_list_messages, bulksms_list_blocked_numbers, bulksms_list_webhooks, bulksms_send_message, bulksms_block_number · Destructive: bulksms_send_message, bulksms_block_number"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 60,
+  "scoreBreakdown": {
+    "tool-poisoning": 20,
+    "toxic-flow": 20
+  },
+  "errors": []
+}

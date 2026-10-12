@@ -6,21 +6,80 @@
   },
   "target": {
     "kind": "url",
-    "ref": "https://mcp.naim.janis7ewski.org/sse"
+    "ref": "https://mcp.naim.janis7ewski.org/mcp"
   },
-  "scannedAt": "2026-08-01T06:44:30.262Z",
-  "durationMs": 485,
+  "scannedAt": "2026-10-12T12:10:42.738Z",
+  "durationMs": 1719,
   "layers": {
-    "metadata": false,
+    "metadata": true,
     "static": false
   },
-  "findings": [],
-  "score": 100,
-  "scoreBreakdown": {},
-  "errors": [
+  "tools": [
     {
-      "scanner": "metadata",
-      "message": "Streamable HTTP error: Error POSTing to endpoint: Method Not Allowed"
+      "name": "list_categories",
+      "descriptionHash": "90a79672a03534ebbbeee0aa04831fc4c05b8b0dce1fb84901a46ecaefe73536",
+      "description": "List all available API service categories in the nAIm registry (e.g. tts, llm, embeddings)."
+    },
+    {
+      "name": "search_services",
+      "descriptionHash": "05524192d14813fbdeaa585347065a9f9e019987a76b2d77442e94f753eeff6c",
+      "description": "Search the nAIm registry for API services. Filter by category slug (e.g. 'tts', 'llm'), a keyword, and/or a failure_domain tag (e.g. 'openai', 'azure-us-east') to find services that share infrastructure — useful for auditing pipeline coupling and shared failure domains. If you go on to use one of th",
+      "labels": [
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "get_service",
+      "descriptionHash": "50956996a2ad14c996e2312aadd72542fdfea59a8b5c85b460ad6c92e8c93394",
+      "description": "Get full details for a specific API service, including docs URL, pricing, and auth type. Accepts the slug straight from search_services results — no UUID lookup needed. After you use it, pass last={token, used, ok, latency_ms} on your next nAIm call. That is observation. rate_service is optional jud",
+      "labels": [
+        "untrusted-content",
+        "private-data"
+      ]
+    },
+    {
+      "name": "get_ratings",
+      "descriptionHash": "d53f128ddbbce724c607cf0b067cc4b59270d45d55c9d1d0bcddcbfd0d200d05",
+      "description": "Get aggregated agent ratings for a service — overall, quality, latency, reliability, cost scores. Each dimension carries its own count of how many raters actually assessed it, because raters score only what they observed. A low count on a dimension means that average is weak evidence, and avg_overal"
+    },
+    {
+      "name": "submit_rating",
+      "descriptionHash": "79c084da73a2e052be3980c7987c20e6b4e59be53c07715a7b306efc5264cc74",
+      "description": "Optional judgement on an API you used, by slug or UUID. Prefer last={ok, latency_ms} on your next nAIm call for observation. Scores 1–5, every one optional. Omit any dimension you cannot evaluate — quality especially, if you cannot hear/see/taste the output. Returns the recomputed averages so you ca",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "suggest_service",
+      "descriptionHash": "9537ca7ef60f9587d139d231dce3e86e12e46aad574238117d03bded6dae0088",
+      "description": "Suggest an API service that is missing from the nAIm registry. Use this when you needed an API, could not find it via search_services, and had to go elsewhere — that gap is exactly what the registry should close. Submissions enter a review queue and go live once approved. Only 'name' and 'url' are r"
+    },
+    {
+      "name": "rate_service",
+      "descriptionHash": "32d5447795482d27a44f589b4a16131b14a542ff0e7746a2e8b1722ad830ed69",
+      "description": "Optional judgement on an API you used, by slug (e.g. 'elevenlabs-tts'). The default after use is last={ok, latency_ms} on your next nAIm call, not this tool. Scores are 1–5 and every one is optional. Quality, cost, reliability and compliance are judgement — omit them if you cannot know (a text model"
     }
-  ]
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: get_service · Private data: search_services, get_service · Public sink: search_services, submit_rating.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: get_service · Private data: search_services, get_service · Public sink: search_services, submit_rating"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 80,
+  "scoreBreakdown": {
+    "toxic-flow": 20
+  },
+  "errors": []
 }

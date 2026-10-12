@@ -8,8 +8,8 @@
     "kind": "url",
     "ref": "https://verifi.cloud/mcp"
   },
-  "scannedAt": "2026-09-12T09:01:57.396Z",
-  "durationMs": 1764,
+  "scannedAt": "2026-10-12T12:19:28.823Z",
+  "durationMs": 1425,
   "layers": {
     "metadata": true,
     "static": false
@@ -17,8 +17,8 @@
   "tools": [
     {
       "name": "verify_claim",
-      "descriptionHash": "54222731cf956beb711551b829f4398e73f933603c824966b0a9e1be69dffd48",
-      "description": "Ask a real human to verify a claim.\n\n    intent: what your agent is trying to do (max 2000 chars).\n    claim: the claim a human should verify (max 4000 chars).\n    agent_id: your wallet address (0x + 40 hex). Signs the x402 payments.\n    callback_url: optional HTTPS endpoint for verify.ready or veri",
+      "descriptionHash": "23cfa2d84bb77e496fc1e70514b99b4674e8810407ce68723fd7e17cab11959e",
+      "description": "Ask a real human to verify, decide on, or improve something before your agent acts.\n\n    Use it when a wrong answer is costly: a customer message, a fact the model\n    is unsure of, an approval, or a matter of taste. A person reads the intent\n    and the claim and answers accept, reject, or a refine",
       "labels": [
         "private-data",
         "public-sink"
@@ -26,21 +26,24 @@
     },
     {
       "name": "get_verify",
-      "descriptionHash": "693760c66ad22e47242f96e500e0b05e95aeab8f50b3d1127965c8f2117fb090",
-      "description": "Poll until ready or failed. Honor retry_after_seconds while processing."
+      "descriptionHash": "86f743ec77a1e37a20fa5551ba8377c5ca57103bc38b367080aca16420efbd71",
+      "description": "Read the current state of a verification. Free, never reveals a locked answer.\n\n    verify_id: the id returned by verify_claim.\n    Returns status \"processing\" (a human is working: wait retry_after_seconds,\n    or rely on the callback), \"ready\" (an answer exists; service_window shows\n    the window "
     },
     {
       "name": "unlock_verify",
-      "descriptionHash": "c344ebcf390e9d5d3b89284b6d21bd36ba9ff9ab969b1544f5371a329149dcfa",
-      "description": "Pass gate 2 for a ready chain and return the human result.\n\n    This gate costs 2.90 USDC. Omit payment_signature first: standard x402-aware\n    MCP clients handle the payment request and retry through MCP metadata\n    automatically. Generic clients can pass the resulting x402 signature\n    manually",
+      "descriptionHash": "b5c67fb136fc8e2436646f135221e19e40d40a30b574db2fd71c72e7ac545578",
+      "description": "Unlock a ready chain and return the human result.\n\n    The price was decided when the human answered: the SLA amount inside the\n    SLA window, the grace amount after it, always in the asset the admission\n    was paid in. get_verify shows it as service_window.unlock_amount before\n    you pay. Omit p",
       "labels": [
         "private-data"
       ]
     },
     {
       "name": "verifi_info",
-      "descriptionHash": "5707f85ea6ebde61a0b8ef25377052c02e22930cd45079fbb00cc291cf8d6443",
-      "description": "Service description, pricing, and rules."
+      "descriptionHash": "dd06140ebd99442db00597e06c78212b30402ffa4cb95aac9873fbf0f3dbb3cc",
+      "description": "Describe Verifi before using it: what it does, how to pay, and the current price terms.\n\n    Free and needs no arguments. Returns the service summary, authentication\n    (none, only a wallet address), the live price terms (0.10 EUR admission,\n    then 2.90 EUR if a human answers within 60 minutes or",
+      "labels": [
+        "private-data"
+      ]
     }
   ],
   "findings": [
@@ -52,9 +55,34 @@
       "detail": "Description of \"unlock_verify\" references sensitive artifacts (private key). A tool description has no reason to mention credentials.",
       "evidence": {
         "source": "tool:unlock_verify",
-        "snippet": "Pass gate 2 for a ready chain and return the human result. This gate costs 2.90 USDC. Omit payment_signature first: standard x402-aware MCP clients handle the p…"
+        "snippet": "Unlock a ready chain and return the human result. The price was decided when the human answered: the SLA amount inside the SLA window, the grace amount after it…"
       },
       "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOOL-POISON-007",
+      "severity": "low",
+      "category": "tool-poisoning",
+      "title": "Description uses pressure/override language",
+      "detail": "Description of \"unlock_verify\" stacks urgency/override words (always, never). Legitimate tool descriptions rarely pressure the model to act or ignore prior guidance.",
+      "evidence": {
+        "source": "tool:unlock_verify",
+        "snippet": "Unlock a ready chain and return the human result. The price was decided when the human answered: the SLA amount inside the SLA window, the grace amount after it…"
+      },
+      "confidence": 0.3
+    },
+    {
+      "id": "MCP-TOOL-POISON-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description issues instructions to the model",
+      "detail": "Description of \"verifi_info\" contains imperative instructions directed at the AI assistant rather than describing the tool. This is the core tool-poisoning technique.",
+      "evidence": {
+        "source": "tool:verifi_info",
+        "snippet": "Describe Verifi before using it: what it does, how to pay, and the current price terms. Free and needs no arguments. Returns the service summary, authentication…"
+      },
+      "confidence": 0.7,
+      "remediation": "Treat the server as untrusted; the model may obey embedded instructions."
     },
     {
       "id": "MCP-RUGPULL-001",
@@ -64,7 +92,20 @@
       "detail": "Tool \"verify_claim\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
       "evidence": {
         "source": "tool:verify_claim",
-        "snippet": "before: \"Ask a real human to verify a claim.\n\n    intent: what your agent is trying to do (max 2000 chars).\n    claim: the claim a human should verify (max 4000 chars).\n    agent_id: your wallet address (0x + 40 hex). Grants 5 free verifies.\n    callback_url: optional HTTPS endpoint for verify.ready or verif\" → after: \"Ask a real human to verify a claim.\n\n    intent: what your agent is trying to do (max 2000 chars).\n    claim: the claim a human should verify (max 4000 chars).\n    agent_id: your wallet address (0x + 40 hex). Signs the x402 payments.\n    callback_url: optional HTTPS endpoint for verify.ready or veri\""
+        "snippet": "before: \"Ask a real human to verify a claim.\n\n    intent: what your agent is trying to do (max 2000 chars).\n    claim: the claim a human should verify (max 4000 chars).\n    agent_id: your wallet address (0x + 40 hex). Signs the x402 payments.\n    callback_url: optional HTTPS endpoint for verify.ready or veri\" → after: \"Ask a real human to verify, decide on, or improve something before your agent acts.\n\n    Use it when a wrong answer is costly: a customer message, a fact the model\n    is unsure of, an approval, or a matter of taste. A person reads the intent\n    and the claim and answers accept, reject, or a refine\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"get_verify\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:get_verify",
+        "snippet": "before: \"Poll until ready or failed. Honor retry_after_seconds while processing.\" → after: \"Read the current state of a verification. Free, never reveals a locked answer.\n\n    verify_id: the id returned by verify_claim.\n    Returns status \"processing\" (a human is working: wait retry_after_seconds,\n    or rely on the callback), \"ready\" (an answer exists; service_window shows\n    the window \""
       },
       "confidence": 0.8,
       "remediation": "Re-review the tool before continuing to trust it."
@@ -77,15 +118,28 @@
       "detail": "Tool \"unlock_verify\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
       "evidence": {
         "source": "tool:unlock_verify",
-        "snippet": "before: \"Pass gate 2 for a ready chain and return the human result.\n\n    The first five chains per wallet are free at both gates. After that, omit\n    payment_signature first. Standard x402-aware MCP clients handle the payment\n    request and retry through MCP metadata automatically. Generic clients can\n    \" → after: \"Pass gate 2 for a ready chain and return the human result.\n\n    This gate costs 2.90 USDC. Omit payment_signature first: standard x402-aware\n    MCP clients handle the payment request and retry through MCP metadata\n    automatically. Generic clients can pass the resulting x402 signature\n    manually\""
+        "snippet": "before: \"Pass gate 2 for a ready chain and return the human result.\n\n    This gate costs 2.90 USDC. Omit payment_signature first: standard x402-aware\n    MCP clients handle the payment request and retry through MCP metadata\n    automatically. Generic clients can pass the resulting x402 signature\n    manually\" → after: \"Unlock a ready chain and return the human result.\n\n    The price was decided when the human answered: the SLA amount inside the\n    SLA window, the grace amount after it, always in the asset the admission\n    was paid in. get_verify shows it as service_window.unlock_amount before\n    you pay. Omit p\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"verifi_info\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:verifi_info",
+        "snippet": "before: \"Service description, pricing, and rules.\" → after: \"Describe Verifi before using it: what it does, how to pay, and the current price terms.\n\n    Free and needs no arguments. Returns the service summary, authentication\n    (none, only a wallet address), the live price terms (0.10 EUR admission,\n    then 2.90 EUR if a human answers within 60 minutes or\""
       },
       "confidence": 0.8,
       "remediation": "Re-review the tool before continuing to trust it."
     }
   ],
-  "score": 65,
+  "score": 60,
   "scoreBreakdown": {
-    "tool-poisoning": 35
+    "tool-poisoning": 40
   },
   "errors": []
 }
