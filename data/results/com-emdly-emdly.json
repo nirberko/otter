@@ -8,8 +8,8 @@
     "kind": "url",
     "ref": "https://emdly.com/mcp"
   },
-  "scannedAt": "2026-10-09T11:37:54.232Z",
-  "durationMs": 1952,
+  "scannedAt": "2026-10-13T12:12:11.768Z",
+  "durationMs": 2683,
   "layers": {
     "metadata": true,
     "static": false
@@ -85,6 +85,55 @@
       "labels": [
         "private-data"
       ]
+    },
+    {
+      "name": "brain_create",
+      "descriptionHash": "aa61dba96e97a36141c80970a65b2c12866001ead1c8fc78b00d1f03ac046287",
+      "description": "Create a new Brain — a named set of private Markdown memory, e.g. for a project, a client or a store — owned by you. Then write files into it with brain_write and brain set to its name. Needs a signed-in user or a bearer token; a hosted agent may create brains while its Brain access is on, and can r",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "github_repos",
+      "descriptionHash": "19eda7babe294ea0734961b51cd6725d21c6509d63fff3b50f9b600438c5a8bf",
+      "description": "List the GitHub repositories you can work with: the ones the Emdly GitHub App was installed on. Returns owner/name, whether it is private, the default branch and the description.",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "github_read",
+      "descriptionHash": "9cda177b4bc9647745d72da7319241e4c9fa8f5b09fe6c9cefb158a32a0172c5",
+      "description": "Read a file, or list a directory, in a GitHub repository you connected. Give repo as owner/name, a path (empty for the root) and optionally a branch, tag or commit as ref. Text files up to 1 MB; binary files are refused.",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "github_search",
+      "descriptionHash": "1696f62d52f63047fa7239f945ee4444abd3f04f9e1278730b4235aeaea033dd",
+      "description": "Search the code of one GitHub repository you connected (default branch only, as GitHub indexes it). Returns matching file paths with a short matching fragment. Read a file with github_read.",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "github_create_issue",
+      "descriptionHash": "7c04b85656694b0ca027b73eed66b9c65be7ab665ca486b3cfe873b5a854ca10",
+      "description": "Open an issue in a GitHub repository you connected: a finding, a proposal or a to-do for the team. The issue says it came from Emdly. Nothing in the code changes.",
+      "labels": [
+        "untrusted-content",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "github_propose_change",
+      "descriptionHash": "4959d52abf3ca65db7623b7a352412c4a455b40dabeea82d5aa5cd514309887a",
+      "description": "Propose a change to a GitHub repository you connected as a pull request: creates a new emdly/… branch from the base branch, commits the files you give (full new content per file) and opens a pull request for a person to review and merge. Never writes to an existing branch.",
+      "labels": [
+        "private-data"
+      ]
     }
   ],
   "findings": [
@@ -138,30 +187,29 @@
       "confidence": 0.65
     },
     {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"brain_create\" references sensitive artifacts (bearer). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:brain_create",
+        "snippet": "Create a new Brain — a named set of private Markdown memory, e.g. for a project, a client or a store — owned by you. Then write files into it with brain_write a…"
+      },
+      "confidence": 0.65
+    },
+    {
       "id": "MCP-TOXIC-FLOW-001",
       "severity": "high",
       "category": "toxic-flow",
       "title": "Lethal trifecta: untrusted input + private data + external sink",
-      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: search_skills, submit_skill · Private data: get_skill, install_skill, brain_list, brain_search, brain_get, brain_write · Public sink: search_skills, submit_skill.",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: search_skills, submit_skill, github_create_issue · Private data: get_skill, install_skill, brain_list, brain_search, brain_get, brain_write, brain_create, github_repos, github_read, github_search, github_propose_change · Public sink: search_skills, submit_skill, github_create_issue.",
       "evidence": {
         "source": "server:mcp",
-        "snippet": "Untrusted content: search_skills, submit_skill · Private data: get_skill, install_skill, brain_list, brain_search, brain_get, brain_write · Public sink: search_skills, submit_skill"
+        "snippet": "Untrusted content: search_skills, submit_skill, github_create_issue · Private data: get_skill, install_skill, brain_list, brain_search, brain_get, brain_write, brain_create, github_repos, github_read, github_search, github_propose_change · Public sink: search_skills, submit_skill, github_create_issue"
       },
       "confidence": 0.6,
       "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
-    },
-    {
-      "id": "MCP-RUGPULL-001",
-      "severity": "high",
-      "category": "tool-poisoning",
-      "title": "Tool description changed since last scan",
-      "detail": "Tool \"install_skill\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
-      "evidence": {
-        "source": "tool:install_skill",
-        "snippet": "before: \"Install a skill into the agent you are running in. Returns the complete skill file and the exact path to write it to — YOU must then create that file verbatim (Claude Code: .claude/skills/<name>/SKILL.md, so it becomes available as /<name>; other agents: ./skills/<name>.md) and tell the user where i\" → after: \"Install a skill into the agent you are running in. Returns the complete skill file and the exact path to write it to — YOU must then create that file verbatim (Claude Code: ~/.claude/skills/<name>/SKILL.md, so it becomes available as /<name> in every project; other agents: ./skills/<name>.md) and te\""
-      },
-      "confidence": 0.8,
-      "remediation": "Re-review the tool before continuing to trust it."
     }
   ],
   "score": 41,

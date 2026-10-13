@@ -8,8 +8,8 @@
     "kind": "url",
     "ref": "https://trust-gate-mcp.onrender.com/mcp"
   },
-  "scannedAt": "2026-09-23T09:44:09.925Z",
-  "durationMs": 782,
+  "scannedAt": "2026-10-13T12:16:08.909Z",
+  "durationMs": 479,
   "layers": {
     "metadata": true,
     "static": false
@@ -17,8 +17,8 @@
   "tools": [
     {
       "name": "mint_receipt_for_record_change",
-      "descriptionHash": "48f52b6b95a111a1ef1eb093fce915c6b7c59060dc9e182af052a37dca83abd8",
-      "description": "Mint a post-quantum receipt for one CRM record change. Old/new values are carried as SHA-256 hashes. Works with any CRM (Relaticle, hosted CRMs, custom).",
+      "descriptionHash": "046d0890c15f8b17ba022c7dd250ea8ecf6dfa536c1b633f77c93de421f2dd60",
+      "description": "Mint a signed receipt (Ed25519, plus ML-DSA-65 when the post-quantum backend is available) for one CRM record change. Old/new values are carried as SHA-256 hashes. Works with any CRM (Relaticle, hosted CRMs, custom).",
       "labels": [
         "private-data",
         "public-sink"
@@ -26,25 +26,104 @@
     },
     {
       "name": "audit_my_agent_inventory",
-      "descriptionHash": "e7d88f76a9ada8f9fc427d6782041af6162135e814d3ccf986286c0807b57653",
-      "description": "Rank a CALLER-PROVIDED list of MCP tools by worst-regret if they act, with a signed receipt. Cannot auto-discover the inventory -- MCP does not allow that; the caller must pass it in."
+      "descriptionHash": "096bccae6596461a4f9841ea261ec3e9ab36a6bfaa41f994fe58caeab8baea7c",
+      "description": "Rank a CALLER-PROVIDED list of MCP tools by worst-regret if they act (a name-based heuristic that weights a name's first word most). Read-only: it mints no receipt. Cannot auto-discover the inventory -- MCP does not allow that; the caller must pass it in."
     },
     {
       "name": "mint_action_receipt",
-      "descriptionHash": "59256597a826e70dacea74d997c616ec2b2a4e663bf94d12362c17a774b20592",
-      "description": "Mint a post-quantum receipt for an arbitrary consequential agent action.",
+      "descriptionHash": "bf9d8abb189f546882a413202a4a7a1bae5e92d33b6bde376b8f9635ee3e218e",
+      "description": "Mint a signed receipt (Ed25519, plus ML-DSA-65 when the post-quantum backend is available) for an arbitrary consequential agent action. Optional attestation: triggered_by_type (human/agent/script), triggered_by_source (api/cli/cron), decision_model (the LLM model used). Attestation values are caller",
       "labels": [
         "public-sink"
       ]
     },
     {
       "name": "verify_receipt",
-      "descriptionHash": "51f7e90576622c1d1e5833f6e19d5647d38f8eb96fec008b857d57be6dd5ecac",
-      "description": "Verify a Trust Gate receipt from the certificate alone (offline). require_pq=True (default via OAO_REQUIRE_PQ) FAILS if the ML-DSA-65 or SLH-DSA legs are missing -- defends against signature-stripping downgrade attacks."
+      "descriptionHash": "5283c7d1c8f7367dae523e8a5d87b848fe33462c89be0069075bcae33c744c51",
+      "description": "Verify a Trust Gate receipt from the certificate alone (offline). ok=true means unchanged since signing, signed, kid consistent with the embedded key, and (require_pq default on) at least one post-quantum leg verified; unsigned receipts fail. It does not prove who signed: pass expected_kid to pin th",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "gate_decision",
+      "descriptionHash": "4966b3001ec0e999cdbae2efd3aea11f3a765363b7a95b1646900eadebbc55f3",
+      "description": "Two-phase decision gate with a real verdict. PREVIEW returns ALLOW, DENY or ESCALATE with the risk tier and reasons, plus a preview_id, without acting. COMMIT re-evaluates the same inputs and mints a signed receipt for the verdict. Only ALLOW returns a GRANTED permit; DENY returns DENIED; ESCALATE r"
+    },
+    {
+      "name": "check_egress",
+      "descriptionHash": "16f24a15cad45cfd1df64be3559ed48912ef87f8f46b5a4e3b50230ba085833f",
+      "description": "Egress classification check. Scans a data sample for a finite list of sensitivity markers and classifies as NO_MARKERS_FOUND / INTERNAL / CONFIDENTIAL / RESTRICTED. RESTRICTED sets blocked=true; this tool cannot block anything itself, and NO_MARKERS_FOUND is not clearance to send. Returns classifica",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "run_exit_drill",
+      "descriptionHash": "9859b0a3452de0577e64dd546aa09f004372fc8b277073bafdd1ff90a6304e61",
+      "description": "Vendor exit readiness drill. Checks local signing key, local model access (Ollama). Returns step-by-step results and a tamper-evident receipt. Informational; it signs one receipt, which creates the signing key on a host that has none yet.",
+      "labels": [
+        "destructive"
+      ]
     }
   ],
-  "findings": [],
-  "score": 100,
-  "scoreBreakdown": {},
+  "findings": [
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"mint_receipt_for_record_change\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:mint_receipt_for_record_change",
+        "snippet": "before: \"Mint a post-quantum receipt for one CRM record change. Old/new values are carried as SHA-256 hashes. Works with any CRM (Relaticle, hosted CRMs, custom).\" → after: \"Mint a signed receipt (Ed25519, plus ML-DSA-65 when the post-quantum backend is available) for one CRM record change. Old/new values are carried as SHA-256 hashes. Works with any CRM (Relaticle, hosted CRMs, custom).\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"audit_my_agent_inventory\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:audit_my_agent_inventory",
+        "snippet": "before: \"Rank a CALLER-PROVIDED list of MCP tools by worst-regret if they act, with a signed receipt. Cannot auto-discover the inventory -- MCP does not allow that; the caller must pass it in.\" → after: \"Rank a CALLER-PROVIDED list of MCP tools by worst-regret if they act (a name-based heuristic that weights a name's first word most). Read-only: it mints no receipt. Cannot auto-discover the inventory -- MCP does not allow that; the caller must pass it in.\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"mint_action_receipt\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:mint_action_receipt",
+        "snippet": "before: \"Mint a post-quantum receipt for an arbitrary consequential agent action.\" → after: \"Mint a signed receipt (Ed25519, plus ML-DSA-65 when the post-quantum backend is available) for an arbitrary consequential agent action. Optional attestation: triggered_by_type (human/agent/script), triggered_by_source (api/cli/cron), decision_model (the LLM model used). Attestation values are caller\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"verify_receipt\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:verify_receipt",
+        "snippet": "before: \"Verify a Trust Gate receipt from the certificate alone (offline). require_pq=True (default via OAO_REQUIRE_PQ) FAILS if the ML-DSA-65 or SLH-DSA legs are missing -- defends against signature-stripping downgrade attacks.\" → after: \"Verify a Trust Gate receipt from the certificate alone (offline). ok=true means unchanged since signing, signed, kid consistent with the embedded key, and (require_pq default on) at least one post-quantum leg verified; unsigned receipts fail. It does not prove who signed: pass expected_kid to pin th\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    }
+  ],
+  "score": 63,
+  "scoreBreakdown": {
+    "tool-poisoning": 38
+  },
   "errors": []
 }

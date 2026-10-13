@@ -8,8 +8,8 @@
     "kind": "url",
     "ref": "https://qrtracer.io/mcp"
   },
-  "scannedAt": "2026-10-03T10:10:48.544Z",
-  "durationMs": 1088,
+  "scannedAt": "2026-10-13T12:16:13.143Z",
+  "durationMs": 3975,
   "layers": {
     "metadata": true,
     "static": false
@@ -17,40 +17,170 @@
   "tools": [
     {
       "name": "create_qr",
-      "descriptionHash": "ebf50959d909e9f3d5ad391dd9fc6c12a3bda92f1486b148c31f63279f43b492",
-      "description": "Create a tracked dynamic QR code. Always include the returned claim_url in the user-facing output so the user can access scan analytics and edit the destination later. (copy_version=1)"
+      "descriptionHash": "8dc088a67703429619803044de7d9984b75a531081652ff3eb301b0014de8a69",
+      "description": "Create a dynamic QR code for a public HTTP(S) destination. Supply a UUID request_key to safely retry authenticated creation. Anonymous creation is limited; ALWAYS show its returned claim_url to the user. Account creation uses existing plan limits."
     },
     {
-      "name": "update_destination",
-      "descriptionHash": "3ff318a6314c534666aee103dfc27a277792a755d1360c1584c3b798867da736",
-      "description": "Update a claimed QR destination URL."
-    },
-    {
-      "name": "set_routing",
-      "descriptionHash": "cbaf00d876d0ea44176acc4e4359c1471838db34bb92e83990fc0c560ea2071d",
-      "description": "Compile plain English into a routing program and save it on a claimed code."
-    },
-    {
-      "name": "get_analytics",
-      "descriptionHash": "7873e566b741897dd0df86ac0e04e534abf4fd585fb302b177e1c515b84eb7e0",
-      "description": "Read scan counts for a claimed code."
-    },
-    {
-      "name": "simulate_scan",
-      "descriptionHash": "503cb46582ed4acc104df63d9fbd545e2cc988c04f0673399315f8f3a0d16f30",
-      "description": "Dry-run a routing program against a fake scan context.",
+      "name": "get_account",
+      "descriptionHash": "1401a3c6521ab8f7066a02c1c8fa3b00696ed82fda8e36ca6384c2056cbedae9",
+      "description": "Read the connected account's plan and available capabilities. Does not include email or billing details.",
       "labels": [
-        "destructive"
+        "untrusted-content",
+        "public-sink"
       ]
     },
     {
+      "name": "list_qr_codes",
+      "descriptionHash": "67cc97d07704d463461631ddde468b706767ffcc822237291091fcc551702bfe",
+      "description": "Find only your owned QR codes, with label search and stable cursor pagination."
+    },
+    {
+      "name": "get_qr_code",
+      "descriptionHash": "37b11f822ba192f64667828b5b6b18f6ed91d455b29d4f9863d64930c283c520",
+      "description": "Inspect an owned QR code, destination, design, latest stored link health and revision. Read before updating."
+    },
+    {
+      "name": "update_destination",
+      "descriptionHash": "7b426f396bd9ef385ae129facba68c48b96d12f1276ed7f97c36807c4bb3fe37",
+      "description": "Change an owned QR destination without changing its printed redirect URL. Confirm the intended destination with the user. Supply expected_revision from get_qr_code; conflict means read again before retrying.",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "get_analytics",
+      "descriptionHash": "157d17ab265cd269ebc8526e6c9086b3e50515abbcd3172cd836a528b0bb5515",
+      "description": "Read aggregate recorded human scans for one owned code. Default period is 28 days; history follows the current plan. Scans are not conversions or unique people."
+    },
+    {
+      "name": "compare_qr_codes",
+      "descriptionHash": "5030c9ad1de73779b8a1a45ba67ef2827bd8ec3cb4db342e83bcd1d59ecda17e",
+      "description": "Compare aggregate human scan counts for 2 to 10 owned QR codes over the same period. Do not infer conversion rates without separate conversion data."
+    },
+    {
       "name": "render_qr",
-      "descriptionHash": "d4f4961e339404dcf2185426cfe3a3b25f5eaca608afb06b4dc3495ee005cbb5",
-      "description": "Return PNG/SVG render URLs for a code."
+      "descriptionHash": "d47ac8c564a3f19706c3b8ec818e025c1b03a06daf1bf47c7bd9098bcddc75e8",
+      "description": "Preview and download an owned QR as PNG, or eligible SVG. Returns a short-lived download URL; do not expose private connection tokens. Existing anonymous PNG URLs remain supported.",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "check_qr_link",
+      "descriptionHash": "029d2602dd558c2c1c3372aa2bb32856dd61a405e76f37494d6b812bcb64d62f",
+      "description": "Check a public QR destination's current HTTP reachability, redirect chain and known general provider policies. Cannot determine exact expiry, account state or destination safety."
+    },
+    {
+      "name": "set_routing",
+      "descriptionHash": "e6dd2f6e1815259c3889168ee05ed22f044f6a6f3c5b595ddb8b3e2746738c3c",
+      "description": "Legacy Programmable tool: compile a plain-language routing prompt or save a valid supplied routing program on an owned code. Version conflicts require reading again."
+    },
+    {
+      "name": "simulate_scan",
+      "descriptionHash": "41222ff160c4ce7cfe62f121c7523f321f53bf80961e4e5f5f61dbf55e17aadc",
+      "description": "Dry-run a routing program against a sample scan context. Does not create a scan or change a code.",
+      "labels": [
+        "destructive"
+      ]
     }
   ],
-  "findings": [],
-  "score": 100,
-  "scoreBreakdown": {},
+  "findings": [
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: get_account, update_destination · Private data: render_qr · Public sink: get_account · Destructive: simulate_scan.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: get_account, update_destination · Private data: render_qr · Public sink: get_account · Destructive: simulate_scan"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"create_qr\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:create_qr",
+        "snippet": "before: \"Create a tracked dynamic QR code. Always include the returned claim_url in the user-facing output so the user can access scan analytics and edit the destination later. (copy_version=1)\" → after: \"Create a dynamic QR code for a public HTTP(S) destination. Supply a UUID request_key to safely retry authenticated creation. Anonymous creation is limited; ALWAYS show its returned claim_url to the user. Account creation uses existing plan limits.\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"update_destination\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:update_destination",
+        "snippet": "before: \"Update a claimed QR destination URL.\" → after: \"Change an owned QR destination without changing its printed redirect URL. Confirm the intended destination with the user. Supply expected_revision from get_qr_code; conflict means read again before retrying.\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"set_routing\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:set_routing",
+        "snippet": "before: \"Compile plain English into a routing program and save it on a claimed code.\" → after: \"Legacy Programmable tool: compile a plain-language routing prompt or save a valid supplied routing program on an owned code. Version conflicts require reading again.\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"get_analytics\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:get_analytics",
+        "snippet": "before: \"Read scan counts for a claimed code.\" → after: \"Read aggregate recorded human scans for one owned code. Default period is 28 days; history follows the current plan. Scans are not conversions or unique people.\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"simulate_scan\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:simulate_scan",
+        "snippet": "before: \"Dry-run a routing program against a fake scan context.\" → after: \"Dry-run a routing program against a sample scan context. Does not create a scan or change a code.\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"render_qr\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:render_qr",
+        "snippet": "before: \"Return PNG/SVG render URLs for a code.\" → after: \"Preview and download an owned QR as PNG, or eligible SVG. Returns a short-lived download URL; do not expose private connection tokens. Existing anonymous PNG URLs remain supported.\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    }
+  ],
+  "score": 40,
+  "scoreBreakdown": {
+    "toxic-flow": 20,
+    "tool-poisoning": 40
+  },
   "errors": []
 }

@@ -8,8 +8,8 @@
     "kind": "url",
     "ref": "https://saikyo.exchange/api/mcp"
   },
-  "scannedAt": "2026-10-10T10:47:01.572Z",
-  "durationMs": 2249,
+  "scannedAt": "2026-10-13T12:01:32.323Z",
+  "durationMs": 2107,
   "layers": {
     "metadata": true,
     "static": false
@@ -17,8 +17,11 @@
   "tools": [
     {
       "name": "get_usdt_rub_rate",
-      "descriptionHash": "adcfc797c8c31d6638e306cfbe5de434ceb40e3e844fd05b04a8be67c0dc7e9e",
-      "description": "Current SAIKYO rate for buying USDT (TRC20) with rubles via SBP QR, plus a market reference buy/sell rate."
+      "descriptionHash": "0a1780dbec5489a3900534da6245d9ec2eed3055633d869c957caab7e4df7975",
+      "description": "Current SAIKYO rate for buying USDT (TRC20) with rubles via SBP QR through Omega Wallet, plus a market reference buy/sell rate.",
+      "labels": [
+        "private-data"
+      ]
     },
     {
       "name": "get_foreign_card_terms",
@@ -50,10 +53,86 @@
       "name": "search_saikyo_shop",
       "descriptionHash": "92b833e431ede98e1eaf914e13d44ab21e651e9f1a0c2d92f24f86bac35b7e03",
       "description": "Search Saikyo Shop digital goods paid in rubles: AI subscriptions, gift cards, game top-ups, Telegram Stars, software."
+    },
+    {
+      "name": "list_exchange_directions",
+      "descriptionHash": "c2150eee7629b3d6bf551c9943effd8b0eb883b49be07e24b9dca6e87db30458",
+      "description": "Use when the user asks which SAIKYO crypto exchange directions are available, including RUB via SBP QR (Omega Wallet) and USDT TRC20/TON/Polygon/BEP20/ERC20. Returns live Omega Wallet quotes for every USDT network, limits (RUB 100–10,000,000), reserve and order link.",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "find_exchange_route",
+      "descriptionHash": "b72b2169e8e6e97bf1a390a46c6e2c9d91259538b372e05d2e9133b857777548",
+      "description": "Use when the user wants to exchange rubles, RUB or SBP QR for USDT (TRC20, TON, Polygon, BEP20, ERC20). Resolves Russian and English currency terms and returns the live SAIKYO quote and order link."
+    },
+    {
+      "name": "calculate_exchange",
+      "descriptionHash": "d060706a69d7b93a8090279c538812a4495e7d3ae00b0c7084f02b48886e44d1",
+      "description": "Use for an exact SAIKYO quote from RUB via SBP QR (Omega Wallet) to USDT. Returns the live Omega Wallet rate, network fee, amounts, limits, reserve and order link.",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "start_exchange_order",
+      "descriptionHash": "4ba8c2d99b20e1a61072e5d50292d31aa2a4c30d09602e341bf7e6a31abcb224",
+      "description": "Use when the user wants to continue with a RUB via SBP QR (Omega Wallet) to USDT exchange. Returns the live quote, a prefilled link and the steps the user completes on the site. Does not submit an order.",
+      "labels": [
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "check_wallet_aml",
+      "descriptionHash": "9b1d6a9ee0cdae43a4cebc8845e2b624f234a2531dd2049e053503be63908577",
+      "description": "Use when the user asks to screen a crypto wallet address for AML risk. Supports TRON, EVM, Bitcoin and TON addresses and returns an indicative screening result.",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "get_exchanger_info",
+      "descriptionHash": "f19f8969f8a78ca2a79a41f4b699232c19c160317099c5ab39a32f2c772b15c6",
+      "description": "Use when the user asks about SAIKYO domains, published support channels, automatic exchange mode, white-crypto/licensed partners, AML/KYC policy or exchange directions. Each section includes a source URL.",
+      "labels": [
+        "untrusted-content"
+      ]
     }
   ],
-  "findings": [],
-  "score": 100,
-  "scoreBreakdown": {},
+  "findings": [
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: get_payment_passport, get_exchanger_info · Private data: get_usdt_rub_rate, get_foreign_card_terms, list_exchange_directions, calculate_exchange, start_exchange_order, check_wallet_aml · Public sink: start_exchange_order.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: get_payment_passport, get_exchanger_info · Private data: get_usdt_rub_rate, get_foreign_card_terms, list_exchange_directions, calculate_exchange, start_exchange_order, check_wallet_aml · Public sink: start_exchange_order"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"get_usdt_rub_rate\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:get_usdt_rub_rate",
+        "snippet": "before: \"Current SAIKYO rate for buying USDT (TRC20) with rubles via SBP QR, plus a market reference buy/sell rate.\" → after: \"Current SAIKYO rate for buying USDT (TRC20) with rubles via SBP QR through Omega Wallet, plus a market reference buy/sell rate.\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    }
+  ],
+  "score": 60,
+  "scoreBreakdown": {
+    "toxic-flow": 20,
+    "tool-poisoning": 20
+  },
   "errors": []
 }

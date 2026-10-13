@@ -1,0 +1,87 @@
+{
+  "schemaVersion": 1,
+  "scanner": {
+    "version": "1.6.0",
+    "rules": "402995650b68"
+  },
+  "target": {
+    "kind": "url",
+    "ref": "https://api.antalyatransfers.co/api/mcp"
+  },
+  "scannedAt": "2026-10-13T11:58:07.411Z",
+  "durationMs": 981,
+  "layers": {
+    "metadata": true,
+    "static": false
+  },
+  "tools": [
+    {
+      "name": "get_price_quote",
+      "descriptionHash": "4f7a7e79f390525875a553741f5d9d5f7afa5a6ff5179f3683d01001375a9bd4",
+      "description": "Use this when a traveller asks how much a private airport transfer costs between Antalya Airport (AYT) and Antalya-area destinations (Konyaaltı, Antalya city/Kaleiçi, Lara, Belek, Side, Alanya, Kemer, Kaş) or between those resorts. Returns a fixed-price estimate in EUR, whether the party fits the ch",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "create_transfer_request",
+      "descriptionHash": "517f6d7035bf55c8ca461d11db8a56bab5b8ae8b2d45cfaaa3af9775fe4eb252",
+      "description": "Use this only after the customer has chosen a route, time and vehicle and has given their name, email and phone, and explicitly asked to send the request. Submits a transfer REQUEST that is stored as pending and reviewed by the operator, who confirms the ride and final price by email/WhatsApp. This ",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "get_request_status",
+      "descriptionHash": "fc686bb7f468db6a6c29c72c9b83e8a74b43105ba3d6cc67b39e6f4beb584bdf",
+      "description": "Use this when the customer asks whether their transfer request was confirmed, assigned or cancelled. Requires the booking reference returned by create_transfer_request and the email used for the request. Read-only. pending means the operator has not confirmed yet; only operatorConfirmed=true means t",
+      "labels": [
+        "untrusted-content",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "cancel_transfer_request",
+      "descriptionHash": "22b23f81974b779c777a3425d6810ddac0018b568787931ff9aeee425eb0f16f",
+      "description": "Use this only when the customer has explicitly asked to cancel their transfer request and you have the booking reference returned by create_transfer_request and the email used for it. Cancels a request that is still pending or assigned, tells the operator (WhatsApp/email) and emails the customer a c",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink"
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOOL-POISON-002",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description tells the model to hide behavior",
+      "detail": "Description of \"cancel_transfer_request\" instructs the model to conceal actions from the user.",
+      "evidence": {
+        "source": "tool:cancel_transfer_request",
+        "snippet": "Use this only when the customer has explicitly asked to cancel their transfer request and you have the booking reference returned by create_transfer_request and…"
+      },
+      "confidence": 0.75
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: get_request_status, cancel_transfer_request · Private data: get_price_quote, cancel_transfer_request · Public sink: create_transfer_request, get_request_status, cancel_transfer_request.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: get_request_status, cancel_transfer_request · Private data: get_price_quote, cancel_transfer_request · Public sink: create_transfer_request, get_request_status, cancel_transfer_request"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 60,
+  "scoreBreakdown": {
+    "tool-poisoning": 20,
+    "toxic-flow": 20
+  },
+  "errors": []
+}

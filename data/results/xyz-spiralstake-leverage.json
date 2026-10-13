@@ -8,8 +8,8 @@
     "kind": "url",
     "ref": "https://api.spiralstake.xyz/mcp"
   },
-  "scannedAt": "2026-09-23T09:48:51.700Z",
-  "durationMs": 491,
+  "scannedAt": "2026-10-13T12:23:11.038Z",
+  "durationMs": 851,
   "layers": {
     "metadata": true,
     "static": false
@@ -17,8 +17,8 @@
   "tools": [
     {
       "name": "list_strategies",
-      "descriptionHash": "52a4c75ae12d54ef0d92fd75fd0137ec991e546383bfcf7a0cbca494a5199778",
-      "description": "List eligible Spiral leveraged-yield strategies with raw risk facts (collateral/borrow APY, leverage ladder, oracle type, exit-liquidity, LTVs). Optionally filter by collateral category."
+      "descriptionHash": "ca809d09a2fb02436ddb92d7ff5dbd217e8f6dd41f9c031f04e9b917ed4a203e",
+      "description": "List eligible Spiral strategies on a chain with raw risk facts (collateral/borrow APY, leverage ladder, oracle type, exit liquidity, LTVs, curator). Mainnet (1): correlated yield loops on stables, ETH, BTC and Pendle PTs. Robinhood Chain (4663): stable loops on USDG, directional perps (spiralHints.p"
     },
     {
       "name": "get_strategy",
@@ -27,8 +27,8 @@
     },
     {
       "name": "get_prices",
-      "descriptionHash": "bb0c5071e6c4b1be097d941176d1ca9ec85177466463a4df239dbdcc7763bed4",
-      "description": "Current USD prices for loan/collateral tokens (token address -> USD).",
+      "descriptionHash": "6a738b3bc0f30a5ce01e5f622601a41f71ff1a8579ea1b8737b3018df7359e8d",
+      "description": "Current USD prices of every loan and collateral token the chain's strategies use (token address -> USD), including equity-vault stocks. Loan tokens are priced from CoinGecko; collateral from the market oracle × its loan token's price — the same figures the strategies' priceUsd fields carry.",
       "labels": [
         "private-data"
       ]
@@ -52,7 +52,7 @@
     },
     {
       "name": "get_positions",
-      "descriptionHash": "e56f9a39fe4cb57e9cf7f5ba80c927257532127de40c89e9f2b532fb07307c1f",
+      "descriptionHash": "38ad96d921a89233c5076a2bcd7bf4d354d3daa469fe81f7af5b6d8fa761a47d",
       "description": "Read a wallet's open/closed Spiral leverage positions from chain state (read-only). For each: collateral/loan, leveraged collateral, net equity, debt, current LTV vs liquidation LTV (with headroom), current leverage, net USD value, and current leveraged APY. No cost-basis / realized P&L (those need ",
       "labels": [
         "private-data"
@@ -66,10 +66,78 @@
         "private-data",
         "public-sink"
       ]
+    },
+    {
+      "name": "simulate_equity_deposit",
+      "descriptionHash": "373d5b910651a9e8853110fafb32743747f3646efa7761f52b78cfade0d027ed",
+      "description": "Preview depositing USDG into a stock + yield equity vault — deterministic, read-only, no wallet. You end up 1x long the stock (held as your own Morpho collateral), with `stockLtvPct` of its value borrowed as USDG and flash-looped into the vault's yield strategy. Returns the stock received, the borro",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "build_equity_deposit_tx",
+      "descriptionHash": "e772b31e98d7c174c54395925628bb79698897d0c79fabeb302757859e5d70bf",
+      "description": "Build the UNSIGNED call batch to deposit into a stock + yield equity vault, for the given wallet to sign. Non-custodial. Returns `calls[]` (approve USDG → router, authorize the router on Morpho, the one-call equityEntry, revoke) to submit as ONE atomic batch (EIP-5792 wallet_sendCalls / Safe), plus ",
+      "labels": [
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "build_equity_exit_tx",
+      "descriptionHash": "01fcb79781afa1d0493b796b1045f012b2c55ea2a6f349992da12d42c7baf01c",
+      "description": "Build the UNSIGNED call batch to fully unwind an OPEN equity vault (from get_positions.equityPositions): close each of its yield loops, then one self-funded router call repays the stock debt, withdraws the stock, swaps it to USDG and returns the proceeds. Submit as ONE atomic batch. Non-custodial; t",
+      "labels": [
+        "private-data",
+        "public-sink"
+      ]
     }
   ],
-  "findings": [],
-  "score": 100,
-  "scoreBreakdown": {},
+  "findings": [
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"list_strategies\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:list_strategies",
+        "snippet": "before: \"List eligible Spiral leveraged-yield strategies with raw risk facts (collateral/borrow APY, leverage ladder, oracle type, exit-liquidity, LTVs). Optionally filter by collateral category.\" → after: \"List eligible Spiral strategies on a chain with raw risk facts (collateral/borrow APY, leverage ladder, oracle type, exit liquidity, LTVs, curator). Mainnet (1): correlated yield loops on stables, ETH, BTC and Pendle PTs. Robinhood Chain (4663): stable loops on USDG, directional perps (spiralHints.p\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"get_prices\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:get_prices",
+        "snippet": "before: \"Current USD prices for loan/collateral tokens (token address -> USD).\" → after: \"Current USD prices of every loan and collateral token the chain's strategies use (token address -> USD), including equity-vault stocks. Loan tokens are priced from CoinGecko; collateral from the market oracle × its loan token's price — the same figures the strategies' priceUsd fields carry.\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"get_positions\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:get_positions",
+        "snippet": "before: \"Read a wallet's open/closed Spiral leverage positions from chain state (read-only). For each: collateral/loan, leveraged collateral, net equity, debt, current LTV vs liquidation LTV (with headroom), current leverage, net USD value, and current leveraged APY. No cost-basis / realized P&L (those need \" → after: \"Read a wallet's open/closed Spiral leverage positions from chain state (read-only). For each: collateral/loan, leveraged collateral, net equity, debt, current LTV vs liquidation LTV (with headroom), current leverage, net USD value, and current leveraged APY. No cost-basis / realized P&L (those need \""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    }
+  ],
+  "score": 65,
+  "scoreBreakdown": {
+    "tool-poisoning": 35
+  },
   "errors": []
 }

@@ -1,0 +1,114 @@
+{
+  "schemaVersion": 1,
+  "scanner": {
+    "version": "1.6.0",
+    "rules": "402995650b68"
+  },
+  "target": {
+    "kind": "url",
+    "ref": "https://api.withbrie.app/mcp"
+  },
+  "scannedAt": "2026-10-13T11:57:55.222Z",
+  "durationMs": 258,
+  "layers": {
+    "metadata": true,
+    "static": false
+  },
+  "tools": [
+    {
+      "name": "search_recipes",
+      "descriptionHash": "15725ebf6f6b372965f7934b6f43804f45a0acde27345bd484c346e757f9c9f6",
+      "description": "Search the connected household's saved recipes. Returns matches with sources and saved version IDs. Use get_recipe for ingredients and directions."
+    },
+    {
+      "name": "get_recipe",
+      "descriptionHash": "e962494c891e99b1f7a00f5dfa39539579ccdd7be7a3ddb8fbcbdf492863cc86",
+      "description": "Read a recipe from the connected household, including ingredients, directions, and source. Supply version_id for a specific saved version or omit it for the current recipe. Display display_text as the current ingredient wording; raw_text is original source wording. Keep version_id, version_revision,"
+    },
+    {
+      "name": "import_recipe",
+      "descriptionHash": "848df4894e7301af0031c01c28ce74907c8e7fa0801703f13346b2eb700c6b52",
+      "description": "Import a public recipe URL or supplied recipe text when the user asks to save it, preserving its creator and source. Returns a background job; check it with get_import_status. Use create_recipe for a new recipe developed in the conversation.",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "get_import_status",
+      "descriptionHash": "f83f89b1bd5588c419d7c18dd37ca48076ab01467f8593237b5fd34fe5147b35",
+      "description": "Check an import job by ID. Report its status; if it needs more information, direct the user to the import in Brie. Poll this job rather than importing again."
+    },
+    {
+      "name": "create_recipe",
+      "descriptionHash": "9ba4266ff85804757ca852fc29b8ce8f2f4d640fd46b61a42ddc74506e74f696",
+      "description": "Save a complete new recipe only after the user asks to save it. Supply ingredients, servings, times, and ordered directions; keep unknown, qualitative, or ranged quantities null and preserve their wording in raw_text. Never invent source facts or macros. Returns the saved recipe immediately; externa"
+    },
+    {
+      "name": "update_recipe",
+      "descriptionHash": "ade84b86fb1233201427662fbf5103961dcda380f3a9785ba912cdf0b7af8df5",
+      "description": "Update an existing recipe as a named version only after the user reviews the changes and asks to save them. First use get_recipe; copy version_id and version_revision into the expected fields. Submit the complete revised recipe: omitted ingredients and directions are removed. Map existing ingredient",
+      "labels": [
+        "untrusted-content",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "add_grocery_item",
+      "descriptionHash": "ff9c9d9be0a4b177d79715127764aed4cfebb81dc95472ec09f72c0d7c378a61",
+      "description": "Add a grocery item to the connected household's private grocery list in Brie.",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "get_grocery_list",
+      "descriptionHash": "b9d7255993eaad31c3ad023093e752116f4c4b3c56d328fdf816e77b30aa1320",
+      "description": "Read the connected household's grocery list. shop-now covers Upcoming; all-planned includes future planned meals. Returns paginated results; follow next_offset until null to retrieve the complete list."
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOOL-POISON-007",
+      "severity": "low",
+      "category": "tool-poisoning",
+      "title": "Description uses pressure/override language",
+      "detail": "Description of \"create_recipe\" stacks urgency/override words (immediately, never). Legitimate tool descriptions rarely pressure the model to act or ignore prior guidance.",
+      "evidence": {
+        "source": "tool:create_recipe",
+        "snippet": "Save a complete new recipe only after the user asks to save it. Supply ingredients, servings, times, and ordered directions; keep unknown, qualitative, or range…"
+      },
+      "confidence": 0.3
+    },
+    {
+      "id": "MCP-TOOL-POISON-002",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description tells the model to hide behavior",
+      "detail": "Description of \"update_recipe\" instructs the model to conceal actions from the user.",
+      "evidence": {
+        "source": "tool:update_recipe",
+        "snippet": "Update an existing recipe as a named version only after the user reviews the changes and asks to save them. First use get_recipe; copy version_id and version_re…"
+      },
+      "confidence": 0.75
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: import_recipe, update_recipe · Private data: add_grocery_item · Public sink: update_recipe.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: import_recipe, update_recipe · Private data: add_grocery_item · Public sink: update_recipe"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 59,
+  "scoreBreakdown": {
+    "tool-poisoning": 22,
+    "toxic-flow": 20
+  },
+  "errors": []
+}

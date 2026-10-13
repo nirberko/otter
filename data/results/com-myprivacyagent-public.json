@@ -8,8 +8,8 @@
     "kind": "url",
     "ref": "https://myprivacyagent.com/api/mcp"
   },
-  "scannedAt": "2026-09-17T09:48:11.847Z",
-  "durationMs": 952,
+  "scannedAt": "2026-10-13T12:12:59.863Z",
+  "durationMs": 1155,
   "layers": {
     "metadata": true,
     "static": false
@@ -17,8 +17,8 @@
   "tools": [
     {
       "name": "get_opt_out_instructions",
-      "descriptionHash": "0ab4158df63ca618f60b9d745ed3f89a8954c7c0cb49e3ef1b418aa5e87dfa8b",
-      "description": "Step-by-step, verified opt-out instructions for one people-search or data-broker site, plus what My Privacy Agent does for that site after a person authorizes it. Accepts a guide slug (spokeo), a domain (spokeo.com), an alias, or a URL on the site. Returns status not_found with a hint when no guide ",
+      "descriptionHash": "aedfb075e16ab16c2e84ac5ae1984d1dfc578d4d5a75f2b4e97c67bb6d9d9778",
+      "description": "Documented step-by-step opt-out instructions for one people-search or data-broker site, plus the separate current native verification projection. Guide review dates are content dates. Accepts a guide slug (spokeo), domain, alias, or URL. Returns status not_found with a hint when no guide exists.",
       "labels": [
         "untrusted-content"
       ]
@@ -56,6 +56,16 @@
       ]
     },
     {
+      "name": "get_route_verification",
+      "descriptionHash": "cb91790967b43367d0ffc3cc310e8e32cad76bb3a686f319a5ca6217b37f60d7",
+      "description": "Read the exact official route variants for a domain or route ID, current independently checked scope, actor and region, capture time, expiry and failures. No badge means the route is not currently verified. This never starts a check or submits a request."
+    },
+    {
+      "name": "get_library_verification_status",
+      "descriptionHash": "2f8b99f5a3f7a9646d56a298444d7615ac0a8d4cf6962981d733ea7182266df3",
+      "description": "Read the actual catalog size, distinct route variants, current verified counts, checks captured today and the latest scheduled sweep. Counts include only native evidence that is still current; inventory rows, aliases and agent callbacks never count as verified."
+    },
+    {
       "name": "list_my_subjects",
       "descriptionHash": "7a95754abbbc4fa9c3b417270f63160eee073a50d74e1e2a74b81da6bcb406a0",
       "description": "Requires OAuth. Lists the person (first name, city, state, verification status) whose exposure this account has checked, with the subject_id other personal tools need. Returns authorization_required with a connect URL when the token is missing.",
@@ -84,6 +94,19 @@
       "name": "get_case_status",
       "descriptionHash": "bb90bedccff23212c53ca328ec9453cc5e6452b96e0dfdeb3e23c4415924f917",
       "description": "Requires OAuth and the 'share_results' permission. Returns one case by case_id with its current status, verification status, and any step only the person can do."
+    },
+    {
+      "name": "request_recheck",
+      "descriptionHash": "b8f1436d415bb9b3377d025a3c214e8a82ff5133e4cf1ce30896ed4db59b0361",
+      "description": "Requires OAuth and the 'run_check' permission. Queues a fresh check of the person's existing details (the same re-scan Patrol runs monthly). Patrol plan only, verified subjects only, once per 24 hours; it never starts a first check and never takes new details. Returns queued, or a structured reason "
+    },
+    {
+      "name": "submit_approved_plan",
+      "descriptionHash": "ab0adf318f6360a2c33941557f0921e1bbdeec5a72449b82efb75ca054ab8571",
+      "description": "Requires OAuth and the 'submit_requests' permission. Without confirm: true it only previews which eligible listings would be queued (status preview) — show that list to the person and get a yes first. With confirm: true it queues removal requests for exactly those listings, using the approval the pe",
+      "labels": [
+        "public-sink"
+      ]
     }
   ],
   "findings": [
@@ -142,10 +165,10 @@
       "severity": "high",
       "category": "toxic-flow",
       "title": "Lethal trifecta: untrusted input + private data + external sink",
-      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: get_opt_out_instructions, get_removal_route, search_privacy_library, get_service_overview, list_my_subjects, get_my_report, list_my_cases · Private data: get_removal_route, get_service_overview, list_my_subjects · Public sink: get_removal_route.",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: get_opt_out_instructions, get_removal_route, search_privacy_library, get_service_overview, list_my_subjects, get_my_report, list_my_cases · Private data: get_removal_route, get_service_overview, list_my_subjects · Public sink: get_removal_route, submit_approved_plan.",
       "evidence": {
         "source": "server:mcp",
-        "snippet": "Untrusted content: get_opt_out_instructions, get_removal_route, search_privacy_library, get_service_overview, list_my_subjects, get_my_report, list_my_cases · Private data: get_removal_route, get_service_overview, list_my_subjects · Public sink: get_removal_route"
+        "snippet": "Untrusted content: get_opt_out_instructions, get_removal_route, search_privacy_library, get_service_overview, list_my_subjects, get_my_report, list_my_cases · Private data: get_removal_route, get_service_overview, list_my_subjects · Public sink: get_removal_route, submit_approved_plan"
       },
       "confidence": 0.6,
       "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
@@ -154,55 +177,6 @@
   "score": 43,
   "scoreBreakdown": {
     "tool-poisoning": 38,
-    "toxic-flow": 20
-  },
-  "errors": []
-}"
-      },
-      "confidence": 0.65
-    },
-    {
-      "id": "MCP-TOOL-POISON-003",
-      "severity": "high",
-      "category": "tool-poisoning",
-      "title": "Description references secrets/credentials",
-      "detail": "Description of \"get_my_report\" references sensitive artifacts (authorization). A tool description has no reason to mention credentials.",
-      "evidence": {
-        "source": "tool:get_my_report",
-        "snippet": "Requires OAuth and the 'share_results' permission for the subject. Returns the report summary the dashboard shows: status, counts, and per-site findings (site, …"
-      },
-      "confidence": 0.65
-    },
-    {
-      "id": "MCP-TOXIC-FLOW-001",
-      "severity": "high",
-      "category": "toxic-flow",
-      "title": "Lethal trifecta: untrusted input + private data + external sink",
-      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: get_opt_out_instructions, get_removal_route, search_privacy_library, get_service_overview, list_my_subjects, get_my_report, list_my_cases · Private data: get_removal_route, get_service_overview, list_my_subjects · Public sink: get_removal_route, submit_approved_plan.",
-      "evidence": {
-        "source": "server:mcp",
-        "snippet": "Untrusted content: get_opt_out_instructions, get_removal_route, search_privacy_library, get_service_overview, list_my_subjects, get_my_report, list_my_cases · Private data: get_removal_route, get_service_overview, list_my_subjects · Public sink: get_removal_route, submit_approved_plan"
-      },
-      "confidence": 0.6,
-      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
-    },
-    {
-      "id": "MCP-RUGPULL-001",
-      "severity": "high",
-      "category": "tool-poisoning",
-      "title": "Tool description changed since last scan",
-      "detail": "Tool \"get_opt_out_instructions\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
-      "evidence": {
-        "source": "tool:get_opt_out_instructions",
-        "snippet": "before: \"Step-by-step, verified opt-out instructions for one people-search or data-broker site, plus what My Privacy Agent does for that site after a person authorizes it. Accepts a guide slug (spokeo), a domain (spokeo.com), an alias, or a URL on the site. Returns status not_found with a hint when no guide \" → after: \"Documented step-by-step opt-out instructions for one people-search or data-broker site, plus the separate current native verification projection. Guide review dates are content dates. Accepts a guide slug (spokeo), domain, alias, or URL. Returns status not_found with a hint when no guide exists.\""
-      },
-      "confidence": 0.8,
-      "remediation": "Re-review the tool before continuing to trust it."
-    }
-  ],
-  "score": 41,
-  "scoreBreakdown": {
-    "tool-poisoning": 39,
     "toxic-flow": 20
   },
   "errors": []

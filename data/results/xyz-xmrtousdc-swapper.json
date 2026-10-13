@@ -1,0 +1,93 @@
+{
+  "schemaVersion": 1,
+  "scanner": {
+    "version": "1.6.0",
+    "rules": "402995650b68"
+  },
+  "target": {
+    "kind": "url",
+    "ref": "https://xmrtousdc.xyz/mcp"
+  },
+  "scannedAt": "2026-10-13T12:22:57.134Z",
+  "durationMs": 1261,
+  "layers": {
+    "metadata": true,
+    "static": false
+  },
+  "tools": [
+    {
+      "name": "get_quote",
+      "descriptionHash": "fa91cd54514e3b8e206d31fc9628d8387e50b8fbd6d562c72e89a66a2002990d",
+      "description": "Step 1. Quote Monero (XMR) <-> native USDC on Arbitrum One; no KYC, account or API key. Read-only; quotes are estimates. Buy XMR (\"get me 1 XMR\"): {direction:\"u2x\", receiveAmount:\"1\"}. Sell XMR: {direction:\"x2u\", amount:\"0.5\"}. direction plus exactly one of amount (what the user sends) or receiveAmo",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "create_swap",
+      "descriptionHash": "321201ddf422c4a920ffa6e65c434b1f8f7312ad63dae7312eff774ac6f4ae1b",
+      "description": "Step 2. Creates the order from get_quote's next.arguments (quoteId, plus to if the quote had none): one order per quote; moves no funds. Retry with the same arguments: the default idempotencyKey returns the same order. Fund once, only while payable is true: before signing deposit.payment, get_swap_s"
+    },
+    {
+      "name": "get_swap_status",
+      "descriptionHash": "b7166eb0a4a7541d409a0c805c56c909bb224785c16eb68302b734a1eec46d88",
+      "description": "Step 3. waiting_for_funding -> deposit_detected -> swap_processing -> completed, or refunding / terminal_failure (outcome refunded, failed, expired). Long-poll with waitSec 25 and sinceState = the last state; repeat next until terminal. deposit.payment may be used only while payable is true. Call it",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "get_funding_options",
+      "descriptionHash": "6dadfcc887b647537f3c23f478d9ac959260f973d6fe43633522641a199867cb",
+      "description": "Offline. How to get what the user sends: native USDC (not USDC.e) plus a little ETH for gas on Arbitrum One (u2x, default), or XMR in their own wallet (x2u). Pass from {chain, asset} (and amount) for one ordered checklist: quote, fund, re-quote (requoteOf).",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "list_swaps",
+      "descriptionHash": "2637ba44a5ce5c79122690c22fcf3d2ade1c323ab03e61a965aa7f43829a6d2f",
+      "description": "Find orders when the orderId is lost (new chat, crash, unknown create outcome): pass the idempotencyKey create_swap used (default q_<quoteId>), or a sessionId. Read-only; addresses redacted; states can lag. Next: get_swap_status (live state, payable).",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "plan_swap",
+      "descriptionHash": "d0c369feae2474e7bb931073a30867254830fae351fd40d4d9ca9cf1192f651d",
+      "description": "Optional, offline. Checks a partial request (direction, amount or receiveAmount, to) and returns the next question for the user. Skip it when you have what get_quote needs."
+    },
+    {
+      "name": "get_capabilities",
+      "descriptionHash": "9c6b25923861848f6afb7d053545226080e42db1a468156b4e6c732d9023610a",
+      "description": "Optional. Chains, limits (provider minimum, USD), quote window, idempotency, validation rules, polling and the flow."
+    },
+    {
+      "name": "create_support_ticket",
+      "descriptionHash": "0485149117580a1230ec1f33aefd33240f04bf01cb18b36bf2b799f1453584ac",
+      "description": "For a failed or stuck swap: orderId and what happened; never seed phrases or private keys. Returns ticketId; no tool reads replies (follow up at support@xmrtousdc.xyz).",
+      "labels": [
+        "private-data"
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"create_support_ticket\" references sensitive artifacts (private key). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:create_support_ticket",
+        "snippet": "For a failed or stuck swap: orderId and what happened; never seed phrases or private keys. Returns ticketId; no tool reads replies (follow up at support@xmrtous…"
+      },
+      "confidence": 0.65
+    }
+  ],
+  "score": 80,
+  "scoreBreakdown": {
+    "tool-poisoning": 20
+  },
+  "errors": []
+}
