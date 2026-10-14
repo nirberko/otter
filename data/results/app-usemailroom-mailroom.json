@@ -8,19 +8,95 @@
     "kind": "url",
     "ref": "https://usemailroom.app/mcp"
   },
-  "scannedAt": "2026-10-11T10:55:16.638Z",
-  "durationMs": 208,
+  "scannedAt": "2026-10-14T09:52:06.558Z",
+  "durationMs": 492,
   "layers": {
-    "metadata": false,
+    "metadata": true,
     "static": false
   },
-  "findings": [],
-  "score": 100,
-  "scoreBreakdown": {},
-  "errors": [
+  "tools": [
     {
-      "scanner": "metadata",
-      "message": "Streamable HTTP error: Error POSTing to endpoint: {\"error\":\"unauthorized\"}"
+      "name": "list_folders",
+      "descriptionHash": "0f82a5ee8afeffa516703d86bf9d281d1c92e042f178adb5c553152f2d238efb",
+      "description": "List all folders in the connected mailbox."
+    },
+    {
+      "name": "search_messages",
+      "descriptionHash": "68622d6b02b424680d435fbd0c58702e218d51b0f6d36a76a3ebdac9039dd865",
+      "description": "Search a folder. criteria examples: ALL, UNSEEN, FROM alice@example.com.",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "read_message",
+      "descriptionHash": "3a310ec752e076b897422e18416520fb9a1299d6d666d95f285c58dc40175ee0",
+      "description": "Read one message by IMAP UID.",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "flag_message",
+      "descriptionHash": "e195cb7227160958620f97f86c297a8f34c4e5e79158e7984ca6ff29711b1661",
+      "description": "Flag a message. action: seen, unseen, flagged, unflagged, deleted.\n\n        deleted moves the message to the mailbox's Trash folder (recoverable). Use empty_trash to delete permanently.",
+      "labels": [
+        "destructive"
+      ]
+    },
+    {
+      "name": "move_message",
+      "descriptionHash": "697e500bde3439bef009204cbcf33cf3650ccd8f0369ed908342933fe90d9038",
+      "description": "Move a message to dest_folder."
+    },
+    {
+      "name": "send_email",
+      "descriptionHash": "434f0060ed4f6361aaf586186bdb8d8905792fcd2be77d1771bc64d27d0faa72",
+      "description": "Send email via SMTP. Pass confirm=true to actually send. Otherwise returns a preview.",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "empty_trash",
+      "descriptionHash": "86df6639be6d988f427a9f6a2b353467fbf3b4c2662598da702b2e9c8d8ed275",
+      "description": "Permanently delete every message in the Trash folder. Returns a preview (folder and message count) unless confirm=true.",
+      "labels": [
+        "destructive"
+      ]
     }
-  ]
+  ],
+  "findings": [
+    {
+      "id": "MCP-SHADOW-001",
+      "severity": "medium",
+      "category": "shadowing",
+      "title": "Generic tool name can shadow trusted tools",
+      "detail": "Tool \"send_email\" uses a generic high-value name. When multiple servers load together, this can intercept calls meant for a trusted server.",
+      "evidence": {
+        "source": "tool:send_email",
+        "snippet": "send_email"
+      },
+      "confidence": 0.4
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "medium",
+      "category": "toxic-flow",
+      "title": "Toxic flow: untrusted input can reach an external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: search_messages, read_message · Public sink: send_email · Destructive: flag_message, empty_trash.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: search_messages, read_message · Public sink: send_email · Destructive: flag_message, empty_trash"
+      },
+      "confidence": 0.45,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 84,
+  "scoreBreakdown": {
+    "shadowing": 8,
+    "toxic-flow": 8
+  },
+  "errors": []
 }

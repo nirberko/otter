@@ -1,0 +1,115 @@
+{
+  "schemaVersion": 1,
+  "scanner": {
+    "version": "1.6.0",
+    "rules": "402995650b68"
+  },
+  "target": {
+    "kind": "url",
+    "ref": "https://xmrtousdc.xyz/mcp"
+  },
+  "scannedAt": "2026-10-14T10:15:44.023Z",
+  "durationMs": 1414,
+  "layers": {
+    "metadata": true,
+    "static": false
+  },
+  "tools": [
+    {
+      "name": "get_quote",
+      "descriptionHash": "3466ef99abed6f8c493bc34d429184b5473c9cadd555732706ffb0760ad2977f",
+      "description": "Step 1. Quote Monero (XMR) <-> native USDC on Arbitrum One; no account or API key. Creates no order. Quotes are estimates. Buy XMR (\"get me 1 XMR\"): {direction:\"u2x\", receiveAmount:\"1\"}. Sell XMR: {direction:\"x2u\", amount:\"0.5\"}. direction plus exactly one of amount (what the user sends) or receiveA",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "create_swap",
+      "descriptionHash": "f527afed0627ab9677e5eaffc62bdd268a708832745f21a6eced5542506bd983",
+      "description": "Step 2. Creates the order from get_quote's next.arguments (quoteId, plus to if the quote had none): one order per quote; moves no funds. An order cannot be cancelled; unfunded, it expires. Retry with the same arguments: the default idempotencyKey returns the same order. Fund once, only while payable"
+    },
+    {
+      "name": "get_swap_status",
+      "descriptionHash": "b8e2bc262c1109ed432fbd46d28a7c8dcc6425e6a81fc12b4c8bf39d2eb8572e",
+      "description": "Step 3. waiting_for_funding -> deposit_detected -> swap_processing -> completed, or refunding / terminal_failure (outcome refunded, failed, expired). Long-poll with waitSec 25 and sinceState = the last state; repeat next until terminal. Call it before funding or showing a deposit again. payment: wha",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "get_funding_options",
+      "descriptionHash": "6dadfcc887b647537f3c23f478d9ac959260f973d6fe43633522641a199867cb",
+      "description": "Offline. How to get what the user sends: native USDC (not USDC.e) plus a little ETH for gas on Arbitrum One (u2x, default), or XMR in their own wallet (x2u). Pass from {chain, asset} (and amount) for one ordered checklist: quote, fund, re-quote (requoteOf).",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "list_swaps",
+      "descriptionHash": "2637ba44a5ce5c79122690c22fcf3d2ade1c323ab03e61a965aa7f43829a6d2f",
+      "description": "Find orders when the orderId is lost (new chat, crash, unknown create outcome): pass the idempotencyKey create_swap used (default q_<quoteId>), or a sessionId. Read-only; addresses redacted; states can lag. Next: get_swap_status (live state, payable).",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "plan_swap",
+      "descriptionHash": "d0c369feae2474e7bb931073a30867254830fae351fd40d4d9ca9cf1192f651d",
+      "description": "Optional, offline. Checks a partial request (direction, amount or receiveAmount, to) and returns the next question for the user. Skip it when you have what get_quote needs."
+    },
+    {
+      "name": "get_capabilities",
+      "descriptionHash": "9c6b25923861848f6afb7d053545226080e42db1a468156b4e6c732d9023610a",
+      "description": "Optional. Chains, limits (provider minimum, USD), quote window, idempotency, validation rules, polling and the flow."
+    },
+    {
+      "name": "create_support_ticket",
+      "descriptionHash": "f5c8bcac2b68ceb8fa1bd0efbcea18f022b29675171af6f1f336be0cd4a732f2",
+      "description": "Stuck or failed swap, or a question: Support answers (get_support_ticket). Follow up with ticketId + replyToken. Never seed phrases or keys."
+    },
+    {
+      "name": "get_support_ticket",
+      "descriptionHash": "8af703da957c1034a9e7e7cdc4161e3ebf773c89dd8fa60156491d4fca73a249",
+      "description": "Support's answer on your ticket: status, awaiting, thread. Answers take minutes to hours.",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "submit_feedback",
+      "descriptionHash": "ce65afe41c97334ef035202aa20320d6fcc3b02250fc929ed8daaf4e67c2adfe",
+      "description": "Optional, after a swap: a rating 1-5 and a comment. The published average counts one rating per completed Swapper order; a comment marked publishable is shown after operator review.",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "request_agent_key",
+      "descriptionHash": "7a0b73f34ef95fdbb20ca85bdd7046d3fd55d509c59b99bc0b283bd4771bb092",
+      "description": "Optional. Issues a key that identifies this agent; quotes made with it (get_quote agentKey) and their orders use the agent fee (swapper://trust). The operator sees the name and contact given.",
+      "labels": [
+        "private-data"
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: list_swaps, get_support_ticket · Private data: get_quote, get_swap_status, get_funding_options, request_agent_key · Public sink: submit_feedback.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: list_swaps, get_support_ticket · Private data: get_quote, get_swap_status, get_funding_options, request_agent_key · Public sink: submit_feedback"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 80,
+  "scoreBreakdown": {
+    "toxic-flow": 20
+  },
+  "errors": []
+}

@@ -8,8 +8,8 @@
     "kind": "url",
     "ref": "https://mcp.dreamagent.cloud/mcp"
   },
-  "scannedAt": "2026-10-12T12:13:42.276Z",
-  "durationMs": 1690,
+  "scannedAt": "2026-10-14T09:58:36.581Z",
+  "durationMs": 1665,
   "layers": {
     "metadata": true,
     "static": false
@@ -63,11 +63,21 @@
       ]
     },
     {
-      "name": "dreamagent_write_file",
-      "descriptionHash": "a647a274efeb7b188c757e4512397e5c24119637bb90f2bde35d4fc950ad81d3",
-      "description": "WRITE ACTION — overwrite or create one source file in a DreamAgent\nproject with the exact content given. Changes go live after the\nproject is rebuilt (dreamagent_build_publish).\n\nCONFIRM BEFORE CALLING — in ONE message show the user: the target\npath and a summary of the change, then call only after ",
+      "name": "dreamagent_edit_file",
+      "descriptionHash": "1abbb8228d5d799152ec042a85d60868b138dc0acf3a1b2eaaf5eaa4e36c75c5",
+      "description": "WRITE ACTION — make SMALL targeted changes to an EXISTING file in a\nDreamAgent project via exact search/replace. PREFERRED over\ndreamagent_write_file for editing existing files: you send only the\nchanged fragments (never the whole file) — cheaper, immune to payload\nsize/safety blocks in the calling ",
       "labels": [
         "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "dreamagent_write_file",
+      "descriptionHash": "ac1a164c77239637a1c7296e9e817b51a15049fbaaac268d95a4ae8a1b4b1dac",
+      "description": "WRITE ACTION — overwrite or create one source file in a DreamAgent\nproject with the exact content given. For CHANGING an existing file,\nprefer dreamagent_edit_file (small targeted find→replace edits — no\nneed to send the whole file). By default the write is\nimmediately committed and pushed to the pr",
+      "labels": [
+        "private-data",
+        "public-sink",
         "destructive"
       ]
     },
@@ -82,11 +92,28 @@
     },
     {
       "name": "dreamagent_delete_file",
-      "descriptionHash": "8a651971aed3fee06dae24bdd248e73e49a7ed76a7452317b6f82199b3402020",
-      "description": "WRITE ACTION — delete one source file from a DreamAgent project.\nHidden/credential files (.env, .git, keys) are rejected. Recoverable\nvia the project's git history.\n\nCONFIRM BEFORE CALLING — tell the user which file will be deleted and\ncall only with confirm=true after they agree.",
+      "descriptionHash": "ac303f10a0c0c13d2920820fbd18aeb02c6350487e4d7a6d19c2cf3c4ec4d0ad",
+      "description": "WRITE ACTION — delete one source file from a DreamAgent project.\nHidden/credential files (.env, .git, keys) are rejected. By default the\ndeletion is immediately committed and pushed (so it is recorded in\nsession history & version history) — deleted files stay recoverable\nvia git history / version re",
       "labels": [
         "private-data",
         "destructive"
+      ]
+    },
+    {
+      "name": "dreamagent_commit_push",
+      "descriptionHash": "0725493015caf295b117118899f45b6ce3d1602aa4074c764ed426a540ebd6a3",
+      "description": "WRITE ACTION — commit ALL pending changes in a DreamAgent project and\npush them to its private GitHub repo. The commit gets its own entry in\nthe project's session history and version history, so the user can\nrestore/revert to it in the DreamAgent dashboard.\n\nUse it to (a) commit several MCP writes/d",
+      "labels": [
+        "private-data",
+        "destructive"
+      ]
+    },
+    {
+      "name": "dreamagent_list_commits",
+      "descriptionHash": "7a5812e233b23167774691d928314ae6cf0f97c240f49017d1331de89219095d",
+      "description": "Version history of a DreamAgent project — recent commits (hash,\nmessage, status, timestamp) from its persistent commit log, newest\nfirst. Use it to review what changed and when; the user can restore\nany version from the DreamAgent dashboard version-history UI (mention\nthe short hash so they can find",
+      "labels": [
+        "untrusted-content"
       ]
     },
     {
@@ -175,6 +202,14 @@
       "labels": [
         "destructive"
       ]
+    },
+    {
+      "name": "dreamagent_screenshot_website",
+      "descriptionHash": "088fa2d43de894c831527213c5675b40fdaf16f841c809796166ddc1134fd464",
+      "description": "WEBSITE PROJECTS ONLY — capture a screenshot of a DreamAgent-hosted\npage by URL: a deployed project's domain (e.g. my-app.dreamagent.cloud\nor a connected custom domain) or dreamagent.cloud itself. Best for\nchecking a project's live pages after edits or deploys and reviewing\nlayouts — returns the PNG",
+      "labels": [
+        "private-data"
+      ]
     }
   ],
   "findings": [
@@ -243,10 +278,23 @@
       "severity": "high",
       "category": "tool-poisoning",
       "title": "Description issues instructions to the model",
+      "detail": "Description of \"dreamagent_edit_file\" contains imperative instructions directed at the AI assistant rather than describing the tool. This is the core tool-poisoning technique.",
+      "evidence": {
+        "source": "tool:dreamagent_edit_file",
+        "snippet": "WRITE ACTION — make SMALL targeted changes to an EXISTING file in a DreamAgent project via exact search/replace. PREFERRED over dreamagent_write_file for editin…"
+      },
+      "confidence": 0.7,
+      "remediation": "Treat the server as untrusted; the model may obey embedded instructions."
+    },
+    {
+      "id": "MCP-TOOL-POISON-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description issues instructions to the model",
       "detail": "Description of \"dreamagent_write_file\" contains imperative instructions directed at the AI assistant rather than describing the tool. This is the core tool-poisoning technique.",
       "evidence": {
         "source": "tool:dreamagent_write_file",
-        "snippet": "WRITE ACTION — overwrite or create one source file in a DreamAgent project with the exact content given. Changes go live after the project is rebuilt (dreamagen…"
+        "snippet": "WRITE ACTION — overwrite or create one source file in a DreamAgent project with the exact content given. For CHANGING an existing file, prefer dreamagent_edit_f…"
       },
       "confidence": 0.7,
       "remediation": "Treat the server as untrusted; the model may obey embedded instructions."
@@ -259,9 +307,21 @@
       "detail": "Description of \"dreamagent_write_file\" references sensitive artifacts (.env). A tool description has no reason to mention credentials.",
       "evidence": {
         "source": "tool:dreamagent_write_file",
-        "snippet": "WRITE ACTION — overwrite or create one source file in a DreamAgent project with the exact content given. Changes go live after the project is rebuilt (dreamagen…"
+        "snippet": "WRITE ACTION — overwrite or create one source file in a DreamAgent project with the exact content given. For CHANGING an existing file, prefer dreamagent_edit_f…"
       },
       "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOOL-POISON-007",
+      "severity": "low",
+      "category": "tool-poisoning",
+      "title": "Description uses pressure/override language",
+      "detail": "Description of \"dreamagent_write_file\" stacks urgency/override words (immediately, never). Legitimate tool descriptions rarely pressure the model to act or ignore prior guidance.",
+      "evidence": {
+        "source": "tool:dreamagent_write_file",
+        "snippet": "WRITE ACTION — overwrite or create one source file in a DreamAgent project with the exact content given. For CHANGING an existing file, prefer dreamagent_edit_f…"
+      },
+      "confidence": 0.3
     },
     {
       "id": "MCP-TOOL-POISON-001",
@@ -271,7 +331,7 @@
       "detail": "Description of \"dreamagent_delete_file\" contains imperative instructions directed at the AI assistant rather than describing the tool. This is the core tool-poisoning technique.",
       "evidence": {
         "source": "tool:dreamagent_delete_file",
-        "snippet": "WRITE ACTION — delete one source file from a DreamAgent project. Hidden/credential files (.env, .git, keys) are rejected. Recoverable via the project's git hist…"
+        "snippet": "WRITE ACTION — delete one source file from a DreamAgent project. Hidden/credential files (.env, .git, keys) are rejected. By default the deletion is immediately…"
       },
       "confidence": 0.7,
       "remediation": "Treat the server as untrusted; the model may obey embedded instructions."
@@ -284,9 +344,22 @@
       "detail": "Description of \"dreamagent_delete_file\" references sensitive artifacts (.env). A tool description has no reason to mention credentials.",
       "evidence": {
         "source": "tool:dreamagent_delete_file",
-        "snippet": "WRITE ACTION — delete one source file from a DreamAgent project. Hidden/credential files (.env, .git, keys) are rejected. Recoverable via the project's git hist…"
+        "snippet": "WRITE ACTION — delete one source file from a DreamAgent project. Hidden/credential files (.env, .git, keys) are rejected. By default the deletion is immediately…"
       },
       "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOOL-POISON-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description issues instructions to the model",
+      "detail": "Description of \"dreamagent_commit_push\" contains imperative instructions directed at the AI assistant rather than describing the tool. This is the core tool-poisoning technique.",
+      "evidence": {
+        "source": "tool:dreamagent_commit_push",
+        "snippet": "WRITE ACTION — commit ALL pending changes in a DreamAgent project and push them to its private GitHub repo. The commit gets its own entry in the project's sessi…"
+      },
+      "confidence": 0.7,
+      "remediation": "Treat the server as untrusted; the model may obey embedded instructions."
     },
     {
       "id": "MCP-TOOL-POISON-001",
@@ -356,7 +429,7 @@
       "severity": "low",
       "category": "tool-poisoning",
       "title": "Anomalously long tool description",
-      "detail": "Description of \"dreamagent_create_project\" is 4044 chars, far longer than this server's median (489). Overlong descriptions are a common place to bury instructions.",
+      "detail": "Description of \"dreamagent_create_project\" is 4044 chars, far longer than this server's median (492). Overlong descriptions are a common place to bury instructions.",
       "evidence": {
         "source": "tool:dreamagent_create_project",
         "snippet": "WRITE ACTION — creates a new DreamAgent project (website, Telegram bot, Discord bot, or AI agent). Use ONLY when the user clearly asks to create/build a new pro…"
@@ -428,18 +501,44 @@
       "severity": "high",
       "category": "toxic-flow",
       "title": "Lethal trifecta: untrusted input + private data + external sink",
-      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: dreamagent_list_global_integrations, dreamagent_list_project_env, dreamagent_list_superpowers, dreamagent_get_file_diff, dreamagent_create_project, dreamagent_chat, dreamagent_list_sessions, dreamagent_get_chat_status, dreamagent_get_edit_progress · Private data: dreamagent_list_global_integrations, dreamagent_list_project_env, dreamagent_list_files, dreamagent_read_file, dreamagent_write_file, dreamagent_get_file_diff, dreamagent_delete_file, dreamagent_build_publish, dreamagent_create_project, dreamagent_list_sessions, dreamagent_get_chat_status · Public sink: dreamagent_build_publish, dreamagent_design_mode, dreamagent_create_project · Destructive: dreamagent_write_file, dreamagent_delete_file, dreamagent_create_project, dreamagent_get_chat_status, dreamagent_get_edit_progress, dreamagent_cancel_chat.",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: dreamagent_list_global_integrations, dreamagent_list_project_env, dreamagent_list_superpowers, dreamagent_get_file_diff, dreamagent_list_commits, dreamagent_create_project, dreamagent_chat, dreamagent_list_sessions, dreamagent_get_chat_status, dreamagent_get_edit_progress · Private data: dreamagent_list_global_integrations, dreamagent_list_project_env, dreamagent_list_files, dreamagent_read_file, dreamagent_edit_file, dreamagent_write_file, dreamagent_get_file_diff, dreamagent_delete_file, dreamagent_commit_push, dreamagent_build_publish, dreamagent_create_project, dreamagent_list_sessions, dreamagent_get_chat_status, dreamagent_screenshot_website · Public sink: dreamagent_edit_file, dreamagent_write_file, dreamagent_build_publish, dreamagent_design_mode, dreamagent_create_project · Destructive: dreamagent_write_file, dreamagent_delete_file, dreamagent_commit_push, dreamagent_create_project, dreamagent_get_chat_status, dreamagent_get_edit_progress, dreamagent_cancel_chat.",
       "evidence": {
         "source": "server:mcp",
-        "snippet": "Untrusted content: dreamagent_list_global_integrations, dreamagent_list_project_env, dreamagent_list_superpowers, dreamagent_get_file_diff, dreamagent_create_project, dreamagent_chat, dreamagent_list_sessions, dreamagent_get_chat_status, dreamagent_get_edit_progress · Private data: dreamagent_list_global_integrations, dreamagent_list_project_env, dreamagent_list_files, dreamagent_read_file, dreamagent_write_file, dreamagent_get_file_diff, dreamagent_delete_file, dreamagent_build_publish, dreamagent_create_project, dreamagent_list_sessions, dreamagent_get_chat_status · Public sink: dreamagent_build_publish, dreamagent_design_mode, dreamagent_create_project · Destructive: dreamagent_write_file, dreamagent_delete_file, dreamagent_create_project, dreamagent_get_chat_status, dreamagent_get_edit_progress, dreamagent_cancel_chat"
+        "snippet": "Untrusted content: dreamagent_list_global_integrations, dreamagent_list_project_env, dreamagent_list_superpowers, dreamagent_get_file_diff, dreamagent_list_commits, dreamagent_create_project, dreamagent_chat, dreamagent_list_sessions, dreamagent_get_chat_status, dreamagent_get_edit_progress · Private data: dreamagent_list_global_integrations, dreamagent_list_project_env, dreamagent_list_files, dreamagent_read_file, dreamagent_edit_file, dreamagent_write_file, dreamagent_get_file_diff, dreamagent_delete_file, dreamagent_commit_push, dreamagent_build_publish, dreamagent_create_project, dreamagent_list_sessions, dreamagent_get_chat_status, dreamagent_screenshot_website · Public sink: dreamagent_edit_file, dreamagent_write_file, dreamagent_build_publish, dreamagent_design_mode, dreamagent_create_project · Destructive: dreamagent_write_file, dreamagent_delete_file, dreamagent_commit_push, dreamagent_create_project, dreamagent_get_chat_status, dreamagent_get_edit_progress, dreamagent_cancel_chat"
       },
       "confidence": 0.6,
       "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"dreamagent_write_file\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:dreamagent_write_file",
+        "snippet": "before: \"WRITE ACTION — overwrite or create one source file in a DreamAgent\nproject with the exact content given. Changes go live after the\nproject is rebuilt (dreamagent_build_publish).\n\nCONFIRM BEFORE CALLING — in ONE message show the user: the target\npath and a summary of the change, then call only after \" → after: \"WRITE ACTION — overwrite or create one source file in a DreamAgent\nproject with the exact content given. For CHANGING an existing file,\nprefer dreamagent_edit_file (small targeted find→replace edits — no\nneed to send the whole file). By default the write is\nimmediately committed and pushed to the pr\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"dreamagent_delete_file\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:dreamagent_delete_file",
+        "snippet": "before: \"WRITE ACTION — delete one source file from a DreamAgent project.\nHidden/credential files (.env, .git, keys) are rejected. Recoverable\nvia the project's git history.\n\nCONFIRM BEFORE CALLING — tell the user which file will be deleted and\ncall only with confirm=true after they agree.\" → after: \"WRITE ACTION — delete one source file from a DreamAgent project.\nHidden/credential files (.env, .git, keys) are rejected. By default the\ndeletion is immediately committed and pushed (so it is recorded in\nsession history & version history) — deleted files stay recoverable\nvia git history / version re\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
     }
   ],
-  "score": 28,
+  "score": 23,
   "scoreBreakdown": {
-    "tool-poisoning": 52,
+    "tool-poisoning": 57,
     "toxic-flow": 20
   },
   "errors": []
