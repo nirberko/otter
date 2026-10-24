@@ -8,8 +8,8 @@
     "kind": "url",
     "ref": "https://platform-api.samuelz.com/api/v1/mcp/chauffeur/samuelz-chauffeur"
   },
-  "scannedAt": "2026-10-06T11:38:22.255Z",
-  "durationMs": 5793,
+  "scannedAt": "2026-10-24T09:09:09.076Z",
+  "durationMs": 2015,
   "layers": {
     "metadata": true,
     "static": false
@@ -17,37 +17,37 @@
   "tools": [
     {
       "name": "get_service_options",
-      "descriptionHash": "230432d52e887da448f74c200d25dfe24f1a7461d9fea96e85eda4f50f4363f1",
-      "description": "Use first to learn this provider's service scope, required ride facts and local timeZone. Read current published facts; do not assume additional locations. Language defaults to English; pass locale=de for German, without changing timeZone. It gives no price or availability confirmation. Use get_cust"
+      "descriptionHash": "ea2686fa5b150e2202d763a43cc9b5cb01b49449632736dd3ee60de1569b3cef",
+      "description": "Use this when discovering Samuelz Chauffeur services, areas and time zones. Do not use for terms (use get_customer_policy instead). Keep offerKey and locale across policy/price calls so location and language agree; omit the key for discovery. Returns available or unavailable. Anonymous stored read; "
     },
     {
       "name": "get_customer_policy",
-      "descriptionHash": "efd3f5b45a997d50a21ced23c102188617632406ad7b167ca1b6fbf0b2c21ca3",
-      "description": "Use after get_service_options and before prepare_offer to retrieve current account, guest-booking and minimum-lead-time rules. Returns observedAt and revalidationRequired: refresh the rules before preparing an offer; no terms-validity window is promised. Review bound waiting and cancellation terms o",
-      "labels": [
-        "untrusted-content"
-      ]
+      "descriptionHash": "ef3414deac89721f18911655ae2df0b6b0ec274c383b426e4770b37ec2ad963d",
+      "description": "Use this when checking Samuelz Chauffeur lead time, account requirements and booking confirmation terms. Do not use for service coverage (use get_service_options instead). Returns available with observedAt and terms, or unavailable. Lead time is in minutes; interpret dates in the returned time zone "
     },
     {
       "name": "quote_ride",
-      "descriptionHash": "e7ebdac4adbd394a792f42fb044b08a6fe8d350ce60d9a9bbcd5ea840b954779",
-      "description": "Use after get_service_options to calculate an anonymous price preview for complete ride facts in the provider timeZone. No contact is needed. Resolve missing return or hourly facts before quoting. The calculatedAt preview requires revalidation; no price-validity window is guaranteed. For rate_limite",
+      "descriptionHash": "007ccdc22047355ba19f493a906b11e052ccd02ab34114ced96d82a11643c1b5",
+      "description": "Use this when pricing a complete anonymous Samuelz Chauffeur ride. Do not use for discovery (use get_service_options instead); check terms with get_customer_policy. Keep offerKey across these calls; it determines the local calendar/time zone. Return pickup must follow outbound pickup; hourly service",
       "labels": [
-        "private-data"
+        "untrusted-content",
+        "private-data",
+        "public-sink"
       ]
     },
     {
       "name": "prepare_offer",
-      "descriptionHash": "8104373e039798dffffcd8b26c3e9d3ad33834cbe47387330d8a337b1aa61902",
-      "description": "Use only for an explicit offer request with offerRequested=true, complete ride facts and email OR E.164 phone. Creates one unpaid draft and an offer link; the customer reviews bound terms and confirms via checkoutUrl. No charge or booking confirmation. Use quote_ride for price-only questions. Keep s",
+      "descriptionHash": "c938fcb088a3fab053af3f05a804528a8e5d4b559ac55d48649bb24310958e69",
+      "description": "Use this when preparing a customer-requested unpaid Samuelz Chauffeur offer (offerRequested=true). Do not use for prices (use quote_ride instead). Supply email or E.164 phone. Bind submissionId/resumeToken to unchanged ride, contact, locale, offerKey and partner context. Intake and unpaid state may ",
       "labels": [
+        "private-data",
         "public-sink"
       ]
     },
     {
       "name": "get_offer_status",
-      "descriptionHash": "eb070c309ed001b206edd5bd76d67ec424194b059e439bb5782ca49528e20300",
-      "description": "Use to read one existing request with its original submissionId/resumeToken pair within the original 24-hour window. Returns offer state or recorded booking/payment/fulfillment after payment; no pricing call or new business action. For pending, wait retryAfterSeconds and retry that pair. For ambiguo",
+      "descriptionHash": "20c2c0112ff9d3b1e6c3c4fa1a470ee70fa7befeea9b0f1af2e22ddcc2bb99ee",
+      "description": "Use this when reading a submitted offer's stored status. Do not use for new requests (use prepare_offer instead). Reuse the original submissionId/resumeToken: this provider's proof expires 24 hours after the first submission. prepared returns private checkout/terms links; available returns recorded ",
       "labels": [
         "private-data"
       ]
@@ -59,10 +59,10 @@
       "severity": "high",
       "category": "toxic-flow",
       "title": "Lethal trifecta: untrusted input + private data + external sink",
-      "detail": "Server \"samuelz-chauffeur\" exposes tools that together enable an exfiltration flow. Untrusted content: get_customer_policy · Private data: quote_ride, get_offer_status · Public sink: prepare_offer.",
+      "detail": "Server \"samuelz-chauffeur\" exposes tools that together enable an exfiltration flow. Untrusted content: quote_ride · Private data: quote_ride, prepare_offer, get_offer_status · Public sink: quote_ride, prepare_offer.",
       "evidence": {
         "source": "server:samuelz-chauffeur",
-        "snippet": "Untrusted content: get_customer_policy · Private data: quote_ride, get_offer_status · Public sink: prepare_offer"
+        "snippet": "Untrusted content: quote_ride · Private data: quote_ride, prepare_offer, get_offer_status · Public sink: quote_ride, prepare_offer"
       },
       "confidence": 0.6,
       "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
@@ -75,7 +75,7 @@
       "detail": "Tool \"get_service_options\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
       "evidence": {
         "source": "tool:get_service_options",
-        "snippet": "before: \"Read this provider's public service, required ride facts and booking link.\" → after: \"Use first to learn this provider's service scope, required ride facts and local timeZone. Read current published facts; do not assume additional locations. Language defaults to English; pass locale=de for German, without changing timeZone. It gives no price or availability confirmation. Use get_cust\""
+        "snippet": "before: \"Use first to learn this provider's service scope, required ride facts and local timeZone. Read current published facts; do not assume additional locations. Language defaults to English; pass locale=de for German, without changing timeZone. It gives no price or availability confirmation. Use get_cust\" → after: \"Use this when discovering Samuelz Chauffeur services, areas and time zones. Do not use for terms (use get_customer_policy instead). Keep offerKey and locale across policy/price calls so location and language agree; omit the key for discovery. Returns available or unavailable. Anonymous stored read; \""
       },
       "confidence": 0.8,
       "remediation": "Re-review the tool before continuing to trust it."
@@ -88,7 +88,7 @@
       "detail": "Tool \"get_customer_policy\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
       "evidence": {
         "source": "tool:get_customer_policy",
-        "snippet": "before: \"Read current booking preparation terms, account requirement, guest booking and minimum lead time. Service-specific cancellation and waiting terms must be checked on the current offer before confirmation. This does not confirm a booking.\" → after: \"Use after get_service_options and before prepare_offer to retrieve current account, guest-booking and minimum-lead-time rules. Returns observedAt and revalidationRequired: refresh the rules before preparing an offer; no terms-validity window is promised. Review bound waiting and cancellation terms o\""
+        "snippet": "before: \"Use after get_service_options and before prepare_offer to retrieve current account, guest-booking and minimum-lead-time rules. Returns observedAt and revalidationRequired: refresh the rules before preparing an offer; no terms-validity window is promised. Review bound waiting and cancellation terms o\" → after: \"Use this when checking Samuelz Chauffeur lead time, account requirements and booking confirmation terms. Do not use for service coverage (use get_service_options instead). Returns available with observedAt and terms, or unavailable. Lead time is in minutes; interpret dates in the returned time zone \""
       },
       "confidence": 0.8,
       "remediation": "Re-review the tool before continuing to trust it."
@@ -101,7 +101,7 @@
       "detail": "Tool \"quote_ride\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
       "evidence": {
         "source": "tool:quote_ride",
-        "snippet": "before: \"Get a current price preview for complete ride facts, using local service time and addresses with city or postcode. No availability guarantee, booking, charge, message or reservation. Do not include customer contact details.\" → after: \"Use after get_service_options to calculate an anonymous price preview for complete ride facts in the provider timeZone. No contact is needed. Resolve missing return or hourly facts before quoting. The calculatedAt preview requires revalidation; no price-validity window is guaranteed. For rate_limite\""
+        "snippet": "before: \"Use after get_service_options to calculate an anonymous price preview for complete ride facts in the provider timeZone. No contact is needed. Resolve missing return or hourly facts before quoting. The calculatedAt preview requires revalidation; no price-validity window is guaranteed. For rate_limite\" → after: \"Use this when pricing a complete anonymous Samuelz Chauffeur ride. Do not use for discovery (use get_service_options instead); check terms with get_customer_policy. Keep offerKey across these calls; it determines the local calendar/time zone. Return pickup must follow outbound pickup; hourly service\""
       },
       "confidence": 0.8,
       "remediation": "Re-review the tool before continuing to trust it."
@@ -114,7 +114,7 @@
       "detail": "Tool \"prepare_offer\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
       "evidence": {
         "source": "tool:prepare_offer",
-        "snippet": "before: \"Prepare exactly one unpaid reservation and binding offer for an Essential one-way transfer. Requires real customer contact data and a client-generated submissionId and resumeToken. Approved distribution partners may add their opaque capability for tenant-bound attribution. The customer must review t\" → after: \"Use only for an explicit offer request with offerRequested=true, complete ride facts and email OR E.164 phone. Creates one unpaid draft and an offer link; the customer reviews bound terms and confirms via checkoutUrl. No charge or booking confirmation. Use quote_ride for price-only questions. Keep s\""
+        "snippet": "before: \"Use only for an explicit offer request with offerRequested=true, complete ride facts and email OR E.164 phone. Creates one unpaid draft and an offer link; the customer reviews bound terms and confirms via checkoutUrl. No charge or booking confirmation. Use quote_ride for price-only questions. Keep s\" → after: \"Use this when preparing a customer-requested unpaid Samuelz Chauffeur offer (offerRequested=true). Do not use for prices (use quote_ride instead). Supply email or E.164 phone. Bind submissionId/resumeToken to unchanged ride, contact, locale, offerKey and partner context. Intake and unpaid state may \""
       },
       "confidence": 0.8,
       "remediation": "Re-review the tool before continuing to trust it."
@@ -127,7 +127,7 @@
       "detail": "Tool \"get_offer_status\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
       "evidence": {
         "source": "tool:get_offer_status",
-        "snippet": "before: \"Read one prepared offer by its submissionId and resumeToken. No quote, booking, payment, message or provider request is created.\" → after: \"Use to read one existing request with its original submissionId/resumeToken pair within the original 24-hour window. Returns offer state or recorded booking/payment/fulfillment after payment; no pricing call or new business action. For pending, wait retryAfterSeconds and retry that pair. For ambiguo\""
+        "snippet": "before: \"Use to read one existing request with its original submissionId/resumeToken pair within the original 24-hour window. Returns offer state or recorded booking/payment/fulfillment after payment; no pricing call or new business action. For pending, wait retryAfterSeconds and retry that pair. For ambiguo\" → after: \"Use this when reading a submitted offer's stored status. Do not use for new requests (use prepare_offer instead). Reuse the original submissionId/resumeToken: this provider's proof expires 24 hours after the first submission. prepared returns private checkout/terms links; available returns recorded \""
       },
       "confidence": 0.8,
       "remediation": "Re-review the tool before continuing to trust it."

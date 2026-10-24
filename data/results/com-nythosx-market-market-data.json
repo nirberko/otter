@@ -1,0 +1,119 @@
+{
+  "schemaVersion": 1,
+  "scanner": {
+    "version": "1.6.0",
+    "rules": "402995650b68"
+  },
+  "target": {
+    "kind": "url",
+    "ref": "https://market.nythosx.com/mcp"
+  },
+  "scannedAt": "2026-10-24T09:02:27.595Z",
+  "durationMs": 870,
+  "layers": {
+    "metadata": true,
+    "static": false
+  },
+  "tools": [
+    {
+      "name": "list_symbols",
+      "descriptionHash": "34cd7ace804fedae6e5d343b76bac364c54a4596cd85ba9c553da4266bdd8aa2",
+      "description": "List supported symbols, timeframes, the per-call USDC price of each paid tool (not asset prices — call get_signal_bias etc. for those), and the payment network (free)."
+    },
+    {
+      "name": "get_track_record",
+      "descriptionHash": "613e4348ef558aaa6e8c02281b43bad8b15f091c81137c4c1a91c3463606674a",
+      "description": "Graded accuracy of every published signal bias: hit rate by confidence, bias and symbol, Wilson intervals, Brier score, independent samples (free). Omit symbol for the all-symbols report; pass it to filter to one instrument. Returns 404 if nothing has been graded yet for that filter.",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "get_free_snapshot",
+      "descriptionHash": "77be63ad1f3dec26922cf95ef5e54a80abaaaad9161e5e045b801b19fbf10d34",
+      "description": "Market regime (trend, volatility, RSI, ATR%) and nearest support/resistance for BTC and ETH only, refreshed every 15 minutes (free). Returns {price, regime, nearestSupport, nearestResistance}. Pick this over the paid siblings when you just need a quick read on BTC/ETH; use get_signal_bias ($0.01) fo"
+    },
+    {
+      "name": "get_trigger_status",
+      "descriptionHash": "548f9624a40c08f37a414fd5741ffd5ae628e4bcc36bc8bd4c442ed2f1231378",
+      "description": "Status of a trigger armed with arm_price_trigger (free). Returns {id, status, symbol, direction, price, created_at, expires_at, fired_at, fired_price, delivered_at, delivery_attempts, last_error}, where status is one of armed, fired_delivering, delivered, delivery_failed (after 5 webhook attempts) o",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "get_trade_plan",
+      "descriptionHash": "c189b50aaa2b2d065bfc5eba9586beabdc644fba6b8f00841344ba437b1c067a",
+      "description": "Complete trade setup in one call. One call instead of four: signal bias, market regime, nearest support/resistance, setup levels (entry, stop, target, R:R), probability of reaching the target before the stop, odds of touching the target within 7 days, an estimated time to target, invalidation condit",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "get_signal_bias",
+      "descriptionHash": "8721e110e6f77cdb277d4439851ff6749862f4e0f9dd52c63972ec7f3282bf5d",
+      "description": "Signal bias with setup levels and invalidation. Rules-based signal bias (bullish / lean_bullish / neutral / lean_bearish / bearish) with score, confidence, setup levels (entry, stop, target, risk-reward), weighted factors (trend, RSI, ATR, ADX, divergences, candle patterns, macro regime) and explici",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "get_support_resistance",
+      "descriptionHash": "a3b3a2de295b5094ce4fb44667cc9c74885cb8152d0eb9c375a41f305dcadd92",
+      "description": "Support and resistance map. Up to five support and five resistance levels from clustered daily swing pivots, high-volume nodes and round numbers, each with kind, strength (1-5) and touch count, plus the nearest level on each side. Computed from the last 30 daily candles (cached 15 minutes). Use near"
+    },
+    {
+      "name": "get_market_regime",
+      "descriptionHash": "4b98f58b1fce38ca263af913417aa9d0d55a60032a9947770ce5061ac4272311",
+      "description": "Trend and volatility regime. Market regime from the last 24 hours of hourly candles (cached 5 minutes): trend (up / down / range, EMA50 vs EMA200), volatility bucket (low / normal / high / extreme by ATR%), RSI, EMAs. Use this for risk sizing or entry timing (e.g. avoid new entries while volatility "
+    },
+    {
+      "name": "get_target_probability",
+      "descriptionHash": "beb2454df1ff8b768bdc5ba77ef1ddfe6e1224381697c9c829e95ee60fe540d0",
+      "description": "Probability of reaching a target price. Probability that the price closes beyond a target within 1, 7 and 30 days, and the approximate probability of touching it, from 14-day ATR volatility (normal approximation; touch ~ 2x close-beyond by the reflection principle). symbol must be one of the support"
+    },
+    {
+      "name": "arm_price_trigger",
+      "descriptionHash": "aeb697adb5f37ffe28eb41fb47741250b541a7a9dabdc8e6b5a827096a068937",
+      "description": "Arm a price trigger with webhook delivery. Arms a single-fire price trigger. NythosX checks the price every minute and POSTs a JSON event to your HTTPS webhook on the first crossing: {event:\"trigger.fired\", id, symbol, direction, price, fired_price, fired_at}, signed with HMAC-SHA256 (header X-Nytho",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink"
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"arm_price_trigger\" references sensitive artifacts (secret). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:arm_price_trigger",
+        "snippet": "Arm a price trigger with webhook delivery. Arms a single-fire price trigger. NythosX checks the price every minute and POSTs a JSON event to your HTTPS webhook …"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: arm_price_trigger · Private data: get_track_record, get_trade_plan, get_signal_bias, arm_price_trigger · Public sink: get_trigger_status, arm_price_trigger.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: arm_price_trigger · Private data: get_track_record, get_trade_plan, get_signal_bias, arm_price_trigger · Public sink: get_trigger_status, arm_price_trigger"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 60,
+  "scoreBreakdown": {
+    "tool-poisoning": 20,
+    "toxic-flow": 20
+  },
+  "errors": []
+}

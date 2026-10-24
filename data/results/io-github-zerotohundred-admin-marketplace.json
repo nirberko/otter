@@ -1,0 +1,105 @@
+{
+  "schemaVersion": 1,
+  "scanner": {
+    "version": "1.6.0",
+    "rules": "402995650b68"
+  },
+  "target": {
+    "kind": "url",
+    "ref": "https://zerotohundred.ai/api/mcp"
+  },
+  "scannedAt": "2026-10-24T09:10:26.721Z",
+  "durationMs": 894,
+  "layers": {
+    "metadata": true,
+    "static": false
+  },
+  "tools": [
+    {
+      "name": "z2h_search_marketplace",
+      "descriptionHash": "390f83aeb14d99f83825132a08798215b97b83179629d3bc3b707215bf71a2e4",
+      "description": "Find live software by keyword before building from scratch. Public, no sign-in needed. Returns descriptions, USD license prices, tech stacks and listing links. Example: {\"search\": \"invoice\", \"limit\": 5}. Empty search browses recent software. When hasMore is true without nextCursor, narrow the search"
+    },
+    {
+      "name": "z2h_create_draft_listing",
+      "descriptionHash": "d1a71e3c508a572f7e364dc6da51cf983d8b2bc67f20cc76b936b0977e07536e",
+      "description": "Create an invisible draft and return editUrl and publishUrl. Price and source inclusion are Builder decisions. Set sourceCodeIncluded only after confirmation; omitted values default to false. Requires listings:write. Returns the draft identity and web edit/review links. Supply a stable idempotencyKe",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "z2h_list_my_listings",
+      "descriptionHash": "dc8b52a4d3e93ef88a84c2d2ea62563f1b4ab10fcc11ec46f4866a9f9e664153",
+      "description": "Find the authenticated Builder's drafts and live listings before creating another draft. Requires listings:read. Returns items with slugs, publication state, USD prices, edit links, and nextCursor. Pass nextCursor to continue paging; null ends the list. An invalid or expired token requires sign-in a",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "z2h_get_listing",
+      "descriptionHash": "4547caaf2b2ae611cc6d7fd890f9fdf37c8265d5b7e996510e42b0ce417c8603",
+      "description": "Read one owned listing before editing it. Requires listings:read. Use a slug from z2h_list_my_listings. Returns descriptions, pricing, software attributes, source attachment state and web edit links. Missing listings and listings owned by someone else both return not found. This does not download so"
+    },
+    {
+      "name": "z2h_update_draft_listing",
+      "descriptionHash": "0ed4722698bc49044d7b0f115740a64453443dd2853a6f47c9053450e15118b0",
+      "description": "Update an owned draft. Omitted fields stay unchanged; nullable fields accept null to clear them. Live listings cannot be edited through this tool. Requires listings:write. Returns the draft identity and web edit/review links. On conflict, read the listing again before retrying.",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "z2h_request_source_upload",
+      "descriptionHash": "78268a5692926e3fdda515845205c1ae7470ea879e4baaeba49460bc89670ed1",
+      "description": "For an owned draft, get a short-lived signed archive URL. Ask the Builder to explicitly accept this exact statement: \"I own or have the rights to sell the codebase I am about to upload.\" Pass ownershipAccepted=true and ownershipVersion=2026-09-27 only after they accept. Returns signedUrl for the arc",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "z2h_confirm_source_upload",
+      "descriptionHash": "cd4ca425150cc0ae8f60956635605da1eea16a13c2ce1b9b6b9fcf53c03f4716",
+      "description": "After the signed PUT succeeds, verify and attach the archive to the owned draft. Confirm that the Builder accepted \"I own or have the rights to sell the codebase I am about to upload.\"; pass ownershipAccepted=true and ownershipVersion=2026-09-27. The server records the accepted wording with the sour",
+      "labels": [
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "z2h_compare_marketplace_listings",
+      "descriptionHash": "ba0010d5f27d5e94cc712d612fafe53dd94312a8be007d709a7fd990dec4827d",
+      "description": "Compare a shortlist of public software from marketplace search. Returns current public descriptions, USD license prices, types and tech stacks. Unavailable software is omitted without disclosing its status. This tool cannot purchase software or access private source.",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "z2h_show_marketplace",
+      "descriptionHash": "d9e6381f4d117690f1737e07f9f6c95def0c4e652eb82bbb6caf9d2f708840e1",
+      "description": "Show public software cards and an interactive comparison panel. First search with z2h_search_marketplace, then pass the public slugs to display, and the search text you used as `search` so the panel shows what the cards are for. Without slugs, shows the newest live software. Prices and availability "
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: z2h_create_draft_listing, z2h_update_draft_listing, z2h_request_source_upload · Private data: z2h_list_my_listings, z2h_request_source_upload, z2h_confirm_source_upload, z2h_compare_marketplace_listings · Public sink: z2h_request_source_upload, z2h_confirm_source_upload.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: z2h_create_draft_listing, z2h_update_draft_listing, z2h_request_source_upload · Private data: z2h_list_my_listings, z2h_request_source_upload, z2h_confirm_source_upload, z2h_compare_marketplace_listings · Public sink: z2h_request_source_upload, z2h_confirm_source_upload"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 80,
+  "scoreBreakdown": {
+    "toxic-flow": 20
+  },
+  "errors": []
+}

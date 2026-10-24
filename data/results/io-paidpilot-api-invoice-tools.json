@@ -8,8 +8,8 @@
     "kind": "url",
     "ref": "https://api.paidpilot.io/mcp"
   },
-  "scannedAt": "2026-10-12T12:18:26.427Z",
-  "durationMs": 1291,
+  "scannedAt": "2026-10-24T09:10:27.161Z",
+  "durationMs": 837,
   "layers": {
     "metadata": true,
     "static": false
@@ -17,46 +17,151 @@
   "tools": [
     {
       "name": "pricing",
-      "descriptionHash": "304e733b9c833c4c7fae57410741ace56924f678ada8f513776063ebfcf53d7a",
-      "description": "FREE. Prices, network and payment address for the paid tools, plus the HTTP invoice PDF route."
+      "descriptionHash": "a9f000815baf05f211ed089bf169dea64be2142734d8ef2961ecfa4ad90b438f",
+      "description": "Free. Return the price of every paid tool and of the HTTP invoice PDF route, the payment network (Base) and the receiving address. No input, no network request, no payment."
     },
     {
       "name": "validate_invoice",
-      "descriptionHash": "4e199be346ed0fbb1f9024ea69fea20300f08b88315353e261bd91b22aecd0fd",
-      "description": "FREE. Validate an invoice JSON (the body for POST /v1/invoice.pdf) and return computed totals. Same checks as the paid PDF route.",
+      "descriptionHash": "79b126c5c6eb81cf643a48a84af19ac131224eae6237cd10563452d3f6e95207",
+      "description": "Free. Validate an invoice JSON (the body for POST /v1/invoice.pdf, or the output of invoice_from_timesheet) and return computed subtotal, discount, tax and total, or a list of field errors. Same checks as the paid PDF route. Offline, no payment.",
       "labels": [
+        "untrusted-content",
         "public-sink"
       ]
     },
     {
       "name": "payment_reminder_draft",
-      "descriptionHash": "c722b8e3360d17cdcf29fce605680b280e91306494501da0b414eae435351d16",
-      "description": "Draft a payment reminder email for an unpaid invoice in a friendly, firm or final-notice tone. Returns subject + plain-text body, days overdue and the next step. Draft only: nothing is sent.",
+      "descriptionHash": "aace8beb5b5a6fa69c5caa55bc3cfefb2137a15849dbbf636171c7a36fa34eb7",
+      "description": "Draft a payment reminder email for one unpaid invoice in a friendly, firm or final-notice tone. Returns a subject, plain-text body, days overdue and a suggested next step. Use late_fee_calc first if you want the fee amount quoted in the email. Draft only: nothing is sent. Pure calculation: no networ",
       "labels": [
         "public-sink"
       ]
     },
     {
       "name": "late_fee_calc",
-      "descriptionHash": "37eef6d4333fbe1da31958d21340234b7643fd2f41caa92ce8b848dacb4d3d9e",
-      "description": "Late fee on an overdue invoice: flat fee, monthly % or annual %, simple or compounding, with grace days. Returns days late, fee, new total and a line to paste on the invoice. Not legal advice; does not look up state caps."
+      "descriptionHash": "6d18d869aa89b3d825a9b45a5399f600e013e71aef93a38c20706eadba9f39ca",
+      "description": "Calculate the late fee on one overdue invoice: flat fee, monthly % or annual %, simple or compounding, with optional grace days. Returns days late, the fee, the new total and a line to paste on the invoice. Use payment_terms_check instead to work out when an invoice is due. Not legal advice; it does"
     },
     {
       "name": "payment_terms_check",
-      "descriptionHash": "5051c38fabaa75487b4e8d834fec13a1b519600dd9eb46f0616ecb6ae00298ab",
-      "description": "Due date and status for payment terms such as Net 30, 2/10 Net 30, Due on receipt, EOM or Net 30 EOM. Includes early-payment discount amount and deadline, the annualized cost of skipping the discount, and suggested reminder dates."
+      "descriptionHash": "c9ea5acced69fc6cba84de307b61e73d10623112b062ac6458e6b346286dd461",
+      "description": "Work out the due date and status for payment terms such as Net 30, 2/10 Net 30, Due on receipt, EOM or Net 30 EOM. Returns the early-payment discount amount and deadline, the annualized cost of skipping the discount, and suggested reminder dates. Use late_fee_calc once the invoice is overdue. Pure c"
     },
     {
       "name": "invoice_from_timesheet",
-      "descriptionHash": "6d2d90a386e1849ad7ee8a923ba9484579ba6ccdb907eaa8bffbcfd8d19dbd00",
-      "description": "Turn time entries (hours x rate, optional rounding, grouping and expenses) into a validated invoice JSON with totals, ready for POST /v1/invoice.pdf.",
+      "descriptionHash": "344f10ddbfd4cd88549af867ff8b6a8735a8340cb43b2b12f63c8a47292cd5f8",
+      "description": "Turn time entries (hours x rate, with optional rounding, grouping by task and expenses) into a validated invoice JSON with totals, ready for POST /v1/invoice.pdf. Use validate_invoice (free) instead if you already have an invoice. Pure calculation: no network request, nothing is sent or stored. Cost",
       "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "receivables_health_report",
+      "descriptionHash": "7cfab85924ddd607d2900a337e8f2a687b07b6ed82b1bf3fd7352281005ac8c0",
+      "description": "Grade the health of a business's accounts receivable from its invoice list. Send a CSV export (QuickBooks, Xero, FreshBooks, Wave, Stripe or any CSV with customer and amount columns; columns are auto-detected) or JSON rows, up to 1000 invoices. Returns an A-F grade and 0-100 score with reasons, agin",
+      "labels": [
+        "untrusted-content",
         "public-sink"
       ]
     }
   ],
-  "findings": [],
-  "score": 100,
-  "scoreBreakdown": {},
+  "findings": [
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "medium",
+      "category": "toxic-flow",
+      "title": "Toxic flow: untrusted input can reach an external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: validate_invoice, receivables_health_report · Public sink: validate_invoice, payment_reminder_draft, invoice_from_timesheet, receivables_health_report.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: validate_invoice, receivables_health_report · Public sink: validate_invoice, payment_reminder_draft, invoice_from_timesheet, receivables_health_report"
+      },
+      "confidence": 0.45,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"pricing\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:pricing",
+        "snippet": "before: \"FREE. Prices, network and payment address for the paid tools, plus the HTTP invoice PDF route.\" → after: \"Free. Return the price of every paid tool and of the HTTP invoice PDF route, the payment network (Base) and the receiving address. No input, no network request, no payment.\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"validate_invoice\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:validate_invoice",
+        "snippet": "before: \"FREE. Validate an invoice JSON (the body for POST /v1/invoice.pdf) and return computed totals. Same checks as the paid PDF route.\" → after: \"Free. Validate an invoice JSON (the body for POST /v1/invoice.pdf, or the output of invoice_from_timesheet) and return computed subtotal, discount, tax and total, or a list of field errors. Same checks as the paid PDF route. Offline, no payment.\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"payment_reminder_draft\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:payment_reminder_draft",
+        "snippet": "before: \"Draft a payment reminder email for an unpaid invoice in a friendly, firm or final-notice tone. Returns subject + plain-text body, days overdue and the next step. Draft only: nothing is sent.\" → after: \"Draft a payment reminder email for one unpaid invoice in a friendly, firm or final-notice tone. Returns a subject, plain-text body, days overdue and a suggested next step. Use late_fee_calc first if you want the fee amount quoted in the email. Draft only: nothing is sent. Pure calculation: no networ\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"late_fee_calc\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:late_fee_calc",
+        "snippet": "before: \"Late fee on an overdue invoice: flat fee, monthly % or annual %, simple or compounding, with grace days. Returns days late, fee, new total and a line to paste on the invoice. Not legal advice; does not look up state caps.\" → after: \"Calculate the late fee on one overdue invoice: flat fee, monthly % or annual %, simple or compounding, with optional grace days. Returns days late, the fee, the new total and a line to paste on the invoice. Use payment_terms_check instead to work out when an invoice is due. Not legal advice; it does\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"payment_terms_check\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:payment_terms_check",
+        "snippet": "before: \"Due date and status for payment terms such as Net 30, 2/10 Net 30, Due on receipt, EOM or Net 30 EOM. Includes early-payment discount amount and deadline, the annualized cost of skipping the discount, and suggested reminder dates.\" → after: \"Work out the due date and status for payment terms such as Net 30, 2/10 Net 30, Due on receipt, EOM or Net 30 EOM. Returns the early-payment discount amount and deadline, the annualized cost of skipping the discount, and suggested reminder dates. Use late_fee_calc once the invoice is overdue. Pure c\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"invoice_from_timesheet\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:invoice_from_timesheet",
+        "snippet": "before: \"Turn time entries (hours x rate, optional rounding, grouping and expenses) into a validated invoice JSON with totals, ready for POST /v1/invoice.pdf.\" → after: \"Turn time entries (hours x rate, with optional rounding, grouping by task and expenses) into a validated invoice JSON with totals, ready for POST /v1/invoice.pdf. Use validate_invoice (free) instead if you already have an invoice. Pure calculation: no network request, nothing is sent or stored. Cost\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    }
+  ],
+  "score": 52,
+  "scoreBreakdown": {
+    "toxic-flow": 8,
+    "tool-poisoning": 40
+  },
   "errors": []
 }

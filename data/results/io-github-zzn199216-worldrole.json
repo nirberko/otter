@@ -1,0 +1,130 @@
+{
+  "schemaVersion": 1,
+  "scanner": {
+    "version": "1.6.0",
+    "rules": "402995650b68"
+  },
+  "target": {
+    "kind": "url",
+    "ref": "https://mcp.worldrole.work/mcp"
+  },
+  "scannedAt": "2026-10-24T09:10:43.575Z",
+  "durationMs": 3723,
+  "layers": {
+    "metadata": true,
+    "static": false
+  },
+  "tools": [
+    {
+      "name": "get_profile",
+      "descriptionHash": "50bd3ba3fcc641b2f05919c65c160d9ede1293dc6ccc2da77e6cfd77b4788f14",
+      "description": "Read/export the current account's compact career summary for conversational onboarding. Empty fields are missing, not a reason to send the user a form. Never accepts another user ID.",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "update_profile",
+      "descriptionHash": "61f5475dbd75e919ea10003d38750e0fe49536d2b3ecfd617bed6ca3fb2081f6",
+      "description": "Save important career facts. mode=compiled submits COMPLETE merged summaries for changed fields; omitted fields stay, null explicitly deletes. mode=supplement fills missing fields and skips exact duplicates; changes to populated fields return PROFILE_MERGE_REQUIRED with affected context, atomically ",
+      "labels": [
+        "untrusted-content",
+        "private-data"
+      ]
+    },
+    {
+      "name": "delete_profile",
+      "descriptionHash": "d984f3b23aa77bf9766769614d0c624dca5b176706b2a75738aa17e62e117402",
+      "description": "When the user asks to forget or stop remembering, clear their career summary and pause future saves. Retains only an empty version marker. The user can later ask to resume via update_profile(resume=True), without visiting a settings page.",
+      "labels": [
+        "destructive"
+      ]
+    },
+    {
+      "name": "get_usage",
+      "descriptionHash": "e1853b10297a185d8f07c1cb4f9a960fff93a87f52aa803b698dd7cb11c6da20",
+      "description": "Read current hosted account/guest allowance when requested. No promotion at install/startup; external free sources have independent limits. Does not spend a job."
+    },
+    {
+      "name": "create_referral_link",
+      "descriptionHash": "788e5b8b8c26a4c595ac67c8d5ff77967f9ce064e44c1e9247ec34937508134f",
+      "description": "Only when the user explicitly requests an invitation link. Returns a public URL and grants the account's once-ever 20-job bonus. Never call during installation, startup or automatically after an exhaustion notice. Repeated calls return the same link without another bonus. No message is sent."
+    },
+    {
+      "name": "boardwork_start",
+      "descriptionHash": "a6f461d05409d480a867ca2d895afd8e2d436b04aa13153bb9edf7b9c3e6173d",
+      "description": "Restore known facts and plan useful work before asking. Optional assistance_context describes actual task requirements and client checks, without private answers. Defaults to zero questions; no profile writes, sending, monitoring or live verification are performed.",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "search_jobs",
+      "descriptionHash": "c1a15079ca9f7df81d77eba10425c1180c37a18bcba20a5f9514325be919d444",
+      "description": "Search a small page of sourced jobs by explicit filters and weighted preferences. Defaults to one role per company. Exclusions apply before pagination."
+    },
+    {
+      "name": "get_jobs",
+      "descriptionHash": "76ed61706540b19e9ca8c0cb2bc1155a666fdfc5104ad7aba6b323c84157a073",
+      "description": "Read selected details; verification includes cached links, relationship basis, times and missing checks. Use host search/browser to verify before acting. not_available is not proof the employer closed the job."
+    },
+    {
+      "name": "search_companies",
+      "descriptionHash": "c32c3eb57fe0e5f9963cb7431dd417c7956278d916d727c17719b03e8d4c1b3f",
+      "description": "Find known companies by name OR exact website hostname. An empty list is only a corpus gap; never fetches arbitrary URLs.",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "get_company",
+      "descriptionHash": "7ecc29aac62cd009dc9fa9a7e441c36d27bc54d2cfea27476080934c161a336c",
+      "description": "Read company identity and a few accepted roles. Company-wide policies do not automatically apply to every role."
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"update_profile\" references sensitive artifacts (secret). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:update_profile",
+        "snippet": "Save important career facts. mode=compiled submits COMPLETE merged summaries for changed fields; omitted fields stay, null explicitly deletes. mode=supplement f…"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOOL-POISON-007",
+      "severity": "low",
+      "category": "tool-poisoning",
+      "title": "Description uses pressure/override language",
+      "detail": "Description of \"update_profile\" stacks urgency/override words (important, never). Legitimate tool descriptions rarely pressure the model to act or ignore prior guidance.",
+      "evidence": {
+        "source": "tool:update_profile",
+        "snippet": "Save important career facts. mode=compiled submits COMPLETE merged summaries for changed fields; omitted fields stay, null explicitly deletes. mode=supplement f…"
+      },
+      "confidence": 0.3
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: update_profile, search_companies · Private data: update_profile, boardwork_start · Public sink: get_profile · Destructive: delete_profile.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: update_profile, search_companies · Private data: update_profile, boardwork_start · Public sink: get_profile · Destructive: delete_profile"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 59,
+  "scoreBreakdown": {
+    "tool-poisoning": 22,
+    "toxic-flow": 20
+  },
+  "errors": []
+}

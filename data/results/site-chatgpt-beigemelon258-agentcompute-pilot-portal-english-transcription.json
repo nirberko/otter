@@ -1,0 +1,124 @@
+{
+  "schemaVersion": 1,
+  "scanner": {
+    "version": "1.6.0",
+    "rules": "402995650b68"
+  },
+  "target": {
+    "kind": "url",
+    "ref": "https://agentcompute-pilot-portal.beigemelon258.chatgpt.site/v1/mcp"
+  },
+  "scannedAt": "2026-10-24T09:11:23.727Z",
+  "durationMs": 1864,
+  "layers": {
+    "metadata": true,
+    "static": false
+  },
+  "tools": [
+    {
+      "name": "create_trial_access",
+      "descriptionHash": "ea1d196c1fb2eeacfb5c659d2b849739d817c82d570707f674ccefbc8715dc29",
+      "description": "Create a private 24-hour trial token automatically. No ChatGPT account, payment or manual setup. Audio: 3 jobs per session. Chat/images: shared queue of 3 active tasks, no per-session job quota. Global access issuance caps apply. Retain the token for upload and result retrieval. Reuse the session; n",
+      "labels": [
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "get_compute_status",
+      "descriptionHash": "fcb4976625f4233f3907c1e162f6c2608f5eaa4b500f3f571b1ff9c41f50c9b0",
+      "description": "Check whether the GPU provider can accept English transcription work. Returns availability, permitted task types, and limits. Does not start a job."
+    },
+    {
+      "name": "submit_compute_job",
+      "descriptionHash": "040c4b7e1669545282652c28df17d6dd9e4be9a50c0fca2f1fa1ae3d576578b6",
+      "description": "Beta users must supply their uploaded asset_id and kind compute_job. No accuracy guarantee is made for uploaded files. Owner legacy calls can queue the fixed synthetic benchmark. compute_job returns a transcript; delegated_task additionally requires word error rate at most 10% against the known refe",
+      "labels": [
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "get_compute_job",
+      "descriptionHash": "cffc563cbddea78c3dc0ff7c28209fe00dcf22c59dc1d89a599424c32d16b844",
+      "description": "Read a previously submitted job by job_id. Returns status, transcript, runtime and reference quality when complete. For queued or running jobs, wait poll_after_seconds before checking again. Failed or expired jobs are not successful results.",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "get_service_status",
+      "descriptionHash": "bba31e21bd1e8d3c178b5f8adc4b4792442877a63a5af36ec142c508af89ca30",
+      "description": "Public live availability, model catalog, free-trial limits and polling guidance. No token required. Check before submitting; an offline GPU cannot execute work.",
+      "labels": [
+        "private-data",
+        "destructive"
+      ]
+    },
+    {
+      "name": "submit_chat_job",
+      "descriptionHash": "6c1565d07ae5428cb84dae92a81378858bb40f1b6641cef86be68762e67584c3",
+      "description": "Queue a free text task: draft, summarize, extract, translate text, reason or assist with code. No code is executed. Provide user/assistant messages, explicit consent for nonconfidential permitted content, and a stable idempotency key. Returns immediately with a job ID. Poll get_studio_job. Uses the ",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "submit_image_job",
+      "descriptionHash": "71bf946ca11547f8f96f238693637daf99a94b7f91aec431a005173b430fe5b6",
+      "description": "Queue a free text-to-image task from a complete scene description. Each task is independent, not an edit of a previous image. Returns a job ID; poll get_studio_job then get_studio_image for the PNG. Configured model and size appear in service status/results. No external AI fallback.",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "get_studio_job",
+      "descriptionHash": "668ced99fd3987d425e9e6fb7c7415d1ed65870fddd1cf332e6f117e25dbbaff",
+      "description": "Read your own chat/image job. Includes partial text while running, final text or image availability, GPU runtime and server timings. Wait poll_after_seconds between checks; stop on succeeded, failed or expired. Does not create or retry work.",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "get_studio_image",
+      "descriptionHash": "da9bfa93e287fce9fde8e7ea978380a73ab76e84c4baff07f7d1d26a7bad5f07",
+      "description": "Return the completed image as an MCP image content block. Requires the same token/identity that submitted the job. Images expire after 24 hours from submission; download before expiry.",
+      "labels": [
+        "private-data"
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOOL-POISON-007",
+      "severity": "low",
+      "category": "tool-poisoning",
+      "title": "Description uses pressure/override language",
+      "detail": "Description of \"create_trial_access\" stacks urgency/override words (never, bypass). Legitimate tool descriptions rarely pressure the model to act or ignore prior guidance.",
+      "evidence": {
+        "source": "tool:create_trial_access",
+        "snippet": "Create a private 24-hour trial token automatically. No ChatGPT account, payment or manual setup. Audio: 3 jobs per session. Chat/images: shared queue of 3 activ…"
+      },
+      "confidence": 0.3
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: get_compute_job, get_studio_job · Private data: create_trial_access, submit_compute_job, get_service_status, get_studio_image · Public sink: create_trial_access, submit_compute_job, submit_chat_job, submit_image_job · Destructive: get_service_status.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: get_compute_job, get_studio_job · Private data: create_trial_access, submit_compute_job, get_service_status, get_studio_image · Public sink: create_trial_access, submit_compute_job, submit_chat_job, submit_image_job · Destructive: get_service_status"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 77,
+  "scoreBreakdown": {
+    "tool-poisoning": 3,
+    "toxic-flow": 20
+  },
+  "errors": []
+}

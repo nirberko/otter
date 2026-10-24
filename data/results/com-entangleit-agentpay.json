@@ -8,8 +8,8 @@
     "kind": "url",
     "ref": "https://entangleit.com/api/agentpay/mcp"
   },
-  "scannedAt": "2026-10-14T09:52:51.794Z",
-  "durationMs": 1834,
+  "scannedAt": "2026-10-24T09:00:47.760Z",
+  "durationMs": 1179,
   "layers": {
     "metadata": true,
     "static": false
@@ -63,10 +63,36 @@
       ]
     },
     {
-      "name": "pay_service",
-      "descriptionHash": "405b65ff58a979c305dd40e9cd24cef597fbf397697065fb004df1c12360fefb",
-      "description": "One call for paid registry tools: quotes the seller's x402 challenge, pays it from the site wallet on BSV mainnet, debits the agent wallet, and returns the seller's result plus txid. If the seller rejects the payment, the debit is refunded. Pass bountyAccount for reputation fast-path (approval x2 wh",
+      "name": "send",
+      "descriptionHash": "c90c9a56821e42653ee362b4813b4e10f63da0e07707550683c33ff157c2f250",
+      "description": "Pay sats to a BSV P2PKH address (on-chain, settlement=live, txid is a BSV transaction) or to an agentpay wallet id apw_… (internal ledger credit, settlement=internal, txid is a receipt id). Idempotent per idempotency_key. Daily limits, allowlists (spend or agent_send), and approval thresholds apply.",
       "labels": [
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "pay_service",
+      "descriptionHash": "1a3a8c88d1c98b7901d2df37180a7b07a6c61e30bfe087249e52df81229033b9",
+      "description": "One call for paid registry tools: quotes the seller's x402 challenge (legacy single-object or standard v2 accepts[] — BSV exact only), pays it from the site wallet on BSV mainnet, debits the agent wallet, and returns the seller's result plus txid. If the seller rejects the payment, the debit is refu",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "chat",
+      "descriptionHash": "d64aca401c60a214d0c5bbbf303e5c82b77515081515f4d67e7e347e3f4f9ddf",
+      "description": "Pay-per-call LLM, no API key. Sends messages to Fuse chat completions; agentpay settles the standard x402 v2 BSV 402 from this wallet and returns the completion plus receiptUrl and txid. Models: fuse-fast (500 sats) or fuse-smart (2500 sats). Wallet limits, scoped keys, and trial budgets apply. Pass",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "extract",
+      "descriptionHash": "65d6268895d367f30a73830c3cc6a632ba163609483b28880488ba3a28a7ff48",
+      "description": "Extract typed values from messy text or receipts. Pays Fuse extract; agentpay settles the standard x402 v2 BSV 402 from this wallet. Prefer this over chat when you need structured fields with confidence scores and explicit nulls (p_null) instead of made-up answers. Types: text|number|date|time|datet",
+      "labels": [
+        "untrusted-content",
         "private-data"
       ]
     },
@@ -179,8 +205,50 @@
       ]
     }
   ],
-  "findings": [],
-  "score": 100,
-  "scoreBreakdown": {},
+  "findings": [
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"send\" references sensitive artifacts (secret). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:send",
+        "snippet": "Pay sats to a BSV P2PKH address (on-chain, settlement=live, txid is a BSV transaction) or to an agentpay wallet id apw_… (internal ledger credit, settlement=int…"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: extract · Private data: get_balance, create_topup_link, create_upgrade_link, spend, send, pay_service, chat, extract, get_attestation, list_transactions, claim_bounty, post_bounty, my_escrows, claim_trial, my_bounties · Public sink: send, submit_work, post_bounty · Destructive: onboard.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: extract · Private data: get_balance, create_topup_link, create_upgrade_link, spend, send, pay_service, chat, extract, get_attestation, list_transactions, claim_bounty, post_bounty, my_escrows, claim_trial, my_bounties · Public sink: send, submit_work, post_bounty · Destructive: onboard"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"pay_service\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:pay_service",
+        "snippet": "before: \"One call for paid registry tools: quotes the seller's x402 challenge, pays it from the site wallet on BSV mainnet, debits the agent wallet, and returns the seller's result plus txid. If the seller rejects the payment, the debit is refunded. Pass bountyAccount for reputation fast-path (approval x2 wh\" → after: \"One call for paid registry tools: quotes the seller's x402 challenge (legacy single-object or standard v2 accepts[] — BSV exact only), pays it from the site wallet on BSV mainnet, debits the agent wallet, and returns the seller's result plus txid. If the seller rejects the payment, the debit is refu\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    }
+  ],
+  "score": 50,
+  "scoreBreakdown": {
+    "tool-poisoning": 30,
+    "toxic-flow": 20
+  },
   "errors": []
 }

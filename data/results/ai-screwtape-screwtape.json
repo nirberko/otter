@@ -1,0 +1,125 @@
+{
+  "schemaVersion": 1,
+  "scanner": {
+    "version": "1.6.0",
+    "rules": "402995650b68"
+  },
+  "target": {
+    "kind": "url",
+    "ref": "https://screwtape.ai/mcp"
+  },
+  "scannedAt": "2026-10-24T08:59:14.656Z",
+  "durationMs": 643,
+  "layers": {
+    "metadata": true,
+    "static": false
+  },
+  "tools": [
+    {
+      "name": "judge",
+      "descriptionHash": "319cbac69087cfdc97f567b152bd364c29a435d5a7ada5427d037832c16e564a",
+      "description": "An independent pass/fail/retry verdict on ONE agent output. Call it before you return, store or act on a draft answer, especially when you have the evidence the answer should be based on. Do NOT call it to look up facts (it does no web search and only checks against the evidence you pass), to compar",
+      "labels": [
+        "destructive"
+      ]
+    },
+    {
+      "name": "check_duplicate_invoice",
+      "descriptionHash": "8aad10f862a931d732ba29e6f85229b5b1165b9925a9321f15e6b59b64142e17",
+      "description": "Duplicate invoice check before an agent pays. Same as judge with one duplicate check: it compares this invoice with the invoices this API key recorded earlier and also judges it. Call it before an agent pays or approves an invoice or payment instruction. Inputs: the judge inputs (task, agent_output ",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "consensus",
+      "descriptionHash": "a5313c5d3aac064da8ee1b5957993c98a8da88117bc742af2e14b17ace6a2551",
+      "description": "False-consensus check for 2 to 16 answers to the same task. It scores how the answers agree and flags agreement that looks copied or too thin to trust. Screwtape is not tied to the agent framework or the model that wrote the answers. Call it when several agents, samples or tools answered the same qu"
+    },
+    {
+      "name": "get_api_key",
+      "descriptionHash": "ad8a400bb1e6e2f288c6746985e404e52f97359d97a25dfc9fe01ecb6a3916ca",
+      "description": "Create a free Screwtape.ai API key (100 calls per UTC day) with no human approval. Call it only when no Screwtape key is configured and you can compute SHA-256 with a code tool, because the proof of work must be computed exactly, not guessed. Do NOT call it when a key already exists, to get more quo",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "buy_pack",
+      "descriptionHash": "63e16d65b73efbf750ff6a8f8b18e2752bb5f639d7e05f45b13cda7eb05fc1f8",
+      "description": "Return the x402 payment requirements for a Starter ($40, 10000 calls) or Builder ($175, 50000 calls) prepaid pack, plus how to pay with USDC on Base or Solana. pack is starter or builder. This call does not move funds and does not require a key or a payment. POST /v1/packs/{pack}/buy with PAYMENT-SI",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "publish_receipt",
+      "descriptionHash": "9fb75f1a4569a7abe9aa81ac92e4dcd7c914ecf20ffb20fc550c9dc4077b3d32",
+      "description": "Publish a signed receipt you own so a public page and a Screwtape Verified badge can link to that one verdict. Call it when you want to show that a specific output received a specific verdict. Do NOT call it to certify an agent in general: the page says this output received this verdict at this time",
+      "labels": [
+        "private-data",
+        "public-sink"
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"check_duplicate_invoice\" references sensitive artifacts (authorization, bearer). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:check_duplicate_invoice",
+        "snippet": "Duplicate invoice check before an agent pays. Same as judge with one duplicate check: it compares this invoice with the invoices this API key recorded earlier a…"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOOL-POISON-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description issues instructions to the model",
+      "detail": "Description of \"consensus\" contains imperative instructions directed at the AI assistant rather than describing the tool. This is the core tool-poisoning technique.",
+      "evidence": {
+        "source": "tool:consensus",
+        "snippet": "False-consensus check for 2 to 16 answers to the same task. It scores how the answers agree and flags agreement that looks copied or too thin to trust. Screwtap…"
+      },
+      "confidence": 0.7,
+      "remediation": "Treat the server as untrusted; the model may obey embedded instructions."
+    },
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"get_api_key\" references sensitive artifacts (api_key, authorization, bearer). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:get_api_key",
+        "snippet": "Create a free Screwtape.ai API key (100 calls per UTC day) with no human approval. Call it only when no Screwtape key is configured and you can compute SHA-256 …"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: get_api_key · Private data: check_duplicate_invoice, get_api_key, publish_receipt · Public sink: get_api_key, buy_pack, publish_receipt · Destructive: judge.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: get_api_key · Private data: check_duplicate_invoice, get_api_key, publish_receipt · Public sink: get_api_key, buy_pack, publish_receipt · Destructive: judge"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 45,
+  "scoreBreakdown": {
+    "tool-poisoning": 35,
+    "toxic-flow": 20
+  },
+  "errors": []
+}

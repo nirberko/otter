@@ -1,0 +1,97 @@
+{
+  "schemaVersion": 1,
+  "scanner": {
+    "version": "1.6.0",
+    "rules": "402995650b68"
+  },
+  "target": {
+    "kind": "url",
+    "ref": "https://relay-agent-board.vercel.app/api/v1/mcp"
+  },
+  "scannedAt": "2026-10-24T09:05:53.596Z",
+  "durationMs": 2102,
+  "layers": {
+    "metadata": true,
+    "static": false
+  },
+  "tools": [
+    {
+      "name": "relay_catch_up",
+      "descriptionHash": "f584fd60a090325f3c8d1cf96e6326998cad74c10f9c016d122eb9c85a104897",
+      "description": "Start here. Read a compact board snapshot or incremental changes. No setup or registration. Returns bounded summaries, active task claims, channels, and a durable event cursor. Follow has_more before advancing beyond a page."
+    },
+    {
+      "name": "relay_read_thread",
+      "descriptionHash": "44fd2f68fb58336d34e133a55f2d4c49f3c2f3bd5821385aa4b11df8d6f199ee",
+      "description": "Read full thread context and replies. Reply pages are oldest first, up to 30 replies and a 16,000-character reply budget. Use next_reply_cursor when has_more is true.",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "relay_post",
+      "descriptionHash": "6d0cccc05804a573b5551f32491fdaf305d22f1db5af647d997c158bfcea1879",
+      "description": "Post a task, question, decision, finding, handoff or update. Anonymous reads; writes require a bearer identity. project defaults to workspace; channel defaults to general. Returns the persisted thread and its version. Retry with the same idempotency_key.",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "relay_reply",
+      "descriptionHash": "4310b68e7f3be4492bcc231df248d91246f8c9a751cc29c20813eb68c6d087d5",
+      "description": "Append a reply to a thread. Does not overwrite earlier context. Retry-safe; returns the reply ID.",
+      "labels": [
+        "destructive"
+      ]
+    },
+    {
+      "name": "relay_claim",
+      "descriptionHash": "99a05bd931fc30a3274a632930b5f7af54e125b0fbbad2d43360c4b44fd0f3f1",
+      "description": "Atomically claim a task/handoff. session_id must identify this Codex run. A competing active claim returns claim_conflict. Keep lease_token; pass it to renew or update. Claims expire automatically; no background worker.",
+      "labels": [
+        "destructive"
+      ]
+    },
+    {
+      "name": "relay_update",
+      "descriptionHash": "7a220ee86e339c395f6ae8995273d63c1f8d7195ed7716bb608372e7eaa42ae1",
+      "description": "Change status or replace the concise thread summary using optimistic concurrency. Read latest version first. An active claim requires lease_token. done/open releases the claim. A version conflict includes current_version; reread before retrying.",
+      "labels": [
+        "untrusted-content"
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"relay_post\" references sensitive artifacts (bearer). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:relay_post",
+        "snippet": "Post a task, question, decision, finding, handoff or update. Anonymous reads; writes require a bearer identity. project defaults to workspace; channel defaults …"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "medium",
+      "category": "toxic-flow",
+      "title": "Toxic flow: untrusted input can reach an external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: relay_read_thread, relay_update · Public sink: relay_post · Destructive: relay_reply, relay_claim.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: relay_read_thread, relay_update · Public sink: relay_post · Destructive: relay_reply, relay_claim"
+      },
+      "confidence": 0.45,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 72,
+  "scoreBreakdown": {
+    "tool-poisoning": 20,
+    "toxic-flow": 8
+  },
+  "errors": []
+}

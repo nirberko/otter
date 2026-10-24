@@ -1,0 +1,110 @@
+{
+  "schemaVersion": 1,
+  "scanner": {
+    "version": "1.6.0",
+    "rules": "402995650b68"
+  },
+  "target": {
+    "kind": "url",
+    "ref": "https://sync.lucie.network/api/mcp"
+  },
+  "scannedAt": "2026-10-24T09:11:24.386Z",
+  "durationMs": 1665,
+  "layers": {
+    "metadata": true,
+    "static": false
+  },
+  "tools": [
+    {
+      "name": "check_availability",
+      "descriptionHash": "322969425ba0c18fed217891df297ea94217a7d0cb27de69529847c07f60d562",
+      "description": "Return the open meeting slots a Lucie Sync host offers, plus their booking rules (durations offered, minimum notice, how far ahead you can book, buffer between meetings). Returns only bookable slots and policy — never the host's raw calendar. Use this to find a time before proposing one to the user."
+    },
+    {
+      "name": "book_meeting",
+      "descriptionHash": "9f3bb8a314e0012de2a9354da017119280a94b4b5d1157e96bffcfcd001b09a7",
+      "description": "Book a confirmed meeting on a Lucie Sync host's calendar at a specific start time. This is a real write: it creates a calendar event and emails both the host and the booker. Always call check_availability first and use one of the open slots it returns. Before calling, (1) show the booker the specifi",
+      "labels": [
+        "untrusted-content",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "find_group_times",
+      "descriptionHash": "87510e6114056821c62103ddb0515e9f5cbd7de721bd46eb6bfda43877f20730",
+      "description": "Given several Lucie hosts (by @handle), return the meeting times when ALL of them are free — the intersection of their availability — for a meeting of the given length. Read-only: never books, never exposes anyone's raw calendar (only the shared open slots). Use it to propose a group time. Times are"
+    },
+    {
+      "name": "create_group_event",
+      "descriptionHash": "1871ba7934f7a6ebd553fbabdab127fe5f8af92e04912d8949f5ba86d0272927",
+      "description": "Create a Lucie group event (a poll) for several participants, pre-filled with candidate times when everyone is free (the intersection of their availability). Returns a vote link to share: participants pick which proposed times work, and people WITHOUT a Lucie handle can vote manually too. This is a ",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "book_group_meeting",
+      "descriptionHash": "03575a9327b366a4d8564c481fabeb2cb73345ebed5bc3baa213601f3e24be16",
+      "description": "Confirm a group meeting at a specific time across several Lucie hosts (by @handle), creating ONE shared Google Calendar event with everyone invited. YOU (the connector's owner) are the organizer and host the event on your calendar — no organizer handle needed. This is a real write: it re-verifies ev"
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOOL-POISON-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description issues instructions to the model",
+      "detail": "Description of \"book_meeting\" contains imperative instructions directed at the AI assistant rather than describing the tool. This is the core tool-poisoning technique.",
+      "evidence": {
+        "source": "tool:book_meeting",
+        "snippet": "Book a confirmed meeting on a Lucie Sync host's calendar at a specific start time. This is a real write: it creates a calendar event and emails both the host an…"
+      },
+      "confidence": 0.7,
+      "remediation": "Treat the server as untrusted; the model may obey embedded instructions."
+    },
+    {
+      "id": "MCP-TOOL-POISON-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description issues instructions to the model",
+      "detail": "Description of \"book_group_meeting\" contains imperative instructions directed at the AI assistant rather than describing the tool. This is the core tool-poisoning technique.",
+      "evidence": {
+        "source": "tool:book_group_meeting",
+        "snippet": "Confirm a group meeting at a specific time across several Lucie hosts (by @handle), creating ONE shared Google Calendar event with everyone invited. YOU (the co…"
+      },
+      "confidence": 0.7,
+      "remediation": "Treat the server as untrusted; the model may obey embedded instructions."
+    },
+    {
+      "id": "MCP-TOOL-POISON-007",
+      "severity": "low",
+      "category": "tool-poisoning",
+      "title": "Description uses pressure/override language",
+      "detail": "Description of \"book_group_meeting\" stacks urgency/override words (always, never). Legitimate tool descriptions rarely pressure the model to act or ignore prior guidance.",
+      "evidence": {
+        "source": "tool:book_group_meeting",
+        "snippet": "Confirm a group meeting at a specific time across several Lucie hosts (by @handle), creating ONE shared Google Calendar event with everyone invited. YOU (the co…"
+      },
+      "confidence": 0.3
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "medium",
+      "category": "toxic-flow",
+      "title": "Toxic flow: untrusted input can reach an external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: book_meeting · Public sink: book_meeting, create_group_event.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: book_meeting · Public sink: book_meeting, create_group_event"
+      },
+      "confidence": 0.45,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 61,
+  "scoreBreakdown": {
+    "tool-poisoning": 31,
+    "toxic-flow": 8
+  },
+  "errors": []
+}

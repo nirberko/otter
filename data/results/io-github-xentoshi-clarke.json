@@ -1,0 +1,93 @@
+{
+  "schemaVersion": 1,
+  "scanner": {
+    "version": "1.6.0",
+    "rules": "402995650b68"
+  },
+  "target": {
+    "kind": "url",
+    "ref": "https://www.clarkebelt.finance/api/v1/mcp"
+  },
+  "scannedAt": "2026-10-24T09:10:18.372Z",
+  "durationMs": 1812,
+  "layers": {
+    "metadata": true,
+    "static": false
+  },
+  "tools": [
+    {
+      "name": "clarke_list_slots",
+      "descriptionHash": "fb7b5ac7449d48561aed6a81c297a05f3eb14a2e63758a24a78cb2b095ea672a",
+      "description": "List GEO slots in the Clarke registry (curated positions merged with UCS-derived positions). The default is a compact page of 50: slug, label, longitude, region, operatorIdentity (split, single, or none), country, status, and satCount. Pass offset to continue. view=full returns occupancy observation",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "clarke_get_slot",
+      "descriptionHash": "52a1cfa901589cd0194c551c08cd9fd88b5b1ae17139bfa4782fe5d3db890491",
+      "description": "Agent slot record for one GEO position by slug (e.g. '19-2e' for 19.2E, '101w' for 101W). Operator identity is operatorMix, with raw source strings on each share. operatorIdentity is split when more than one canonical operator is in the occupancy window, single when one is, none when the window has ",
+      "labels": [
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "clarke_get_terminal",
+      "descriptionHash": "5c233f6dec0fb7990156943817d3bdb68c443427ab05137e10ef5462ae0da36b",
+      "description": "Agent slot record for one GEO position. Same payload as clarke_get_slot: operatorMix as the occupancy identity, FCC rows, disputes, ituRecorded, and source vintage including tleStale (older than 45 days). operatorIdentity split means the window is shared. ITU filings are not in this product. ITU Spa",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "clarke_list_deltas",
+      "descriptionHash": "361592de06110a9d76589cd20b360114c8451a7364c568d3bb04b7f086748516",
+      "description": "On-ingest change feed for GEO slot occupancy, FCC rows, and disputes (Slot Index delta feed, edition 2). coverage is bootstrap when fewer than two registry snapshots are stored, and ingest_deltas once a later snapshot exists. Each change has slug, longitude when available, detectedAt, source vintage",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "clarke_list_satellites",
+      "descriptionHash": "df745436d7aa3ea0a63dbf77421430f43bedaaea44ea4f8d50e2bcf192441b91",
+      "description": "List GEO satellites from the UCS Satellite Database, optionally filtered by operator or owner country. Returns up to `limit` rows (default 100; max 1000).",
+      "labels": [
+        "private-data"
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"clarke_get_slot\" references sensitive artifacts (authorization). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:clarke_get_slot",
+        "snippet": "Agent slot record for one GEO position by slug (e.g. '19-2e' for 19.2E, '101w' for 101W). Operator identity is operatorMix, with raw source strings on each shar…"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: clarke_list_deltas · Private data: clarke_list_slots, clarke_get_slot, clarke_get_terminal, clarke_list_satellites · Public sink: clarke_get_slot.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: clarke_list_deltas · Private data: clarke_list_slots, clarke_get_slot, clarke_get_terminal, clarke_list_satellites · Public sink: clarke_get_slot"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 60,
+  "scoreBreakdown": {
+    "tool-poisoning": 20,
+    "toxic-flow": 20
+  },
+  "errors": []
+}

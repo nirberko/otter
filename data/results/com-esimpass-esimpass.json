@@ -1,0 +1,115 @@
+{
+  "schemaVersion": 1,
+  "scanner": {
+    "version": "1.6.0",
+    "rules": "402995650b68"
+  },
+  "target": {
+    "kind": "url",
+    "ref": "https://www.esimpass.com/mcp"
+  },
+  "scannedAt": "2026-10-24T09:00:56.986Z",
+  "durationMs": 456,
+  "layers": {
+    "metadata": true,
+    "static": false
+  },
+  "tools": [
+    {
+      "name": "search_destinations",
+      "descriptionHash": "8a246f650636c3d5b2feb2d08c5758b5d015c5c52b948dcb904ab4e7417f36ef",
+      "description": "Find the eSIMpass travel eSIM for a place: a country (\"Japan\"), a region (\"Europe\", \"Asia\", \"Global\") or a city (\"Tokyo\", which is covered by its country's plans). Returns matching destinations with the slug that get_plans and create_checkout_link take."
+    },
+    {
+      "name": "get_plans",
+      "descriptionHash": "8f4b39cd56b6614dbfb7f75d26720137a2893c87e81e53e1615afeda3162aa0c",
+      "description": "The plans on sale for one destination right now, with live prices, data, validity and the product page URL. For a regional plan it also lists every country covered; a country missing from that list is not covered. Prices and plans change, so these are the current ones.",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "check_device",
+      "descriptionHash": "9d88eb550c7c208de1cda6d09b6d7909334adaf8622970333a85c7bcda23bede",
+      "description": "Whether a phone model supports eSIM, from the models eSIMpass documents (Apple, Samsung, Google). The phone must also be carrier-unlocked; a model not in the list is not necessarily incompatible.",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "create_checkout_link",
+      "descriptionHash": "f8c7ce0ee5924fd00f8f7c0782c898bb56bf1702d4f781489509ca9b756de46b",
+      "description": "A checkout URL on esimpass.com with one plan already selected. It does not pay or place an order: the traveller opens it, enters their email and pays (card, Apple Pay, Google Pay, PayPal or crypto). Minutes later the confirmation page has an Install button (one tap on iPhone and Android), a QR code ",
+      "labels": [
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "get_esim_install",
+      "descriptionHash": "48704544f82fc31f268686afa0769dcc81f1398ffc44f22993b5b99282ef24f9",
+      "description": "After the traveller has paid: one-tap install links for their eSIM, for iPhone (iOS 17.4+) and Android (10+), plus the manual-entry codes. Takes the private eSIM link from the traveller's order confirmation page (https://www.esimpass.com/…/my-esim/…); any other value is refused. Each install link in",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "search",
+      "descriptionHash": "a55086e7d8de0691796e93fe087181cbeaa2ce3d1bb687c301e120b239ad5783",
+      "description": "Search eSIMpass destinations by place name, in the shape ChatGPT connectors use. Returns ids that fetch takes."
+    },
+    {
+      "name": "fetch",
+      "descriptionHash": "60ab770975395f3983faf897c29772e63f123da1f72da3007b27bf8178a061b0",
+      "description": "One destination as a document: plans, live prices and a checkout link per plan. The id comes from search.",
+      "labels": [
+        "private-data"
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-SHADOW-001",
+      "severity": "medium",
+      "category": "shadowing",
+      "title": "Generic tool name can shadow trusted tools",
+      "detail": "Tool \"search\" uses a generic high-value name. When multiple servers load together, this can intercept calls meant for a trusted server.",
+      "evidence": {
+        "source": "tool:search",
+        "snippet": "search"
+      },
+      "confidence": 0.4
+    },
+    {
+      "id": "MCP-SHADOW-001",
+      "severity": "medium",
+      "category": "shadowing",
+      "title": "Generic tool name can shadow trusted tools",
+      "detail": "Tool \"fetch\" uses a generic high-value name. When multiple servers load together, this can intercept calls meant for a trusted server.",
+      "evidence": {
+        "source": "tool:fetch",
+        "snippet": "fetch"
+      },
+      "confidence": 0.4
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: get_plans · Private data: check_device, create_checkout_link, get_esim_install, fetch · Public sink: create_checkout_link.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: get_plans · Private data: check_device, create_checkout_link, get_esim_install, fetch · Public sink: create_checkout_link"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 68,
+  "scoreBreakdown": {
+    "shadowing": 12,
+    "toxic-flow": 20
+  },
+  "errors": []
+}

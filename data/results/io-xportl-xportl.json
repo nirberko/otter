@@ -1,0 +1,100 @@
+{
+  "schemaVersion": 1,
+  "scanner": {
+    "version": "1.6.0",
+    "rules": "402995650b68"
+  },
+  "target": {
+    "kind": "url",
+    "ref": "https://xportl.io/mcp"
+  },
+  "scannedAt": "2026-10-24T09:23:38.192Z",
+  "durationMs": 1075,
+  "layers": {
+    "metadata": true,
+    "static": false
+  },
+  "tools": [
+    {
+      "name": "get_xportl_overview",
+      "descriptionHash": "0d0b6204f9d5938cc6a772928c18e67fed6e058ef791ae4153688711892f4b06",
+      "description": "Returns cite-ready facts about XportL from xportl.io: what it does, the problem it solves, the seven failure classes it detects, how it collects telemetry and acts, supported fabrics/GPUs/collectives/kernels, use cases, FAQ, company details (parent company, stage, NVIDIA Inception, contacts) and lin",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "analyze_nccl_benchmark",
+      "descriptionHash": "dcf785700ed8df8679275c19cd1c834ce0e6a555fd769a8166fb0181b1173933",
+      "description": "Analyzes nccl-tests / rccl-tests results (paste raw all_reduce_perf output, or give size/busbw points). Detects node and GPU counts from the output, compares large-message bus bandwidth with the fabric's NIC line rate (InfiniBand HDR/NDR/XDR, RoCE 100G to 800G), and flags data errors, degraded bandw",
+      "labels": [
+        "destructive"
+      ]
+    },
+    {
+      "name": "calculate_fabric_degradation_cost",
+      "descriptionHash": "6b881099f86a5c5736662a0f488720059230544e8134bb9a24faa7c848779226",
+      "description": "Estimates what silent fabric degradation (slow NCCL collectives, flapping links, congestion) costs a GPU cluster: throughput lost, GPU-hours and dollars per year, idle-GPU equivalent, cost per degraded hour, extra days on a training run, and the value of a recovery scenario with a conservative case ",
+      "labels": [
+        "destructive"
+      ]
+    },
+    {
+      "name": "check_cluster_compatibility",
+      "descriptionHash": "833c7288516dc965da160ecd369842513b6e3aa2c79afcbb7f2f3b83007ba241",
+      "description": "Checks a GPU cluster against XportL's published support matrix (Linux 5.8+ for eBPF, InfiniBand / RoCE v2 / NVLink, NVIDIA and AMD GPUs, NCCL / RCCL, on-prem / cloud / hybrid, host access for the eBPF agent). Returns a verdict (good fit / needs review / not ready), each check, and next steps. Anythi",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "recommend_checkpoint_interval",
+      "descriptionHash": "ad24464e2eb398c96481aa73ee32e4f6251d8cf3a89e02d0e5ecc3f2971acd25",
+      "description": "Recommends how often to checkpoint a training job using the Young and Daly formulas, from GPU count, blocking checkpoint write time, restart time and job MTTF (estimated from Meta's published 2024 reliability data when not given). Returns the recommended interval, expected failures per day, GPU time"
+    },
+    {
+      "name": "request_enterprise_demo",
+      "descriptionHash": "8607ad300b131040208d01746bc417c38f6943954139a34a6a041192e2aaa259",
+      "description": "Sends the user's contact details and cluster summary to the XportL enterprise team to arrange a technical assessment or demo deployment. Before calling: collect name, work email, company and a summary (include benchmark, cost or compatibility results from this conversation), show the user exactly wh",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink"
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOOL-POISON-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description issues instructions to the model",
+      "detail": "Description of \"request_enterprise_demo\" contains imperative instructions directed at the AI assistant rather than describing the tool. This is the core tool-poisoning technique.",
+      "evidence": {
+        "source": "tool:request_enterprise_demo",
+        "snippet": "Sends the user's contact details and cluster summary to the XportL enterprise team to arrange a technical assessment or demo deployment. Before calling: collect…"
+      },
+      "confidence": 0.7,
+      "remediation": "Treat the server as untrusted; the model may obey embedded instructions."
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: check_cluster_compatibility, request_enterprise_demo · Private data: get_xportl_overview, request_enterprise_demo · Public sink: request_enterprise_demo · Destructive: analyze_nccl_benchmark, calculate_fabric_degradation_cost.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: check_cluster_compatibility, request_enterprise_demo · Private data: get_xportl_overview, request_enterprise_demo · Public sink: request_enterprise_demo · Destructive: analyze_nccl_benchmark, calculate_fabric_degradation_cost"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 60,
+  "scoreBreakdown": {
+    "tool-poisoning": 20,
+    "toxic-flow": 20
+  },
+  "errors": []
+}

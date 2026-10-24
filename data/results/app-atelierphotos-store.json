@@ -1,0 +1,116 @@
+{
+  "schemaVersion": 1,
+  "scanner": {
+    "version": "1.6.0",
+    "rules": "402995650b68"
+  },
+  "target": {
+    "kind": "url",
+    "ref": "https://store.atelierphotos.app/api/mcp"
+  },
+  "scannedAt": "2026-10-24T09:13:24.264Z",
+  "durationMs": 437,
+  "layers": {
+    "metadata": true,
+    "static": false
+  },
+  "tools": [
+    {
+      "name": "search_images",
+      "descriptionHash": "edd5cc4836e9e07b7aa8346dc4a0e40e8226188c99a9077799338836a21594aa",
+      "description": "Find images for sale by description, mood, colour or subject — a plain description of the feeling or scene works as well as a keyword, so pass what the person actually said. Give target_width and target_height when the image is destined for a specific screen — results are then ranked by how close ea"
+    },
+    {
+      "name": "get_image",
+      "descriptionHash": "52d9ff698a8a81904c1b99c5b11f7f8038823e67e7a631f331c91ede6027726a",
+      "description": "Everything known about a single listing: its description, keywords, price in credits and money, the license it sells under, and a preview. Use after search_images when the person wants a closer look at one option."
+    },
+    {
+      "name": "list_collections",
+      "descriptionHash": "93435147aa3805e4fd430888aa2ca37fa9758bcd204da2d6b171cbf500969246",
+      "description": "The collections available in the store, with how many images are in each. Use for browsing when there is no particular search in mind; prefer search_images when the person has described what they want."
+    },
+    {
+      "name": "get_licence",
+      "descriptionHash": "565de1b183cd15adf98c584a086381cc748eaa42967fffc18a7a4a612a5439a5",
+      "description": "The full terms an image is sold under: what the buyer may and may not do with it. Read this before recommending a purchase, and whenever the person asks what they are allowed to do with an image. \"personal\" (the default) is what credits and a card one-off buy; \"commercial\" is the business licence, s"
+    },
+    {
+      "name": "unlock_collection",
+      "descriptionHash": "6186da1ad3d0f3375f59f8d946af0be21579fc775257b45d60e1ac678a472ed1",
+      "description": "Open a PRIVATE collection to the signed-in buyer, using the address and access code its photographer gave them — for example a wedding or client gallery whose pictures are also for sale. Afterwards search_images, get_image and list_collections include it for this buyer, and its images can be bought ",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "get_account",
+      "descriptionHash": "4f659cbb0aa4af7e2f9d53f6a788628924be335d1f73f53bf1fe504a3e6291e0",
+      "description": "The signed-in buyer: their credit balance, subscription status, how many images they already own, and whether a free trial is still available. Call this before proposing a purchase, so you know what they can already afford. Requires sign-in."
+    },
+    {
+      "name": "start_trial",
+      "descriptionHash": "10f191ccf4a44b3d4cbdcb8e208262c5281e3602dc1469a9ce5c9fe9ff620ed8",
+      "description": "Give the signed-in buyer 3 credits free, once per email address, ever, and never to an account that has paid here. Offer it when get_account says trial_available, someone wants an image, has no credits and has not tried the store before — AND the trial would buy that image: its price.credits is no m",
+      "labels": [
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "create_checkout",
+      "descriptionHash": "c7dd7735f69718410747b0df6a27a59b4a6d382bb639b28c9f928d3df6652350",
+      "description": "Return a payment link for the person to open in a browser: either a subscription plan, or a single image bought outright (only where price.card_available is true) — or that image's commercial license, with licence=commercial, where price.commercial is not null. The commercial license is sold only th",
+      "labels": [
+        "untrusted-content",
+        "private-data"
+      ]
+    },
+    {
+      "name": "fulfil_image",
+      "descriptionHash": "98f59db2ddf11a4fd954d5d994e0ec9ac3eb3b653b267249bc84043ef66f6ef5",
+      "description": "Deliver an image to the signed-in buyer, spending the image's price in credits (price.credits in search_images and get_image — often 1, sometimes more) if they do not already own it. Credits buy the personal license only; the commercial license is bought with create_checkout, and this then delivers ",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "list_entitlements",
+      "descriptionHash": "1bc24da5b545231ef0197951338f5a036a55e1e74039f5c9ab5489fbc64caaa0",
+      "description": "Everything the signed-in buyer has bought, newest first. Re-downloading any of them with fulfil_image costs nothing. Pass include_previews: true whenever the person wants to see their library: small pictures (at most 12 per page) without a fulfil_image per image. Requires sign-in."
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-SCHEMA-SMELL-001",
+      "severity": "medium",
+      "category": "schema-smell",
+      "title": "Read-only tool requests dangerous parameters",
+      "detail": "Tool \"get_licence\" appears informational but accepts parameters (code) that enable code/file/secret access.",
+      "evidence": {
+        "source": "tool:get_licence",
+        "snippet": "code, version"
+      },
+      "confidence": 0.55
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: create_checkout · Private data: unlock_collection, start_trial, create_checkout, fulfil_image · Public sink: start_trial.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: create_checkout · Private data: unlock_collection, start_trial, create_checkout, fulfil_image · Public sink: start_trial"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 72,
+  "scoreBreakdown": {
+    "schema-smell": 8,
+    "toxic-flow": 20
+  },
+  "errors": []
+}

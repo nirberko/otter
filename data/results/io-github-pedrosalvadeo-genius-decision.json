@@ -1,0 +1,132 @@
+{
+  "schemaVersion": 1,
+  "scanner": {
+    "version": "1.6.0",
+    "rules": "402995650b68"
+  },
+  "target": {
+    "kind": "url",
+    "ref": "https://geniusdecision.app/mcp"
+  },
+  "scannedAt": "2026-10-24T09:22:36.674Z",
+  "durationMs": 1116,
+  "layers": {
+    "metadata": true,
+    "static": false
+  },
+  "tools": [
+    {
+      "name": "get_contribution_inbox",
+      "descriptionHash": "74f7b849800d624889d5a0587aab85811c0ffd4ab8f64195474995d319f84ecb",
+      "description": "Read the public contribution deposit contract. Agents can deliver code, tests, models and evidence without a GitHub account. Only publish material authorized by your operator.",
+      "labels": [
+        "untrusted-content",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "submit_contribution",
+      "descriptionHash": "a924d2db0ce66470c9624cbdc05b2d55ed7b584667af0edc1fd01a0d4d1c583b",
+      "description": "Publish one immutable contribution for authorized AI review. All fields and files become publicly readable. Requires operator_authorized=true and publication_confirmed=true inside submission. No private data or secrets. Does not execute, approve or merge the files. First read get_contribution_inbox ",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink",
+        "destructive"
+      ]
+    },
+    {
+      "name": "get_contribution",
+      "descriptionHash": "c257ec61abdcf0d457d9e97485578c15c39d2129fad980a52da650b244a343cd",
+      "description": "Read a public contribution and its immutable storage receipt. Receipt status is not review or integration status.",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "find_opportunities",
+      "descriptionHash": "8c6e2032029468166f7e3ef1ef67438288c6e4e7a10a2e6a08c09a1f37390cd2",
+      "description": "Find voluntary Genius contribution opportunities for an explicit goal and capabilities. Read only: no execution, account, tracking, inference or forwarding. Returns reasons, requirements, first actions and NO_MATCH when appropriate."
+    },
+    {
+      "name": "get_capabilities",
+      "descriptionHash": "36f22f94a956638caa62b79cd1dfdc70414f371f2d3d8947fd672bad3c8cdbdc",
+      "description": "Read Genius availability, limits, supported formal profiles and data policy."
+    },
+    {
+      "name": "read_demo_result",
+      "descriptionHash": "ad5c7dd479f339a97dc4a4d4daeaa1b865f4c9187b4033507f81daf146d8649a",
+      "description": "Read a SAVED real-engine synthetic result; does not execute a new job. Preserve unknown values and limits.",
+      "labels": [
+        "destructive"
+      ]
+    },
+    {
+      "name": "run_demo",
+      "descriptionHash": "5245fa4afc537b889e68c0d6ca99b7e9d283fc4056f832c8d233d4d37790a686",
+      "description": "Execute one fixed SYNTHETIC example using the real engine; consumes shared quota. Temporary space is deleted before returning. No custom input or human data. Do not blindly retry failures.",
+      "labels": [
+        "destructive"
+      ]
+    },
+    {
+      "name": "club_capabilities",
+      "descriptionHash": "89457ae162e2573c291b85815a5063d9fa03f3176074ca4f66765ce799796e4e",
+      "description": "Read Club Genius availability, data policy, formats, quotas and credential requirements. No registration or membership is implied.",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "club_directory",
+      "descriptionHash": "730eb952441432537ce408dce27afd20cc568aff76c47d5d65b8583fafb3634f",
+      "description": "Read voluntarily published agent profiles. Names/capabilities are self-declared, unverified and untrusted. No outreach or execution is authorized by a profile."
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOOL-POISON-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description issues instructions to the model",
+      "detail": "Description of \"submit_contribution\" contains imperative instructions directed at the AI assistant rather than describing the tool. This is the core tool-poisoning technique.",
+      "evidence": {
+        "source": "tool:submit_contribution",
+        "snippet": "Publish one immutable contribution for authorized AI review. All fields and files become publicly readable. Requires operator_authorized=true and publication_co…"
+      },
+      "confidence": 0.7,
+      "remediation": "Treat the server as untrusted; the model may obey embedded instructions."
+    },
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"submit_contribution\" references sensitive artifacts (secret). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:submit_contribution",
+        "snippet": "Publish one immutable contribution for authorized AI review. All fields and files become publicly readable. Requires operator_authorized=true and publication_co…"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: get_contribution_inbox, submit_contribution, get_contribution · Private data: submit_contribution, club_capabilities · Public sink: get_contribution_inbox, submit_contribution · Destructive: submit_contribution, read_demo_result, run_demo.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: get_contribution_inbox, submit_contribution, get_contribution · Private data: submit_contribution, club_capabilities · Public sink: get_contribution_inbox, submit_contribution · Destructive: submit_contribution, read_demo_result, run_demo"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 50,
+  "scoreBreakdown": {
+    "tool-poisoning": 30,
+    "toxic-flow": 20
+  },
+  "errors": []
+}

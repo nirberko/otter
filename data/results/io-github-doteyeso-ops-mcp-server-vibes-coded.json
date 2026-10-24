@@ -8,8 +8,8 @@
     "kind": "url",
     "ref": "https://vibes-coded-mcp-production.up.railway.app/mcp"
   },
-  "scannedAt": "2026-09-17T09:36:03.149Z",
-  "durationMs": 206,
+  "scannedAt": "2026-10-24T09:05:14.635Z",
+  "durationMs": 563,
   "layers": {
     "metadata": true,
     "static": false
@@ -37,6 +37,34 @@
       "name": "vc_json_repair",
       "descriptionHash": "1d5306d8318705c6b01532d2b98140d3159ee895e35180c4b8845bee7be1e915",
       "description": "Repair malformed JSON from LLM output and return valid parsed JSON.\n\n    Use when a model returned broken JSON (trailing commas, missing quotes, etc.).\n    Do not use for web fetching or search — use vc_web_search / vc_page_markdown.\n\n    Auth: free-trial or X-Vibes-Key preferred; else x402 (~$0.02)"
+    },
+    {
+      "name": "vc_agent_proof",
+      "descriptionHash": "a4c16b5673c0b358e1c3059e0e12bb98c3036f53f94387ff656a8fad4dd0f27c",
+      "description": "Verify an agent's completion claim against real external world state.\n    Runs independent read-back checks (HTTP status, page text, JSON fields) and returns a digest\n    receipt with verified=true/false plus a confidence score, so a user does not have to trust the\n    agent's self-reported summary.",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "vc_lease_issue",
+      "descriptionHash": "55cbde016915fb8f0a9d56abe7a367e68bf8902161ee0e6e23e11d8033b46957",
+      "description": "Mint a durable single-use capability lease, or attenuate a parent lease.\n    Use before an irreversible action you may need to retry: pass a stable use_nonce to\n    vc_lease_consume so a retry after a timeout blocks instead of writing twice.\n    Authority is conserved — a child's uses are reserved o"
+    },
+    {
+      "name": "vc_lease_consume",
+      "descriptionHash": "9fa505ac985b1870498325c442a045dbb03de8d206333dbae72e998834875cc2",
+      "description": "Spend exactly one use of a lease, atomically. Blocks replay, expiry, revocation and overuse.\n    Returns decision allow/block with a named reason plus an Ed25519 decision receipt.\n    If a previous attempt timed out, call this again with the SAME use_nonce: a replay returns\n    reason=replay — do no"
+    },
+    {
+      "name": "vc_lease_revoke",
+      "descriptionHash": "1ce494fb64f53a64ec8eda50d07359a48f58fd4c2fce42aafc4c39404f4af1b0",
+      "description": "Revoke a lease and (by default) its whole subtree so derived authority dies with its source.\n    Use when an agent is misbehaving or a task is cancelled. ~$0.02/call."
+    },
+    {
+      "name": "vc_lease_status",
+      "descriptionHash": "a1a0b3fe5f40bb4b3054b8668cc18561fc6ff0077a56987ea3610e9ba4485013",
+      "description": "Read the ledger's view of a lease: uses consumed with nonces/timestamps, remaining authority,\n    and whether it is live, expired or revoked. ~$0.01/call."
     },
     {
       "name": "vc_agent_state_guard",
@@ -162,6 +190,23 @@
       ]
     },
     {
+      "name": "vc_marketplace_search",
+      "descriptionHash": "fb900465030f4cdcefc7975da1c498354548b297c3693643a01a46f2943abf8c",
+      "description": "Search the Vibes-Coded marketplace for AI-agent tools and API outcomes.\n\n        Use when a user wants to discover a tool, API, skill, validation service,\n        web/research utility, agent-safety check, or other capability available on\n        Vibes-Coded. Search by the user's actual task and retu",
+      "labels": [
+        "destructive"
+      ]
+    },
+    {
+      "name": "vc_marketplace_details",
+      "descriptionHash": "de875743bd38b378a3d2b7b3d4992f782e5e943c6bf6d2493a13353de820ac47",
+      "description": "Get details for one Vibes-Coded marketplace resource.\n\n        Use after `vc_marketplace_search` when the user wants to inspect a specific\n        result before using it. Returns listing metadata, price when available,\n        a user-openable Vibes-Coded URL, and the execution route.\n\n        Read-o",
+      "labels": [
+        "untrusted-content",
+        "destructive"
+      ]
+    },
+    {
       "name": "vc_skill_scan_consensus",
       "descriptionHash": "33b1cb4cded9d757b7c021e61a49325fa6746e2cb63f41138161334625d5c9e5",
       "description": "Reconcile conflicting agent-skill security scanner reports.\n\n    Use after running two or more independent scanners. Returns agreement, conflicts,\n    conservative verdict, normalized scores, combined rule IDs, and an evidence fingerprint.\n    Direct deterministic delivery: no second Vibes-Coded pay"
@@ -203,22 +248,35 @@
       "confidence": 0.75
     },
     {
+      "id": "MCP-TOOL-POISON-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description issues instructions to the model",
+      "detail": "Description of \"vc_marketplace_details\" contains imperative instructions directed at the AI assistant rather than describing the tool. This is the core tool-poisoning technique.",
+      "evidence": {
+        "source": "tool:vc_marketplace_details",
+        "snippet": "Get details for one Vibes-Coded marketplace resource. Use after `vc_marketplace_search` when the user wants to inspect a specific result before using it. Return…"
+      },
+      "confidence": 0.7,
+      "remediation": "Treat the server as untrusted; the model may obey embedded instructions."
+    },
+    {
       "id": "MCP-TOXIC-FLOW-001",
       "severity": "high",
       "category": "toxic-flow",
       "title": "Lethal trifecta: untrusted input + private data + external sink",
-      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: vc_web_search, vc_page_markdown, vc_square_feed, vc_square_post, pay · Private data: vc_web_search, vc_square_feed, vc_square_post, vc_workspace_create, vc_workspace_write, vc_workspace_read, vc_workspace_list, vc_payment_watch, vc_skill_risk_scan, pay · Public sink: vc_square_feed, vc_square_post, vc_notepad_share · Destructive: vc_web_search.",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: vc_web_search, vc_page_markdown, vc_square_feed, vc_square_post, vc_marketplace_details, pay · Private data: vc_web_search, vc_agent_proof, vc_square_feed, vc_square_post, vc_workspace_create, vc_workspace_write, vc_workspace_read, vc_workspace_list, vc_payment_watch, vc_skill_risk_scan, pay · Public sink: vc_square_feed, vc_square_post, vc_notepad_share · Destructive: vc_web_search, vc_marketplace_search, vc_marketplace_details.",
       "evidence": {
         "source": "server:mcp",
-        "snippet": "Untrusted content: vc_web_search, vc_page_markdown, vc_square_feed, vc_square_post, pay · Private data: vc_web_search, vc_square_feed, vc_square_post, vc_workspace_create, vc_workspace_write, vc_workspace_read, vc_workspace_list, vc_payment_watch, vc_skill_risk_scan, pay · Public sink: vc_square_feed, vc_square_post, vc_notepad_share · Destructive: vc_web_search"
+        "snippet": "Untrusted content: vc_web_search, vc_page_markdown, vc_square_feed, vc_square_post, vc_marketplace_details, pay · Private data: vc_web_search, vc_agent_proof, vc_square_feed, vc_square_post, vc_workspace_create, vc_workspace_write, vc_workspace_read, vc_workspace_list, vc_payment_watch, vc_skill_risk_scan, pay · Public sink: vc_square_feed, vc_square_post, vc_notepad_share · Destructive: vc_web_search, vc_marketplace_search, vc_marketplace_details"
       },
       "confidence": 0.6,
       "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
     }
   ],
-  "score": 60,
+  "score": 50,
   "scoreBreakdown": {
-    "tool-poisoning": 20,
+    "tool-poisoning": 30,
     "toxic-flow": 20
   },
   "errors": []

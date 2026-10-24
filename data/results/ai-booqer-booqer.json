@@ -1,0 +1,116 @@
+{
+  "schemaVersion": 1,
+  "scanner": {
+    "version": "1.6.0",
+    "rules": "402995650b68"
+  },
+  "target": {
+    "kind": "url",
+    "ref": "https://booqer.ai/mcp"
+  },
+  "scannedAt": "2026-10-24T08:58:54.957Z",
+  "durationMs": 1893,
+  "layers": {
+    "metadata": true,
+    "static": false
+  },
+  "tools": [
+    {
+      "name": "search_businesses",
+      "descriptionHash": "2836ec25437eb4e4772c4f98b569b91a67c5220172c97f3a02f6deaa30dc7f71",
+      "description": "Use this when the user wants to find a local home-service business or appointment: plumber, HVAC, electrician, gate, fence, or security install, pole barn, or builder. Searches the Booqer directory of enrolled home-service businesses by name, category, service, location, or phone. Coverage is limite",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "get_business",
+      "descriptionHash": "50bb3ef1c8913f2f5d850abffd0c34cff350712a35fd56b6f80ab30de4ee5dd6",
+      "description": "Use this when the user wants to read one enrolled local home-service business and search_businesses or resolve_business already returned its id. Returns one enrolled shop as JSON: id, brand, legal_name, page, booking_url, phone when published, sms, services as id and name, hours, timezone, verificat",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "resolve_business",
+      "descriptionHash": "669891bed25fa6c0a0ee1100c450e01d8435af928da66678153e2a02cbdd8b87",
+      "description": "Use this when the user wants to resolve one enrolled local home-service business from a domain, a place, or a phone number. An ambiguous match is refused. Returns that one identity. No phone, email, or street address is returned.",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "check_availability",
+      "descriptionHash": "72e702efa99984a8053725fe0adf35a36992d2f8656355fb80459e8d3f5f928a",
+      "description": "Use this when the user wants to check availability for a local home-service appointment before booking. Lists the open 30-minute slots for one shop and one date. Booked and blocked times are left out. Each start and end is ISO-8601 with an offset. The shop timezone is America/New_York. date is YYYY-"
+    },
+    {
+      "name": "request_booking",
+      "descriptionHash": "4d432767e73de3d29693e5d3569bd98bd0ce81ba4d5aace90791a81947ed8587",
+      "description": "Use this when the user wants to book a local home-service appointment and has already chosen an open time. Confirms a free consult when the slot is open. Calling this again with the same details can create a second booking; if unsure, check get_booking_status first. Requires consent: before calling,",
+      "labels": [
+        "untrusted-content",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "get_booking_status",
+      "descriptionHash": "26914c40724d44867242483708a0709013be7482694bb9aef2ce94e6e7ae9c65",
+      "description": "Use this when the user wants to check the status of a local home-service appointment. status is confirmed, pending, canceled, or failed. No customer name, phone, or email.",
+      "labels": [
+        "untrusted-content",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "request_service",
+      "descriptionHash": "5de2ac09a115c8c2e907f5d992136edcda6175cad227592bb2dd2281a536a5bf",
+      "description": "Use this when the user wants to open a quote form for a local home-service business rather than book a confirmed appointment time. Opens the quote widget for one enrolled business. business_id is the provider_business_id from the business feed. shop_id is accepted when business_id is empty. The widg",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "submit_service_request",
+      "descriptionHash": "91eb040812d612a8ccdad4932885ea86f13424f59f7267fd78ac07f0a35985b1",
+      "description": "Sends the user's quote request (name, email, optional phone, service location, preferred time) to the chosen business. Called by the quote form only.",
+      "labels": [
+        "public-sink"
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOOL-POISON-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description issues instructions to the model",
+      "detail": "Description of \"request_booking\" contains imperative instructions directed at the AI assistant rather than describing the tool. This is the core tool-poisoning technique.",
+      "evidence": {
+        "source": "tool:request_booking",
+        "snippet": "Use this when the user wants to book a local home-service appointment and has already chosen an open time. Confirms a free consult when the slot is open. Callin…"
+      },
+      "confidence": 0.7,
+      "remediation": "Treat the server as untrusted; the model may obey embedded instructions."
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "medium",
+      "category": "toxic-flow",
+      "title": "Toxic flow: untrusted input can reach an external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: search_businesses, request_booking, get_booking_status, request_service · Public sink: get_business, resolve_business, request_booking, get_booking_status, submit_service_request.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: search_businesses, request_booking, get_booking_status, request_service · Public sink: get_business, resolve_business, request_booking, get_booking_status, submit_service_request"
+      },
+      "confidence": 0.45,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 72,
+  "scoreBreakdown": {
+    "tool-poisoning": 20,
+    "toxic-flow": 8
+  },
+  "errors": []
+}

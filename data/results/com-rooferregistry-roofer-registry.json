@@ -1,0 +1,109 @@
+{
+  "schemaVersion": 1,
+  "scanner": {
+    "version": "1.6.0",
+    "rules": "402995650b68"
+  },
+  "target": {
+    "kind": "url",
+    "ref": "https://rooferregistry.com/api/mcp"
+  },
+  "scannedAt": "2026-10-24T09:02:19.589Z",
+  "durationMs": 468,
+  "layers": {
+    "metadata": true,
+    "static": false
+  },
+  "tools": [
+    {
+      "name": "check_license",
+      "descriptionHash": "edfaa9ad34a50c8b61e8310a65532efa08c4ab6f16e523e447b7cc71fa9e69a3",
+      "description": "Look up one roofing contractor license by state and license number. Returns status as published by the state regulator, a machine-readable verdict (licensed-active | licensed-not-active | not-found), licensee name, city, expiration, and provenance (regulator source URL + fetch date). The verdict is ",
+      "labels": [
+        "untrusted-content",
+        "private-data"
+      ]
+    },
+    {
+      "name": "search_licensees",
+      "descriptionHash": "fc82a825f99285522898a7ed32a8b352940cb8f4fb9e3dec3d1d4cd05ec48301",
+      "description": "Search roofing contractors by name, firm, or partial license number, optionally within a state and city. Returns up to 50 regulator-sourced records with a true total count. Use this when the user has a name but no license number.",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "state_rules",
+      "descriptionHash": "93a570838176ad65767e9a00cd858ee37c01437c0d52c9056bc7776799a9b4d1",
+      "description": "Return what Roofer Registry has verified about a state's rules for roofing contractors: licensing, licenseTypes, deductibleWaiver, depositRule, permit, insurance, unlicensedPenalty, rightToCancel, aob — each { value, quote, citation, url } or null. Plus regulator, lookup URL, active-licensee count. "
+    },
+    {
+      "name": "unlicensed_activity",
+      "descriptionHash": "4f8cb83a6d8204964dad44b97ac03b1f047ff4f471fe95d9838e7dbff99b5823",
+      "description": "List people and companies the state board cited for unlicensed contracting, filtered by county and/or name. Use when the user has a name or company from a truck or flyer but no license number, or asks who was caught working unlicensed after a storm. Republished as filed; a citation is not a judgment"
+    },
+    {
+      "name": "enforcement_actions",
+      "descriptionHash": "c764e5cb5d35802dc6288e5bfa6dbc27ad5aa58d3f20ea3e57e1f0052fd6df74",
+      "description": "Board discipline and unlicensed-activity citations for a state, license number, name, or county. Merges licensed-activity discipline rows and unlicensed-activity citations, newest first. Republished as filed; a citation is an allegation the board acted on, a Final Order is the board's decision."
+    },
+    {
+      "name": "compare_rules",
+      "descriptionHash": "7b8c6dd27e181e369ecba025ba1c8e05421b806c92f0ca69d05eea207af3e247",
+      "description": "Compare a specific rule field across 2–10 states. Only states with verified: true carry a rule. Treat null as \"not verified\", not \"no rule\". Input formats: states as two-letter codes (FL, GA, TX); field is one of licensing, licenseTypes, deductibleWaiver, depositRule, permit, insurance, unlicensedPe"
+    },
+    {
+      "name": "changes_since",
+      "descriptionHash": "b3901dc3c0ec8b00e375569c9f58fe0db9c343b6943495e0ad7de6290765cf88",
+      "description": "License changes (new, lapsed, status change) since a given date, optionally filtered by state and change type. Changes are tracked starting from the first roster refresh after deploy — no backfill is available. Use when monitoring for new licenses, lapses, or status changes."
+    },
+    {
+      "name": "verify_live",
+      "descriptionHash": "031a9722d8f72832ccc5fa82a1bbceaa608c6257d09f973f10cfed0c51cc99f0",
+      "description": "Fetch the current license status directly from the state regulator (FL only) and compare it with our roster copy. Uses a 24-hour cache; the second call within 24h returns cached: true. Other states return { supported: false, lookupUrl }. Hard cap: 100 live fetches per UTC day."
+    },
+    {
+      "name": "request_contact",
+      "descriptionHash": "c3d739b79bcb16d0a02d669c8c95ef32351da659eaea9113bd8d1b664c65e0c4",
+      "description": "Send a contact request to ONE specific licensee the user has chosen, by license number. This creates the same consent-recorded request a person submits on the profile page; it is not lead routing and we never pick the licensee for the user. Only call after the user has seen the record and explicitly",
+      "labels": [
+        "private-data",
+        "public-sink"
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOOL-POISON-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description issues instructions to the model",
+      "detail": "Description of \"request_contact\" contains imperative instructions directed at the AI assistant rather than describing the tool. This is the core tool-poisoning technique.",
+      "evidence": {
+        "source": "tool:request_contact",
+        "snippet": "Send a contact request to ONE specific licensee the user has chosen, by license number. This creates the same consent-recorded request a person submits on the p…"
+      },
+      "confidence": 0.7,
+      "remediation": "Treat the server as untrusted; the model may obey embedded instructions."
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: check_license · Private data: check_license, search_licensees, request_contact · Public sink: request_contact.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: check_license · Private data: check_license, search_licensees, request_contact · Public sink: request_contact"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 60,
+  "scoreBreakdown": {
+    "tool-poisoning": 20,
+    "toxic-flow": 20
+  },
+  "errors": []
+}

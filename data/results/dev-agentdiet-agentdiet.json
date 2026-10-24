@@ -1,0 +1,90 @@
+{
+  "schemaVersion": 1,
+  "scanner": {
+    "version": "1.6.0",
+    "rules": "402995650b68"
+  },
+  "target": {
+    "kind": "url",
+    "ref": "https://agentdiet.dev/mcp"
+  },
+  "scannedAt": "2026-10-24T09:03:19.717Z",
+  "durationMs": 847,
+  "layers": {
+    "metadata": true,
+    "static": false
+  },
+  "tools": [
+    {
+      "name": "distill_webpage",
+      "descriptionHash": "e269a95f42866b1fff4cd193f9d8680271a7e8fbbebf9b4929057b82cd1998af",
+      "description": "Fetch a public HTTP(S) web page (or accept raw HTML) and distill its main prose into clean Markdown, stripping 85-97% of HTML/JS/CSS boilerplate. WHEN TO USE: Call this tool to read full or query-filtered article and documentation text; call recon_webpage_skeleton first to preview headings and token",
+      "labels": [
+        "untrusted-content",
+        "private-data"
+      ]
+    },
+    {
+      "name": "recon_webpage_skeleton",
+      "descriptionHash": "c7648f21bbfa2870ea868bcb8407039a0767aad1a6e3ee3b2d4e1dfd70a0a454",
+      "description": "Extract an ultra-compact structural outline (under ~200 tokens) of a web page listing its H1-H4 headings and exact token count per section without returning body prose. WHEN TO USE: Call this tool first on long or unfamiliar pages to inspect structure and token cost before calling distill_webpage (w",
+      "labels": [
+        "untrusted-content",
+        "private-data"
+      ]
+    },
+    {
+      "name": "extract_structured_data",
+      "descriptionHash": "359765f3bad1624ff8814c734127540fdfbb7c163842c4d01dc35f0b8bf7d27f",
+      "description": "Extract machine-readable structured data from a web page: Schema.org JSON-LD objects, OpenGraph metadata, HTML tables parsed as JSON row arrays, fenced code blocks, section headings, and links. WHEN TO USE: Call this tool for pricing tables, API specifications, product metadata, or code snippets; us",
+      "labels": [
+        "untrusted-content",
+        "private-data"
+      ]
+    },
+    {
+      "name": "get_agent_wallet_status",
+      "descriptionHash": "2ba154caf98dd04808495e56e49c0db94a0d248d084666e40ff2b82f912fcae4",
+      "description": "Inspect an agent's account ledger: remaining free trial calls (out of 5), prepaid USD balance, cumulative spend, total API calls, and total LLM tokens saved. WHEN TO USE: Call before a batch of paid tool executions or after completing a Stripe or USDC top-up to confirm your balance. WHEN NOT TO USE:",
+      "labels": [
+        "private-data",
+        "public-sink",
+        "destructive"
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOOL-POISON-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description issues instructions to the model",
+      "detail": "Description of \"recon_webpage_skeleton\" contains imperative instructions directed at the AI assistant rather than describing the tool. This is the core tool-poisoning technique.",
+      "evidence": {
+        "source": "tool:recon_webpage_skeleton",
+        "snippet": "Extract an ultra-compact structural outline (under ~200 tokens) of a web page listing its H1-H4 headings and exact token count per section without returning bod…"
+      },
+      "confidence": 0.7,
+      "remediation": "Treat the server as untrusted; the model may obey embedded instructions."
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: distill_webpage, recon_webpage_skeleton, extract_structured_data · Private data: distill_webpage, recon_webpage_skeleton, extract_structured_data, get_agent_wallet_status · Public sink: get_agent_wallet_status · Destructive: get_agent_wallet_status.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: distill_webpage, recon_webpage_skeleton, extract_structured_data · Private data: distill_webpage, recon_webpage_skeleton, extract_structured_data, get_agent_wallet_status · Public sink: get_agent_wallet_status · Destructive: get_agent_wallet_status"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 60,
+  "scoreBreakdown": {
+    "tool-poisoning": 20,
+    "toxic-flow": 20
+  },
+  "errors": []
+}

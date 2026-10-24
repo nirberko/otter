@@ -8,19 +8,121 @@
     "kind": "url",
     "ref": "https://app.revensi.com/mcp"
   },
-  "scannedAt": "2026-10-14T09:53:39.917Z",
-  "durationMs": 1042,
+  "scannedAt": "2026-10-24T09:02:10.775Z",
+  "durationMs": 753,
   "layers": {
-    "metadata": false,
+    "metadata": true,
     "static": false
   },
-  "findings": [],
-  "score": 100,
-  "scoreBreakdown": {},
-  "errors": [
+  "tools": [
     {
-      "scanner": "metadata",
-      "message": "Streamable HTTP error: Error POSTing to endpoint: {\"error\":\"invalid_token\",\"error_description\":\"No authorization provided\"}"
+      "name": "search_agents",
+      "descriptionHash": "10ad125f4334caeb4d8fc1151b0a08e9323096e0fb076e5c26208a7b7e4151d4",
+      "description": "Search Revensi's free published agent blueprints by task, department, system or integration. No account or authentication is needed. These are specifications and fictional examples, not connected or running agents."
+    },
+    {
+      "name": "get_agent",
+      "descriptionHash": "cc84a9e9df35adf4798a03c83ad132c2539e33bde997dcfaeabe8f36bb2394e6",
+      "description": "Read the full published blueprint, including inputs, outputs, tools, context, deliverables, review boundaries, evaluations and fictional examples. No authentication needed. Does not execute an agent or grant access to external systems.",
+      "labels": [
+        "untrusted-content",
+        "destructive"
+      ]
+    },
+    {
+      "name": "get_agent_spec",
+      "descriptionHash": "5dfaede1e5145f0e5e54cf4e1a380fa2db44a7538d6f9d366bb0cd09c8805bc0",
+      "description": "Get a published agent's Markdown build brief to adapt to the user's systems. No authentication needed. This returns a specification; it does not create, connect or run the agent.",
+      "labels": [
+        "destructive"
+      ]
+    },
+    {
+      "name": "list_workflows",
+      "descriptionHash": "dde791cb9b1b8ac50098c7c53aed56b216f710d52d51559c095bd3c0367d1423",
+      "description": "Use this when the user wants to find or compare saved workflows in their Revensi workspace. Returns live workspace data, not an interview transcript.",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "get_workflow",
+      "descriptionHash": "c8fda4d6041fdbd2d40d70c11ce67d2d585a4a4ef4fcb7c3b514cd20d14dcd3d",
+      "description": "Use this when the user wants one saved workflow's map, effort, scores, and open questions. Never returns the interview transcript.",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "list_workflow_questions",
+      "descriptionHash": "9a7c7cc4fdb08a47b075ba82690715b114dfbe5e052eb0238135268a81b631ab",
+      "description": "Use this when the user wants unanswered or deferred questions and blockers from active, non-archived Revensi workflows. This tool does not answer them."
+    },
+    {
+      "name": "list_connectors",
+      "descriptionHash": "9d8b2918cbcf9f2575f6efa2491849045dcb7f57043b0d1567ddae616e7f19fb",
+      "description": "Use this when the user wants named services in the Revensi connector catalog and which workflow maps mention them. These are catalog records, not authenticated external accounts.",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "list_resources",
+      "descriptionHash": "0794767323c46b378e70c1182083aef097edb0c7d9b8f8587e62c7ad1128f434",
+      "description": "Use this when the user wants metadata for files saved in their Revensi resource library. Does not return document bodies.",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "add_workflow",
+      "descriptionHash": "9a1cfeda58f36916fa4630cbe3959ec4328255f2827fc1e0a05865f1474890e1",
+      "description": "Use this only after the user reviews and approves a complete conversation-drafted workflow. Creates one draft; it does not publish or run the workflow.",
+      "labels": [
+        "public-sink",
+        "destructive"
+      ]
+    },
+    {
+      "name": "add_connector",
+      "descriptionHash": "02bfb4081d392e7ceccc35a6ca4afd4484f390d75c1f00104cbed4ecce605958",
+      "description": "Use this when the user wants to name an external service in Revensi's connector catalog. This does not connect an account or grant access."
+    },
+    {
+      "name": "remove_connector",
+      "descriptionHash": "0c35bc9a43be2595b1b05e33cbed8cc3545942b8e6ba20093a60b1ec81ed4879",
+      "description": "Use this only after the user clearly asks to remove the exact named catalog entry. Refuses entries still referenced by any workflow; does not disconnect external accounts.",
+      "labels": [
+        "destructive"
+      ]
+    },
+    {
+      "name": "remove_resource",
+      "descriptionHash": "02f8afff0b95f90f08445c55e07ba1be1ff2162dd8b1f4a79ac64f53928ad6eb",
+      "description": "Use this only after the user confirms the exact named resource. Deletes its library copy and searchable chunks; historical workflow quotations may remain.",
+      "labels": [
+        "destructive"
+      ]
     }
-  ]
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: get_agent, list_workflows, get_workflow · Private data: list_connectors, list_resources · Public sink: add_workflow · Destructive: get_agent, get_agent_spec, add_workflow, remove_connector, remove_resource.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: get_agent, list_workflows, get_workflow · Private data: list_connectors, list_resources · Public sink: add_workflow · Destructive: get_agent, get_agent_spec, add_workflow, remove_connector, remove_resource"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 80,
+  "scoreBreakdown": {
+    "toxic-flow": 20
+  },
+  "errors": []
 }

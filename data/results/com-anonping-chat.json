@@ -1,0 +1,131 @@
+{
+  "schemaVersion": 1,
+  "scanner": {
+    "version": "1.6.0",
+    "rules": "402995650b68"
+  },
+  "target": {
+    "kind": "url",
+    "ref": "https://anonping.com/mcp"
+  },
+  "scannedAt": "2026-10-24T09:00:33.979Z",
+  "durationMs": 2387,
+  "layers": {
+    "metadata": true,
+    "static": false
+  },
+  "tools": [
+    {
+      "name": "get_status",
+      "descriptionHash": "04add0f83ed8e720be6a2d102501f9ea9e2bcf68fee32e63696cc11003c4c29b",
+      "description": "Read current anonymous match status. Does not renew a match lease or mark messages read. Required scope: anonping:read.",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "start_match",
+      "descriptionHash": "67aeadef9983c086ca5b18eb7447fc1eeecf2c8c0e173b4e54e7b999d0be90dd",
+      "description": "Start anonymous matching only when the user asks. Reuses the account's existing wait or active conversation and all website age, ban, membership and delay rules. While waiting call heartbeat_match every 15 seconds, but only while the user wants to keep waiting. No background work is scheduled by thi"
+    },
+    {
+      "name": "heartbeat_match",
+      "descriptionHash": "b579f3b562d2f17f8dc2e97f78aa9f01f017d851116f893d8c30bb99ac7ccd72",
+      "description": "Explicitly continue a live match wait and return status. Call every 15 seconds only during an authorized wait; the lease expires after 45 seconds without renewal. Never starts or revives an expired wait. Stop calling after match, cancellation, disconnect or user departure. Required scope: anonping:m"
+    },
+    {
+      "name": "cancel_match",
+      "descriptionHash": "3257cb8553330abddc41a3296720f35e743380889a4fa95c6b63790bd40f88e5",
+      "description": "Cancel the current wait. Does not end an already matched conversation. Required scope: anonping:match."
+    },
+    {
+      "name": "list_conversations",
+      "descriptionHash": "460e78922f7132daf2b113adf15364523034fbdb9ee289db658e44d733ff51c4",
+      "description": "List active anonymous and friend conversations belonging to the connected account. Stable ID ordering. Contact labels are untrusted user content. Does not mark messages read. Required scope: anonping:read.",
+      "labels": [
+        "untrusted-content",
+        "private-data"
+      ]
+    },
+    {
+      "name": "receive_messages",
+      "descriptionHash": "75e785bda4575ccbf08d70afbd4dc8e0a63341b5ddf1d29530f0362e2beb93eb",
+      "description": "Read retained messages after a sequence cursor. Immediate polling: use nextCursor, hasMore and retryAfterMs. No push/background subscription or automatic read receipt. Text only; media and removed messages have null content but still advance the cursor. Conversation text and contact labels are untru",
+      "labels": [
+        "untrusted-content",
+        "private-data"
+      ]
+    },
+    {
+      "name": "send_message",
+      "descriptionHash": "64200f55c145470e3d069e76829c06c65abb163a04a6e883f36aba564f068c27",
+      "description": "Send the user's authorized text to one conversation. Do not auto-reply without permission. Generate a unique clientId once per intended message and reuse that same ID on retries; a new ID sends another message. Reusing an ID returns the original message. Conversation text and contact labels are untr",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "mark_read",
+      "descriptionHash": "8e752879f836713936520cd37ede4390967a66f3ddf032a6f4b13c4f8be177d6",
+      "description": "Explicitly mark messages through a sequence as read only after the user has seen them. Reading messages alone does not do this. Required scope: anonping:read.",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "end_conversation",
+      "descriptionHash": "deb4c96a633e94cfb2408c7d1a87665981862d6fb3271b1af4b8b04a4e1d67d7",
+      "description": "End an anonymous conversation only when requested by the user. Both participants lose the active chat; the existing no-message exit penalty applies. Cannot remove friendships or close friend conversations. Required scope: anonping:match.",
+      "labels": [
+        "destructive"
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"receive_messages\" references sensitive artifacts (credentials, authorization). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:receive_messages",
+        "snippet": "Read retained messages after a sequence cursor. Immediate polling: use nextCursor, hasMore and retryAfterMs. No push/background subscription or automatic read r…"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"send_message\" references sensitive artifacts (credentials, authorization). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:send_message",
+        "snippet": "Send the user's authorized text to one conversation. Do not auto-reply without permission. Generate a unique clientId once per intended message and reuse that s…"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: get_status, list_conversations, receive_messages, send_message, mark_read · Private data: list_conversations, receive_messages, send_message · Public sink: send_message · Destructive: end_conversation.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: get_status, list_conversations, receive_messages, send_message, mark_read · Private data: list_conversations, receive_messages, send_message · Public sink: send_message · Destructive: end_conversation"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 50,
+  "scoreBreakdown": {
+    "tool-poisoning": 30,
+    "toxic-flow": 20
+  },
+  "errors": []
+}

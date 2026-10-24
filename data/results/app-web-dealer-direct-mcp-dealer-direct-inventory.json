@@ -1,0 +1,89 @@
+{
+  "schemaVersion": 1,
+  "scanner": {
+    "version": "1.6.0",
+    "rules": "402995650b68"
+  },
+  "target": {
+    "kind": "url",
+    "ref": "https://dealer-direct-mcp.web.app/mcp"
+  },
+  "scannedAt": "2026-10-24T08:59:43.978Z",
+  "durationMs": 595,
+  "layers": {
+    "metadata": true,
+    "static": false
+  },
+  "tools": [
+    {
+      "name": "search_inventory",
+      "descriptionHash": "50db3f35db4e8d4043a3fc20a8ae1450284d8ce679bac035e69cd70135aff79d",
+      "description": "Search live dealer-direct New, Used, and Certified Pre-Owned car inventory across Miami and South Florida dealerships. Supports natural free-text query, condition ('new', 'used', 'certified'), make, model, trim, year_min/year_max, price_max, mileage_max, zip + radius_miles (geo search), fuel_type, d"
+    },
+    {
+      "name": "get_vehicle",
+      "descriptionHash": "0debe6491ec31469f4eb658103fa84d471ed668ae05a85d8ab572b243cc01ded",
+      "description": "Retrieve the complete canonical record for a single vehicle by its vehicle_id or 17-character VIN. Returns full specifications, pricing breakdown & fee disclosures, price history, all high-res photo URLs, dealer contact info, and source_url back to the dealer's VDP.",
+      "labels": [
+        "untrusted-content",
+        "private-data"
+      ]
+    },
+    {
+      "name": "list_dealers",
+      "descriptionHash": "4581bfb66a660be3546159a968ad1d81132d852732251cb66015b3e95e2c649b",
+      "description": "List all indexed dealerships on the platform across 9 US regions and states, their physical locations, website platforms, last crawl timestamps, live available New and Used inventory counts, and price ranges."
+    },
+    {
+      "name": "submit_lead",
+      "descriptionHash": "f67b6c4812cc3cc7a3bd4d07b7e9fd6959bcd921730488a77d045c2cf6669aa3",
+      "description": "Submit a buyer inquiry/lead directly to a participating dealership for a specific vehicle or general inventory inquiry. Requires explicit buyer consent (consent=true) and at least one contact method (buyer_email or buyer_phone). Returns a lead_id and delivery status.",
+      "labels": [
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "get_lead_status",
+      "descriptionHash": "5d31e4da7e03d6c4d3a0e2568d159a1041cdece51040acf842cccb585609de32",
+      "description": "Check the delivery state, webhook/email attempts, duplicate flag, and billing ledger status of a submitted lead. Requires dealer_api_key.",
+      "labels": [
+        "untrusted-content",
+        "public-sink"
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"get_lead_status\" references sensitive artifacts (api_key). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:get_lead_status",
+        "snippet": "Check the delivery state, webhook/email attempts, duplicate flag, and billing ledger status of a submitted lead. Requires dealer_api_key."
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: get_vehicle, get_lead_status · Private data: get_vehicle, submit_lead · Public sink: submit_lead, get_lead_status.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: get_vehicle, get_lead_status · Private data: get_vehicle, submit_lead · Public sink: submit_lead, get_lead_status"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 60,
+  "scoreBreakdown": {
+    "tool-poisoning": 20,
+    "toxic-flow": 20
+  },
+  "errors": []
+}

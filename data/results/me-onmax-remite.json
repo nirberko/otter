@@ -1,0 +1,86 @@
+{
+  "schemaVersion": 1,
+  "scanner": {
+    "version": "1.6.0",
+    "rules": "402995650b68"
+  },
+  "target": {
+    "kind": "url",
+    "ref": "https://burofax.onmax.me/mcp/claude"
+  },
+  "scannedAt": "2026-10-24T09:11:15.411Z",
+  "durationMs": 796,
+  "layers": {
+    "metadata": true,
+    "static": false
+  },
+  "tools": [
+    {
+      "name": "quote_burofax",
+      "descriptionHash": "df571b858100d3cc2f66e2fc9a0eaa101231166445908a174bbbc850fd0de7fc",
+      "description": "Use this when the user asks how much it costs to send a burofax or a certified letter to an address in Spain, or wants to compare delivery options before writing it. Returns the all-in price in EUR of both options for the given length, and what each includes: (1) Burofax de Correos with acuse de rec",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "check_spanish_address",
+      "descriptionHash": "8433d98a01b35447f1012a6f665fcac50a0ab8b06a9c172999c24c57354a0867",
+      "description": "Use this when the user gives a recipient (or sender) postal address in Spain, before creating a burofax, to catch mistakes that would stop delivery. Checks offline: required fields (name, street, postcode, city), the 5-digit código postal in range 01000–52999, and that the province matches the postc",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "create_burofax_draft",
+      "descriptionHash": "614bede60987f498028e081b89c4ad0e1871604ab551fd7d1ffad4477864df66",
+      "description": "Use this when the user has approved the final text of a letter to send as a burofax to an address in Spain and has given both postal addresses. The user writes or approves the text; this service does not give legal advice, so pass the body exactly as approved, without adding legal claims. Show the f",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "get_burofax_status",
+      "descriptionHash": "cef132040b30c34d2aef6e15385ea791b4362b577aaf3f6a0bec20137e295331",
+      "description": "Use this when the user asks whether their burofax was paid, sent or delivered, or wants the certificate. Takes the reference the user has: the order reference (BFX-XXXX-XXXX-XXXX-XXXX, from the receipt email) or the draft reference / review link returned by create_burofax_draft. Returns the current ",
+      "labels": [
+        "untrusted-content",
+        "public-sink"
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOOL-POISON-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description issues instructions to the model",
+      "detail": "Description of \"create_burofax_draft\" contains imperative instructions directed at the AI assistant rather than describing the tool. This is the core tool-poisoning technique.",
+      "evidence": {
+        "source": "tool:create_burofax_draft",
+        "snippet": "Use this when the user has approved the final text of a letter to send as a burofax to an address in Spain and has given both postal addresses. The user writes …"
+      },
+      "confidence": 0.7,
+      "remediation": "Treat the server as untrusted; the model may obey embedded instructions."
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "medium",
+      "category": "toxic-flow",
+      "title": "Toxic flow: untrusted input can reach an external sink",
+      "detail": "Server \"claude\" exposes tools that together enable an exfiltration flow. Untrusted content: check_spanish_address, get_burofax_status · Public sink: quote_burofax, create_burofax_draft, get_burofax_status.",
+      "evidence": {
+        "source": "server:claude",
+        "snippet": "Untrusted content: check_spanish_address, get_burofax_status · Public sink: quote_burofax, create_burofax_draft, get_burofax_status"
+      },
+      "confidence": 0.45,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 72,
+  "scoreBreakdown": {
+    "tool-poisoning": 20,
+    "toxic-flow": 8
+  },
+  "errors": []
+}

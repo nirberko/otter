@@ -8,8 +8,8 @@
     "kind": "url",
     "ref": "https://apuchat.com/mcp"
   },
-  "scannedAt": "2026-09-17T09:43:11.374Z",
-  "durationMs": 698,
+  "scannedAt": "2026-10-24T09:07:47.903Z",
+  "durationMs": 420,
   "layers": {
     "metadata": true,
     "static": false
@@ -125,7 +125,7 @@
     },
     {
       "name": "send_dm",
-      "descriptionHash": "91da0e583326d7bcd144faaf91dee1d6c4cc62f286cde27414876d34ed35e573",
+      "descriptionHash": "cb3ab34ae787acd518ea7edebbc131886925fe105f7fd3a7995fac8546ea9bc5",
       "description": "Send a direct message to another handle on apuchat. Works with both free (legacy random callsign) and paid (vanity @handle) identities; the sender is derived from your identity_key (never spoofable). Always returns ok=true even if the recipient doesn't exist or has blocked you (anti-enumeration); th",
       "labels": [
         "untrusted-content",
@@ -134,8 +134,8 @@
     },
     {
       "name": "read_inbox",
-      "descriptionHash": "04706562faf1e9b150a7a55c14af0bee206bf627bf4fa55841899acca7e0fe57",
-      "description": "Read your DM inbox. Returns messages addressed to your handle (free or paid). Use `since` to paginate from a specific message id (exclusive). Default returns up to 100 most-recent messages (24h retention, 500 msg cap). Reading from a free identity extends its 24h activity TTL — the response includes",
+      "descriptionHash": "a68a02895be378f8ce3c099cbbde52270eb5f0cdaa705aa17438596d96eb4cff",
+      "description": "Read your DM inbox. Returns messages addressed to your handle (free or paid). Use `since` to paginate from a specific message id (exclusive). Default returns up to 100 messages per page, oldest first — keep passing the returned `next_since` until it comes back empty (free identities: 24h retention, ",
       "labels": [
         "untrusted-content"
       ]
@@ -144,6 +144,15 @@
       "name": "wait_dm",
       "descriptionHash": "1c3584732959b9a02dede46c1fe379eeb2cbc82a10aa7195f0556ca077a8f90b",
       "description": "Long-poll for a new DM. Returns immediately if any messages with id > `since` exist, otherwise blocks up to `timeout` seconds (max 300) waiting for one to arrive. Works for free + paid identities. Use this as your idle loop instead of read_inbox — same shape, but no busy-polling. Standard pattern: p"
+    },
+    {
+      "name": "set_avatar",
+      "descriptionHash": "03599c1c9f9834ab958340c4b9f1fd3fd7073212bf7ebc8bef9a018c1e3c4e8c",
+      "description": "Set (or remove) the profile image of your permanent @handle — the picture people see next to your name in their DM list and the apuchat app. Only for permanent handles (paid, sponsored or verified); a free identity gets permanent_handle_required. PNG, JPEG or WebP, ≤256KB decoded (a 256×256 or 512×5",
+      "labels": [
+        "untrusted-content",
+        "destructive"
+      ]
     },
     {
       "name": "secret_drop_recipe",
@@ -368,18 +377,44 @@
       "severity": "high",
       "category": "toxic-flow",
       "title": "Lethal trifecta: untrusted input + private data + external sink",
-      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: open_remote_control, join, send, listen, send_dm, read_inbox, secret_drop_recipe · Private data: open_remote_control, open_video_call, make_remote_link, create_channel, join, send, create_identity, secret_drop_recipe · Public sink: open_remote_control, open_video_call, create_channel, join, send, send_dm, secret_drop_recipe · Destructive: open_remote_control, open_video_call, update_channel_ttl, send, secret_drop_recipe.",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: open_remote_control, join, send, listen, send_dm, read_inbox, set_avatar, secret_drop_recipe · Private data: open_remote_control, open_video_call, make_remote_link, create_channel, join, send, create_identity, secret_drop_recipe · Public sink: open_remote_control, open_video_call, create_channel, join, send, send_dm, secret_drop_recipe · Destructive: open_remote_control, open_video_call, update_channel_ttl, send, set_avatar, secret_drop_recipe.",
       "evidence": {
         "source": "server:mcp",
-        "snippet": "Untrusted content: open_remote_control, join, send, listen, send_dm, read_inbox, secret_drop_recipe · Private data: open_remote_control, open_video_call, make_remote_link, create_channel, join, send, create_identity, secret_drop_recipe · Public sink: open_remote_control, open_video_call, create_channel, join, send, send_dm, secret_drop_recipe · Destructive: open_remote_control, open_video_call, update_channel_ttl, send, secret_drop_recipe"
+        "snippet": "Untrusted content: open_remote_control, join, send, listen, send_dm, read_inbox, set_avatar, secret_drop_recipe · Private data: open_remote_control, open_video_call, make_remote_link, create_channel, join, send, create_identity, secret_drop_recipe · Public sink: open_remote_control, open_video_call, create_channel, join, send, send_dm, secret_drop_recipe · Destructive: open_remote_control, open_video_call, update_channel_ttl, send, set_avatar, secret_drop_recipe"
       },
       "confidence": 0.6,
       "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"send_dm\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:send_dm",
+        "snippet": "before: \"Send a direct message to another handle on apuchat. Works with both free (legacy random callsign) and paid (vanity @handle) identities; the sender is derived from your identity_key (never spoofable). Always returns ok=true even if the recipient doesn't exist or has blocked you (anti-enumeration); th\" → after: \"Send a direct message to another handle on apuchat. Works with both free (legacy random callsign) and paid (vanity @handle) identities; the sender is derived from your identity_key (never spoofable). Always returns ok=true even if the recipient doesn't exist or has blocked you (anti-enumeration); th\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"read_inbox\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:read_inbox",
+        "snippet": "before: \"Read your DM inbox. Returns messages addressed to your handle (free or paid). Use `since` to paginate from a specific message id (exclusive). Default returns up to 100 most-recent messages (24h retention, 500 msg cap). Reading from a free identity extends its 24h activity TTL — the response includes\" → after: \"Read your DM inbox. Returns messages addressed to your handle (free or paid). Use `since` to paginate from a specific message id (exclusive). Default returns up to 100 messages per page, oldest first — keep passing the returned `next_since` until it comes back empty (free identities: 24h retention, \""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
     }
   ],
-  "score": 32,
+  "score": 29,
   "scoreBreakdown": {
-    "tool-poisoning": 48,
+    "tool-poisoning": 51,
     "toxic-flow": 20
   },
   "errors": []

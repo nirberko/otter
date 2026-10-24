@@ -1,0 +1,151 @@
+{
+  "schemaVersion": 1,
+  "scanner": {
+    "version": "1.6.0",
+    "rules": "402995650b68"
+  },
+  "target": {
+    "kind": "url",
+    "ref": "https://supplier-payment-verifier-production.up.railway.app/mcp/"
+  },
+  "scannedAt": "2026-10-24T09:21:30.921Z",
+  "durationMs": 590,
+  "layers": {
+    "metadata": true,
+    "static": false
+  },
+  "tools": [
+    {
+      "name": "verify_supplier_payment",
+      "descriptionHash": "88cc25aa2767448c10f4b6d9b1da04a44406d5a943cc0265e1cfd299cdfad78b",
+      "description": "Use for supplier identity and VAT reconciliation, not the full signed five-gate invoice decision. Reconciles the claimed legal name, company registration number and VAT number against the Irish Companies Registration Office (IE) and the EU VIES VAT service, and returns an advisory RELEASE, REVIEW, B",
+      "labels": [
+        "untrusted-content",
+        "private-data"
+      ]
+    },
+    {
+      "name": "get_verification",
+      "descriptionHash": "f438dcebd66b83d410f4729243de6be1089ed4f38c571677946b848ab6f39a90",
+      "description": "Read an existing identity/VAT verification created by verify_supplier_payment (POST /v1/verifications). Supply its returned verification_id UUID, not a request_id, transaction_id, invoice number or A2A task ID. Returns the stored RELEASE/REVIEW/BLOCK/INSUFFICIENT_EVIDENCE result without rerunning re",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "check_iban",
+      "descriptionHash": "dda450909779af8639edec4153ffc5c134bf95cf7055074af1ab5d94a74db89e",
+      "description": "Cheapest call. Validates an IBAN (ISO 13616 mod-97 checksum, length and country) before you pay it. Returns PASSED or FAILED with a reason code. Irish (IE) IBANs pass by default. Use only for bank-account identifier syntax/country checks, not account ownership, bank Confirmation of Payee or supplier"
+    },
+    {
+      "name": "check_vat",
+      "descriptionHash": "33e1d39c477f2b37e09e7bb55d2a1764817fe9838562db3bf43dd91d2bcdc913",
+      "description": "Validates the Irish VAT number format and check letter, then confirms registration live with EU VIES. Returns PASSED, FAILED or UNAVAILABLE (VIES outage) with a reason code and available consultation/audit evidence. Use for one VAT number, not company-name matching or invoice approval. check_company",
+      "labels": [
+        "destructive"
+      ]
+    },
+    {
+      "name": "check_company",
+      "descriptionHash": "3a24efc26ad1d227d4ff68c6680bcb0e4cc91ba2bcf43c21707acfacaf05973b",
+      "description": "Looks up an Irish company by CRO number in the Companies Registration Office open data. PASSED only if the company status is NORMAL; dissolved, liquidated or unknown companies FAIL. Returns the registered name. Use a CRO company number, not a company name or VAT number. Source uncertainty returns UN"
+    },
+    {
+      "name": "check_three_way_match",
+      "descriptionHash": "44b3f5f0f234a50bddae305bcc7668c5a15f462205ec158c0abf4aae3dea0335",
+      "description": "Checks that a purchase order, goods receipt and invoice agree on supplier, currency, amount, line items, unit prices and quantities received. Stateless; you attach the documents. Checks caller-supplied documents, not independently verified ERP records. Returns PASSED or FAILED and a reason code; no ",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "decide_supplier_payment",
+      "descriptionHash": "98f58c4de60686f51466eca64a04e917cd8e3d1866c2f91087eea48d29af04f6",
+      "description": "Flagship. Independent third-party decision for an Irish supplier invoice. Runs five gates (CRO status NORMAL, EU VIES VAT, payee-name and IBAN check, PO/GRN/invoice 3-way match, RSA signature) and returns exactly one of EXECUTE_PAYMENT, REJECT_PAYMENT or FLAG_FOR_HUMAN_REVIEW with per-check results,",
+      "labels": [
+        "untrusted-content",
+        "private-data"
+      ]
+    },
+    {
+      "name": "register_signing_key",
+      "descriptionHash": "ad8f30f2a3baed9e3c09d271a7cf11a966e139eefb541b21fa18614e4d04f80a",
+      "description": "Registers an RSA public key (2048-bit or larger, PEM) used to sign payment-decision requests. Keys are immutable per tenant; rotate by registering a new key_id. Returns key_id and registered=true. Use before decide_supplier_payment and use the same tenant/paying wallet for registration and decision.",
+      "labels": [
+        "private-data"
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"verify_supplier_payment\" references sensitive artifacts (bearer). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:verify_supplier_payment",
+        "snippet": "Use for supplier identity and VAT reconciliation, not the full signed five-gate invoice decision. Reconciles the claimed legal name, company registration number…"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"get_verification\" references sensitive artifacts (authorization, bearer). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:get_verification",
+        "snippet": "Read an existing identity/VAT verification created by verify_supplier_payment (POST /v1/verifications). Supply its returned verification_id UUID, not a request_…"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOOL-POISON-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description issues instructions to the model",
+      "detail": "Description of \"register_signing_key\" contains imperative instructions directed at the AI assistant rather than describing the tool. This is the core tool-poisoning technique.",
+      "evidence": {
+        "source": "tool:register_signing_key",
+        "snippet": "Registers an RSA public key (2048-bit or larger, PEM) used to sign payment-decision requests. Keys are immutable per tenant; rotate by registering a new key_id.…"
+      },
+      "confidence": 0.7,
+      "remediation": "Treat the server as untrusted; the model may obey embedded instructions."
+    },
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"register_signing_key\" references sensitive artifacts (private key, authorization). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:register_signing_key",
+        "snippet": "Registers an RSA public key (2048-bit or larger, PEM) used to sign payment-decision requests. Keys are immutable per tenant; rotate by registering a new key_id.…"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: verify_supplier_payment, get_verification, decide_supplier_payment · Private data: verify_supplier_payment, get_verification, check_three_way_match, decide_supplier_payment, register_signing_key · Public sink: get_verification · Destructive: check_vat.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: verify_supplier_payment, get_verification, decide_supplier_payment · Private data: verify_supplier_payment, get_verification, check_three_way_match, decide_supplier_payment, register_signing_key · Public sink: get_verification · Destructive: check_vat"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 43,
+  "scoreBreakdown": {
+    "tool-poisoning": 38,
+    "toxic-flow": 20
+  },
+  "errors": []
+}

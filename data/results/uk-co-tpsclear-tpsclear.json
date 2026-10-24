@@ -1,0 +1,108 @@
+{
+  "schemaVersion": 1,
+  "scanner": {
+    "version": "1.6.0",
+    "rules": "402995650b68"
+  },
+  "target": {
+    "kind": "url",
+    "ref": "https://tpsclear.co.uk/api/mcp"
+  },
+  "scannedAt": "2026-10-24T09:12:51.724Z",
+  "durationMs": 1302,
+  "layers": {
+    "metadata": true,
+    "static": false
+  },
+  "tools": [
+    {
+      "name": "screen_numbers",
+      "descriptionHash": "63e5d26f3d8f5c91197de65b54cbb3e15cd35e5656bb9f9b965906b5029a5257",
+      "description": "Screen UK phone numbers against the TPS and CTPS registers before calling. Each result is clean, tps-listed, ctps-listed, unknown, suppressed or consented. A live key draws prepaid UK credits (one per distinct valid number); a test key returns fixtures at no cost. Same as POST /v1/screen.",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "wash_au_numbers",
+      "descriptionHash": "7814df5e00019e517f969430b87a887020d530f6224fb23f826ae443c473ad5f",
+      "description": "Wash Australian phone numbers against the Do Not Call Register. Live key only (the register has no test mode). One prepaid AU wash per distinct valid number; invalid numbers cost nothing and numbers the register gave no answer for are refunded. Same as POST /v1/dncr.",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "check_dead_numbers",
+      "descriptionHash": "c9c9664b1fd95e2d024a00275f42b80615bf43ec27a90f346aea504b838bdbe2",
+      "description": "Live mobile network (HLR) lookups: whether each mobile is live, switched off or dead. Live key only. One prepaid dead number check per mobile, two for a US number; numbers that are not mobiles and invalid numbers cost nothing. Same as POST /v1/dead-number.",
+      "labels": [
+        "untrusted-content",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "get_account",
+      "descriptionHash": "76dee56c8a4be4a372efd978147b01c678f9c91e6551624b4b05eea8f4f7ea1a",
+      "description": "The calling key and its account: environment, scopes, company name and whether one is still required (GET /v1/me), plus the UK credits left (GET /v1/usage), the Australian washes left (GET /v1/dncr) and the dead number checks left (GET /v1/dead-number). A balance the key lacks the scope for comes ba"
+    },
+    {
+      "name": "set_company_name",
+      "descriptionHash": "345f362719471ad2ef32869f3a907aed8f8136068005ffbe6c93d98cba84e445",
+      "description": "Set the legal name of the business this account screens numbers for (PATCH /v1/me). Required before a live key can screen. Voll Studios Ltd, the company behind TPSClear, is licensed by the DMA as a TPS and CTPS list cleaner. The licence requires a monthly declaration naming each client, so a live AP",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "buy_credits",
+      "descriptionHash": "96184deff0202d2de67b70110b98b140f1d89ea04aeb697e33bb9463dd4d2f61",
+      "description": "Returns a Stripe Checkout URL for a prepaid pack, bound to this key's account. A person pays it by card; the credits land on the account once paid, and nothing is charged until then. Needs a live key on a self-serve account that names its client business. Prices are in minor units in the response. P"
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOOL-POISON-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description issues instructions to the model",
+      "detail": "Description of \"screen_numbers\" contains imperative instructions directed at the AI assistant rather than describing the tool. This is the core tool-poisoning technique.",
+      "evidence": {
+        "source": "tool:screen_numbers",
+        "snippet": "Screen UK phone numbers against the TPS and CTPS registers before calling. Each result is clean, tps-listed, ctps-listed, unknown, suppressed or consented. A li…"
+      },
+      "confidence": 0.7,
+      "remediation": "Treat the server as untrusted; the model may obey embedded instructions."
+    },
+    {
+      "id": "MCP-TOOL-POISON-006",
+      "severity": "low",
+      "category": "tool-poisoning",
+      "title": "Anomalously long tool description",
+      "detail": "Description of \"buy_credits\" is 1677 chars, far longer than this server's median (311). Overlong descriptions are a common place to bury instructions.",
+      "evidence": {
+        "source": "tool:buy_credits",
+        "snippet": "Returns a Stripe Checkout URL for a prepaid pack, bound to this key's account. A person pays it by card; the credits land on the account once paid, and nothing …"
+      },
+      "confidence": 0.4
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: check_dead_numbers · Private data: set_company_name · Public sink: screen_numbers, wash_au_numbers, check_dead_numbers.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: check_dead_numbers · Private data: set_company_name · Public sink: screen_numbers, wash_au_numbers, check_dead_numbers"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 59,
+  "scoreBreakdown": {
+    "tool-poisoning": 22,
+    "toxic-flow": 20
+  },
+  "errors": []
+}

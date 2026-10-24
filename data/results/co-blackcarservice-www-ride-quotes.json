@@ -8,8 +8,8 @@
     "kind": "url",
     "ref": "https://www.blackcarservice.co/api/mcp"
   },
-  "scannedAt": "2026-09-27T10:04:11.715Z",
-  "durationMs": 3421,
+  "scannedAt": "2026-10-24T08:59:53.489Z",
+  "durationMs": 4320,
   "layers": {
     "metadata": true,
     "static": false
@@ -17,24 +17,38 @@
   "tools": [
     {
       "name": "quote_ride",
-      "descriptionHash": "a40c26c89577ad9de4178e27a96e45191066eb8182bb1a4a51525d63a68a6fca",
-      "description": "Estimate Black Car Service SUV fares in the San Francisco Bay Area for SFO, OAK and SJC airport transfers, point-to-point rides and hourly chauffeur service, for 1–7 passengers. Pickup dates begin tomorrow in America/Los_Angeles. Hourly rides require hours (1–24); other ride types omit hours. The pr"
+      "descriptionHash": "f1d7b735cce0c3623669a56422eab1dd31c250caf2f864cb5ee8a92ec4b043ad",
+      "description": "Estimate Black Car Service SUV fares in the San Francisco Bay Area for SFO, OAK and SJC airport transfers, point-to-point rides and hourly chauffeur service, for 1–6 passengers. Pickup and destination must both resolve to California or Nevada, and at least one endpoint must be in the nine-county San"
     },
     {
       "name": "check_ride_availability",
-      "descriptionHash": "84a1db49a2f8a9591d015109d4c726ed9f5fb0945e1487bc826318058e9709b4",
-      "description": "Check a requested Bay Area SUV pickup time against current scheduling constraints. Supply the same route, pickup time and passenger inputs as quote_ride. Returns only available, unavailable, or unknown. An available result is tentative and is not a hold or reservation; complete the request at https:"
-    }
-  ],
-  "findings": [],
-  "score": 100,
-  "scoreBreakdown": {},
-  "errors": []
-}987daf659a31acbb7e568501a3f2fd31d6c3e1c7de8",
+      "descriptionHash": "e84b7e4e65068210859612a9c7049d77ea6b8509db49d4b54764378774b5134a",
+      "description": "Check a requested Bay Area SUV pickup time against current scheduling constraints. Pickup and destination must both resolve to California or Nevada, and at least one endpoint must be in the nine-county San Francisco Bay Area. Supply the same route, pickup time and passenger inputs as quote_ride. Ret"
+    },
+    {
+      "name": "book_ride",
+      "descriptionHash": "ab47358b61b901fe23fb6987daf659a31acbb7e568501a3f2fd31d6c3e1c7de8",
       "description": "After the customer explicitly confirms a quote_ride estimate and trip, create a pending reservation and return its secure website checkout link. Requires the exact signed booking_token from that quote plus customer-provided name, email and phone. Rechecks price and live availability. Does not hold a",
       "labels": [
         "private-data",
         "public-sink"
+      ]
+    },
+    {
+      "name": "get_booking_status",
+      "descriptionHash": "7ea023fce3d0aade1882e56ffcdc07d5bcd1207e1870dfb0e684926f1f251714",
+      "description": "Read the current total, payment options and confirmation status for the exact private checkout_url returned by book_ride. Does not charge or change the booking. Never infer confirmation from a pending reservation or payment authorization. Keep the checkout URL private.",
+      "labels": [
+        "untrusted-content",
+        "private-data"
+      ]
+    },
+    {
+      "name": "complete_booking",
+      "descriptionHash": "99695ffd3bd90dc6a4e8005a1a73e84046dd46cc84ae19d640c1d3742db726be",
+      "description": "Charges the exact approved USD booking total using a Stripe shared payment token from the customer's authorized wallet, then verifies reservation confirmation. First call get_booking_status and obtain explicit customer approval of that total and the booking terms. Never accept card numbers, CVC, or ",
+      "labels": [
+        "private-data"
       ]
     }
   ],
@@ -52,35 +66,35 @@
       "confidence": 0.65
     },
     {
-      "id": "MCP-RUGPULL-001",
+      "id": "MCP-TOOL-POISON-003",
       "severity": "high",
       "category": "tool-poisoning",
-      "title": "Tool description changed since last scan",
-      "detail": "Tool \"quote_ride\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"get_booking_status\" references sensitive artifacts (authorization). A tool description has no reason to mention credentials.",
       "evidence": {
-        "source": "tool:quote_ride",
-        "snippet": "before: \"Estimate Black Car Service SUV fares in the San Francisco Bay Area for SFO, OAK and SJC airport transfers, point-to-point rides and hourly chauffeur service, for 1–7 passengers. Pickup dates begin tomorrow in America/Los_Angeles. Hourly rides require hours (1–24); other ride types omit hours. The pr\" → after: \"Estimate Black Car Service SUV fares in the San Francisco Bay Area for SFO, OAK and SJC airport transfers, point-to-point rides and hourly chauffeur service, for 1–6 passengers. Pickup and destination must both resolve to California or Nevada, and at least one endpoint must be in the nine-county San\""
+        "source": "tool:get_booking_status",
+        "snippet": "Read the current total, payment options and confirmation status for the exact private checkout_url returned by book_ride. Does not charge or change the booking.…"
       },
-      "confidence": 0.8,
-      "remediation": "Re-review the tool before continuing to trust it."
+      "confidence": 0.65
     },
     {
-      "id": "MCP-RUGPULL-001",
+      "id": "MCP-TOXIC-FLOW-001",
       "severity": "high",
-      "category": "tool-poisoning",
-      "title": "Tool description changed since last scan",
-      "detail": "Tool \"check_ride_availability\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: get_booking_status · Private data: book_ride, get_booking_status, complete_booking · Public sink: book_ride.",
       "evidence": {
-        "source": "tool:check_ride_availability",
-        "snippet": "before: \"Check a requested Bay Area SUV pickup time against current scheduling constraints. Supply the same route, pickup time and passenger inputs as quote_ride. Returns only available, unavailable, or unknown. An available result is tentative and is not a hold or reservation; complete the request at https:\" → after: \"Check a requested Bay Area SUV pickup time against current scheduling constraints. Pickup and destination must both resolve to California or Nevada, and at least one endpoint must be in the nine-county San Francisco Bay Area. Supply the same route, pickup time and passenger inputs as quote_ride. Ret\""
+        "source": "server:mcp",
+        "snippet": "Untrusted content: get_booking_status · Private data: book_ride, get_booking_status, complete_booking · Public sink: book_ride"
       },
-      "confidence": 0.8,
-      "remediation": "Re-review the tool before continuing to trust it."
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
     }
   ],
-  "score": 65,
+  "score": 50,
   "scoreBreakdown": {
-    "tool-poisoning": 35
+    "tool-poisoning": 30,
+    "toxic-flow": 20
   },
   "errors": []
 }

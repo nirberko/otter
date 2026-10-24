@@ -1,0 +1,84 @@
+{
+  "schemaVersion": 1,
+  "scanner": {
+    "version": "1.6.0",
+    "rules": "402995650b68"
+  },
+  "target": {
+    "kind": "url",
+    "ref": "https://mcp.couryo.com/tools"
+  },
+  "scannedAt": "2026-10-24T09:15:15.880Z",
+  "durationMs": 566,
+  "layers": {
+    "metadata": true,
+    "static": false
+  },
+  "tools": [
+    {
+      "name": "verify_email",
+      "descriptionHash": "d725b5a8b49d97106be54e47f525dc5fb9a8927480ef81cd13e6c76abaa1dddd",
+      "description": "Checks one email address without sending anything: format, typo in big providers (\"gmail.com.br\" → \"gmail.com\", \"hotmial.com\"), disposable inbox, shared mailbox (contato@, sales@) and whether the domain receives email (MX). Verdict valid, risky or invalid, with did_you_mean. The mailbox itself is ne",
+      "labels": [
+        "untrusted-content",
+        "public-sink",
+        "destructive"
+      ]
+    },
+    {
+      "name": "check_domain_dns",
+      "descriptionHash": "43744f875c55a1e841425373fb1b0fd1e39fca824e82c4869c51a8adcd9717b5",
+      "description": "Checks the email setup of any domain: SPF (one record, ending, the 10 DNS lookup limit), DKIM on the common selectors (or dkim_selector), DMARC policy and reports, MX and mailbox provider, MTA-STS, TLS-RPT and BIMI. Answers a 0 to 100 score, a grade, the fix for each problem in plain words and recor",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "explain_smtp_error",
+      "descriptionHash": "0263c86c6f20aef4f18f1be9f73d06533d2ed76ba6faa6bfa5bcdaa418e06634",
+      "description": "Explains a bounce or SMTP error text (\"550 5.7.515 Access denied\", \"452 4.2.2 mailbox full\") in plain words: hard (the address does not work), soft (temporary) or policy (a provider rule, not the address), the provider and the next step. Free, read only. / Explica uma devolução ou erro SMTP em lingu",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "generate_spf",
+      "descriptionHash": "9b64455dc5ece71c8aac69fbbe28f4b77f0c4044d76a32a04a5249cebf4682df",
+      "description": "Builds one SPF record (TXT at the domain) from the services that send for it: includes, IPv4 and IPv6, mx and a. Starts with ~all (softfail), the safe choice; use policy fail (-all) once every sender is listed. Remember the limit of 10 DNS lookups (each include costs at least one). Free, no network.",
+      "labels": [
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "generate_dmarc",
+      "descriptionHash": "7cd822af2532b0d66fc908d762e5190b8660eac4f5cbb428708dd30f1c94fd5b",
+      "description": "Builds one DMARC record (TXT at _dmarc.<domain>). Start with policy none and a report address (rua), read the reports, then move to quarantine and reject once every legitimate sender passes SPF or DKIM aligned. Free, no network. / Monta o registro DMARC; comece com p=none e suba para quarantine e re",
+      "labels": [
+        "private-data"
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"tools\" exposes tools that together enable an exfiltration flow. Untrusted content: verify_email, check_domain_dns, explain_smtp_error · Private data: check_domain_dns, generate_spf, generate_dmarc · Public sink: verify_email, check_domain_dns, generate_spf · Destructive: verify_email.",
+      "evidence": {
+        "source": "server:tools",
+        "snippet": "Untrusted content: verify_email, check_domain_dns, explain_smtp_error · Private data: check_domain_dns, generate_spf, generate_dmarc · Public sink: verify_email, check_domain_dns, generate_spf · Destructive: verify_email"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 80,
+  "scoreBreakdown": {
+    "toxic-flow": 20
+  },
+  "errors": []
+}

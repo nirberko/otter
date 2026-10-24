@@ -1,0 +1,119 @@
+{
+  "schemaVersion": 1,
+  "scanner": {
+    "version": "1.6.0",
+    "rules": "402995650b68"
+  },
+  "target": {
+    "kind": "url",
+    "ref": "https://madeira.fun/api/mcp"
+  },
+  "scannedAt": "2026-10-24T09:03:52.262Z",
+  "durationMs": 444,
+  "layers": {
+    "metadata": true,
+    "static": false
+  },
+  "tools": [
+    {
+      "name": "list_permit_trails",
+      "descriptionHash": "04049fa9411e00e7f4014b781a60eabda37cd880c080e275236e16a8d461d8c0",
+      "description": "List the Madeira trails that need a government hiking permit for a set start time and can be reserved on madeira.fun. Returns each trail's seo_slug (use it in the other tools), code (such as PR 18 or PS PR 1), name, island, official trail status, trail page and day feed links. Optional query filters",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "check_trail_availability",
+      "descriptionHash": "bf4c7440651e2b2347b4aabc61db906758d1844231a7124760138174e646755b",
+      "description": "Day-by-day permit availability for one trail, from today up to 119 days ahead (Madeira dates). Each day is open (start times left for visitors), full (sold out for visitors), started (today only: every start time has already begun, nothing is left to book today; not sold out), closed, no_times (no s"
+    },
+    {
+      "name": "get_start_times",
+      "descriptionHash": "6306684adfe993b4bddc3fbb0e60b406323d3ebc0ea1069a71dc7aba0882906d",
+      "description": "Give trail (required without a partner key). The start times of a trail with the permits left for visitors at each one (as the trail page shows them: a number from 6 up, \"few\" at 1 to 5, \"full\" at 0), and a book_url per open start time that opens Reserve on madeira.fun at that time. Today up to 119 "
+    },
+    {
+      "name": "get_permit_fees",
+      "descriptionHash": "f72c45a6dc14e588e22e23dfcae0d36ae2ab54eb7aa063a2307409da9b3b0bb6",
+      "description": "The government hiking permit fee records in force today (format MF-PRC-1.0, the same records as https://madeira.fun/hiking/permit-data), with legal references and exemptions. Give trail to get the fee that applies to that trail. The fee is paid to the government, never to madeira.fun.",
+      "labels": [
+        "private-data",
+        "destructive"
+      ]
+    },
+    {
+      "name": "build_booking_link",
+      "descriptionHash": "2977b50d745223393b8e02258bbe33538afcccf5ec6cc2254adf7710486295c2",
+      "description": "Build the link a visitor opens to book a permit: https://madeira.fun/hiking/<seo_slug>?date=YYYY-MM-DD opens that date's start times on the trail page. Optional adults (visitors aged 13 or over who are not Madeira residents) and children (aged 12 or under, no fee) preset the party; lang sets the pag"
+    },
+    {
+      "name": "start_reservation",
+      "descriptionHash": "b9c7d75f61eb3fd14d3dcc6717ba516d853dfb3db27a318cb7a803f0d51335ac",
+      "description": "Step 1 of 2 to reserve a Madeira hiking permit for a visitor through madeira.fun. Before calling, tell the visitor these three points in your own words and get their yes: (1) madeira.fun creates a madeira.fun account with the visitor's email address (or signs in the one they already have). (2) madei",
+      "labels": [
+        "untrusted-content",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "confirm_reservation",
+      "descriptionHash": "4c2d9afcbe9d2e069d8989d90b8b498ca9d98d918965e69d4a91f4c06c29b4ca",
+      "description": "Step 2 of 2: with the code the visitor got by email, madeira.fun signs them in, checks the start time live and submits the government reservation for exactly what start_reservation described. The answer gives order_id and status_token. The reservation is not paid: madeira.fun then emails the governm",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "get_reservation_status",
+      "descriptionHash": "f1cfcf1bb67d67992f425e169324daa93a2e42f329cea962c7684d79defdcfc0",
+      "description": "Where a reservation made with confirm_reservation stands: being reserved, waiting for payment (with the government's PayPay link, the amount and the deadline), paid, not taken, cancelled or lapsed. Needs order_id and status_token from confirm_reservation."
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"get_start_times\" references sensitive artifacts (authorization, bearer). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:get_start_times",
+        "snippet": "Give trail (required without a partner key). The start times of a trail with the permits left for visitors at each one (as the trail page shows them: a number f…"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOOL-POISON-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description issues instructions to the model",
+      "detail": "Description of \"start_reservation\" contains imperative instructions directed at the AI assistant rather than describing the tool. This is the core tool-poisoning technique.",
+      "evidence": {
+        "source": "tool:start_reservation",
+        "snippet": "Step 1 of 2 to reserve a Madeira hiking permit for a visitor through madeira.fun. Before calling, tell the visitor these three points in your own words and get …"
+      },
+      "confidence": 0.7,
+      "remediation": "Treat the server as untrusted; the model may obey embedded instructions."
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: list_permit_trails, start_reservation · Private data: get_permit_fees · Public sink: start_reservation, confirm_reservation · Destructive: get_permit_fees.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: list_permit_trails, start_reservation · Private data: get_permit_fees · Public sink: start_reservation, confirm_reservation · Destructive: get_permit_fees"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 50,
+  "scoreBreakdown": {
+    "tool-poisoning": 30,
+    "toxic-flow": 20
+  },
+  "errors": []
+}

@@ -1,0 +1,73 @@
+{
+  "schemaVersion": 1,
+  "scanner": {
+    "version": "1.6.0",
+    "rules": "402995650b68"
+  },
+  "target": {
+    "kind": "url",
+    "ref": "https://guardian.sylai.io/mcp"
+  },
+  "scannedAt": "2026-10-24T09:11:17.307Z",
+  "durationMs": 995,
+  "layers": {
+    "metadata": true,
+    "static": false
+  },
+  "tools": [
+    {
+      "name": "guardian_review",
+      "descriptionHash": "00bb9cb9fa81b2b55a11e9db8457206a68901029653eb303afa368527849e79a",
+      "description": "Sanity-check a causal claim (\"cause drove effect\") before acting on it.\n\nProvide exactly one of ``csv`` (CSV text), ``data`` (list of row objects) or\n``dataset_id`` (a dataset uploaded via ``guardian_request_upload``; use this for\nmore than ~200 rows; single-use, deleted when reviewed) containing co",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "guardian_request_upload",
+      "descriptionHash": "5ef6e94016be8c571e68020211a7871383bb0c986123b3245da2981c81e51a9b",
+      "description": "Get a pre-signed URL for uploading a large CSV (more than ~200 rows).\n\nUse this instead of pasting rows into ``guardian_review``. Returns ``upload_url``,\n``dataset_id`` and a ready-to-run ``curl`` command: run it (replace ``data.csv``\nwith your file; gzip is accepted with ``Content-Encoding: gzip``)",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink",
+        "destructive"
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-SCHEMA-SMELL-001",
+      "severity": "medium",
+      "category": "schema-smell",
+      "title": "Read-only tool requests dangerous parameters",
+      "detail": "Tool \"guardian_review\" appears informational but accepts parameters (context) that enable code/file/secret access.",
+      "evidence": {
+        "source": "tool:guardian_review",
+        "snippet": "cause, effect, csv, data, dataset_id, known_confounders, context, units, step, time_col, adstock, se, test_design"
+      },
+      "confidence": 0.55
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: guardian_review, guardian_request_upload · Private data: guardian_review, guardian_request_upload · Public sink: guardian_review, guardian_request_upload · Destructive: guardian_request_upload.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: guardian_review, guardian_request_upload · Private data: guardian_review, guardian_request_upload · Public sink: guardian_review, guardian_request_upload · Destructive: guardian_request_upload"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 72,
+  "scoreBreakdown": {
+    "schema-smell": 8,
+    "toxic-flow": 20
+  },
+  "errors": []
+}

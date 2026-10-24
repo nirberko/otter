@@ -1,0 +1,100 @@
+{
+  "schemaVersion": 1,
+  "scanner": {
+    "version": "1.6.0",
+    "rules": "402995650b68"
+  },
+  "target": {
+    "kind": "url",
+    "ref": "https://mcp.pyxmark.com/mcp"
+  },
+  "scannedAt": "2026-10-24T09:02:00.615Z",
+  "durationMs": 1567,
+  "layers": {
+    "metadata": true,
+    "static": false
+  },
+  "tools": [
+    {
+      "name": "search_company",
+      "descriptionHash": "29354ee1a3ab91a1eb1dede4d4941acbfce82b8171c7c0371060e21cc7ef1f3d",
+      "description": "Look up which SEC-registered company a name, ticker or CIK refers to. Returns up to 10 candidates, each with its CIK, tickers and a match score, and nothing else. Use it to pick the right CIK when a name is ambiguous, then call company_profile with that CIK for the details."
+    },
+    {
+      "name": "company_profile",
+      "descriptionHash": "ba7ad007430eacf330335d88a16a83aa644cf3fc1f4f446faa9a90dcaad2c478",
+      "description": "Full SEC EDGAR record for one company, given its CIK, ticker or name (best match): legal name, industry (SIC), state of incorporation, business address, 3 fiscal years of revenue, net income, total assets and cash, and its recent 10-K, 10-Q and 8-K filings with links. Use search_company first if you",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "screen_sanctions",
+      "descriptionHash": "85dcd1c6c9dd40eb0e733b2b17aa0605dee6b3591e06d0f3e57a19914a691df4",
+      "description": "Fuzzy-screen a person or organisation name against OFAC SDN + Consolidated, UN, EU, and UK sanctions lists. Returns up to 15 scored matches with source links; if more match, the summary says so and suggests a more specific query. Optional dob/birth_year, nationality and country set aside same-name m",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "domain_age",
+      "descriptionHash": "205d99749a183a1d45f07c1ea189522674ccc28bece639c13ed4b5c37c967891",
+      "description": "Domain registration date, age, registrar (RDAP) and email-auth records (MX, SPF, DMARC), which are common fraud signals, plus first_archived: the date of the Wayback Machine's earliest snapshot (null if none; archive.status says unavailable if archive.org didn't answer). notes holds factual remarks,",
+      "labels": [
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "state_registry_link",
+      "descriptionHash": "0ad5f60da4f1c56590bd6243eeab543e70dfef0c18ef51cbcb95df1a63c94259",
+      "description": "Official Secretary of State business-search link for a US state, to verify a private company's status, formation date, and registered agent.",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "due_diligence_report",
+      "descriptionHash": "11e1755813145deed96c10aa3f70cdc0a0e7e0c6fd0739656c03e70b4d0617a2",
+      "description": "One-call due-diligence report: SEC profile (if public), sanctions screen, federal exclusions, domain signals (registration age, email records, Wayback Machine first-seen date), and state registry link, with a red-flag summary, a verdict (clear / review / hold; rules at https://mcp.pyxmark.com/#verdi",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink"
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"state_registry_link\" references sensitive artifacts (secret). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:state_registry_link",
+        "snippet": "Official Secretary of State business-search link for a US state, to verify a private company's status, formation date, and registered agent."
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: due_diligence_report · Private data: company_profile, domain_age, state_registry_link, due_diligence_report · Public sink: screen_sanctions, domain_age, due_diligence_report.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: due_diligence_report · Private data: company_profile, domain_age, state_registry_link, due_diligence_report · Public sink: screen_sanctions, domain_age, due_diligence_report"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 60,
+  "scoreBreakdown": {
+    "tool-poisoning": 20,
+    "toxic-flow": 20
+  },
+  "errors": []
+}

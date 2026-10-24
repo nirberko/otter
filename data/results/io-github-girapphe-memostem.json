@@ -8,23 +8,42 @@
     "kind": "url",
     "ref": "https://www.memostem.com/api/mcp"
   },
-  "scannedAt": "2026-09-17T09:41:51.338Z",
-  "durationMs": 6001,
+  "scannedAt": "2026-10-24T09:05:45.616Z",
+  "durationMs": 3071,
   "layers": {
     "metadata": true,
     "static": false
   },
   "tools": [
     {
+      "name": "start_memostem",
+      "descriptionHash": "ad54777c5e385134dc77027d88b8be9f33bdc635252f32797720ed3f2be195d5",
+      "description": "Start MemoStem when no topic is named. Show a localized welcome App before login, or the connected owner's topic labels and empty-state guidance. Pass the conversation language as locale when known. No drafts are created."
+    },
+    {
+      "name": "connect_memostem",
+      "descriptionHash": "58c3e3f84687b34540c897436ea35441640f1168efae495392e886e4a47a9cf7",
+      "description": "Connect or grant knowledge read permission through the host OAuth flow, then show a page of the authenticated owner's topic labels. Never creates knowledge."
+    },
+    {
       "name": "validate_knowledge_bundle",
-      "descriptionHash": "e1e872231c2bceea63e50f6666d6f600ffa6963458af133556697e48aaa5f596",
-      "description": "Validate exactly one user-selected, independently teachable general-knowledge bundle without an account and without saving it. Call only at the person's direct request or after clear acceptance of a specific preview proposal. The strict input rejects transcripts, conversation histories, personal or "
+      "descriptionHash": "9dc4277f9ce54667760503cfa6ede91597c701c1f3a7e1fd3ea46331c1f60d70",
+      "description": "Validate exactly one user-selected, independently teachable general-knowledge bundle without an account and without saving it. Call only at the person's direct request or after clear acceptance of a specific preview proposal. The strict input rejects transcripts, conversation histories, and unsuppor"
     },
     {
       "name": "save_guest_knowledge_bundles",
       "descriptionHash": "a6b815439c7f7093a484815d4813dd27d7a6dee692365be1369c66fff5cb3f93",
       "description": "Store one to 10 specifically selected, independently teachable general-knowledge bundles from the current conversation in a private temporary MemoStem guest shelf. Call only after a direct request or clear acceptance of a specific proposal. Reuse workspace_token to continue the same shelf, but never",
       "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "refresh_guest_knowledge_shelf_link",
+      "descriptionHash": "5f2ad8b41359d005cdf92b8f928706a81c5782c2bcf65dcfbe32edf64fad0f3d",
+      "description": "Issue a new short-lived, one-time mobile or desktop web link for the existing guest shelf. Use only when the person asks to open or recover that shelf. Pass the private workspace_token as a tool argument; never show or put it in a URL. This adds no card and makes the previous view link invalid.",
+      "labels": [
+        "untrusted-content",
         "private-data"
       ]
     },
@@ -43,8 +62,8 @@
     },
     {
       "name": "check_memostem_connection",
-      "descriptionHash": "7207165b7dbd3b544f1e45043552d8741a5646be81a7d1d1de3d502c849ca095",
-      "description": "Verify the authenticated MemoStem connection and report only the currently granted knowledge permissions. This test does not read or write knowledge."
+      "descriptionHash": "d31983fb46a1a8c4fefbce894e80eb52361d950a8a8af5ae2a47f6dc933475e2",
+      "description": "Verify the MemoStem connection and report only the currently granted knowledge permissions. Without an account it reports status guest with no permissions, and the temporary guest shelf stays available. This test does not read or write knowledge."
     },
     {
       "name": "create_card_drafts",
@@ -64,8 +83,51 @@
       ]
     }
   ],
-  "findings": [],
-  "score": 100,
-  "scoreBreakdown": {},
+  "findings": [
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: refresh_guest_knowledge_shelf_link · Private data: save_guest_knowledge_bundles, refresh_guest_knowledge_shelf_link, claim_guest_knowledge_workspace · Public sink: create_card_drafts · Destructive: create_card_drafts, create_knowledge_bundle_drafts.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: refresh_guest_knowledge_shelf_link · Private data: save_guest_knowledge_bundles, refresh_guest_knowledge_shelf_link, claim_guest_knowledge_workspace · Public sink: create_card_drafts · Destructive: create_card_drafts, create_knowledge_bundle_drafts"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"validate_knowledge_bundle\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:validate_knowledge_bundle",
+        "snippet": "before: \"Validate exactly one user-selected, independently teachable general-knowledge bundle without an account and without saving it. Call only at the person's direct request or after clear acceptance of a specific preview proposal. The strict input rejects transcripts, conversation histories, personal or \" → after: \"Validate exactly one user-selected, independently teachable general-knowledge bundle without an account and without saving it. Call only at the person's direct request or after clear acceptance of a specific preview proposal. The strict input rejects transcripts, conversation histories, and unsuppor\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"check_memostem_connection\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:check_memostem_connection",
+        "snippet": "before: \"Verify the authenticated MemoStem connection and report only the currently granted knowledge permissions. This test does not read or write knowledge.\" → after: \"Verify the MemoStem connection and report only the currently granted knowledge permissions. Without an account it reports status guest with no permissions, and the temporary guest shelf stays available. This test does not read or write knowledge.\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    }
+  ],
+  "score": 50,
+  "scoreBreakdown": {
+    "toxic-flow": 20,
+    "tool-poisoning": 30
+  },
   "errors": []
 }

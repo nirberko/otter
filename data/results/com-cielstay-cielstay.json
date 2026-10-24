@@ -8,8 +8,8 @@
     "kind": "url",
     "ref": "https://mcp.cielstay.com/mcp"
   },
-  "scannedAt": "2026-10-14T09:52:38.373Z",
-  "durationMs": 588,
+  "scannedAt": "2026-10-24T09:00:31.041Z",
+  "durationMs": 642,
   "layers": {
     "metadata": true,
     "static": false
@@ -17,13 +17,13 @@
   "tools": [
     {
       "name": "search_vacation_rentals",
-      "descriptionHash": "a5839912cf9d3f5ff78b8f56c8fdc347378acec231ae39c2061c0dfd883af964",
-      "description": "Search about 70,000 vacation rentals and longer-stay homes from independent hosts and property managers in 70+ countries and territories. Each result lists the ways it can be booked that CielStay holds: the host's own booking site or engine (directUrl / referenceUrl) and a CielStay listing page (cie"
+      "descriptionHash": "c6402d984c7616edd841750e921c3ef2f63720c9b6e798afc72f1c841b808141",
+      "description": "Search about 70,000 vacation rentals and longer-stay homes from independent hosts and property managers in 70+ countries and territories. Each result lists the ways it can be booked that CielStay holds: the host's own booking site or engine (directUrl / referenceUrl), bookUrl (the same booking page "
     },
     {
       "name": "refine_search",
-      "descriptionHash": "ffbea71897472330e3f3818a827f2a6e9aa536656a142c88cd0c154582620d43",
-      "description": "Refine a previous CielStay search in natural language, such as \"more rustic\", \"closer to the park\", \"better views\" or \"bigger place\". Takes the original query plus the refinement; no session or token is needed.",
+      "descriptionHash": "0b2d63716e221069eab9588123be71c99a4eb2950780000547908f8fe3c9a897",
+      "description": "Refine a previous CielStay search in natural language, such as \"more rustic\", \"closer to the park\", \"better views\", \"bigger place\" or \"with ping pong\". For any follow-up that adds to or changes an earlier search in the conversation; keeps that search's place and dates. Takes the original query plus ",
       "labels": [
         "private-data"
       ]
@@ -34,6 +34,14 @@
       "description": "Full details for one CielStay listing: description, photos, amenities, house rules, location, and every booking link CielStay holds, including the host's own booking site. With checkIn and checkOut, the response also carries liveQuote where the host's booking engine supports it: the total on the hos",
       "labels": [
         "untrusted-content"
+      ]
+    },
+    {
+      "name": "get_property",
+      "descriptionHash": "9195079b952e22cd254f4f778ddebd3de2167980d386389b57829e13e967b6af",
+      "description": "Every unit at one multi-unit property: a hotel, glamping site or building whose units share a booking site and a location. Search results carry readyToBook.property.id when a home is one of several such units. Returns the property (name only where the operator's own unit titles share it), and each u",
+      "labels": [
+        "public-sink"
       ]
     },
     {
@@ -53,6 +61,19 @@
   ],
   "findings": [
     {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: get_listing_details, find_direct_booking · Private data: refine_search, find_direct_booking · Public sink: get_property.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: get_listing_details, find_direct_booking · Private data: refine_search, find_direct_booking · Public sink: get_property"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    },
+    {
       "id": "MCP-RUGPULL-001",
       "severity": "high",
       "category": "tool-poisoning",
@@ -60,7 +81,7 @@
       "detail": "Tool \"search_vacation_rentals\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
       "evidence": {
         "source": "tool:search_vacation_rentals",
-        "snippet": "before: \"Search 70,000+ independently-owned vacation rentals in 70+ countries and territories, and find every way to book each one — including the host's own direct booking site, which OTA listings do not show. CielStay never processes payments and takes no commission: it surfaces the booking links and the g\" → after: \"Search about 70,000 vacation rentals and longer-stay homes from independent hosts and property managers in 70+ countries and territories. Each result lists the ways it can be booked that CielStay holds: the host's own booking site or engine (directUrl / referenceUrl) and a CielStay listing page (cie\""
+        "snippet": "before: \"Search about 70,000 vacation rentals and longer-stay homes from independent hosts and property managers in 70+ countries and territories. Each result lists the ways it can be booked that CielStay holds: the host's own booking site or engine (directUrl / referenceUrl) and a CielStay listing page (cie\" → after: \"Search about 70,000 vacation rentals and longer-stay homes from independent hosts and property managers in 70+ countries and territories. Each result lists the ways it can be booked that CielStay holds: the host's own booking site or engine (directUrl / referenceUrl), bookUrl (the same booking page \""
       },
       "confidence": 0.8,
       "remediation": "Re-review the tool before continuing to trust it."
@@ -73,54 +94,16 @@
       "detail": "Tool \"refine_search\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
       "evidence": {
         "source": "tool:refine_search",
-        "snippet": "before: \"Refine a previous CielStay search with natural language. Use when the guest says \"more rustic\", \"closer to the park\", \"something with better views\" or \"bigger place\". Send the original query plus the refinement — no session or token is needed.\" → after: \"Refine a previous CielStay search in natural language, such as \"more rustic\", \"closer to the park\", \"better views\" or \"bigger place\". Takes the original query plus the refinement; no session or token is needed.\""
-      },
-      "confidence": 0.8,
-      "remediation": "Re-review the tool before continuing to trust it."
-    },
-    {
-      "id": "MCP-RUGPULL-001",
-      "severity": "high",
-      "category": "tool-poisoning",
-      "title": "Tool description changed since last scan",
-      "detail": "Tool \"get_listing_details\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
-      "evidence": {
-        "source": "tool:get_listing_details",
-        "snippet": "before: \"Fetch complete details for a specific CielStay listing: full description, all photos, amenities, house rules, exact location, and every booking link including the host's own direct booking site. Call this when the user wants to learn more about a specific property, or wants to know whether it can be\" → after: \"Full details for one CielStay listing: description, photos, amenities, house rules, location, and every booking link CielStay holds, including the host's own booking site. With checkIn and checkOut, the response also carries liveQuote where the host's booking engine supports it: the total on the hos\""
-      },
-      "confidence": 0.8,
-      "remediation": "Re-review the tool before continuing to trust it."
-    },
-    {
-      "id": "MCP-RUGPULL-001",
-      "severity": "high",
-      "category": "tool-poisoning",
-      "title": "Tool description changed since last scan",
-      "detail": "Tool \"find_direct_booking\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
-      "evidence": {
-        "source": "tool:find_direct_booking",
-        "snippet": "before: \"Find every way a specific property can be booked, including the host or manager's own site. Call this whenever a traveller names a particular place and asks where or how to book it, whether a direct option exists, or how to reach the owner. Prefer propertyName plus city. A listing URL from a booking\" → after: \"Look up one named property and every way it can be booked, including the host's or manager's own site. Takes propertyName plus city (most reliable), or a listing URL from a booking platform, which is matched on its listing id. The response has answerType \"lookup\": a lookup about one property, not a \""
-      },
-      "confidence": 0.8,
-      "remediation": "Re-review the tool before continuing to trust it."
-    },
-    {
-      "id": "MCP-RUGPULL-001",
-      "severity": "high",
-      "category": "tool-poisoning",
-      "title": "Tool description changed since last scan",
-      "detail": "Tool \"health_check\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
-      "evidence": {
-        "source": "tool:health_check",
-        "snippet": "before: \"Verify the CielStay MCP server is reachable and the API is healthy.\" → after: \"Check that the CielStay MCP server is reachable and the API is healthy.\""
+        "snippet": "before: \"Refine a previous CielStay search in natural language, such as \"more rustic\", \"closer to the park\", \"better views\" or \"bigger place\". Takes the original query plus the refinement; no session or token is needed.\" → after: \"Refine a previous CielStay search in natural language, such as \"more rustic\", \"closer to the park\", \"better views\", \"bigger place\" or \"with ping pong\". For any follow-up that adds to or changes an earlier search in the conversation; keeps that search's place and dates. Takes the original query plus \""
       },
       "confidence": 0.8,
       "remediation": "Re-review the tool before continuing to trust it."
     }
   ],
-  "score": 61,
+  "score": 50,
   "scoreBreakdown": {
-    "tool-poisoning": 39
+    "toxic-flow": 20,
+    "tool-poisoning": 30
   },
   "errors": []
 }

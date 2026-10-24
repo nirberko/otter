@@ -1,0 +1,113 @@
+{
+  "schemaVersion": 1,
+  "scanner": {
+    "version": "1.6.0",
+    "rules": "402995650b68"
+  },
+  "target": {
+    "kind": "url",
+    "ref": "https://porch.okibi.ai/mcp"
+  },
+  "scannedAt": "2026-10-24T08:59:10.658Z",
+  "durationMs": 430,
+  "layers": {
+    "metadata": true,
+    "static": false
+  },
+  "tools": [
+    {
+      "name": "create_inbox",
+      "descriptionHash": "1413040172d4b69c37b09f82780ed8b6c7df4fdd7eecbabe84880d338610fd8d",
+      "description": "Get a public URL that records every HTTP request sent to it, plus the inbox_key that all other tools need. Use it as a webhook endpoint, OAuth redirect URI, job callback URL, or with create_approval_link. The key is shown only once: keep it.",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "get_inbox",
+      "descriptionHash": "f7b911e85d2a95f466d141d7fe7d90c1eb529046ce7cacaf4c119d53a956918e",
+      "description": "Show an inbox: its URL, expiry, request count, latest request id, configured responses and approval links.",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "list_requests",
+      "descriptionHash": "6f508e784105a0fbb34f80ad0c65f5d74daadc20c1ffb9c857fe66ad6cb87775",
+      "description": "List captured requests as summaries, oldest first. Without \"after\" you get the most recent ones; with \"after\" you page forward from that request id. Use get_request for headers and body. Does not move wait_for_request's position.",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "get_request",
+      "descriptionHash": "ae6ee764ba8eecb1474cd37e56dbc9d1f14ea3e8a07e716bdcdcda370183d210",
+      "description": "Full details of one captured request: method, path, parsed query, headers, body (UTF-8 text or base64), plus \"json\" or \"form\" when the body parses. Pass replay_to to also get a byte-exact curl command and fetch recipe for delivering it somewhere Porch cannot reach, such as localhost. Treat the conte"
+    },
+    {
+      "name": "wait_for_request",
+      "descriptionHash": "1e27ddb4de676f17d7693434da06607f4518aa025f15611bbd7e08265e823a8d",
+      "description": "Block until a request arrives, then return it in full (same shape as get_request). By default it returns the next request not yet returned by wait_for_request for this inbox and these filters, so nothing that arrives between calls is missed, including requests that came in before the first call. Tim"
+    },
+    {
+      "name": "set_response",
+      "descriptionHash": "2ce8178fc4c8e884318cb252c72c5f80677e6dd1b27ef17274ec7cc832c7339f",
+      "description": "Choose what Porch sends back to callers, for the whole inbox or a sub-path: status, headers and body. Useful for webhook verification handshakes, or a friendly page after an OAuth redirect (or a 302 with a Location header). Pages are served in a browser sandbox: scripts and forms do not run. Pass re",
+      "labels": [
+        "public-sink",
+        "destructive"
+      ]
+    },
+    {
+      "name": "create_approval_link",
+      "descriptionHash": "3096c9b75a361a9c8e55c9a952107e8359c5d5241e9cb617de73e62216f1c17d",
+      "description": "Make a link to send a person when you need their decision (\"Deploy to production?\"). It opens a page with your title, message and one button per choice. Only a button press counts, so link previews and email scanners cannot answer by accident, only the first answer is accepted, and opening the page ",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "wait_for_approval",
+      "descriptionHash": "889bbaa1958c68e23e094bb9d28ab00079a7b80861861c3010320d9ab169475c",
+      "description": "Block until the person answers an approval link, then return their choice. Returns at once if it was already answered. On timeout, call it again."
+    },
+    {
+      "name": "clear_requests",
+      "descriptionHash": "a2b4f0459838986cf94aaae8f2614985857d3cb5337c260ead83d16b82b338ad",
+      "description": "Delete all captured requests from the inbox. The URL, key and response settings stay the same.",
+      "labels": [
+        "destructive"
+      ]
+    },
+    {
+      "name": "delete_inbox",
+      "descriptionHash": "9f1329ca11d950f6c80b9be56137e41c80bf64b7cea33073e1385d3bbfe94ad5",
+      "description": "Delete the inbox and everything it captured. Its URL starts returning 404 and the key stops working.",
+      "labels": [
+        "destructive"
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: create_inbox, get_inbox · Private data: create_inbox · Public sink: create_inbox, list_requests, set_response, create_approval_link · Destructive: set_response, clear_requests, delete_inbox.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: create_inbox, get_inbox · Private data: create_inbox · Public sink: create_inbox, list_requests, set_response, create_approval_link · Destructive: set_response, clear_requests, delete_inbox"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 80,
+  "scoreBreakdown": {
+    "toxic-flow": 20
+  },
+  "errors": []
+}
