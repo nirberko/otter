@@ -8,19 +8,96 @@
     "kind": "url",
     "ref": "https://fetchpan.com/mcp"
   },
-  "scannedAt": "2026-10-09T11:31:20.061Z",
-  "durationMs": 416,
+  "scannedAt": "2026-10-26T10:32:30.923Z",
+  "durationMs": 1263,
   "layers": {
-    "metadata": false,
+    "metadata": true,
     "static": false
   },
-  "findings": [],
-  "score": 100,
-  "scoreBreakdown": {},
-  "errors": [
+  "tools": [
     {
-      "scanner": "metadata",
-      "message": "Streamable HTTP error: Error POSTing to endpoint: {\"error\":{\"code\":\"unauthorized\",\"message\":\"Send your FetchPan API token as 'Authorization: Bearer fp_...'.\"}}"
+      "name": "list_supported_sites",
+      "descriptionHash": "9f8d62586c86ed836905e87f049600be5dac4b627d44b846a4d976c75e459f6d",
+      "description": "List the sites FetchPan can download from, with live status (working, slow, down).\n\n        `main_sites` are the big ones (Baidu, Quark, Rapidgator ...). `file_hosts` are the other\n        file hosts. `free` tells whether a free download is possible there or only a paid one.",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "check_link",
+      "descriptionHash": "6acbfd7b89ddf4a9195afe6a8ddc1107da2457a731c2c96f5fe50901a6aa1c7f",
+      "description": "Is this link from a site FetchPan supports, and is that site working right now?\n\n        Does not use any quota. Call it before `download` when you are not sure."
+    },
+    {
+      "name": "start_download",
+      "descriptionHash": "2bb38eea58bbfa2763dd96001df9b84fa2efbb552a8821b80fba1f228d75d95e",
+      "description": "Start fetching a link. Returns a job id; poll it with `get_job`. Uses no free file yet.",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "get_job",
+      "descriptionHash": "69c41a6b34b7bc040674ad2971aea10feaf2aad16af4f0dd3294e17635aa3f24",
+      "description": "Status of a job: queued, running, succeeded or failed.\n\n        When it has succeeded it also says whether a free download is possible (`free`) and what a\n        fast one would cost in traffic bytes (`fast`)."
+    },
+    {
+      "name": "get_download_link",
+      "descriptionHash": "492fc070b154b91d73fa68bb63eae9b6b7c83314b76780f20b99a81fff1db516",
+      "description": "Get the download URL of a succeeded job. A free link uses one of the account's free\n        files for the day; a fast link uses traffic from the account balance. Asking again for the\n        same job and tier returns the same link.",
+      "labels": [
+        "untrusted-content",
+        "private-data"
+      ]
+    },
+    {
+      "name": "download",
+      "descriptionHash": "6f20da1593cb8c2a42a850dd835c91a50c39ecc5c6ced1d83cfce8291901afe4",
+      "description": "Fetch a link and return a download URL, in one call.\n\n        Waits up to `wait_seconds` for the file to be ready. If it is not ready yet, the result has\n        status \"running\" and a `job_id`: call `get_job`, then `get_download_link`.",
+      "labels": [
+        "untrusted-content",
+        "private-data"
+      ]
+    },
+    {
+      "name": "get_account",
+      "descriptionHash": "50097c112ad12bc3f9d626ddea0cfa9c696ec23f220ffe938924588a2cf4c98f",
+      "description": "The account behind the token: email, traffic balance in bytes, free files per day,\n        and the last downloads.",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "list_packages",
+      "descriptionHash": "44fc9eccf25fd44fd43a2f880b693ffc3de57ec97c2c3308ed7a38aa569a18da",
+      "description": "Traffic packs that can be bought (code, size in bytes, price in USDT)."
+    },
+    {
+      "name": "create_payment_link",
+      "descriptionHash": "fbf3e228677b9de59dd50099e7b6f536b2add6e71779918e97c2f4e7573cf2a4",
+      "description": "Create a payment page for a traffic pack and return its URL. Give the URL to the\n        user: only a person can pay it. Nothing is charged by calling this."
     }
-  ]
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: get_download_link, download, get_account · Private data: list_supported_sites, start_download, get_download_link, download, get_account · Public sink: get_account.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: get_download_link, download, get_account · Private data: list_supported_sites, start_download, get_download_link, download, get_account · Public sink: get_account"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 80,
+  "scoreBreakdown": {
+    "toxic-flow": 20
+  },
+  "errors": []
 }

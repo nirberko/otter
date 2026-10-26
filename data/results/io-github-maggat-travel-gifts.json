@@ -1,0 +1,102 @@
+{
+  "schemaVersion": 1,
+  "scanner": {
+    "version": "1.6.0",
+    "rules": "402995650b68"
+  },
+  "target": {
+    "kind": "url",
+    "ref": "https://travel-packing-zeta.vercel.app/api/mcp"
+  },
+  "scannedAt": "2026-10-26T10:38:45.309Z",
+  "durationMs": 2656,
+  "layers": {
+    "metadata": true,
+    "static": false
+  },
+  "tools": [
+    {
+      "name": "get_health",
+      "descriptionHash": "9afe357e901e97072f5813d3bb0824d3bbab930dca1ba9547df628f78aa1ad79",
+      "description": "Health check for Travel Packing. Returns ok, storage, trackingTag, defaultDomain (amazon.se), catalogCounts for amazon.se and amazon.com, storefronts and marketplaceSelection rules. Pass marketplace=amazon.com for United States users (English, USD, amazon.com /dp links); default amazon.se. Without m"
+    },
+    {
+      "name": "list_marketplaces",
+      "descriptionHash": "8fe6dac227e3bbb9e37d3ebd59019e716b8d99f8d5cb9584edb27a1b23dfe378",
+      "description": "List Amazon storefronts (domain, label, currencyHint, tagConfigured). Curated catalogs: amazon.com (United States) and amazon.se (Sweden). Pass marketplace=amazon.com for United States users (English, USD, amazon.com /dp links); default amazon.se. Without marketplace/country, an en-US Accept-Languag"
+    },
+    {
+      "name": "search_packing_items",
+      "descriptionHash": "cf60e29e7e4dcc412b8c98447b2710787a43888439736ba6e288ac4bbf3fbc49",
+      "description": "Search Amazon for packing items on the user's storefront. Returns packing search link cards (English searches on amazon.com) plus curated catalogMatches with /dp product links. Prefer buyUrl in results. Pass marketplace=amazon.com for United States users (English, USD, amazon.com /dp links); default"
+    },
+    {
+      "name": "suggest_packing_items",
+      "descriptionHash": "a44206ba9d73e13765145aed7d7d382d37961c7bb82fe820a4e1b0552d7cba2a",
+      "description": "Alias of search_packing_items — suggest gear for a trip by query + tripType/climate. Pass marketplace=amazon.com for United States users (English, USD, amazon.com /dp links); default amazon.se. Without marketplace/country, an en-US Accept-Language selects amazon.com."
+    },
+    {
+      "name": "get_catalog",
+      "descriptionHash": "9dbf5cd7bc36115e6ad2ecfc219fc3aaeda36ba0a68fd8886d6b8310313d724b",
+      "description": "Curated packing items. marketplace=amazon.com returns the United States catalog (English titles, amazon.com /dp links, priceUsd); marketplace=amazon.se (default) returns the Sweden catalog (/dp links, priceSek). Pass marketplace=amazon.com for United States users (English, USD, amazon.com /dp links)"
+    },
+    {
+      "name": "resolve_product",
+      "descriptionHash": "31297fad329c95397010da16d2703f4bcc6f74834a2fc6b4d32394a9a0e2b030",
+      "description": "Resolve an ASIN, pasted Amazon /dp/ URL, or keywords to a buyUrl (product /dp or packing search) on the chosen storefront. With marketplace=amazon.com, keywords resolve to a matching US catalog product (/dp) when one exists. Pass marketplace=amazon.com for United States users (English, USD, amazon.c",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "create_packing_list",
+      "descriptionHash": "1a6e69078e7625e8d144b86d66acac49c1d19c2d6676f9d399625688e0c67a29",
+      "description": "Create a trip packing list (storefront chosen like the other tools: marketplace → country → en-US Accept-Language → amazon.se). Returns id, editToken, ownerUrl, listUrl, shopUrl, wishlist, storage. Save editToken for add_packing_item. If storage is token, later mutations may return a new id — always",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "create_and_fill",
+      "descriptionHash": "9a9320ac79c9720e1185a976aa25089e7244cbd680eb542b693ff8fef2b4af91",
+      "description": "One call: create a curated trip packing list and return shopUrl (share link) + ownerUrl. Pass marketplace=amazon.com for United States users (English, USD, amazon.com /dp links); default amazon.se. Without marketplace/country, an en-US Accept-Language selects amazon.com. Preferred agent path: create",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "get_packing_list",
+      "descriptionHash": "c46a7f59fe80f1d9a5b3c9b5ea5d9acc41f978364c74ad6b480d9d35e73cd964",
+      "description": "Fetch a packing list by id. Returns wishlist items with buyUrl/linkType when available, plus ownerUrl, listUrl, shopUrl. OpenAPI: getWishlist."
+    },
+    {
+      "name": "add_packing_item",
+      "descriptionHash": "9f8e623a73e2b425e186072712da0cddd7d6794097fd8e85811598ac8dcad7d8",
+      "description": "Add an item to a packing list. Requires editToken from create. Body: name/title plus asin, url (pasted /dp), searchKeywords, or catalogId. Token storage may return a new id — update bookmarks. OpenAPI: addWishlistItem.",
+      "labels": [
+        "untrusted-content",
+        "private-data"
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: resolve_product, add_packing_item · Private data: create_packing_list, add_packing_item · Public sink: create_and_fill.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: resolve_product, add_packing_item · Private data: create_packing_list, add_packing_item · Public sink: create_and_fill"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 80,
+  "scoreBreakdown": {
+    "toxic-flow": 20
+  },
+  "errors": []
+}

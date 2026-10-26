@@ -8,8 +8,8 @@
     "kind": "url",
     "ref": "https://mcp.georgiacivicdata.org/mcp/"
   },
-  "scannedAt": "2026-10-11T11:06:58.744Z",
-  "durationMs": 477,
+  "scannedAt": "2026-10-26T10:42:36.884Z",
+  "durationMs": 1258,
   "layers": {
     "metadata": true,
     "static": false
@@ -17,7 +17,7 @@
   "tools": [
     {
       "name": "list_datasets",
-      "descriptionHash": "8047c30cc4f98c2cbeefc07e4f1607eae49e5b1655453add3cd173f3fc4910f0",
+      "descriptionHash": "3c78302e622a1eba6cb88ba740b0b20e2fff6ca0f850b532ebd4be8d8e21612c",
       "description": "Enumerate every approved Georgia dataset (topic) and the shared dimensions. Each topic entry is a LEAN summary — name/keys, year coverage (year_min/year_max + year_gaps), detail levels + default detail, a has_demographic flag (false = no demographic axis, so there is no all-students demographic row "
     },
     {
@@ -27,7 +27,7 @@
     },
     {
       "name": "describe_dataset",
-      "descriptionHash": "acb4df44039413a4cf521e8bdb834cdb58126879ef528036b105ce724b3123dc",
+      "descriptionHash": "f13911b44747a27d23727ba531aab5015526d9d2a4eed9a9184b190ba539bc83",
       "description": "Full schema for one topic: every column (name/type/role/unit/value range/null-meaning), the exact `filters` list with enum values (read this before query_dataset — it is the authoritative set of filter keys), the FK→dimension join shape (`foreign_keys`), example queries, usage, limitations, null sem"
     },
     {
@@ -45,12 +45,12 @@
     },
     {
       "name": "aggregate",
-      "descriptionHash": "c74753a941f53f6371c680c492493ce42d8149bf2c35972454dcc72e6cc67cda",
+      "descriptionHash": "5625b3a77b392e3e94625c11a9efdfa0b63f7c9842e6a6ac522c4a9670ef15f7",
       "description": "Compute a grouped aggregate over one topic — the aggregation-first path. `agg` is one of avg/sum/min/max/count/weighted_rate; `metric` is a metric column (DEFAULTS to the topic key_metric; ignored for count); `group_by` is a list of grain columns (year, FK codes like district_code or county_fips, or"
     },
     {
       "name": "resolve_entity",
-      "descriptionHash": "4833fd0f4897387398f58033443b5d8c939c0d66c92f995d9aee6ce48e38d8ec",
+      "descriptionHash": "ecb304e7823b27f36c1063123347468620885a88621b0ba90040da284af82e4e",
       "description": "Resolve a place or demographic NAME or CODE to its stable keys + labels — the right way to turn 'Atlanta Public Schools' / 'Fulton' / a raw code into the district_code / school_code / county_fips / demographic to filter by (a wrong code guess otherwise returns an empty query_dataset page). `kind` is"
     },
     {
@@ -72,6 +72,14 @@
       ]
     },
     {
+      "name": "lookup_school_zone",
+      "descriptionHash": "e15fea2f726b2b8db170ed0db600f82b51997effabbd0c19060ecf3f3c53c485",
+      "description": "Which Georgia public school attendance zones (elementary, middle, high) contain a place, or (attendance_rules=true) how attendance zones work in Georgia. Give exactly one of: lat + lon; an address (geocoded by the U.S. Census Geocoder); a 2020 census tract_geoid (returns every zone covering the trac",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
       "name": "link_tables",
       "descriptionHash": "6d0025ec7298cafb9c6de20ef39dd1dfb7d370d9c530936fe259838c7718b05d",
       "description": "List the tables link_query can read (curated gold paths only) and the join keys that bridge facts → dimensions → Census geography. Call this BEFORE writing a link_query. Two-tier to stay context-cheap: with NO arguments it returns a LEAN index — every table's name, grain, detail levels, default `rea"
@@ -88,6 +96,31 @@
     }
   ],
   "findings": [
+    {
+      "id": "MCP-TOOL-POISON-007",
+      "severity": "low",
+      "category": "tool-poisoning",
+      "title": "Description uses pressure/override language",
+      "detail": "Description of \"lookup_school_zone\" stacks urgency/override words (always, never). Legitimate tool descriptions rarely pressure the model to act or ignore prior guidance.",
+      "evidence": {
+        "source": "tool:lookup_school_zone",
+        "snippet": "Which Georgia public school attendance zones (elementary, middle, high) contain a place, or (attendance_rules=true) how attendance zones work in Georgia. Give e…"
+      },
+      "confidence": 0.3
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"list_datasets\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:list_datasets",
+        "snippet": "before: \"Enumerate every approved Georgia dataset (topic) and the shared dimensions. Each topic entry is a LEAN summary — name/keys, year coverage (year_min/year_max + year_gaps), detail levels + default detail, a has_demographic flag (false = no demographic axis, so there is no all-students demographic row \" → after: \"Enumerate every approved Georgia dataset (topic) and the shared dimensions. Each topic entry is a LEAN summary — name/keys, year coverage (year_min/year_max + year_gaps), detail levels + default detail, a has_demographic flag (false = no demographic axis, so there is no all-students demographic row \""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
     {
       "id": "MCP-RUGPULL-001",
       "severity": "high",
@@ -126,37 +159,11 @@
       },
       "confidence": 0.8,
       "remediation": "Re-review the tool before continuing to trust it."
-    },
-    {
-      "id": "MCP-RUGPULL-001",
-      "severity": "high",
-      "category": "tool-poisoning",
-      "title": "Tool description changed since last scan",
-      "detail": "Tool \"get_contract\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
-      "evidence": {
-        "source": "tool:get_contract",
-        "snippet": "before: \"Return the authoritative ODCS v3.1 data contract for a topic (kind='topic') or a dimension (kind='dimension') so you can consume the machine-readable schema without cloning the repo. fmt='yaml' (default) returns the document verbatim as text; fmt='json' returns it parsed. Only approved topics and lo\" → after: \"Return the authoritative ODCS v3.2 data contract for a topic (kind='topic') or a dimension (kind='dimension') so you can consume the machine-readable schema without cloning the repo. fmt='yaml' (default) returns the document verbatim as text; fmt='json' returns it parsed. Only approved topics and lo\""
-      },
-      "confidence": 0.8,
-      "remediation": "Re-review the tool before continuing to trust it."
-    },
-    {
-      "id": "MCP-RUGPULL-001",
-      "severity": "high",
-      "category": "tool-poisoning",
-      "title": "Tool description changed since last scan",
-      "detail": "Tool \"link_query\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
-      "evidence": {
-        "source": "tool:link_query",
-        "snippet": "before: \"Run a cross-dataset / cross-topic analytical SQL query that the per-topic query_dataset filters can't express — e.g. join education or Census facts to a dimension (or another dataset) on shared geography. READ-ONLY, SANDBOXED DuckDB: one SELECT (or WITH … SELECT); no DDL/DML/COPY/ATTACH/INSTALL/PRAG\" → after: \"Run a cross-dataset / cross-topic analytical SQL query that the per-topic query_dataset filters can't express — e.g. join education, Census, or immigration facts to a dimension (or another dataset) on shared geography (immigration and Census county topics share county_fips directly). READ-ONLY, SAND\""
-      },
-      "confidence": 0.8,
-      "remediation": "Re-review the tool before continuing to trust it."
     }
   ],
-  "score": 61,
+  "score": 62,
   "scoreBreakdown": {
-    "tool-poisoning": 39
+    "tool-poisoning": 38
   },
   "errors": []
 }

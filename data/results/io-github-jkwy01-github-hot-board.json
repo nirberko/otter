@@ -8,8 +8,8 @@
     "kind": "url",
     "ref": "https://git.vaiox.xyz/api/mcp"
   },
-  "scannedAt": "2026-10-24T09:06:00.304Z",
-  "durationMs": 6121,
+  "scannedAt": "2026-10-26T10:37:44.990Z",
+  "durationMs": 5105,
   "layers": {
     "metadata": true,
     "static": false
@@ -25,16 +25,16 @@
     },
     {
       "name": "get_board",
-      "descriptionHash": "2e4946711cf9edbbf5e8abb80362a64a500126410e9ed435711441e5163ae1c0",
-      "description": "Top-N rows of one leaderboard (rank, stars, forks, issues, language, description). Refreshes in hourly batches; generatedAt is the batch stamp (fetch once per hour).",
+      "descriptionHash": "ecdce6f6251661fbe2937c8f416ac7dee2167eeb67b569465db4398c0988bfcf",
+      "description": "Top-N rows of one leaderboard (rank, stars, forks, issues, language, description). Refreshes every ~6 hours; generatedAt is the batch stamp (fetch once per sync cycle).",
       "labels": [
         "untrusted-content"
       ]
     },
     {
       "name": "get_board_movers",
-      "descriptionHash": "8b229b8c56a0e613ca7c3653f70daf41d49d041f90b1a5df36628555ee06e05f",
-      "description": "Repositories that genuinely moved rank on a board within the last 24 hours, from our own hourly snapshot series (the same data as the on-site movers strip). Positive climb = went up."
+      "descriptionHash": "c63512f07fcb1e69f653dce984698f47032883efbec9641db84a1698c81b6495",
+      "description": "Repositories that genuinely moved rank on a board within the last 24 hours, from our own snapshot series (the same data as the on-site movers strip). Positive climb = went up."
     },
     {
       "name": "get_repo",
@@ -51,12 +51,71 @@
     },
     {
       "name": "get_repo_history",
-      "descriptionHash": "2f40e58419d476dbf42cad1e038b248db786de30b5c37e021fa1195ccdbca9b2",
-      "description": "Time series of one repository on one board (default overall): hourly rank + star points from our own snapshot series. Our unique moat — this data exists on no other service. Empty result means the repo was not tracked in the window."
+      "descriptionHash": "d8eff9b781f97d2a58808bfb3232c4cd9833c52753541c48d0d0f735a46d9f87",
+      "description": "Time series of one repository on one board (default overall): rank + star points at our sync cadence (~6h) from our own snapshot series — denser than the daily archives others publish. Empty result means the repo was not tracked in the window.",
+      "labels": [
+        "public-sink"
+      ]
     }
   ],
-  "findings": [],
-  "score": 100,
-  "scoreBreakdown": {},
+  "findings": [
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: list_boards, get_board · Private data: get_repo · Public sink: get_repo_history.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: list_boards, get_board · Private data: get_repo · Public sink: get_repo_history"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"get_board\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:get_board",
+        "snippet": "before: \"Top-N rows of one leaderboard (rank, stars, forks, issues, language, description). Refreshes in hourly batches; generatedAt is the batch stamp (fetch once per hour).\" → after: \"Top-N rows of one leaderboard (rank, stars, forks, issues, language, description). Refreshes every ~6 hours; generatedAt is the batch stamp (fetch once per sync cycle).\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"get_board_movers\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:get_board_movers",
+        "snippet": "before: \"Repositories that genuinely moved rank on a board within the last 24 hours, from our own hourly snapshot series (the same data as the on-site movers strip). Positive climb = went up.\" → after: \"Repositories that genuinely moved rank on a board within the last 24 hours, from our own snapshot series (the same data as the on-site movers strip). Positive climb = went up.\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"get_repo_history\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:get_repo_history",
+        "snippet": "before: \"Time series of one repository on one board (default overall): hourly rank + star points from our own snapshot series. Our unique moat — this data exists on no other service. Empty result means the repo was not tracked in the window.\" → after: \"Time series of one repository on one board (default overall): rank + star points at our sync cadence (~6h) from our own snapshot series — denser than the daily archives others publish. Empty result means the repo was not tracked in the window.\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    }
+  ],
+  "score": 45,
+  "scoreBreakdown": {
+    "toxic-flow": 20,
+    "tool-poisoning": 35
+  },
   "errors": []
 }

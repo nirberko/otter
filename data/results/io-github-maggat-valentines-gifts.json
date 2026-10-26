@@ -1,0 +1,96 @@
+{
+  "schemaVersion": 1,
+  "scanner": {
+    "version": "1.6.0",
+    "rules": "402995650b68"
+  },
+  "target": {
+    "kind": "url",
+    "ref": "https://valentines-day-gifts.vercel.app/api/mcp"
+  },
+  "scannedAt": "2026-10-26T10:38:22.400Z",
+  "durationMs": 2173,
+  "layers": {
+    "metadata": true,
+    "static": false
+  },
+  "tools": [
+    {
+      "name": "get_health",
+      "descriptionHash": "0a560551eca5cbac7af522b8dcdd00b0b2eca65a22046828a8470744f5bdb325",
+      "description": "Health check for Valentine's Day gift inspiration. Returns ok, storage, paapi, trackingTag, defaultDomain, catalogCount, tagConfigured, and marketplaces[] (domain, label, tagConfigured). Use this first to discover supported Amazon storefronts. OpenAPI: getHealth."
+    },
+    {
+      "name": "list_marketplaces",
+      "descriptionHash": "64a7cba74379778b373a315fc0c28b28c49c0d9449d69346da4fa6cb59fa2368",
+      "description": "List supported Amazon storefronts (domain, label, currencyHint, tagConfigured). Same data as get_health.marketplaces. Agents MUST pick the user's marketplace and pass it on search/catalog/resolve."
+    },
+    {
+      "name": "search_gifts",
+      "descriptionHash": "a24fc57887450c8fd6f331a3429ee08dc4a7951fddcd15774afb1edcd31da159",
+      "description": "Search Amazon for Valentine's / romantic gift ideas on the user's marketplace. Returns PA-API products when configured for the default storefront, otherwise romantic-filtered search deep-link cards + catalogMatches. Prefer buyUrl / trackingTag in results. ALWAYS pass marketplace + locale for the end"
+    },
+    {
+      "name": "get_catalog",
+      "descriptionHash": "c942e17a2e9f060570bab883de4bf03fe0bcb1940df53dbe3f5a914c61a07097",
+      "description": "Paginated curated Valentine gift starters. On amazon.se and amazon.com items include /dp/ASIN buy links (separate curated catalogs per store); on other marketplaces catalogMode is search-ideas. ALWAYS pass marketplace + locale. Search (search_gifts) remains primary discovery. OpenAPI: getCatalog."
+    },
+    {
+      "name": "resolve_product",
+      "descriptionHash": "4bd749c42bf5ac0353d91b5b788a247418cc9b0489f2b597e566da932ef84ba9",
+      "description": "Resolve an ASIN, pasted Amazon /dp/ URL, or keywords to a buyUrl (product /dp or romantic search). ALWAYS pass marketplace + locale for the user. Does not invent Associates tags — uses server-configured tags per storefront (omit tag= until real IDs are set). OpenAPI: resolveProduct.",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "create_wishlist",
+      "descriptionHash": "5d9956993e7370bec6d40dfe2f3855d453dd8b43fde4ae1451c115c6067e7343",
+      "description": "Create a Valentine's gift wishlist. Returns id, editToken, ownerUrl, shopUrl, wishlist, storage. Save editToken for add_wishlist_item. Fields: recipientName, occasion, categories (not Santa childName/ageBand). Optional styleTags, budgetBand, relationship. If storage is token, later mutations may ret",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "create_and_fill",
+      "descriptionHash": "8e33f027d7ae57137628bb310f809065be95430113d011cf8bf8c78ea872c4a4",
+      "description": "One call: create a curated Valentine's Day (Alla hjärtans dag) gift wishlist and return shopUrl (share link) + ownerUrl. Preferred agent path: create a Valentine wishlist and add ASINs / keywords / search queries in one call. Returns id, editToken, ownerUrl, shopUrl. Use recipientName, occasion, cat",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "get_wishlist",
+      "descriptionHash": "b84b429e4c1fde63e005dd0c92e6c99c436d72cd2647a26f1ed603452108d16f",
+      "description": "Fetch a wishlist by id. Returns wishlist items with buyUrl/linkType when available, plus ownerUrl and shopUrl. OpenAPI: getWishlist."
+    },
+    {
+      "name": "add_wishlist_item",
+      "descriptionHash": "71ee0dafc9aac1b7b1022086543d30e7f31e77bbd6de7b21447d25dcc1037b68",
+      "description": "Add an item to a wishlist. Requires editToken from create. Body: name/title plus asin, url (pasted /dp), searchKeywords, or catalogId. Prefer buyUrl in responses. Token storage may return a new id — update bookmarks. OpenAPI: addWishlistItem.",
+      "labels": [
+        "private-data"
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: resolve_product · Private data: create_wishlist, add_wishlist_item · Public sink: create_and_fill.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: resolve_product · Private data: create_wishlist, add_wishlist_item · Public sink: create_and_fill"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 80,
+  "scoreBreakdown": {
+    "toxic-flow": 20
+  },
+  "errors": []
+}

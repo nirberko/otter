@@ -1,0 +1,93 @@
+{
+  "schemaVersion": 1,
+  "scanner": {
+    "version": "1.6.0",
+    "rules": "402995650b68"
+  },
+  "target": {
+    "kind": "url",
+    "ref": "https://housewarming-kit.vercel.app/api/mcp"
+  },
+  "scannedAt": "2026-10-26T10:38:45.125Z",
+  "durationMs": 2113,
+  "layers": {
+    "metadata": true,
+    "static": false
+  },
+  "tools": [
+    {
+      "name": "get_health",
+      "descriptionHash": "b7635912d1841c23acb690709cd705f8afda675cc8574743eb14e67f8407a39a",
+      "description": "Health check for Housewarming Kit gift inspiration. Returns ok, storage, paapi, trackingTag, defaultDomain, catalogCount, and marketplaces[] (domain, label, tagConfigured). Use first to discover storefronts. OpenAPI: getHealth."
+    },
+    {
+      "name": "list_marketplaces",
+      "descriptionHash": "a4240c4e34241947bb1d4de065110e1d8b9717859b9d4c413986a376795bbcce",
+      "description": "List supported Amazon storefronts (domain, label, currencyHint, tagConfigured). Agents MUST pick the user's marketplace and pass it on search/catalog/resolve. tagConfigured is false until real Associates IDs exist (buyUrl omits ?tag=)."
+    },
+    {
+      "name": "search_kits",
+      "descriptionHash": "3c5a6c6d53dfb86e2bdcd20f17d728dbdba071084de0113ac18066cd3cfb5f8a",
+      "description": "Search Amazon for first-apartment / housewarming essentials on the user's marketplace. Returns PA-API products when configured, otherwise search deep-link cards (buyUrl, trackingTag) + catalogMatches. ALWAYS pass marketplace + locale. OpenAPI: searchAmazon."
+    },
+    {
+      "name": "get_catalog",
+      "descriptionHash": "a8d240fb47683558832d0b2cb0a3e16f642417c9b4e8c31c0309e25d762ffb16",
+      "description": "Paginated curated housewarming starters. On amazon.se items may include /dp/ASIN buy links; elsewhere catalogMode is search-ideas. ALWAYS pass marketplace + locale. Search remains primary. OpenAPI: getCatalog."
+    },
+    {
+      "name": "resolve_product",
+      "descriptionHash": "c75697e6c34f9670106bc063d9a0ef661a6c85a415aef0bf03cae458eede48cd",
+      "description": "Resolve an ASIN, pasted Amazon /dp/ URL, or keywords to buyUrl (product /dp or apartment search). ALWAYS pass marketplace + locale. Does not invent Associates tags — trackingTag is null until configured. OpenAPI: resolveProduct.",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "create_kit",
+      "descriptionHash": "2aeebde8bcccb555901191e0510d164c6b0ed33f03193e633e090db66ce4bc2d",
+      "description": "Create a housewarming / first-apartment kit list. Returns id, editToken, ownerUrl, shopUrl, wishlist, storage. Save editToken for add_kit_item. Prefer create_and_fill for one-shot. OpenAPI: createWishlist."
+    },
+    {
+      "name": "create_and_fill",
+      "descriptionHash": "cc6ecdda4019e51fed534ad63fbe8be248ba414c53e8153cc1361971aeb819a5",
+      "description": "One call: create a curated housewarming / moving in gift wishlist and return shopUrl (share link) + ownerUrl. Preferred agent path: create a kit and add ASINs / keywords / search queries in one call. Returns id, editToken, ownerUrl, shopUrl. ALWAYS pass marketplace + locale. OpenAPI: agentCreateAndF",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "get_kit",
+      "descriptionHash": "21be107a19169bb2ce97eddf3a4087aeb5de55b4e59e36cfe535d55f81ea8e56",
+      "description": "Fetch a kit by id. Returns wishlist items with buyUrl/linkType when available, plus ownerUrl and shopUrl. OpenAPI: getWishlist."
+    },
+    {
+      "name": "add_kit_item",
+      "descriptionHash": "90dcb794f570b6ab4d9a72e81136d84f32acb00cdb8496dcf1e4006787275397",
+      "description": "Add an item to a kit. Requires editToken from create. Body: name/title plus asin, url (pasted /dp), searchKeywords, or catalogId. Token storage may return a new id — update bookmarks. OpenAPI: addWishlistItem.",
+      "labels": [
+        "private-data"
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: resolve_product · Private data: add_kit_item · Public sink: create_and_fill.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: resolve_product · Private data: add_kit_item · Public sink: create_and_fill"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 80,
+  "scoreBreakdown": {
+    "toxic-flow": 20
+  },
+  "errors": []
+}

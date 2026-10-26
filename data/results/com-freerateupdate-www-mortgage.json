@@ -8,8 +8,8 @@
     "kind": "url",
     "ref": "https://fru-api.freerateupdate.com/mcp"
   },
-  "scannedAt": "2026-10-03T09:56:55.464Z",
-  "durationMs": 797,
+  "scannedAt": "2026-10-26T10:32:35.389Z",
+  "durationMs": 691,
   "layers": {
     "metadata": true,
     "static": false
@@ -17,8 +17,8 @@
   "tools": [
     {
       "name": "get_mortgage_rates",
-      "descriptionHash": "a6a12c4db26847fb6020ce7fd6af8c7b2af28799f1691118ea64412e8c8953fb",
-      "description": "Today's As Low As rates from FreeRateUpdate: the best rates and APRs we can verify being offered by lenders and brokers in our network, exactly as freerateupdate.com publishes them, one per product (30, 20, 15 and 10 year fixed, FHA, VA, jumbo, ARMs, cash-out, HELOC and home equity loans). Each rate"
+      "descriptionHash": "c30a5eea666a0d2e07f4ce1a638c3b16756c84496ef9bb12584d9371e28a6aac",
+      "description": "Today's mortgage and home equity As Low As rates from FreeRateUpdate: the best rates and APRs we can verify being offered by lenders and brokers in our network, exactly as freerateupdate.com publishes them, one per product: HELOC, home equity loan and cash-out refinance first, then 30, 20, 15 and 10"
     },
     {
       "name": "get_heloc_rates",
@@ -35,6 +35,14 @@
       ]
     },
     {
+      "name": "get_loan_limits",
+      "descriptionHash": "20326bf59617233ffc567cbc0a0e11f7517e56bde6831582284bcccab83f7394",
+      "description": "The conforming and FHA loan limits for the counties a five-digit ZIP code falls in, for the 2026 published schedule, as freerateupdate.com publishes them at https://www.freerateupdate.com/loan-limits. Each limit carries the official source it came from (FHFA for conforming, HUD for FHA) and, when a ",
+      "labels": [
+        "destructive"
+      ]
+    },
+    {
       "name": "get_lender_score",
       "descriptionHash": "68d1e0b4542ce243cb20d68a925381d1308638fa119301befce56d1cd5ffe4da",
       "description": "The FreeRateUpdate Score (0-100) for a verified, currently in-network lender by company NMLS id, with factor breakdown and methodology link. Companies without a published current Score are not found."
@@ -46,8 +54,18 @@
     },
     {
       "name": "get_home_values",
-      "descriptionHash": "73aca596a999ac9b36d7edc68951032e31119833d13f9b5d1137dd82d95e03ac",
-      "description": "FreeRateUpdate first-party average rate-shopper home values (national, or one state), rolling 12-month window, refreshed monthly."
+      "descriptionHash": "221bba215da5b172c9a5f71952dfdaa44fc6b914df999368942eade70fe8e374",
+      "description": "FreeRateUpdate first-party median home value from consumers who shopped rates with us (national, or one state), rolling 12-month window, refreshed monthly."
+    },
+    {
+      "name": "get_state_property_tax",
+      "descriptionHash": "d3a2657d02468abe3e4e72d6fb496da36ac4898be000a3afd4a20b24daaf0d8c",
+      "description": "FreeRateUpdate state dataset: median real estate property taxes, median monthly owner costs and median home value by state from the Census ACS 5-year, with the effective tax rate as the ratio of the two medians. Attribution and the canonical page travel with the rows so an answer can be cited."
+    },
+    {
+      "name": "get_state_loan_to_income",
+      "descriptionHash": "f59e932759ddc37efbcb4d0865453b5adcb49adcddc5f62dbd8efed8f3db8f8e",
+      "description": "FreeRateUpdate first-party dataset: the median loan amount our shoppers request in each state against that state median household income, as a ratio, by product. The sample floor is published with the figures so a thin state is visible rather than implied."
     },
     {
       "name": "get_reference_series",
@@ -61,12 +79,71 @@
     },
     {
       "name": "get_lender_universe",
-      "descriptionHash": "f21fc451fb2bd62902367f5472e9031222360dd79a934e3f85ed994d81ceedcc",
-      "description": "Search FreeRateUpdate's lender universe: every company FRU has verified, including one that has only inquired and was never onboarded — exactly as published on freerateupdate.com. Verification is a property of every row, not a filter; nothing is excluded from the default result for being inactive or"
+      "descriptionHash": "c65b4d0f33ce1ea398fb71a3a0ccb24cb7d5eb89886d301304d464e891daa6f6",
+      "description": "Search FreeRateUpdate's published lender pages: every company the public page resolver publishes on freerateupdate.com/reviews/, and nothing else. A row shows only what that page shows: the display name, the company NMLS, the states the page shows (currently none: fru-com's licensing projection is o",
+      "labels": [
+        "untrusted-content"
+      ]
     }
   ],
-  "findings": [],
-  "score": 100,
-  "scoreBreakdown": {},
+  "findings": [
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: get_lender_universe · Private data: get_start_link · Public sink: get_start_link · Destructive: get_loan_limits.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: get_lender_universe · Private data: get_start_link · Public sink: get_start_link · Destructive: get_loan_limits"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"get_mortgage_rates\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:get_mortgage_rates",
+        "snippet": "before: \"Today's As Low As rates from FreeRateUpdate: the best rates and APRs we can verify being offered by lenders and brokers in our network, exactly as freerateupdate.com publishes them, one per product (30, 20, 15 and 10 year fixed, FHA, VA, jumbo, ARMs, cash-out, HELOC and home equity loans). Each rate\" → after: \"Today's mortgage and home equity As Low As rates from FreeRateUpdate: the best rates and APRs we can verify being offered by lenders and brokers in our network, exactly as freerateupdate.com publishes them, one per product: HELOC, home equity loan and cash-out refinance first, then 30, 20, 15 and 10\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"get_home_values\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:get_home_values",
+        "snippet": "before: \"FreeRateUpdate first-party average rate-shopper home values (national, or one state), rolling 12-month window, refreshed monthly.\" → after: \"FreeRateUpdate first-party median home value from consumers who shopped rates with us (national, or one state), rolling 12-month window, refreshed monthly.\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"get_lender_universe\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:get_lender_universe",
+        "snippet": "before: \"Search FreeRateUpdate's lender universe: every company FRU has verified, including one that has only inquired and was never onboarded — exactly as published on freerateupdate.com. Verification is a property of every row, not a filter; nothing is excluded from the default result for being inactive or\" → after: \"Search FreeRateUpdate's published lender pages: every company the public page resolver publishes on freerateupdate.com/reviews/, and nothing else. A row shows only what that page shows: the display name, the company NMLS, the states the page shows (currently none: fru-com's licensing projection is o\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    }
+  ],
+  "score": 45,
+  "scoreBreakdown": {
+    "toxic-flow": 20,
+    "tool-poisoning": 35
+  },
   "errors": []
 }

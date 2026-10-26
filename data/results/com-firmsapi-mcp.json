@@ -1,0 +1,114 @@
+{
+  "schemaVersion": 1,
+  "scanner": {
+    "version": "1.6.0",
+    "rules": "402995650b68"
+  },
+  "target": {
+    "kind": "url",
+    "ref": "https://api.firmsapi.com/mcp"
+  },
+  "scannedAt": "2026-10-26T10:32:28.354Z",
+  "durationMs": 1047,
+  "layers": {
+    "metadata": true,
+    "static": false
+  },
+  "tools": [
+    {
+      "name": "lookup_firms_code",
+      "descriptionHash": "e381f812ecf0402f5df7c2d09fcf8c1326b2d884a4fd5236baa6018d4db5c32a",
+      "description": "Get the CBP FIRMS record for one code: facility name, status (active or deleted), facility type, address, CBP port, location, and the other codes registered at the same address. Deleted codes and \"DO NOT USE\" placeholders (junk: true) are returned with warnings. A code that is not on the list return",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "search_firms_facilities",
+      "descriptionHash": "6289f84c23f968c6bcda9d285d3df9a04ab68cdf1026305b46a75f8bcc196ad7",
+      "description": "Find FIRMS codes from a facility name and/or street address, e.g. 'maher terminal elizabeth' or '231 tyler st newark'. Typo-tolerant; returns ranked matches with a 0-100 score. Active codes only unless include_deleted is true. One call per search, however many results. Wraps GET /v1/search. Live key"
+    },
+    {
+      "name": "find_nearby_firms_facilities",
+      "descriptionHash": "558d1b8a889a3944acddf042ec61ba270d8e56d1dd1b8947f225af5546fedad0",
+      "description": "List FIRMS facilities within radius_km, nearest first. Pass exactly one origin: lat and lon; code (another FIRMS facility, left out of the results); or address (a US street address, geocoded unless it is a FIRMS facility's own address). meta.origin says which point was used. Facilities whose address"
+    },
+    {
+      "name": "validate_firms_code",
+      "descriptionHash": "bcb81ff2f43bd3ac3abbeee5ee0aecf3e2a119a512ab089c31ba18a2e2651470",
+      "description": "Pre-filing checks of a FIRMS code against the published CBP list, in order: format, exists (catches ACE reject 158), active (159), in the stated port (164), facility type fits the use (warehouse_entry: bonded warehouse 04; ftz_admission: FTZ 02; exam_site: CES 09; location_of_goods: not 07 or 08), n",
+      "labels": [
+        "untrusted-content",
+        "public-sink",
+        "destructive"
+      ]
+    },
+    {
+      "name": "list_cbp_ports",
+      "descriptionHash": "1f39cc459f52930798989446a852e7fbb78d71714916749773fa13fffff1c29c",
+      "description": "Every CBP port that has FIRMS codes, with name, state, region, facility_count and active_count, in one call. Wraps GET /v1/ports. Live keys (fapi_live_...): one counted call. Test keys (fapi_test_...): fixture sample data, not counted."
+    },
+    {
+      "name": "get_cbp_port",
+      "descriptionHash": "38996ac3740bec5a53c7b44f25a1d33343c1c88b0600ee364928a57370442071",
+      "description": "One CBP port with a page of its FIRMS facilities, ordered by code. Placeholders are left out; active codes only unless include_deleted is true. For the next page pass cursor = meta.next_cursor (null on the last page); each page is one call. Wraps GET /v1/ports/{port}. Live keys (fapi_live_...): one "
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-SCHEMA-SMELL-001",
+      "severity": "medium",
+      "category": "schema-smell",
+      "title": "Read-only tool requests dangerous parameters",
+      "detail": "Tool \"lookup_firms_code\" appears informational but accepts parameters (code) that enable code/file/secret access.",
+      "evidence": {
+        "source": "tool:lookup_firms_code",
+        "snippet": "code"
+      },
+      "confidence": 0.55
+    },
+    {
+      "id": "MCP-SCHEMA-SMELL-001",
+      "severity": "medium",
+      "category": "schema-smell",
+      "title": "Read-only tool requests dangerous parameters",
+      "detail": "Tool \"find_nearby_firms_facilities\" appears informational but accepts parameters (code) that enable code/file/secret access.",
+      "evidence": {
+        "source": "tool:find_nearby_firms_facilities",
+        "snippet": "lat, lon, code, address, radius_km, types, include_deleted, limit"
+      },
+      "confidence": 0.55
+    },
+    {
+      "id": "MCP-SCHEMA-SMELL-001",
+      "severity": "medium",
+      "category": "schema-smell",
+      "title": "Read-only tool requests dangerous parameters",
+      "detail": "Tool \"validate_firms_code\" appears informational but accepts parameters (code) that enable code/file/secret access.",
+      "evidence": {
+        "source": "tool:validate_firms_code",
+        "snippet": "code, port, use"
+      },
+      "confidence": 0.55
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: validate_firms_code · Private data: lookup_firms_code · Public sink: validate_firms_code · Destructive: validate_firms_code.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: validate_firms_code · Private data: lookup_firms_code · Public sink: validate_firms_code · Destructive: validate_firms_code"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 66,
+  "scoreBreakdown": {
+    "schema-smell": 14,
+    "toxic-flow": 20
+  },
+  "errors": []
+}

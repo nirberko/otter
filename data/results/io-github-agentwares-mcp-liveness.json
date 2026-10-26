@@ -8,8 +8,8 @@
     "kind": "url",
     "ref": "https://agentwares-mcp-liveness.vercel.app/mcp"
   },
-  "scannedAt": "2026-09-12T08:52:00.925Z",
-  "durationMs": 1020,
+  "scannedAt": "2026-10-26T10:35:38.727Z",
+  "durationMs": 551,
   "layers": {
     "metadata": true,
     "static": false
@@ -17,8 +17,8 @@
   "tools": [
     {
       "name": "mcp_liveness_check",
-      "descriptionHash": "49c1b0c55893e321357610b386a5a7d4792009bbb268af30eb4023b8d4ce6f87",
-      "description": "Given a server's exact name in the official MCP registry, make one `initialize` call to\nthe endpoint its listing names and report what a client with no credential gets.\n\nOutcomes: `usable` (it connected and negotiated a protocol version), `needs_credential`\n(401 or 403 — the answer then says whether",
+      "descriptionHash": "1f9d67625681bfaa6851f381b3b7d9b8760ac94e9921a9e8acb5ba0c2b31e008",
+      "description": "Makes one handshake with an MCP server's endpoint — `server/discover` at protocol revision\n2026-07-28, then `initialize` for a server on the older revision — with no credential, and\nreports what a stock client gets. The server is named either by its exact official-registry\n`name`, or by its endpoint",
       "labels": [
         "untrusted-content",
         "private-data"
@@ -26,12 +26,78 @@
     },
     {
       "name": "mcp_liveness_explain_outcomes",
-      "descriptionHash": "bc5d196a0b43185d38230ed6ee8c25a36cfe8716b28e2da03514fdb32158f7cc",
-      "description": "Return the six outcomes this server can report, what each means for an agent choosing a server from the registry, and what to do next for each. Makes no request and costs nothing; call it once to interpret mcp_liveness_check results."
+      "descriptionHash": "30183e706da7a7631acc18c98b00d8ea6dbe9cbdcd61e1858c34f4b343b4c0ca",
+      "description": "Returns the six outcomes this server can report — usable, needs_credential, charged, unreachable, local_only and not_listed — what each means for an agent choosing a server from the registry, and the usual next move for each. A static reference: it makes no network request and its answer never chang"
+    },
+    {
+      "name": "mcp_liveness_drift",
+      "descriptionHash": "3f2fe2bd06f558be5cbcbfde0e6104f7ad77567ed21ad89e1efc1da32010927d",
+      "description": "Given a server's exact name in the official MCP registry, reports which of its tools were\nadded, removed, or had their description, input schema or output schema change between\na named month and the latest monthly snapshot.\n\nUseful when a server that worked before behaves differently now, when a pro"
+    },
+    {
+      "name": "mcp_liveness_check_auth",
+      "descriptionHash": "5b72abe0274d4059b77ac3038077125918eac188d804fdded2424124d0b05dbb",
+      "description": "Walks a remote MCP server's OAuth sign-in chain from outside, with no credential and no\nclient registration, and returns the first step that breaks, whose it is (`server`,\n`identity_provider`, or `client` for a known client bug, with its issue URL), the fix, and\nthe spec section that requires it.\n\nS",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "destructive"
+      ]
+    },
+    {
+      "name": "mcp_liveness_check_apps",
+      "descriptionHash": "269b1e4bc3a15ec8bf95912409246050339a7047d84905c1ffd088076ed0528b",
+      "description": "Checks a remote MCP server's MCP Apps UI (SEP-1865 `ui://` resources) from outside, with no\ncredential and without calling any tool, and returns the first step that stops the view\nrendering, whose it is (`server`, or `host` for a known host bug with its issue URL), the\nfix, and the source (the spec,",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "destructive"
+      ]
     }
   ],
-  "findings": [],
-  "score": 100,
-  "scoreBreakdown": {},
+  "findings": [
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"mcp_liveness_check_auth\" references sensitive artifacts (authorization). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:mcp_liveness_check_auth",
+        "snippet": "Walks a remote MCP server's OAuth sign-in chain from outside, with no credential and no client registration, and returns the first step that breaks, whose it is…"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"mcp_liveness_check\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:mcp_liveness_check",
+        "snippet": "before: \"Given a server's exact name in the official MCP registry, make one `initialize` call to\nthe endpoint its listing names and report what a client with no credential gets.\n\nOutcomes: `usable` (it connected and negotiated a protocol version), `needs_credential`\n(401 or 403 — the answer then says whether\" → after: \"Makes one handshake with an MCP server's endpoint — `server/discover` at protocol revision\n2026-07-28, then `initialize` for a server on the older revision — with no credential, and\nreports what a stock client gets. The server is named either by its exact official-registry\n`name`, or by its endpoint\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"mcp_liveness_explain_outcomes\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:mcp_liveness_explain_outcomes",
+        "snippet": "before: \"Return the six outcomes this server can report, what each means for an agent choosing a server from the registry, and what to do next for each. Makes no request and costs nothing; call it once to interpret mcp_liveness_check results.\" → after: \"Returns the six outcomes this server can report — usable, needs_credential, charged, unreachable, local_only and not_listed — what each means for an agent choosing a server from the registry, and the usual next move for each. A static reference: it makes no network request and its answer never chang\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    }
+  ],
+  "score": 65,
+  "scoreBreakdown": {
+    "tool-poisoning": 35
+  },
   "errors": []
 }

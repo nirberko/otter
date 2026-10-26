@@ -8,8 +8,8 @@
     "kind": "url",
     "ref": "https://nempulse.com.au/mcp"
   },
-  "scannedAt": "2026-08-28T16:43:06.045Z",
-  "durationMs": 3468,
+  "scannedAt": "2026-10-26T10:31:20.132Z",
+  "durationMs": 2337,
   "layers": {
     "metadata": true,
     "static": false
@@ -17,26 +17,27 @@
   "tools": [
     {
       "name": "list_bess_units",
-      "descriptionHash": "2c7529e09906af01d2f2be7bb0b17f6a26c5c2e0efe571016037c8be3b2040fb",
-      "description": "List every NEM-registered grid-scale battery (DUID, station, region, MW/MWh, MLF, coordinates, is_commissioning, commercial_context). rev_per_mw_yr is trailing 365-day energy + FCAS revenue (NOT FPP), gross (no MLF), divided by Max Cap MW, then annualised over the days the unit actually had dispatch"
+      "descriptionHash": "917101c7e549a98a776928010a78749ec37ecb69474582fc7836ca6dd2388600",
+      "description": "Reference list of every NEM-registered grid-scale battery. Call this first to turn a station name into the DUID the other tools need. Returns the whole fleet in one response (no filters): DUID, station, region, MW/MWh, MLF, coordinates, is_commissioning, commercial_context, unit_class, peer_comparab"
     },
     {
       "name": "get_fleet_summary",
-      "descriptionHash": "425511976d09d176cc54a34a9eb4ae3876ff7a305ae8182d36dcee649b4c068d",
-      "description": "Fleet-wide snapshot: unit count, total capacity, revenue month-to-date, average spot price."
+      "descriptionHash": "fcc90044b12a4677a83a00599d49a7d5cb03a5e80c34db4b8f47f8eba69354a5",
+      "description": "Fleet-wide snapshot for the NEM battery fleet: unit_count, active_unit_count, total_mw, total_mwh, fleet_rev_mtd, avg_efficiency_pct, last_interval and spot_prices (latest price per region, $/MWh). Covers month-to-date unless date_from and date_to are given. fleet_rev_mtd is gross spot revenue (ener",
+      "labels": [
+        "public-sink",
+        "destructive"
+      ]
     },
     {
       "name": "get_battery_detail",
-      "descriptionHash": "b822f2c42523769473d681d2f477849b1b6f3c4383c6d5bd06e2191d6d265308",
+      "descriptionHash": "82dd9c7711708e9bb3f3f40b41dcf4ebc26e18208d8f0e75e195c4d890d780e3",
       "description": "Deep-dive metrics for one battery by DUID (e.g. HPR1 = Hornsdale): revenue, dispatch, SOC, FCAS. WARNING: rev_today, energy_rev_today, fcas_rev_today and contingency_fcas_rev_today are MONTH-TO-DATE by default, not daily (matching the rev_mtd keys in fcas_breakdown) — do not report them as 'today's "
     },
     {
       "name": "query_nem_data",
-      "descriptionHash": "eb85a12d745d06e7c0afc5d96ef545701313726e4e9f4ccb79ca11a1123a6792",
-      "description": "Ask a natural-language question about NEM BESS data; returns generated SQL, result rows and a plain-English explanation. Scope each question to roughly one region-month or less — aggregates spanning more (e.g. a full year by region, or per-day top-N across all regions) can exceed the 15s query timeo",
-      "labels": [
-        "private-data"
-      ]
+      "descriptionHash": "136ce3666d054bba4ad156662408f4e6eba1ebdc45f7ccd5724686173f88f98c",
+      "description": "Last resort for ad hoc questions the other tools cannot answer. Takes a plain-English question, generates SQL over NEMPulse's tables, and returns the SQL, the result rows and a short explanation. It is the slowest tool (can take close to a minute) and it is AI-generated, so check the returned SQL be"
     },
     {
       "name": "get_battery_revenue",
@@ -53,13 +54,34 @@
     },
     {
       "name": "list_events",
-      "descriptionHash": "b4df02bf1026ac7aaadaf31dec70b294f221c12a0e332d844b0e01065e71e7bd",
-      "description": "List NEM spot-price events (negative, elevated, spike, extreme), optionally filtered by region."
+      "descriptionHash": "e4d6dc2397d5518aeeb7c616a9bba62ce6f16d6f3aba2f39f18f4dc3c88b4364",
+      "description": "List NEM spot-price events, newest first. An event is a run of 5-minute intervals in one region where the price stays above $500/MWh or below -$200/MWh (short gaps are bridged), typed by its peak price: negative (below -$200), elevated (peak $500 to $1,000), spike ($1,000 to $5,000) or extreme ($5,0",
+      "labels": [
+        "destructive"
+      ]
     },
     {
       "name": "get_event_detail",
-      "descriptionHash": "0d60b5a4a81b232be30b8f125fd36f6c85d1df5f599ba1b296f7eab842d63ac1",
-      "description": "Summary stats for one market price event by id (per-interval dispatch during the event is not exposed)."
+      "descriptionHash": "7244940d94cc360fcfcd442ee8dd2536296337c940b1ee53f9bc25444b2db0be",
+      "description": "One price event by event_id (take the id from list_events), with the response of every battery that was online, ranked by est_revenue. Event fields are as in list_events. Each battery row has duid, station, region, response (DISCH = discharging, CHRG = charging, IDLE, OFFLINE = no availability), avg"
+    },
+    {
+      "name": "get_regional_prices",
+      "descriptionHash": "939b5ef3f6ea6a8d1cb064ffc05324283d082f1ae586e1f227be7e999cd984f6",
+      "description": "Daily minimum, maximum and mean regional reference price (RRP, $/MWh) for one NEM region over a date range. Daily summary only: the raw 5-minute price series is not exposed (it is published by AEMO on NEMWEB). Use it for price context around revenue or events. For individual price spikes use list_ev"
+    },
+    {
+      "name": "get_simulator_revenue",
+      "descriptionHash": "a6c8ac90c029a7118640929743470cd29d9bb9bb9ef2a6a8ac196a664db2054e",
+      "description": "Modelled revenue for a hypothetical 1 MW battery of a given duration in one region (not a real unit), from NEMPulse's optimal-dispatch model on real prices. Returns P10/P50/P90 revenue for three tiers: realistic (forecast-informed result scaled by the capture ratio real batteries achieve, the only t"
+    },
+    {
+      "name": "get_rankings",
+      "descriptionHash": "3cad2acfbe34b10f0771ad1f3344a2b5179aef2b190f598de96fea3ed1a2af45",
+      "description": "League table of merchant NEM batteries over a date range, ranked by capture rate by default (actual revenue as a share of the forecast-informed benchmark; capture_perfect_pct is the share of the perfect-foresight ceiling). Each row has rank, duid, station, region, capacity, duration_band, capture_fc",
+      "labels": [
+        "public-sink"
+      ]
     }
   ],
   "findings": [
@@ -83,7 +105,7 @@
       "detail": "Description of \"query_nem_data\" instructs the model to conceal actions from the user.",
       "evidence": {
         "source": "tool:query_nem_data",
-        "snippet": "Ask a natural-language question about NEM BESS data; returns generated SQL, result rows and a plain-English explanation. Scope each question to roughly one regi…"
+        "snippet": "Last resort for ad hoc questions the other tools cannot answer. Takes a plain-English question, generates SQL over NEMPulse's tables, and returns the SQL, the r…"
       },
       "confidence": 0.75
     },
@@ -98,53 +120,11 @@
         "snippet": "Actual vs LP-optimal dispatch revenue, per-DUID summary, over a date range (energy-only, perfect-foresight benchmark). NOT a revenue-total source — use get_batt…"
       },
       "confidence": 0.75
-    },
-    {
-      "id": "MCP-RUGPULL-001",
-      "severity": "high",
-      "category": "tool-poisoning",
-      "title": "Tool description changed since last scan",
-      "detail": "Tool \"get_battery_detail\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
-      "evidence": {
-        "source": "tool:get_battery_detail",
-        "snippet": "before: \"Deep-dive metrics for one battery by DUID (e.g. HPR1 = Hornsdale): revenue, dispatch, SOC, FCAS. WARNING: rev_today, energy_rev_today, fcas_rev_today and contingency_fcas_rev_today are MONTH-TO-DATE by default, not daily (matching the rev_mtd keys in fcas_breakdown) — do not report them as 'today's \" → after: \"Deep-dive metrics for one battery by DUID (e.g. HPR1 = Hornsdale): revenue, dispatch, SOC, FCAS. WARNING: rev_today, energy_rev_today, fcas_rev_today and contingency_fcas_rev_today are MONTH-TO-DATE by default, not daily (matching the rev_mtd keys in fcas_breakdown) — do not report them as 'today's \""
-      },
-      "confidence": 0.8,
-      "remediation": "Re-review the tool before continuing to trust it."
     }
   ],
-  "score": 65,
+  "score": 69,
   "scoreBreakdown": {
-    "tool-poisoning": 35
-  },
-  "errors": []
-},
-      "title": "Tool description changed since last scan",
-      "detail": "Tool \"get_battery_detail\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
-      "evidence": {
-        "source": "tool:get_battery_detail",
-        "snippet": "before: \"Deep-dive metrics for one battery by DUID (e.g. HPR1 = Hornsdale): revenue, dispatch, SOC, FCAS. WARNING: rev_today, energy_rev_today, fcas_rev_today and contingency_fcas_rev_today are MONTH-TO-DATE by default, not daily (matching the rev_mtd keys in fcas_breakdown) — do not report them as 'today's \" → after: \"Deep-dive metrics for one battery by DUID (e.g. HPR1 = Hornsdale): revenue, dispatch, SOC, FCAS. WARNING: rev_today, energy_rev_today, fcas_rev_today and contingency_fcas_rev_today are MONTH-TO-DATE by default, not daily (matching the rev_mtd keys in fcas_breakdown) — do not report them as 'today's \""
-      },
-      "confidence": 0.8,
-      "remediation": "Re-review the tool before continuing to trust it."
-    },
-    {
-      "id": "MCP-RUGPULL-001",
-      "severity": "high",
-      "category": "tool-poisoning",
-      "title": "Tool description changed since last scan",
-      "detail": "Tool \"query_nem_data\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
-      "evidence": {
-        "source": "tool:query_nem_data",
-        "snippet": "before: \"Ask a natural-language question about NEM BESS data; returns generated SQL, result rows and a plain-English explanation. Scope each question to roughly one region-month or less — aggregates spanning more (e.g. a full year by region, or per-day top-N across all regions) can exceed the 15s query timeo\" → after: \"Ask a natural-language question about NEM BESS data; returns generated SQL, result rows and a plain-English explanation. Scope each question to roughly one region-month or less — aggregates spanning more (e.g. a full year by region, or per-day top-N across all regions) risk the generated SQL exceedi\""
-      },
-      "confidence": 0.8,
-      "remediation": "Re-review the tool before continuing to trust it."
-    }
-  ],
-  "score": 61,
-  "scoreBreakdown": {
-    "tool-poisoning": 39
+    "tool-poisoning": 31
   },
   "errors": []
 }

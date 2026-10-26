@@ -8,19 +8,116 @@
     "kind": "url",
     "ref": "https://www.patchmcp.com/mcp"
   },
-  "scannedAt": "2026-10-11T10:57:24.404Z",
-  "durationMs": 199,
+  "scannedAt": "2026-10-26T10:33:39.665Z",
+  "durationMs": 672,
   "layers": {
-    "metadata": false,
+    "metadata": true,
     "static": false
   },
-  "findings": [],
-  "score": 100,
-  "scoreBreakdown": {},
-  "errors": [
+  "tools": [
     {
-      "scanner": "metadata",
-      "message": "Streamable HTTP error: Error POSTing to endpoint: {\"error\":\"invalid_token\",\"error_description\":\"Missing Authorization header\"}"
+      "name": "estimate_call",
+      "descriptionHash": "525f2d9c7d9d88366f8fc0f8b0c386c32b7f954551bafb1bc79faacc63bf605a",
+      "description": "Check route availability, estimated one-minute usage, and remaining allowance before dialing. Calls in Central America, Europe, North America, and South America. Calls involving any non-US/Canadian number require a paid plan. Uses the verified caller ID and destination to price the route. Uses cache",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "place_call",
+      "descriptionHash": "5aaab9de4dbe03ca9ffa214ce729e18ff2e9bc8f37129c324a2bfc35bbc30830",
+      "description": "Place the call FROM the authenticated user's own verified phone number to accomplish a specific objective (book a table, ask a question, chase an order). A real-time voice agent handles the call, including automated phone menus and hold queues. Its default opening says who it is calling for and stat",
+      "labels": [
+        "untrusted-content",
+        "private-data"
+      ]
+    },
+    {
+      "name": "get_call",
+      "descriptionHash": "e234d61b9ed6bd9a507aa40a925aef510d2b6b813e5bc81d373c0c8e50c751cf",
+      "description": "Get the status and, once terminal, the structured resolution of a call started with place_call. Returns instantly by default. Pass wait_seconds (max 50) to have the server hold the request and return early on any status change — fewer round trips while a call is in progress. Terminal statuses: compl",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "list_calls",
+      "descriptionHash": "9f0ab47ca40b64e65e53382391aa597f62141381e4225cba647ce572aabf2a44",
+      "description": "List the authenticated user's recent calls, newest first, with statuses and outcomes. Useful to recover a lost call_id or review call history. Pass the returned next_cursor as cursor to fetch the next page of older calls. next_cursor is null when no older calls remain. Omit cursor to start at the ne",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "set_call_visibility",
+      "descriptionHash": "46fe9f5b1a04c62234719d26a38c88488745c0b1f6b3bcbdb6c3d6dc72b7a030",
+      "description": "Make a call owned by the authenticated user public or private. Calls are private by default. Only publish when the user explicitly asks: a public call exposes its objective, phone numbers, transcript, result and audio to anyone with its permanent, token-free listen_url, including live audio while in",
+      "labels": [
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "end_call",
+      "descriptionHash": "4dfe1325c05855589ffdf92483774f229e1929c8a2f07a23abd19eac0ae97858",
+      "description": "End an in-progress call early. The voice agent wraps up politely (\"I'll let you go, thanks!\") and hangs up; the call is force-terminated if wrap-up takes more than ~10 seconds. Use when the user changes their mind or the call is no longer needed. The partial transcript and resolution are still produ"
+    },
+    {
+      "name": "get_phone_number",
+      "descriptionHash": "1e6202d3f38f52310c81747aab70847e8943126c121ce6f30fdc31d4b8b15357",
+      "description": "Get the phone number connected to the authenticated user's account in E.164 format, along with its caller_id_status (verified or unverified). This is the user's own number used as outbound caller ID, not the service's SMS sending number. Takes no arguments and does not place a call or send a text.",
+      "labels": [
+        "public-sink",
+        "destructive"
+      ]
     }
-  ]
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOOL-POISON-007",
+      "severity": "low",
+      "category": "tool-poisoning",
+      "title": "Description uses pressure/override language",
+      "detail": "Description of \"place_call\" stacks urgency/override words (immediately, never). Legitimate tool descriptions rarely pressure the model to act or ignore prior guidance.",
+      "evidence": {
+        "source": "tool:place_call",
+        "snippet": "Place the call FROM the authenticated user's own verified phone number to accomplish a specific objective (book a table, ask a question, chase an order). A real…"
+      },
+      "confidence": 0.3
+    },
+    {
+      "id": "MCP-SCHEMA-SMELL-001",
+      "severity": "medium",
+      "category": "schema-smell",
+      "title": "Read-only tool requests dangerous parameters",
+      "detail": "Tool \"place_call\" appears informational but accepts parameters (context) that enable code/file/secret access.",
+      "evidence": {
+        "source": "tool:place_call",
+        "snippet": "locale, callee_name, context, objective, to, user_name"
+      },
+      "confidence": 0.55
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: place_call, get_call, list_calls · Private data: place_call, get_call, set_call_visibility · Public sink: estimate_call, get_call, set_call_visibility, get_phone_number · Destructive: get_phone_number.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: place_call, get_call, list_calls · Private data: place_call, get_call, set_call_visibility · Public sink: estimate_call, get_call, set_call_visibility, get_phone_number · Destructive: get_phone_number"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 69,
+  "scoreBreakdown": {
+    "tool-poisoning": 3,
+    "schema-smell": 8,
+    "toxic-flow": 20
+  },
+  "errors": []
 }

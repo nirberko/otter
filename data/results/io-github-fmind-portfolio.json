@@ -8,8 +8,8 @@
     "kind": "url",
     "ref": "https://www.fmind.dev/mcp"
   },
-  "scannedAt": "2026-10-11T11:00:12.772Z",
-  "durationMs": 1505,
+  "scannedAt": "2026-10-26T10:37:03.171Z",
+  "durationMs": 1245,
   "layers": {
     "metadata": true,
     "static": false
@@ -63,15 +63,67 @@
     },
     {
       "name": "compare_llm_hosting",
-      "descriptionHash": "e4f72178befff9f7cadf1fed5a333b9e17fce6b3c98f10defb8c651d3f629e15",
-      "description": "Compare one GKE hosting scenario with managed API baselines using the website calculator. Call with parameters={} for defaults and supported model, node, billing, and quantization choices. Then override URL parameters as strings, e.g. requests=1000, throughput=100, tokens=500. Returns assumptions, U",
+      "descriptionHash": "6dd2ccb2ea94b3e7e7dbe1a479591f354d1c2ec753845c0a24e6b4e02db1881d",
+      "description": "Compare a GKE infrastructure budget with managed APIs. Call with parameters={} for defaults and supported models, hardware, and plans. Simple mode accepts preset, model, billing, requests (calls/day), and window (auto, 24, 8, or 1 hour/day); set mode=simple when overriding requests. It sizes replica",
       "labels": [
-        "private-data"
+        "private-data",
+        "destructive"
+      ]
+    },
+    {
+      "name": "compare_mcp_context_cost",
+      "descriptionHash": "8ae6f93a516019a79031603b10fbef79a84882c26e96c7538b6081ab648c0652",
+      "description": "Count the tool-definition tokens that measured MCP servers (GitHub default toolset, Filesystem, Memory, Playwright) add to every model request, then price them as standard input for the managed APIs in the hosting snapshot. Omit servers for all four. Returns tokens per request and month, context sha",
+      "labels": [
+        "private-data",
+        "public-sink"
       ]
     }
   ],
-  "findings": [],
-  "score": 100,
-  "scoreBreakdown": {},
+  "findings": [
+    {
+      "id": "MCP-TOOL-POISON-006",
+      "severity": "low",
+      "category": "tool-poisoning",
+      "title": "Anomalously long tool description",
+      "detail": "Description of \"compare_llm_hosting\" is 864 chars, far longer than this server's median (112). Overlong descriptions are a common place to bury instructions.",
+      "evidence": {
+        "source": "tool:compare_llm_hosting",
+        "snippet": "Compare a GKE infrastructure budget with managed APIs. Call with parameters={} for defaults and supported models, hardware, and plans. Simple mode accepts prese…"
+      },
+      "confidence": 0.4
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: get_article · Private data: get_profile, compare_llm_hosting, compare_mcp_context_cost · Public sink: compare_mcp_context_cost · Destructive: compare_llm_hosting.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: get_article · Private data: get_profile, compare_llm_hosting, compare_mcp_context_cost · Public sink: compare_mcp_context_cost · Destructive: compare_llm_hosting"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"compare_llm_hosting\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:compare_llm_hosting",
+        "snippet": "before: \"Compare one GKE hosting scenario with managed API baselines using the website calculator. Call with parameters={} for defaults and supported model, node, billing, and quantization choices. Then override URL parameters as strings, e.g. requests=1000, throughput=100, tokens=500. Returns assumptions, U\" → after: \"Compare a GKE infrastructure budget with managed APIs. Call with parameters={} for defaults and supported models, hardware, and plans. Simple mode accepts preset, model, billing, requests (calls/day), and window (auto, 24, 8, or 1 hour/day); set mode=simple when overriding requests. It sizes replica\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    }
+  ],
+  "score": 59,
+  "scoreBreakdown": {
+    "tool-poisoning": 22,
+    "toxic-flow": 20
+  },
   "errors": []
 }

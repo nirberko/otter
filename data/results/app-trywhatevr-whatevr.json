@@ -1,0 +1,123 @@
+{
+  "schemaVersion": 1,
+  "scanner": {
+    "version": "1.6.0",
+    "rules": "402995650b68"
+  },
+  "target": {
+    "kind": "url",
+    "ref": "https://api.trywhatevr.app/mcp"
+  },
+  "scannedAt": "2026-10-26T10:31:07.776Z",
+  "durationMs": 974,
+  "layers": {
+    "metadata": true,
+    "static": false
+  },
+  "tools": [
+    {
+      "name": "log_anything",
+      "descriptionHash": "b664345aee726c7c793174d41c612e6392092ec7d854febd3105bb4bbf17a07c",
+      "description": "Log food, drinks, water, exercise, or a weigh-in from one natural-language sentence — the same parser as the app's voice logging. Examples: 'two eggs and toast', '30 minute run', '3 glasses of water', 'weighed 184 this morning'. Spoken dates like 'yesterday I had pizza' work. Describe the FOOD, not ",
+      "labels": [
+        "destructive"
+      ]
+    },
+    {
+      "name": "log_exercise",
+      "descriptionHash": "30394e9a2054848be06a99c7f80a9020ad50d09829f48cd6b53fe5829cb8d9df",
+      "description": "Log structured exercise with a known calorie burn. For an ESTIMATED burn from plain text, use log_anything ('30 minute run').",
+      "labels": [
+        "destructive"
+      ]
+    },
+    {
+      "name": "log_weight",
+      "descriptionHash": "577ae2ea2af4d379ba6f4f670dd2086c6eae50d2106b5297984b273896543984",
+      "description": "Log a weigh-in in pounds. The newest reading also becomes the user's current weight (drives their calorie targets)."
+    },
+    {
+      "name": "log_water",
+      "descriptionHash": "92fe2bd2a8fe90a6a3846286eb4fdad6aa1ca680826dd6828c7b4cfe674f474a",
+      "description": "Log water — glasses (8 fl oz each) or an exact amount_fl_oz. Defaults to 1 glass."
+    },
+    {
+      "name": "get_today",
+      "descriptionHash": "995ecb952580b4341dffcb91025e29292d8e473421b790993870a1581e420405",
+      "description": "Today's complete picture: calorie/macro totals vs targets, water, streak, exercises, and the item-by-item food log (`recent`: every logged item's name, calories, macros, ingredients). Each `recent` item's `id` works with update_log to correct mistakes."
+    },
+    {
+      "name": "get_day",
+      "descriptionHash": "012592cbd3c5a3713f1a5cac55b68da42798e8f0edd6486556176bbe3e3da890",
+      "description": "Everything logged on a specific day, INCLUDING each food item's name and nutrition (same shape as get_today). Use this to answer “what did I eat yesterday / on <date>”. Each `recent` item's `id` works with update_log to correct mistakes."
+    },
+    {
+      "name": "get_progress",
+      "descriptionHash": "fe09d63577c56b723095e711f6c1465ca0f59d00aa04a2e7c43774b44eec56ef",
+      "description": "Daily calorie/macro/exercise TOTALS over time + the weight trend (no food item names — use get_day for what was actually eaten)."
+    },
+    {
+      "name": "get_me",
+      "descriptionHash": "1f4ad26b8a162fc403561705369973216475d941f8a90b5173328143bc205242",
+      "description": "Who the user is: name/handle/email, health profile, calorie/macro targets, and derived metrics.",
+      "labels": [
+        "untrusted-content",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "update_log",
+      "descriptionHash": "df7cefe438694713af3d337976565a9e6cc77895b050fc3e93a8d6355f407f5c",
+      "description": "Correct an existing FOOD log: title, nutrition numbers, the ingredient list, meal, or time-of-day. Read get_today/get_day first — each item in `recent` (type \"food\") carries the `id` to pass here. Send ONLY the fields to change; values are absolute for the item as logged. Two modes, never mixed: sen",
+      "labels": [
+        "private-data",
+        "public-sink"
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOOL-POISON-006",
+      "severity": "low",
+      "category": "tool-poisoning",
+      "title": "Anomalously long tool description",
+      "detail": "Description of \"update_log\" is 1074 chars, far longer than this server's median (128). Overlong descriptions are a common place to bury instructions.",
+      "evidence": {
+        "source": "tool:update_log",
+        "snippet": "Correct an existing FOOD log: title, nutrition numbers, the ingredient list, meal, or time-of-day. Read get_today/get_day first — each item in `recent` (type \"f…"
+      },
+      "confidence": 0.4
+    },
+    {
+      "id": "MCP-TOOL-POISON-007",
+      "severity": "low",
+      "category": "tool-poisoning",
+      "title": "Description uses pressure/override language",
+      "detail": "Description of \"update_log\" stacks urgency/override words (always, never). Legitimate tool descriptions rarely pressure the model to act or ignore prior guidance.",
+      "evidence": {
+        "source": "tool:update_log",
+        "snippet": "Correct an existing FOOD log: title, nutrition numbers, the ingredient list, meal, or time-of-day. Read get_today/get_day first — each item in `recent` (type \"f…"
+      },
+      "confidence": 0.3
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: get_me · Private data: update_log · Public sink: get_me, update_log · Destructive: log_anything, log_exercise.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: get_me · Private data: update_log · Public sink: get_me, update_log · Destructive: log_anything, log_exercise"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 76,
+  "scoreBreakdown": {
+    "tool-poisoning": 5,
+    "toxic-flow": 20
+  },
+  "errors": []
+}

@@ -1,0 +1,91 @@
+{
+  "schemaVersion": 1,
+  "scanner": {
+    "version": "1.6.0",
+    "rules": "402995650b68"
+  },
+  "target": {
+    "kind": "url",
+    "ref": "https://home-office-builder.vercel.app/api/mcp"
+  },
+  "scannedAt": "2026-10-26T10:51:48.566Z",
+  "durationMs": 2336,
+  "layers": {
+    "metadata": true,
+    "static": false
+  },
+  "tools": [
+    {
+      "name": "get_health",
+      "descriptionHash": "1199accd8f587acc8b9f3c510c810536a3eae8630778f2725c44fd907201f02b",
+      "description": "Health check for Home Office Builder. Returns ok, storage, paapi, trackingTag, tagConfigured, domain, catalogCount. tagConfigured is false until real Associates IDs are set (links omit tag=). OpenAPI: getHealth."
+    },
+    {
+      "name": "search_desk_gear",
+      "descriptionHash": "c84635dce9f1c549f5627669be5e51ec1396d484667598ed9d35baf73516c026",
+      "description": "Search Amazon for home-office desk gear on the user's marketplace. Filter by role + budgetBand. Returns PA-API products when configured, otherwise desk-setup search deep-link cards + catalogMatches. ALWAYS pass marketplace + locale. Amazon URLs omit tag= until tagConfigured is true. OpenAPI: searchA",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "get_catalog",
+      "descriptionHash": "f28bc64cb8b47ad997f986e3903fcc4fec20879c804498bce476277d6d963608",
+      "description": "Paginated curated desk starters (~51). Prefer search_desk_gear for discovery. ALWAYS pass marketplace + locale. Filter by role + budgetBand. OpenAPI: getCatalog."
+    },
+    {
+      "name": "resolve_product",
+      "descriptionHash": "02eb9ac92e597026a379276f3d1f0fb7c64614637af6599f186511318fcf6c65",
+      "description": "Resolve an ASIN, pasted Amazon /dp/ URL, or keywords to an buyUrl (product /dp or desk search). ALWAYS pass marketplace + locale. Does not invent tracking tags — when unset, URLs omit tag= and tagConfigured is false. OpenAPI: resolveProduct.",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "create_desk_board",
+      "descriptionHash": "c694cd4bed3648ebdbd2b8d66a7d9da2d1626f5102a91a097a388f3000ef1b34",
+      "description": "Create a home-office desk board (wishlist). Returns id, editToken, ownerUrl, shopUrl, wishlist, storage. Save editToken for add_desk_item. Prefer create_and_fill for one-shot. OpenAPI: createWishlist."
+    },
+    {
+      "name": "create_and_fill",
+      "descriptionHash": "9f5ff14e143da4d88fcfc351452b329dbdd8d78c81ab005f4b6f43d28a11673e",
+      "description": "One call: create a curated home office setup gift wishlist and return shopUrl (share link) + ownerUrl. Preferred agent path: create a desk board and add ASINs / keywords / search queries in one call. Pass marketplace + locale + role + budgetBand. Returns id, editToken, ownerUrl, shopUrl. OpenAPI: ag",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "get_desk_board",
+      "descriptionHash": "5fd67b24749f4097ac76a09c9f433aff708199a2eb688630f9b2fdb458fc56af",
+      "description": "Fetch a desk board by id. Returns items with buy links when available, plus ownerUrl and shopUrl. OpenAPI: getWishlist."
+    },
+    {
+      "name": "add_desk_item",
+      "descriptionHash": "d06c9044b91239095cdcdc3a0bbe296fd141a29d97e99a17534273cda47a4aa2",
+      "description": "Add an item to a desk board. Requires editToken from create. Body: name/title plus asin, url (pasted /dp), searchKeywords, or catalogId. Token storage may return a new id — update bookmarks. OpenAPI: addWishlistItem.",
+      "labels": [
+        "private-data"
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: search_desk_gear, resolve_product · Private data: add_desk_item · Public sink: create_and_fill.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: search_desk_gear, resolve_product · Private data: add_desk_item · Public sink: create_and_fill"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 80,
+  "scoreBreakdown": {
+    "toxic-flow": 20
+  },
+  "errors": []
+}

@@ -1,0 +1,94 @@
+{
+  "schemaVersion": 1,
+  "scanner": {
+    "version": "1.6.0",
+    "rules": "402995650b68"
+  },
+  "target": {
+    "kind": "url",
+    "ref": "https://hotelrunner.usefulapi.io/mcp"
+  },
+  "scannedAt": "2026-10-26T10:42:07.034Z",
+  "durationMs": 453,
+  "layers": {
+    "metadata": true,
+    "static": false
+  },
+  "tools": [
+    {
+      "name": "hotelrunner_list_rooms",
+      "descriptionHash": "b9d042d415f22077bb69279f648f96cc659d8cb28413647fb263492b08eab080",
+      "description": "List the property's room types and rates with their inv_code and rate_code, capacity, pricing type, sales currency, connected channel codes and whether availability, restrictions and prices can be updated through the API. Use the inv_code with hotelrunner_update_room_calendar. Counts as one of the p"
+    },
+    {
+      "name": "hotelrunner_list_reservations",
+      "descriptionHash": "1c345ad1e65078b01956c52bfa174cd87a189eb85d391727935e4fb3f60658bc",
+      "description": "List reservations of the property (new, modified, canceled), newest data first as HotelRunner returns them, 1-50 per page. By default ALL reservations created in the window are returned (this tool sets undelivered=false, so reading does not depend on a PMS having fetched them). from_date is the crea",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "hotelrunner_get_reservation",
+      "descriptionHash": "bafde76ec031c783414e314a479d81cc6792aff5996ebeadf878f131ffdb0877",
+      "description": "One reservation by its HotelRunner code (hr_number, e.g. R377873409) or the sales channel's own reservation code, with the full vendor record (rooms, daily prices, extras, payments, guest and billing details, next_states). If the reservation is older than HotelRunner's lookup window, pass from_date.",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "hotelrunner_list_channels",
+      "descriptionHash": "e2413b5773d275b24afe1c9ca9465c3b56e3c867d36055a74e538bfcd18881eb",
+      "description": "All sales channels HotelRunner supports (name and code, e.g. bookingcom, expedia, hrs, online). The code is what hotelrunner_update_room_calendar takes in channel_codes. Counts as one of the property's 250 requests per day (5 per minute). GET /api/v2/apps/infos/channels."
+    },
+    {
+      "name": "hotelrunner_list_connected_channels",
+      "descriptionHash": "8d64ebf6452e9bdbc688e4693cd138264d034681e4cd99adf172e08e2580cf28",
+      "description": "The channels this property is connected to, each with counts of calendar update processes in progress, succeeded and failed. Counts as one of the property's 250 requests per day (5 per minute). GET /api/v2/apps/infos/connected_channels."
+    },
+    {
+      "name": "hotelrunner_get_transaction_details",
+      "descriptionHash": "33c1de1c9b074d3940852a1e24d48e9da504bd4eed2455ad1b471362e28309e0",
+      "description": "Per-channel status of a calendar update: pass the transaction_id returned by hotelrunner_update_room_calendar. Shows succeeded / failed / in-progress counts and each channel's state and error message. Counts as one of the property's 250 requests per day (5 per minute). GET /api/v2/apps/infos/transac",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "hotelrunner_update_room_calendar",
+      "descriptionHash": "54aafc1c90bc14265f27d0bd272f53543c4a10478ef8779b4bff3743dc459c48",
+      "description": "WRITE: change availability, price, minimum/maximum stay, stop-sale, closed-to-arrival (cta) or closed-to-departure (ctd) for ONE room type (inv_code) over a date range of at most 90 days, optionally only on some weekdays and only on some channels. Only the fields you pass are changed. This is LIVE i",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "hotelrunner_update_reservation_state",
+      "descriptionHash": "ecc220bf450c79ab337e3d32474b93499f69ec34966c2b4ca926440a38bde2c2",
+      "description": "WRITE: move ONE reservation to the next state: event 'confirm' (hotelier accepts it) or 'cancel' (cancels it; cancel_reason is required: customer, no_room, no_show or invalid_price). Cancel is not reversible through this API and releases the room; HotelRunner may notify the guest or the sales channe",
+      "labels": [
+        "public-sink"
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: hotelrunner_get_transaction_details · Private data: hotelrunner_list_reservations, hotelrunner_get_reservation · Public sink: hotelrunner_update_room_calendar, hotelrunner_update_reservation_state.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: hotelrunner_get_transaction_details · Private data: hotelrunner_list_reservations, hotelrunner_get_reservation · Public sink: hotelrunner_update_room_calendar, hotelrunner_update_reservation_state"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 80,
+  "scoreBreakdown": {
+    "toxic-flow": 20
+  },
+  "errors": []
+}

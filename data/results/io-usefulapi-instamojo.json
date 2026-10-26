@@ -1,0 +1,102 @@
+{
+  "schemaVersion": 1,
+  "scanner": {
+    "version": "1.6.0",
+    "rules": "402995650b68"
+  },
+  "target": {
+    "kind": "url",
+    "ref": "https://instamojo.usefulapi.io/mcp"
+  },
+  "scannedAt": "2026-10-26T10:41:48.842Z",
+  "durationMs": 1307,
+  "layers": {
+    "metadata": true,
+    "static": false
+  },
+  "tools": [
+    {
+      "name": "instamojo_list_payment_requests",
+      "descriptionHash": "84ed797e03d0468100d4607518aa4d96aad7a0fb7cffb69a4adae3b403ed04b4",
+      "description": "List the payment requests (payment links) of the account with id, purpose, amount (INR), buyer, status (Pending, Sent, Failed, Completed), short and long URL and timestamps. Paged: use next_page. GET /payment-requests/.",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "instamojo_get_payment_request",
+      "descriptionHash": "0fdd233ca851d9c6e068517a63f4f170df057822aa7e2add9273c6a260955104",
+      "description": "One payment request by id, with its status and the payments made against it (the payment ids go to instamojo_get_payment). GET /payment-requests/{id}/."
+    },
+    {
+      "name": "instamojo_create_payment_request",
+      "descriptionHash": "1326511dbb66697db5225e155f3395e710a88767ad3ce3f6065938c2ec94cfd5",
+      "description": "WRITE: create a payment request (a payment link) and return its id and URLs (longurl, shorturl) to share with the buyer. Amount is in INR. The buyer is NOT emailed or texted unless send_email / send_sms is true (they then need email / phone). Nothing is charged; the buyer pays on the link. POST /pay",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "instamojo_disable_payment_request",
+      "descriptionHash": "87f17a5d3f674cadcfdb668646318e4549696887fd53210c8e844c4891c40c09",
+      "description": "WRITE: disable a payment request so its link no longer accepts payments (instamojo_enable_payment_request undoes it). Existing payments are not touched. POST /payment-requests/{id}/disable/.",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "instamojo_enable_payment_request",
+      "descriptionHash": "de178d0384086cf1a63945eb448015712872bc9cb2328a4abe5df3e6c9412e06",
+      "description": "WRITE: enable a previously disabled payment request so its link accepts payments again. POST /payment-requests/{id}/enable/.",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "instamojo_get_payment",
+      "descriptionHash": "d3b9780313324e8485e61f1770e3a7ccd6fd9f623fe295192e618d05adbe611c",
+      "description": "One payment by its id (MOJO...): status (Credit = paid, Failed), amount, fees, buyer, instrument (card, UPI, netbanking, wallet), failure reason, payout and the payment request it belongs to. GET /payments/{id}/.",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "instamojo_list_refunds",
+      "descriptionHash": "67e063eb83efa438e71ffaf5cc8338fc4b75f174ce7cce623f68276a841863b7",
+      "description": "List refunds with id (case id), payment id, status, reason type, refund and total amount (INR) and date. Paged: use next_page. GET /refunds/."
+    },
+    {
+      "name": "instamojo_get_refund",
+      "descriptionHash": "4231d725d15ee2a5b2634b98af0202b15846d58194b82fce9c7bd464844dcb23",
+      "description": "One refund by its id (the case id from instamojo_list_refunds, e.g. C5c0751272). GET /refunds/{id}/."
+    },
+    {
+      "name": "instamojo_create_refund",
+      "descriptionHash": "ff82f661b2f57cfe81e4f823c22b9a7757feca19de17ed8cbc33f17279b6b494",
+      "description": "WRITE (moves money): refund a payment, in full or in part. Instamojo allows only ONE refund per payment, so a partial refund cannot be topped up later. Without confirm: true nothing is sent and the call returns a preview of the refund; ask the user to confirm, then call again with confirm: true. Rea",
+      "labels": [
+        "public-sink"
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: instamojo_list_payment_requests · Private data: instamojo_get_payment · Public sink: instamojo_create_payment_request, instamojo_disable_payment_request, instamojo_enable_payment_request, instamojo_create_refund.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: instamojo_list_payment_requests · Private data: instamojo_get_payment · Public sink: instamojo_create_payment_request, instamojo_disable_payment_request, instamojo_enable_payment_request, instamojo_create_refund"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 80,
+  "scoreBreakdown": {
+    "toxic-flow": 20
+  },
+  "errors": []
+}

@@ -8,8 +8,8 @@
     "kind": "url",
     "ref": "https://llms-generator-72343955726.us-central1.run.app/mcp/llms-generator"
   },
-  "scannedAt": "2026-10-13T12:05:46.116Z",
-  "durationMs": 244,
+  "scannedAt": "2026-10-26T10:40:25.324Z",
+  "durationMs": 261,
   "layers": {
     "metadata": true,
     "static": false
@@ -17,23 +17,68 @@
   "tools": [
     {
       "name": "generate_site_llms_txt",
-      "descriptionHash": "3611b57537321d32970e0c6c2f17176b322a6af1f4972a4158b8ea8a81f1fdc6",
-      "description": "Automated /llms.txt & GEO Schema Generator (0.015 USDC via x402): Crawls any website and generates a standards-compliant /llms.txt file and JSON-LD schema bundle.",
+      "descriptionHash": "a787659ba790136e66ab488d504921e2ac71f9be6475ce588407e067e59dfbdc",
+      "description": "Crawls any documentation or SaaS site and compiles a standards-compliant /llms.txt manifest and JSON-LD schema bundle. WHEN TO USE: Call `generate_site_llms_txt` when your task requires deterministic `llms-generator` analysis for `url`; use `get_agent_wallet_status` to check your remaining free tria",
       "labels": [
-        "private-data"
+        "untrusted-content"
       ]
     },
     {
       "name": "get_agent_wallet_status",
-      "descriptionHash": "80ec610e59e6305031c21c8b7b856c59cf4752e69316f5570a7fa98afe815881",
-      "description": "Returns the calling agent's remaining free quota, USD balance, and total tokens saved.",
+      "descriptionHash": "2ba154caf98dd04808495e56e49c0db94a0d248d084666e40ff2b82f912fcae4",
+      "description": "Inspect an agent's account ledger: remaining free trial calls (out of 5), prepaid USD balance, cumulative spend, total API calls, and total LLM tokens saved. WHEN TO USE: Call before a batch of paid tool executions or after completing a Stripe or USDC top-up to confirm your balance. WHEN NOT TO USE:",
       "labels": [
-        "private-data"
+        "private-data",
+        "public-sink",
+        "destructive"
       ]
     }
   ],
-  "findings": [],
-  "score": 100,
-  "scoreBreakdown": {},
+  "findings": [
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"llms-generator\" exposes tools that together enable an exfiltration flow. Untrusted content: generate_site_llms_txt · Private data: get_agent_wallet_status · Public sink: get_agent_wallet_status · Destructive: get_agent_wallet_status.",
+      "evidence": {
+        "source": "server:llms-generator",
+        "snippet": "Untrusted content: generate_site_llms_txt · Private data: get_agent_wallet_status · Public sink: get_agent_wallet_status · Destructive: get_agent_wallet_status"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"generate_site_llms_txt\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:generate_site_llms_txt",
+        "snippet": "before: \"Automated /llms.txt & GEO Schema Generator (0.015 USDC via x402): Crawls any website and generates a standards-compliant /llms.txt file and JSON-LD schema bundle.\" → after: \"Crawls any documentation or SaaS site and compiles a standards-compliant /llms.txt manifest and JSON-LD schema bundle. WHEN TO USE: Call `generate_site_llms_txt` when your task requires deterministic `llms-generator` analysis for `url`; use `get_agent_wallet_status` to check your remaining free tria\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"get_agent_wallet_status\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:get_agent_wallet_status",
+        "snippet": "before: \"Returns the calling agent's remaining free quota, USD balance, and total tokens saved.\" → after: \"Inspect an agent's account ledger: remaining free trial calls (out of 5), prepaid USD balance, cumulative spend, total API calls, and total LLM tokens saved. WHEN TO USE: Call before a batch of paid tool executions or after completing a Stripe or USDC top-up to confirm your balance. WHEN NOT TO USE:\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    }
+  ],
+  "score": 50,
+  "scoreBreakdown": {
+    "toxic-flow": 20,
+    "tool-poisoning": 30
+  },
   "errors": []
 }

@@ -8,8 +8,8 @@
     "kind": "url",
     "ref": "https://yieldhunter-agent-production.up.railway.app/mcp"
   },
-  "scannedAt": "2026-08-28T16:45:00.662Z",
-  "durationMs": 978,
+  "scannedAt": "2026-10-26T10:35:38.518Z",
+  "durationMs": 1115,
   "layers": {
     "metadata": true,
     "static": false
@@ -17,8 +17,11 @@
   "tools": [
     {
       "name": "health",
-      "descriptionHash": "56d976289b9a04119cba6d55e77f7e3aaca378e129f48cddd273d83b13e3014c",
-      "description": "Liveness and capability check for yieldhunter (yieldhunter.eth).\n\nReturns service status, schemaVersion, scoringVersion, feature flags, and the list of available tools.\n\nUse this first to verify connectivity. Research estimates only — non-custodial; never holds keys or executes transactions.\n\nCopy-p"
+      "descriptionHash": "c10d2414f8c3acb26301f9f832629a34b80b2119c8b3b1d895e6cfda4c019311",
+      "description": "Liveness and capability check for yieldhunter (yieldhunter.eth).\n\nReturns service status, schemaVersion, scoringVersion, feature flags, and the list of available tools.\n\nUse this first to verify connectivity. If yields+pegs vintage is missing or at/over YH_STALE_DEGRADE_SECONDS (default 2h), health ",
+      "labels": [
+        "destructive"
+      ]
     },
     {
       "name": "list_yields",
@@ -37,18 +40,18 @@
     },
     {
       "name": "compare_opportunities",
-      "descriptionHash": "b417fbca8e5ad0f3de0326f18473c27cd646260c875a807bc9dc22c18fba17dc",
-      "description": "Side-by-side comparison of 2–5 opportunities by risk-adjusted score.\n\nPass list_yields opportunities[].id values as poolIds or opportunityIds.\n\nReturns ranked list, compact comparison table fields, winnerId, and rationale bullets (including when raw APY leader differs from risk-adjusted winner). sou"
+      "descriptionHash": "7c3561fa59795d533b3acf678a9aa6e20bdb7bf2ff92e3387a415d04821a52e3",
+      "description": "Side-by-side comparison of 2–5 opportunities by risk-adjusted score.\n\nPass list_yields opportunities[].id values as poolIds or opportunityIds.\n\nReturns ranked list, compact comparison table fields (including protocolSlug for get_protocol_risk), winnerId, and rationale bullets (including when raw APY"
     },
     {
       "name": "explain_score",
-      "descriptionHash": "9b8d473e536fc07b71ecc4f663ef0308d09b488ffde7770f8b38c3f1b54df646",
-      "description": "Agent-readable explanation of why an opportunity received its risk-adjusted score.\n\nChain: pass list_yields opportunities[].id as poolId, opportunityId, or id (aliases for the same key).\n\nReturns a summary paragraph, factor bullets with weighted contributions, net-yield notes, and an exitRisk heuris"
+      "descriptionHash": "c468b027236cfe32d11d8dadd60228a5af1194b174c087c5e7f030d8d594985b",
+      "description": "Agent-readable explanation of why an opportunity received its risk-adjusted score.\n\nChain: pass list_yields opportunities[].id as poolId, opportunityId, or id (aliases for the same key).\n\nReturns a summary paragraph, factor bullets with weighted contributions, net-yield notes, an exitRisk heuristic "
     },
     {
       "name": "get_protocol_risk",
-      "descriptionHash": "88ef61bc183ce5cdd3fda66d551b0245ef78322be6d50e1843a641a287d9322a",
-      "description": "Protocol-level risk card (age, audit signals, curated known issues, category, score 0–100).\n\nChain: pass list_yields opportunities[].protocolSlug as protocol or protocolSlug.\n\nHigher score = lower protocol risk. Uses curated priors plus DefiLlama metadata when available.\n\nResearch only — non-custodi",
+      "descriptionHash": "9791ee7c62709ac3ff9973777d4ccae78234f5745e0e519154a00882ac6f235a",
+      "description": "Protocol-level risk card (age, audit signals, curated known issues, category, score 0–100).\n\nChain: pass list_yields opportunities[].protocolSlug as protocol or protocolSlug. Display names also resolve case- and space-insensitively via DefiLlama protocol metadata (e.g. \"Compound V3\" → compound-v3, \"",
       "labels": [
         "untrusted-content"
       ]
@@ -56,35 +59,75 @@
   ],
   "findings": [
     {
-      "id": "MCP-TOOL-POISON-006",
-      "severity": "low",
-      "category": "tool-poisoning",
-      "title": "Anomalously long tool description",
-      "detail": "Description of \"list_yields\" is 3682 chars, far longer than this server's median (670). Overlong descriptions are a common place to bury instructions.",
-      "evidence": {
-        "source": "tool:list_yields",
-        "snippet": "Rank stablecoin yield opportunities on Ethereum, Base, and Arbitrum using multi-factor **risk-adjusted** scoring (not raw APY). chains/chainIds: those three onl…"
-      },
-      "confidence": 0.4
-    },
-    {
       "id": "MCP-TOXIC-FLOW-001",
       "severity": "medium",
       "category": "toxic-flow",
       "title": "Toxic flow: untrusted input can reach an external sink",
-      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: list_yields, get_protocol_risk · Public sink: list_yields · Destructive: list_yields.",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: list_yields, get_protocol_risk · Public sink: list_yields · Destructive: health, list_yields.",
       "evidence": {
         "source": "server:mcp",
-        "snippet": "Untrusted content: list_yields, get_protocol_risk · Public sink: list_yields · Destructive: list_yields"
+        "snippet": "Untrusted content: list_yields, get_protocol_risk · Public sink: list_yields · Destructive: health, list_yields"
       },
       "confidence": 0.45,
       "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"health\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:health",
+        "snippet": "before: \"Liveness and capability check for yieldhunter (yieldhunter.eth).\n\nReturns service status, schemaVersion, scoringVersion, feature flags, and the list of available tools.\n\nUse this first to verify connectivity. Research estimates only — non-custodial; never holds keys or executes transactions.\n\nCopy-p\" → after: \"Liveness and capability check for yieldhunter (yieldhunter.eth).\n\nReturns service status, schemaVersion, scoringVersion, feature flags, and the list of available tools.\n\nUse this first to verify connectivity. If yields+pegs vintage is missing or at/over YH_STALE_DEGRADE_SECONDS (default 2h), health \""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"compare_opportunities\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:compare_opportunities",
+        "snippet": "before: \"Side-by-side comparison of 2–5 opportunities by risk-adjusted score.\n\nPass list_yields opportunities[].id values as poolIds or opportunityIds.\n\nReturns ranked list, compact comparison table fields, winnerId, and rationale bullets (including when raw APY leader differs from risk-adjusted winner). sou\" → after: \"Side-by-side comparison of 2–5 opportunities by risk-adjusted score.\n\nPass list_yields opportunities[].id values as poolIds or opportunityIds.\n\nReturns ranked list, compact comparison table fields (including protocolSlug for get_protocol_risk), winnerId, and rationale bullets (including when raw APY\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"explain_score\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:explain_score",
+        "snippet": "before: \"Agent-readable explanation of why an opportunity received its risk-adjusted score.\n\nChain: pass list_yields opportunities[].id as poolId, opportunityId, or id (aliases for the same key).\n\nReturns a summary paragraph, factor bullets with weighted contributions, net-yield notes, and an exitRisk heuris\" → after: \"Agent-readable explanation of why an opportunity received its risk-adjusted score.\n\nChain: pass list_yields opportunities[].id as poolId, opportunityId, or id (aliases for the same key).\n\nReturns a summary paragraph, factor bullets with weighted contributions, net-yield notes, an exitRisk heuristic \""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"get_protocol_risk\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:get_protocol_risk",
+        "snippet": "before: \"Protocol-level risk card (age, audit signals, curated known issues, category, score 0–100).\n\nChain: pass list_yields opportunities[].protocolSlug as protocol or protocolSlug.\n\nHigher score = lower protocol risk. Uses curated priors plus DefiLlama metadata when available.\n\nResearch only — non-custodi\" → after: \"Protocol-level risk card (age, audit signals, curated known issues, category, score 0–100).\n\nChain: pass list_yields opportunities[].protocolSlug as protocol or protocolSlug. Display names also resolve case- and space-insensitively via DefiLlama protocol metadata (e.g. \"Compound V3\" → compound-v3, \"\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
     }
   ],
-  "score": 89,
+  "score": 55,
   "scoreBreakdown": {
-    "tool-poisoning": 3,
-    "toxic-flow": 8
+    "toxic-flow": 8,
+    "tool-poisoning": 38
   },
   "errors": []
 }

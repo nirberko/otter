@@ -1,0 +1,116 @@
+{
+  "schemaVersion": 1,
+  "scanner": {
+    "version": "1.6.0",
+    "rules": "402995650b68"
+  },
+  "target": {
+    "kind": "url",
+    "ref": "https://chatra.usefulapi.io/mcp"
+  },
+  "scannedAt": "2026-10-26T10:41:15.482Z",
+  "durationMs": 1225,
+  "layers": {
+    "metadata": true,
+    "static": false
+  },
+  "tools": [
+    {
+      "name": "chatra_get_visitor",
+      "descriptionHash": "3d6dc0f0198ea4327630cbbe36e7e2f35fef5b61c1b41ab2c66c22ccabdc2e46",
+      "description": "A chat visitor by id: name and contact details (basicInfo, integrationData and the merged `info`), custom form answers, location, browser, the link to the chat in the Chatra dashboard, the agent group, and the pages viewed in the latest visit. The id is the `clientId` your website passed to the widg",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "chatra_update_visitor",
+      "descriptionHash": "ce1d05d0941da18bfe5dcace873ebf0f1b01bf4e38380f10a402144df7c2635a",
+      "description": "WRITE: edit a visitor's basic info (name, email, phone, notes) exactly as if an agent edited it in the Chatra dashboard. Only the fields you pass change; `null` removes a value. Returns the updated visitor. PUT /clients/{id}.",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "chatra_get_message",
+      "descriptionHash": "9b4818adc529b3c6b539a3a619d65e2d92830a365c1de2e081077c849f01d825",
+      "description": "One chat message by id (a visitor's or an agent's): type (agent or client), text, visitor id, agent id, timestamp (ms) and receivedFrom. Chatra has no endpoint to list a conversation, so the id must come from a send call or a webhook. GET /messages/{id}.",
+      "labels": [
+        "untrusted-content",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "chatra_send_message",
+      "descriptionHash": "56ea3c8897a4e8b31cabe1649097d3d52c7db435d370e4de526d4b31ad4ee159",
+      "description": "WRITE: send a chat message to a visitor as a Chatra agent. The visitor sees it immediately in their chat window as if the agent typed it, so only call it with text the user asked you to send. It cannot be unsent except by deleting it. Say which agent writes: agent_id, or agent_email + agent_name + r",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "chatra_edit_message",
+      "descriptionHash": "3e95d45bfbce8a369da2184b987170d0827eb4245269f4cb556ccfaf70ea8018",
+      "description": "WRITE: replace the text of an agent message that was sent earlier. Only agents' messages can be edited, not visitors'. The visitor sees the edited text. Returns the updated message. PUT /messages/{id}."
+    },
+    {
+      "name": "chatra_delete_message",
+      "descriptionHash": "b940dc0d4b697bb48c656b154f97d86e87c94c0bae01297b02151fa64ad8ba4c",
+      "description": "WRITE, IRREVERSIBLE: delete an agent message from the conversation. Only agents' messages can be deleted, not visitors'. Returns the deleted message. DELETE /messages/{id}.",
+      "labels": [
+        "destructive"
+      ]
+    },
+    {
+      "name": "chatra_get_pushed_message",
+      "descriptionHash": "7448f79682dfccc8135ab09c760f4d312b7d15be49380d00e66e9a1f5372d387",
+      "description": "One pushed (automated) message sent earlier by id: text, visitor id, agent id, timestamp (ms), isPushed. GET /pushedMessages/{id}.",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "chatra_push_message",
+      "descriptionHash": "d1b1339374da5de45d7ef99a20a735aa387e15478cf3c56571c125e076cfe006",
+      "description": "WRITE: send an automated message (order status, product update, announcement) to a visitor whose account is bound to Chatra through a clientId. It is delivered into the visitor's chat on behalf of a random agent, a given agent (agent_id) or a random agent of a group (group_id). It reaches a real cus",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "chatra_edit_pushed_message",
+      "descriptionHash": "d5e8e54bdfc5e235f8dcf10c23d8eb7689c2e14bc55499c95260fdd871fffd42",
+      "description": "WRITE: replace the text of a pushed message sent earlier; the visitor sees the edited text. Returns the updated message. PUT /pushedMessages/{id}."
+    },
+    {
+      "name": "chatra_delete_pushed_message",
+      "descriptionHash": "a6292fe953f09449416fdf94d023e367307237953e60ece6ca987b355d799a6c",
+      "description": "WRITE, IRREVERSIBLE: delete a pushed message sent earlier. Returns the deleted message. DELETE /pushedMessages/{id}.",
+      "labels": [
+        "destructive"
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: chatra_get_visitor, chatra_get_message, chatra_get_pushed_message · Private data: chatra_get_visitor · Public sink: chatra_get_visitor, chatra_update_visitor, chatra_get_message, chatra_send_message, chatra_push_message · Destructive: chatra_delete_message, chatra_delete_pushed_message.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: chatra_get_visitor, chatra_get_message, chatra_get_pushed_message · Private data: chatra_get_visitor · Public sink: chatra_get_visitor, chatra_update_visitor, chatra_get_message, chatra_send_message, chatra_push_message · Destructive: chatra_delete_message, chatra_delete_pushed_message"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 80,
+  "scoreBreakdown": {
+    "toxic-flow": 20
+  },
+  "errors": []
+}

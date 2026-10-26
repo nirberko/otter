@@ -1,0 +1,115 @@
+{
+  "schemaVersion": 1,
+  "scanner": {
+    "version": "1.6.0",
+    "rules": "402995650b68"
+  },
+  "target": {
+    "kind": "url",
+    "ref": "https://lalamove.usefulapi.io/mcp"
+  },
+  "scannedAt": "2026-10-26T10:55:16.870Z",
+  "durationMs": 157,
+  "layers": {
+    "metadata": true,
+    "static": false
+  },
+  "tools": [
+    {
+      "name": "lalamove_list_cities",
+      "descriptionHash": "16ee0f700487a9b75523227cdfcc5219e652f6b7fc0474ce8e02f40844f46d00",
+      "description": "The cities of the connected market with the vehicle types (serviceType keys such as MOTORCYCLE or CAR), their size and load, and the special requests each vehicle accepts. Use these exact keys in lalamove_create_quotation. GET /v3/cities."
+    },
+    {
+      "name": "lalamove_get_quotation",
+      "descriptionHash": "2dd3e30c7b11b2ae919fa40e3dab006af8924abb53142e5dd70f174442827f3a",
+      "description": "A quotation by id: stops (with stopId), vehicle, price breakdown, currency, distance and expiresAt (a quotation can be ordered for 5 minutes). GET /v3/quotations/{quotationId}."
+    },
+    {
+      "name": "lalamove_get_order",
+      "descriptionHash": "68506f10114d7d557ad15abf8a61a0f806840510ca8b9da694dbd73d78bee5f0",
+      "description": "One delivery order: status (ASSIGNING_DRIVER, ON_GOING, PICKED_UP, COMPLETED, CANCELED, REJECTED, EXPIRED), price breakdown, driver id, share link, distance, stops with proof of delivery and metadata. Only orders from the last 60 days can be read. GET /v3/orders/{orderId}.",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "lalamove_get_driver",
+      "descriptionHash": "d392e8bad4c31eaadcdbb14e637c5fc4adbf45d45f077c2efbfb917bc23885ff",
+      "description": "The driver of an order: name, phone, masked plate number, photo and last known coordinates (updated about every 10 seconds). Lalamove only shares this from 1 hour before the scheduled pickup (or the driver's arrival, whichever is earlier) until the order is completed; outside that window it answers "
+    },
+    {
+      "name": "lalamove_track_order",
+      "descriptionHash": "cf9b93826db5a1f0459b2cf62f820d42cb48a69c5af06e6a83a43c982dfaec1b",
+      "description": "Where is my delivery: the order status, stop-level proof of delivery and share link, plus (when a driver has the order and it is on its way) the driver's name and live coordinates. Two reads: GET /v3/orders/{orderId} and, if a driver is assigned and the order is ON_GOING or PICKED_UP, GET /v3/orders",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "lalamove_create_quotation",
+      "descriptionHash": "76e56af823ced931b62a841965dbb59adb258e50b86655052e8b19f663fa1daf",
+      "description": "Price a delivery: 2-16 stops (the first is the pickup, the rest are drop-offs), a vehicle type and optional extras. Returns quotationId, per-stop stopId, the price breakdown and currency, distance and expiresAt (about 5 minutes). It creates a quotation only: nothing is ordered and nothing is charged",
+      "labels": [
+        "untrusted-content",
+        "public-sink",
+        "destructive"
+      ]
+    },
+    {
+      "name": "lalamove_place_order",
+      "descriptionHash": "50821de5ba6d6cf008fef13979c45be0191236e6862b53240c82caafd6eb253e",
+      "description": "WRITE, SPENDS MONEY: order a delivery from a quotation. In production the total price is charged to the prepaid Lalamove wallet and a driver is dispatched; cancellation is only free within Lalamove's policy. Only call it after the user has seen the quotation price and said yes. confirm_total must eq",
+      "labels": [
+        "private-data",
+        "public-sink",
+        "destructive"
+      ]
+    },
+    {
+      "name": "lalamove_add_priority_fee",
+      "descriptionHash": "c8aa40ccd94cd71a8494b31072b08ad477c7392e39902915dcce122a0c2fa387",
+      "description": "WRITE, SPENDS MONEY: add a priority fee (tip) to an order to attract a driver. Only possible before a driver accepts the order. The amount replaces the earlier fee and must be higher than it; the difference is charged to the wallet. Amount in the market's currency (see the order's priceBreakdown.cur",
+      "labels": [
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "lalamove_cancel_order",
+      "descriptionHash": "570bd91373f45982de5cbed2b4e9047a233abc37b58706b1242541388dc4748d",
+      "description": "WRITE, DESTRUCTIVE: cancel a delivery order. Lalamove only allows it while the order is ASSIGNING_DRIVER, or less than 5 minutes after a driver accepted it; otherwise it answers ERR_CANCELLATION_FORBIDDEN. A cancelled order cannot be revived, only re-placed from a new quotation. DELETE /v3/orders/{o",
+      "labels": [
+        "destructive"
+      ]
+    },
+    {
+      "name": "lalamove_change_driver",
+      "descriptionHash": "258cf6a2699857a8e81610f1fd158ad43033b59baaba026febc6b533d5a08936",
+      "description": "WRITE: ask Lalamove to replace the driver of an order (no extra fee). Allowed 15 minutes after the driver was matched and before pickup; the order goes back to ASSIGNING_DRIVER and a new driver is looked for. Needs the current driver id from lalamove_get_order. DELETE /v3/orders/{orderId}/drivers/{d",
+      "labels": [
+        "destructive"
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: lalamove_create_quotation · Private data: lalamove_place_order, lalamove_add_priority_fee · Public sink: lalamove_get_order, lalamove_track_order, lalamove_create_quotation, lalamove_place_order, lalamove_add_priority_fee · Destructive: lalamove_create_quotation, lalamove_place_order, lalamove_cancel_order, lalamove_change_driver.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: lalamove_create_quotation · Private data: lalamove_place_order, lalamove_add_priority_fee · Public sink: lalamove_get_order, lalamove_track_order, lalamove_create_quotation, lalamove_place_order, lalamove_add_priority_fee · Destructive: lalamove_create_quotation, lalamove_place_order, lalamove_cancel_order, lalamove_change_driver"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 80,
+  "scoreBreakdown": {
+    "toxic-flow": 20
+  },
+  "errors": []
+}

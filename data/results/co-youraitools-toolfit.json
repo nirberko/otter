@@ -1,0 +1,130 @@
+{
+  "schemaVersion": 1,
+  "scanner": {
+    "version": "1.6.0",
+    "rules": "402995650b68"
+  },
+  "target": {
+    "kind": "url",
+    "ref": "https://api.youraitools.co/toolfit/mcp"
+  },
+  "scannedAt": "2026-10-26T10:31:29.419Z",
+  "durationMs": 754,
+  "layers": {
+    "metadata": true,
+    "static": false
+  },
+  "tools": [
+    {
+      "name": "audit_tools",
+      "descriptionHash": "23b2c7c0f8aeab92fa728156719accdb9a66e6ddddc7c6e1b59d22cba7761576",
+      "description": "Check the tool definitions an agent loads, before they cost tokens or fail: estimated tokens per tool, schema errors per provider (OpenAI, Anthropic, Gemini, Bedrock, MCP; add openai_strict for strict mode) with JSON paths and fixed definitions, tool pairs models will confuse with fix hints, basic p",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "destructive"
+      ]
+    },
+    {
+      "name": "diff_tools",
+      "descriptionHash": "92543b835b8419cc9af9ba650c75554dd09d5f4d2091195bf82bffafa9f06a84",
+      "description": "What changed in a tool list since you approved it? Compares \"tools\" or \"url\" now with \"pin\" (set_id from audit_tools/diff_tools) or \"baseline\" (earlier definitions). Each change is labeled breaking (removed tool or param, new required param, type or enum removal), suspicious (new text with injection",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "check_mcp_server",
+      "descriptionHash": "5bc55eda15229c27812a18b5101e603b63b045dfa4f05d794eb271b5fd221218",
+      "description": "Does this remote MCP server work, and is it worth connecting or paying for? Sends initialize and tools/list only (never calls a tool) and reports reachability, protocol version, sign-in method (OAuth protected-resource metadata), x402 payment terms if it asks for payment, latency, tool count and tok",
+      "labels": [
+        "untrusted-content",
+        "private-data"
+      ]
+    },
+    {
+      "name": "watch_mcp_server",
+      "descriptionHash": "7516af51df9ce8602e425611de6c6d2881a9303d9788b3661261ff4a9564f9bf",
+      "description": "Hosted watch (paid only; this MCP call validates and returns how to pay): ToolFit re-audits a public remote MCP server every 24 h ($0.25) or 6 h ($0.60) for 30 days and POSTs an HMAC-SHA256 signed JSON webhook to your https endpoint when its tools/list fingerprint or grade changes, or it goes unreac",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "watch_status",
+      "descriptionHash": "5a8c4bc5d483b2c6c222cf13e25450cd99410ba1fb1377a7490b6a3c45ee62b6",
+      "description": "Free: state (active, expired, cancelled), interval, expiry, next check, last result (pin, grade, score, tool count) and webhook delivery counters for a watch. Needs watch_id and the secret returned when it was created.",
+      "labels": [
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "watch_cancel",
+      "descriptionHash": "d82becb99bf83c7a40b2b691a26d48065324396e30e3fa7e90392824bc80350c",
+      "description": "Free: cancel a watch (no further checks or webhooks; not refunded). Needs watch_id and the secret returned when it was created.",
+      "labels": [
+        "private-data"
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"watch_mcp_server\" references sensitive artifacts (secret). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:watch_mcp_server",
+        "snippet": "Hosted watch (paid only; this MCP call validates and returns how to pay): ToolFit re-audits a public remote MCP server every 24 h ($0.25) or 6 h ($0.60) for 30 …"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"watch_status\" references sensitive artifacts (secret). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:watch_status",
+        "snippet": "Free: state (active, expired, cancelled), interval, expiry, next check, last result (pin, grade, score, tool count) and webhook delivery counters for a watch. N…"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"watch_cancel\" references sensitive artifacts (secret). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:watch_cancel",
+        "snippet": "Free: cancel a watch (no further checks or webhooks; not refunded). Needs watch_id and the secret returned when it was created."
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: audit_tools, diff_tools, check_mcp_server, watch_mcp_server · Private data: audit_tools, check_mcp_server, watch_mcp_server, watch_status, watch_cancel · Public sink: watch_mcp_server, watch_status · Destructive: audit_tools.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: audit_tools, diff_tools, check_mcp_server, watch_mcp_server · Private data: audit_tools, check_mcp_server, watch_mcp_server, watch_status, watch_cancel · Public sink: watch_mcp_server, watch_status · Destructive: audit_tools"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 45,
+  "scoreBreakdown": {
+    "tool-poisoning": 35,
+    "toxic-flow": 20
+  },
+  "errors": []
+}

@@ -1,0 +1,97 @@
+{
+  "schemaVersion": 1,
+  "scanner": {
+    "version": "1.6.0",
+    "rules": "402995650b68"
+  },
+  "target": {
+    "kind": "url",
+    "ref": "https://code.easyllms.com/relay/mcp"
+  },
+  "scannedAt": "2026-10-26T10:54:52.751Z",
+  "durationMs": 575,
+  "layers": {
+    "metadata": true,
+    "static": false
+  },
+  "tools": [
+    {
+      "name": "create_upload_link",
+      "descriptionHash": "10ef1d78b6c570b6aeb4d88646dde632eef4a9aaffbb2423e092a5c577cce07a",
+      "description": "Relay a file of any size up to 100 MB. Save the file to local disk first, call this with its path, then run the returned curl command in your shell to upload it. The download link works as soon as the upload finishes. Requires outbound network access to code.easyllms.com; if curl is blocked, ask the",
+      "labels": [
+        "private-data",
+        "public-sink",
+        "destructive"
+      ]
+    },
+    {
+      "name": "relay_attached_file",
+      "descriptionHash": "97be1d3c3d4f3239695925c257dca6bf2730e81d3e9bec6741ee0148e84952d3",
+      "description": "ChatGPT only: relay a file from the conversation (the host passes it as a file reference) and get a temporary download link.",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "get_file_info",
+      "descriptionHash": "44cc55bc941b531699933c1f5baa76d8b813586ba32828ac07ba7d10d2fffdd5",
+      "description": "Look up a relayed file by id or download URL: name, size, type, expiry and download link.",
+      "labels": [
+        "untrusted-content",
+        "private-data"
+      ]
+    },
+    {
+      "name": "read_file",
+      "descriptionHash": "9a6aed5c911dfed9fa3d6ca731a4afe77c57b2abd4fb0f19052ced21d62df20a",
+      "description": "Read a relayed file's content (up to 1 MB) so an agent can pick up a file someone else relayed. Text comes back as text, images as images, other files as base64.",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "delete_file",
+      "descriptionHash": "5d12fca7bd9244888b165bbbf23aa9b1b06338f2dc3bc7aec0a81f980a29bf24",
+      "description": "Delete a relayed file before it expires. Requires the delete_token returned at upload.",
+      "labels": [
+        "private-data",
+        "public-sink",
+        "destructive"
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-SHADOW-001",
+      "severity": "medium",
+      "category": "shadowing",
+      "title": "Generic tool name can shadow trusted tools",
+      "detail": "Tool \"read_file\" uses a generic high-value name. When multiple servers load together, this can intercept calls meant for a trusted server.",
+      "evidence": {
+        "source": "tool:read_file",
+        "snippet": "read_file"
+      },
+      "confidence": 0.4
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: get_file_info · Private data: create_upload_link, relay_attached_file, get_file_info, read_file, delete_file · Public sink: create_upload_link, delete_file · Destructive: create_upload_link, delete_file.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: get_file_info · Private data: create_upload_link, relay_attached_file, get_file_info, read_file, delete_file · Public sink: create_upload_link, delete_file · Destructive: create_upload_link, delete_file"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 72,
+  "scoreBreakdown": {
+    "shadowing": 8,
+    "toxic-flow": 20
+  },
+  "errors": []
+}

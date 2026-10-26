@@ -1,0 +1,106 @@
+{
+  "schemaVersion": 1,
+  "scanner": {
+    "version": "1.6.0",
+    "rules": "402995650b68"
+  },
+  "target": {
+    "kind": "url",
+    "ref": "https://appointo.usefulapi.io/mcp"
+  },
+  "scannedAt": "2026-10-26T10:56:12.334Z",
+  "durationMs": 368,
+  "layers": {
+    "metadata": true,
+    "static": false
+  },
+  "tools": [
+    {
+      "name": "appointo_list_products",
+      "descriptionHash": "6fe9b886344369c9a1605046397f917f667292b049cc18d0e6a9cb9202a04c36",
+      "description": "List the Shopify products that are set up as bookable in Appointo: name, appointment type, whether the widget is shown, and each product's appointments (the bookable variants/services with price, currency and id). Use an appointment id for availability and bookings. GET /products."
+    },
+    {
+      "name": "appointo_list_appointments",
+      "descriptionHash": "9d33711b79523b36dbf5bec98f0c9b1a3be944921d9453ace591b06580d158ee",
+      "description": "List appointments, i.e. the bookable services/variants, with name, price, currency and configuration. Filter by product or fetch one by id. These are the services customers book, not the bookings themselves (use appointo_list_bookings for those). GET /appointments."
+    },
+    {
+      "name": "appointo_get_availability",
+      "descriptionHash": "10c0780bc671c5d3657fba7dd710186fe994117368aaf4342db07a0173f9e70b",
+      "description": "The free time slots of one appointment (bookable service) from start_date, optionally to end_date. Use it before creating or rescheduling a booking. GET /appointments/{appointment_id}/calendar_availability."
+    },
+    {
+      "name": "appointo_list_bookings",
+      "descriptionHash": "4672afb4a649e8414e3f78104e5e242c8c10cb407bc6dd34489a3263e36e6eb3",
+      "description": "List bookings with time, product, duration, quantity, price and the customers (name, email, phone, address). Filter upcoming/past or search; pass booking_id for one booking. The customers' cancel/reschedule link ids are never returned. GET /bookings.",
+      "labels": [
+        "untrusted-content",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "appointo_list_cancelled_bookings",
+      "descriptionHash": "f1063bf5d38bc9682be09c2c9d2bda5b3496c3ac9eef1d4f2ebd59de4e635467",
+      "description": "List cancelled bookings, same shape as appointo_list_bookings. GET /bookings/cancelled_bookings."
+    },
+    {
+      "name": "appointo_list_subscription_contracts",
+      "descriptionHash": "ee271104cc3834b0d641cfb16fd6a31bdd736ff9ad5173744b5ae4e4444204dd",
+      "description": "List the recurring booking subscription contracts (customers who subscribed to repeat appointments). Search by product, variant, order number or customer name. The API documents no paging for this list. GET /appointment_subscriptions.",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "appointo_create_booking",
+      "descriptionHash": "4b7f6680d20d0ba4ed5dccf5a0e63fb1341fbcb1c63bec76a639b16bf39e2d05",
+      "description": "WRITE: create a booking for a customer on an appointment (bookable service) at a time slot. This is a real booking: Appointo may email the customer a confirmation and reserve the slot; the booking can later be cancelled with appointo_cancel_booking. Check appointo_get_availability first. Not idempot",
+      "labels": [
+        "untrusted-content",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "appointo_reschedule_booking",
+      "descriptionHash": "6e77ae9fe3b9e2ecab75bc7b43b02ff3f44b9f16a94a45bafee57e1b4aef477f",
+      "description": "WRITE: move a booking (or only some of its customers) to a new time slot. Appointo may notify the customers of the change. override=true forces the booking into the slot even if it is unavailable or full, so leave it off unless the user explicitly asked for it. The docs cap this at 100 requests per ",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "appointo_cancel_booking",
+      "descriptionHash": "7797feb3cc78d6fb8fc6e30e858c64b95e8fc11665bed6330f836d156c5155a6",
+      "description": "WRITE: cancel a booking, or only some of its customers. The slot is freed and Appointo may notify the customers; whether a Shopify order is refunded is not controlled by this call. Cannot be undone through this server (create a new booking instead). The docs cap this at 100 requests per day. PUT /bo",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "appointo_update_booking_buffers",
+      "descriptionHash": "7a5380614a9b61629958026d68ab5a6d9ef306f648837aef213bdc8ce243bd35",
+      "description": "WRITE: set the start and/or end buffer time (minutes blocked before/after) of one booking. At least one value is required. The docs cap this at 100 requests per day. PUT /bookings/{booking_id}."
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: appointo_list_bookings, appointo_create_booking · Private data: appointo_list_subscription_contracts · Public sink: appointo_list_bookings, appointo_create_booking, appointo_reschedule_booking, appointo_cancel_booking.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: appointo_list_bookings, appointo_create_booking · Private data: appointo_list_subscription_contracts · Public sink: appointo_list_bookings, appointo_create_booking, appointo_reschedule_booking, appointo_cancel_booking"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 80,
+  "scoreBreakdown": {
+    "toxic-flow": 20
+  },
+  "errors": []
+}

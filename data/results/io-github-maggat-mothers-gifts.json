@@ -1,0 +1,101 @@
+{
+  "schemaVersion": 1,
+  "scanner": {
+    "version": "1.6.0",
+    "rules": "402995650b68"
+  },
+  "target": {
+    "kind": "url",
+    "ref": "https://mothers-day-gifts.vercel.app/api/mcp"
+  },
+  "scannedAt": "2026-10-26T10:37:49.985Z",
+  "durationMs": 1321,
+  "layers": {
+    "metadata": true,
+    "static": false
+  },
+  "tools": [
+    {
+      "name": "get_health",
+      "descriptionHash": "4affc7918b6bc4bd7dcbdb9fd0792a877482d59d3052d0c6380055dc826d01df",
+      "description": "Health check for Mother's Day Gifts. Returns ok, storage, paapi, trackingTag (null until real Associates IDs), defaultDomain, catalogCount. Use this first to discover service status. OpenAPI: getHealth."
+    },
+    {
+      "name": "list_marketplaces",
+      "descriptionHash": "d86f4a2f4fcfbf60dd460f89e92ff4a839897c365c1333073b451c24c5a88ed5",
+      "description": "List supported Amazon storefronts via GET /api/v1/marketplaces (domain, label, tagConfigured). Agents MUST pick the user's marketplace and pass it on search/catalog/resolve."
+    },
+    {
+      "name": "search_gifts",
+      "descriptionHash": "05ef552ea7575bbd6246ea4bf64aa73989aa5be6513515a3734dd289762c28eb",
+      "description": "Search Amazon for Mother's Day / Mors dag gift ideas on the user's marketplace. Returns PA-API products when configured for the default storefront, otherwise Mother's Day search deep-link cards + catalogMatches. ALWAYS pass marketplace + locale for the end user. OpenAPI: searchAmazon."
+    },
+    {
+      "name": "suggest_gifts",
+      "descriptionHash": "22f4d2f57715cc12b0bbf05d2a0e7a768d886c542166f1f46fd0f0e994fb7f77",
+      "description": "Alias of search_gifts — suggest Mother's Day gift ideas for a query on the user's marketplace. ALWAYS pass marketplace + locale."
+    },
+    {
+      "name": "get_catalog",
+      "descriptionHash": "8d81932a49d272c3170f86958e7845854e0b28d5638afb70b825a1cf51aeb670",
+      "description": "Paginated curated Mother's Day gift starters. On amazon.se items may include /dp/ASIN links when ASINs exist; on other marketplaces catalogMode is search-ideas. ALWAYS pass marketplace + locale. Search (search_gifts) remains primary discovery. OpenAPI: getCatalog."
+    },
+    {
+      "name": "resolve_product",
+      "descriptionHash": "cdc11a377e3939297f75be0ed240c1f46a958285781a3a410a9e341735f174fc",
+      "description": "Resolve an ASIN, pasted Amazon /dp/ URL, or keywords to a buyUrl (product /dp or Mother's Day search). ALWAYS pass marketplace + locale. Does not invent Associates tags — omits tag= until server-configured real IDs. OpenAPI: resolveProduct.",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "create_wishlist",
+      "descriptionHash": "18140ad1df96853b2e2df20ae42f3639f857c4fe285669fc0d9d8b74bd189ed8",
+      "description": "Create a Mother's Day gift wishlist. Returns id, editToken, ownerUrl, shopUrl, wishlist, storage. Save editToken for add_wishlist_item. If storage is token, later mutations may return a new id — always use the latest. OpenAPI: createWishlist.",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "create_and_fill",
+      "descriptionHash": "9756448acb5bbdb2b278ac19ce55c640a525b64205af784f30b8913eab7eca17",
+      "description": "One call: create a curated Mother's Day (Mors dag) gift wishlist and return shopUrl (share link) + ownerUrl. Preferred agent path: create a Mother's Day wishlist and add ASINs / keywords / search queries in one call. Returns id, editToken, ownerUrl, shopUrl. OpenAPI: agentCreateAndFill.",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "get_wishlist",
+      "descriptionHash": "d36ac4c496ca5e7d4eeeb8ca01a84cb89173d3b480ac6c1cccdded75c95227ea",
+      "description": "Fetch a Mother's Day wishlist by id. Returns wishlist items with buyUrl/linkType when available, plus ownerUrl and shopUrl. OpenAPI: getWishlist."
+    },
+    {
+      "name": "add_wishlist_item",
+      "descriptionHash": "88224d5f197aa89406b22a7727436dea020e7a8a2f46de20ebb5e28cf0fdb030",
+      "description": "Add an item to a Mother's Day wishlist. Requires editToken from create. Body: name/title plus asin, url (pasted /dp), searchKeywords, or catalogId. Token storage may return a new id — update bookmarks. OpenAPI: addWishlistItem.",
+      "labels": [
+        "private-data"
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: resolve_product · Private data: create_wishlist, add_wishlist_item · Public sink: create_and_fill.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: resolve_product · Private data: create_wishlist, add_wishlist_item · Public sink: create_and_fill"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 80,
+  "scoreBreakdown": {
+    "toxic-flow": 20
+  },
+  "errors": []
+}

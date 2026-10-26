@@ -8,8 +8,8 @@
     "kind": "url",
     "ref": "https://mcp.symvanta.com/mcp"
   },
-  "scannedAt": "2026-09-10T09:04:41.463Z",
-  "durationMs": 2641,
+  "scannedAt": "2026-10-26T10:34:08.660Z",
+  "durationMs": 1558,
   "layers": {
     "metadata": true,
     "static": false
@@ -17,8 +17,8 @@
   "tools": [
     {
       "name": "init",
-      "descriptionHash": "a8c92629bac2cc341b51a431a1b1f2846599f849f74b7a1dcecaae12fa2e21da",
-      "description": "Call first. Returns the active project, repositories, and index health in one call, plus a `usage` field (decision matrix + routing). Non-empty repositories = proceed with graph queries; empty = tell the user to attach repos on the dashboard and stop, do not fall back to Grep."
+      "descriptionHash": "9bb0fdc0827212ce83abbdd2fa82eba4a052b6604bd1148b3f442b14bb504a74",
+      "description": "Call first, with repository:\"owner/name\" (your checkout's GitHub remote). Binds the session to the project holding that repository and returns it as the active project with its repositories, index health, and a `usage` field (decision matrix + routing). workspace.attached=false means the checkout is"
     },
     {
       "name": "locate",
@@ -60,8 +60,8 @@
     },
     {
       "name": "ref",
-      "descriptionHash": "39d3725f3c0b9559b886a67e95bc08071f45c1073509cd7b742ede1b80d6078c",
-      "description": "Session-scoped branch / working-tree overlay. Ops:\n- use: pin a repository's reads to a branch (latest indexed revision). Branch must be tracked+indexed (open a PR, or add on the dashboard); else \"indexing_in_progress\". commitSha overrides.\n- clear: remove the pin, revert to default.\n- index_working",
+      "descriptionHash": "965315b7d6d196d709bdc3a02723d9a4c97bcdeba24415de4d7a248220a63728",
+      "description": "Session-scoped branch / working-tree overlay / project binding. Ops:\n- use: pin a repository's reads to a branch (latest indexed revision). Branch must be tracked+indexed (open a PR, or add on the dashboard); else \"indexing_in_progress\". commitSha overrides.\n- clear: remove the pin, revert to defaul",
       "labels": [
         "untrusted-content",
         "private-data",
@@ -170,8 +170,24 @@
     },
     {
       "name": "add_repository",
-      "descriptionHash": "0ff2e4e2d78ac7088c225d291b61d85b7946cf81fff876568afd95c09f633c86",
-      "description": "Attach a public GitHub repository to the active project (owner + repo_name; clone URL derived). Idempotent. First attach dispatches an indexing job; response carries indexing_status (\"queued\" | \"already_indexed\") and indexing_job_id to poll. Data available once the index is stable."
+      "descriptionHash": "ea2504f19b941e87d048cb9687e06919b3e9fb63d22d69bd83176a027f42e72c",
+      "description": "Attach a GitHub repository to a project (owner + repo_name; clone URL derived; projectId defaults to the bound / default project). Public repos need nothing else. Private repos need installation_id from list_installations (a GitHub App installation that covers the repo) or a workspace PAT saved on t",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "create_project",
+      "descriptionHash": "e2f4129f214410ae4a75fb9250a744a1fdf47cb6b7ba3d85e5b478e127483fac",
+      "description": "Create a project in the workspace (name; slug derived and made unique). Needs mcp:admin; plan project caps apply (plan_limit_exceeded). Then attach repositories with add_repository { projectId, owner, repo_name } and bind the session with ref op:\"use_project\" (or init with the checkout's repository "
+    },
+    {
+      "name": "list_installations",
+      "descriptionHash": "24723e480361059094259be4f6a7e7a28750854d45aa08120c60e5e2b3d515d7",
+      "description": "GitHub App installations connected to this workspace and the repositories each can reach (private included). Use before add_repository for a private repository: pass the installation's id as installation_id. pat_configured says whether a workspace PAT exists as the fallback credential. Empty = conne",
+      "labels": [
+        "private-data"
+      ]
     },
     {
       "name": "reindex_repository",
@@ -230,19 +246,58 @@
       "severity": "high",
       "category": "toxic-flow",
       "title": "Lethal trifecta: untrusted input + private data + external sink",
-      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: source, ref, find_http_route · Private data: locate, relate, source, history, ref, adr, diff_impact, estimate_scope, list_file_symbols, map, freshness, index_health, ask_codebase, reindex_repository, context, bundle · Public sink: index_health, bundle · Destructive: ref, diff_impact, index_health, bundle.",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: source, ref, find_http_route · Private data: locate, relate, source, history, ref, adr, diff_impact, estimate_scope, list_file_symbols, map, freshness, index_health, ask_codebase, add_repository, list_installations, reindex_repository, context, bundle · Public sink: index_health, bundle · Destructive: ref, diff_impact, index_health, bundle.",
       "evidence": {
         "source": "server:mcp",
-        "snippet": "Untrusted content: source, ref, find_http_route · Private data: locate, relate, source, history, ref, adr, diff_impact, estimate_scope, list_file_symbols, map, freshness, index_health, ask_codebase, reindex_repository, context, bundle · Public sink: index_health, bundle · Destructive: ref, diff_impact, index_health, bundle"
+        "snippet": "Untrusted content: source, ref, find_http_route · Private data: locate, relate, source, history, ref, adr, diff_impact, estimate_scope, list_file_symbols, map, freshness, index_health, ask_codebase, add_repository, list_installations, reindex_repository, context, bundle · Public sink: index_health, bundle · Destructive: ref, diff_impact, index_health, bundle"
       },
       "confidence": 0.6,
       "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"init\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:init",
+        "snippet": "before: \"Call first. Returns the active project, repositories, and index health in one call, plus a `usage` field (decision matrix + routing). Non-empty repositories = proceed with graph queries; empty = tell the user to attach repos on the dashboard and stop, do not fall back to Grep.\" → after: \"Call first, with repository:\"owner/name\" (your checkout's GitHub remote). Binds the session to the project holding that repository and returns it as the active project with its repositories, index health, and a `usage` field (decision matrix + routing). workspace.attached=false means the checkout is\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"ref\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:ref",
+        "snippet": "before: \"Session-scoped branch / working-tree overlay. Ops:\n- use: pin a repository's reads to a branch (latest indexed revision). Branch must be tracked+indexed (open a PR, or add on the dashboard); else \"indexing_in_progress\". commitSha overrides.\n- clear: remove the pin, revert to default.\n- index_working\" → after: \"Session-scoped branch / working-tree overlay / project binding. Ops:\n- use: pin a repository's reads to a branch (latest indexed revision). Branch must be tracked+indexed (open a PR, or add on the dashboard); else \"indexing_in_progress\". commitSha overrides.\n- clear: remove the pin, revert to defaul\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"add_repository\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:add_repository",
+        "snippet": "before: \"Attach a public GitHub repository to the active project (owner + repo_name; clone URL derived). Idempotent. First attach dispatches an indexing job; response carries indexing_status (\"queued\" | \"already_indexed\") and indexing_job_id to poll. Data available once the index is stable.\" → after: \"Attach a GitHub repository to a project (owner + repo_name; clone URL derived; projectId defaults to the bound / default project). Public repos need nothing else. Private repos need installation_id from list_installations (a GitHub App installation that covers the repo) or a workspace PAT saved on t\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
     }
   ],
-  "score": 52,
+  "score": 35,
   "scoreBreakdown": {
     "schema-smell": 8,
-    "tool-poisoning": 20,
+    "tool-poisoning": 38,
     "toxic-flow": 20
   },
   "errors": []
