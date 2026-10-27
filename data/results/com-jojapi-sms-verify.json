@@ -8,32 +8,84 @@
     "kind": "url",
     "ref": "https://mcp.jojapi.com/sms-verify"
   },
-  "scannedAt": "2026-10-11T10:56:31.383Z",
-  "durationMs": 405,
+  "scannedAt": "2026-10-27T09:55:47.286Z",
+  "durationMs": 578,
   "layers": {
     "metadata": true,
     "static": false
   },
   "tools": [
     {
-      "name": "post_estimate_cost",
-      "descriptionHash": "e7ef6acc9629bb2a3d21a7aedc5999d71056060803815c34e8b1d2b902ad01da",
-      "description": "Estimate Cost Billing per call: 0 Credits.",
+      "name": "post_send_numeric_verify",
+      "descriptionHash": "af2adeb132937f492eabde8b8963838cd091b392e9a77093164ded218ea731a7",
+      "description": "Sends a six-digit verification code to a phone number by SMS and returns the code, so you can compare it with what the user types. The message reads `123-456 is your verification code. Don't share.` The request is charged the message's cost in credits (`cost`), which depends on the destination count",
       "labels": [
         "public-sink"
       ]
     },
     {
-      "name": "post_send_numeric_verify",
-      "descriptionHash": "1aa1eb6c00ba1b2ccf3b7d9d6912aeca40d12555e88c23cc1dc01b573c7d3247",
-      "description": "Send Verify SMS Billing per call: Credits: metered.",
+      "name": "get_pricing",
+      "descriptionHash": "e9deed65140619b1cbf66e08c7b8f444e4a1f15d850c85fa7311d885e4711d45",
+      "description": "What a verification SMS costs in every country it can be sent to, in credits, sorted by country name. Each country is priced for a typical mobile number and checked at least once a day (`checked_at`, UTC); carriers within a country can differ, so use Estimate Cost for an exact number. Countries SMS ",
       "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "post_estimate_cost",
+      "descriptionHash": "74dd1470467260b99138e25e855c56c38a4102c6504e71aa61556aca739c5835",
+      "description": "What a verification SMS to this phone number would cost, in credits, and the number's country (`region_code`, ISO 3166-1 alpha-2; `null` when the number belongs to no assigned range). Nothing is sent. The price is for this number's carrier, so it can differ from the country's price in the price list",
+      "labels": [
+        "untrusted-content",
         "public-sink"
       ]
     }
   ],
-  "findings": [],
-  "score": 100,
-  "scoreBreakdown": {},
+  "findings": [
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "medium",
+      "category": "toxic-flow",
+      "title": "Toxic flow: untrusted input can reach an external sink",
+      "detail": "Server \"sms-verify\" exposes tools that together enable an exfiltration flow. Untrusted content: post_estimate_cost · Public sink: post_send_numeric_verify, get_pricing, post_estimate_cost.",
+      "evidence": {
+        "source": "server:sms-verify",
+        "snippet": "Untrusted content: post_estimate_cost · Public sink: post_send_numeric_verify, get_pricing, post_estimate_cost"
+      },
+      "confidence": 0.45,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"post_estimate_cost\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:post_estimate_cost",
+        "snippet": "before: \"Estimate Cost Billing per call: 0 Credits.\" → after: \"What a verification SMS to this phone number would cost, in credits, and the number's country (`region_code`, ISO 3166-1 alpha-2; `null` when the number belongs to no assigned range). Nothing is sent. The price is for this number's carrier, so it can differ from the country's price in the price list\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"post_send_numeric_verify\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:post_send_numeric_verify",
+        "snippet": "before: \"Send Verify SMS Billing per call: Credits: metered.\" → after: \"Sends a six-digit verification code to a phone number by SMS and returns the code, so you can compare it with what the user types. The message reads `123-456 is your verification code. Don't share.` The request is charged the message's cost in credits (`cost`), which depends on the destination count\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    }
+  ],
+  "score": 62,
+  "scoreBreakdown": {
+    "toxic-flow": 8,
+    "tool-poisoning": 30
+  },
   "errors": []
 }

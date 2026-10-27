@@ -8,8 +8,8 @@
     "kind": "url",
     "ref": "https://mcp.spendctl.dev/mcp"
   },
-  "scannedAt": "2026-10-26T10:34:35.578Z",
-  "durationMs": 488,
+  "scannedAt": "2026-10-27T09:58:02.917Z",
+  "durationMs": 996,
   "layers": {
     "metadata": true,
     "static": false
@@ -17,43 +17,131 @@
   "tools": [
     {
       "name": "sandbox_create",
-      "descriptionHash": "210a6da6ac669391be0931c8897034d124abbecd00d05a442e129460803f17f7",
-      "description": "Creates an isolated spendctl sandbox: a real spendctl sidecar with a throwaway wallet, mock paid APIs and a mock facilitator. No real money moves and nothing outside the sandbox is reachable. Returns the sandbox_id to pass to the other tools, the agent's spending policy and the paid endpoints that e",
+      "descriptionHash": "4fde078ab81cb060034bcc0cf1a3754797ece2f99457a0ebb9a886144d76ed08",
+      "description": "Creates an isolated spendctl sandbox and returns its sandbox_id. Call it first: every other tool needs the sandbox_id, and one sandbox serves a whole conversation (create another only to try a different preset). The sandbox is a real spendctl sidecar with a throwaway wallet, a mock x402 facilitator ",
       "labels": [
         "private-data"
       ]
     },
     {
       "name": "sandbox_pay",
-      "descriptionHash": "7c98b96e445476982e50476ccad897109d05fcf336d3bff3fbe41fe1230a37f0",
-      "description": "Fetches one of the sandbox's paid endpoints (HTTP 402, x402) through the spendctl sidecar: https://weather.sandbox.spendctl.dev/weather?city=<name> ($0.01) or https://search.sandbox.spendctl.dev/search?q=<query> ($0.02), as listed by sandbox_create and documented at https://spendctl.dev/docs/sandbox",
+      "descriptionHash": "097d5144a40597e2fab97ca0b6bb77534f53dc104286dfc7865c665daa175dd7",
+      "description": "Fetches one of the sandbox's paid endpoints (HTTP 402, x402) through the spendctl sidecar, which applies the sandbox agent's budget, allowlist and approval policy, pays with the throwaway wallet if allowed, and returns the response. Use it for every paid call in the sandbox: with dryRun to see the d",
       "labels": [
+        "untrusted-content",
         "private-data"
       ]
     },
     {
       "name": "check_budget",
-      "descriptionHash": "6816903f876284afdad07047448cb5d82b88ef68beabfee176694b6bcfaa322a",
-      "description": "Shows the sandbox agent's spending limits, what has been spent in each window, and what is left."
+      "descriptionHash": "1a29cd30d08ddb7d44d77fa4ee1fdc307038a89db9d64d825d5756ae35239d9a",
+      "description": "Shows the sandbox agent's spending limits, what has been spent in each window and what is left. Use it before a paid call when the remaining budget matters, or after a refusal to see which limit was hit. Returns the agent name and mode, the per-request limit, the approval threshold, what happens whe"
     },
     {
       "name": "list_receipts",
-      "descriptionHash": "42a4c9b2c5a35a930dda97afe6be4358b149ff03dc6a43a8da2fe80b30f456b6",
-      "description": "Lists the sandbox agent's recent payment attempts (paid, refused, waiting for approval) with amounts, reasons and mock transaction hashes."
+      "descriptionHash": "2d5f862dfb752ecd4f6a92fe28aa1746bc5f4de64b97023bc0b6444cba122e2d",
+      "description": "Lists the sandbox agent's most recent payment attempts, newest first: paid (amount and mock transaction hash), refused (reason codes) and waiting for approval. Use it to report what happened so far or to find a receipt id; after a hold, the approval id is in the sandbox_pay result. Returns up to `li",
+      "labels": [
+        "untrusted-content"
+      ]
     },
     {
       "name": "get_policy",
-      "descriptionHash": "f74c2ea2e3fc4faaffde8e60f3944ff4087ce83c9d4dd938e31b3b6dcadd532d",
-      "description": "Returns the sandbox's spendctl.yaml: the agent's budgets, allowed hosts and approval rules."
+      "descriptionHash": "e62c6d3c69cb1623ff92a2f9e4c804ffd52716f09368f7024be75d1a344a5b7b",
+      "description": "Returns the sandbox's spendctl.yaml as text: the preset name and the agent's budgets, allowed hosts and approval rules. Use it to explain why a payment was refused or held, or to show what a spendctl policy file looks like. Read-only; the sandbox policy cannot be changed, create a sandbox with anoth",
+      "labels": [
+        "private-data"
+      ]
     },
     {
       "name": "approve",
-      "descriptionHash": "94019c5b3c22aa1382e417fb71745b6b425e3bbd76111ca8949762d46c655307",
-      "description": "Decides a pending approval in this sandbox, as the human approver would with `spendctl approve`. An approved payment completes when sandbox_pay is called again with the same approvalId; a denied one stays refused."
+      "descriptionHash": "e77b3c2d460398f7bd54f51f168206fc4965eff85dcb916c38b77861e5ed9934",
+      "description": "Approves or denies a payment that sandbox_pay reported as waiting for approval, as the human approver would with `spendctl approve`. Use it only with an approval id from this sandbox; in the real product a human decides, in the sandbox the model plays that role. Returns the approval id and its new s"
     }
   ],
-  "findings": [],
-  "score": 100,
-  "scoreBreakdown": {},
+  "findings": [
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"sandbox_create\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:sandbox_create",
+        "snippet": "before: \"Creates an isolated spendctl sandbox: a real spendctl sidecar with a throwaway wallet, mock paid APIs and a mock facilitator. No real money moves and nothing outside the sandbox is reachable. Returns the sandbox_id to pass to the other tools, the agent's spending policy and the paid endpoints that e\" → after: \"Creates an isolated spendctl sandbox and returns its sandbox_id. Call it first: every other tool needs the sandbox_id, and one sandbox serves a whole conversation (create another only to try a different preset). The sandbox is a real spendctl sidecar with a throwaway wallet, a mock x402 facilitator \""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"sandbox_pay\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:sandbox_pay",
+        "snippet": "before: \"Fetches one of the sandbox's paid endpoints (HTTP 402, x402) through the spendctl sidecar: https://weather.sandbox.spendctl.dev/weather?city=<name> ($0.01) or https://search.sandbox.spendctl.dev/search?q=<query> ($0.02), as listed by sandbox_create and documented at https://spendctl.dev/docs/sandbox\" → after: \"Fetches one of the sandbox's paid endpoints (HTTP 402, x402) through the spendctl sidecar, which applies the sandbox agent's budget, allowlist and approval policy, pays with the throwaway wallet if allowed, and returns the response. Use it for every paid call in the sandbox: with dryRun to see the d\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"check_budget\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:check_budget",
+        "snippet": "before: \"Shows the sandbox agent's spending limits, what has been spent in each window, and what is left.\" → after: \"Shows the sandbox agent's spending limits, what has been spent in each window and what is left. Use it before a paid call when the remaining budget matters, or after a refusal to see which limit was hit. Returns the agent name and mode, the per-request limit, the approval threshold, what happens whe\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"list_receipts\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:list_receipts",
+        "snippet": "before: \"Lists the sandbox agent's recent payment attempts (paid, refused, waiting for approval) with amounts, reasons and mock transaction hashes.\" → after: \"Lists the sandbox agent's most recent payment attempts, newest first: paid (amount and mock transaction hash), refused (reason codes) and waiting for approval. Use it to report what happened so far or to find a receipt id; after a hold, the approval id is in the sandbox_pay result. Returns up to `li\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"get_policy\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:get_policy",
+        "snippet": "before: \"Returns the sandbox's spendctl.yaml: the agent's budgets, allowed hosts and approval rules.\" → after: \"Returns the sandbox's spendctl.yaml as text: the preset name and the agent's budgets, allowed hosts and approval rules. Use it to explain why a payment was refused or held, or to show what a spendctl policy file looks like. Read-only; the sandbox policy cannot be changed, create a sandbox with anoth\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"approve\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:approve",
+        "snippet": "before: \"Decides a pending approval in this sandbox, as the human approver would with `spendctl approve`. An approved payment completes when sandbox_pay is called again with the same approvalId; a denied one stays refused.\" → after: \"Approves or denies a payment that sandbox_pay reported as waiting for approval, as the human approver would with `spendctl approve`. Use it only with an approval id from this sandbox; in the real product a human decides, in the sandbox the model plays that role. Returns the approval id and its new s\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    }
+  ],
+  "score": 60,
+  "scoreBreakdown": {
+    "tool-poisoning": 40
+  },
   "errors": []
 }

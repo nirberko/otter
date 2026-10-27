@@ -8,13 +8,47 @@
     "kind": "url",
     "ref": "https://my.we.inc/api/mcp"
   },
-  "scannedAt": "2026-09-17T09:45:36.126Z",
-  "durationMs": 929,
+  "scannedAt": "2026-10-27T10:04:18.491Z",
+  "durationMs": 1359,
   "layers": {
     "metadata": true,
     "static": false
   },
   "tools": [
+    {
+      "name": "start_website",
+      "descriptionHash": "88cf40b40973665f240eed6f62eb8ccacbc2e963353ef2cb2ff47620aa34b2f0",
+      "description": "Prepare a new WeInc website from a description of the business. Returns a link; nothing is built or charged until the person opens it and confirms in their browser. Put everything you know into `brief`: business name, what they do, location, services, audience, tone, pages wanted, contact details. O",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "find_templates",
+      "descriptionHash": "9d7d6ca63e5f5456e2dcbde17729b3b2aff34ec64dfc8d9ee5e80e1226bc4db7",
+      "description": "Search WeInc's website templates by keywords (e.g. 'restaurant', 'portfolio', 'online store') and/or category. Returns id, name, description, category, features and a start link. Pass a chosen id to start_website as template_id."
+    },
+    {
+      "name": "my_websites",
+      "descriptionHash": "d1db416a68892c9b49af1db154e40d8fb2e2dc3cab0b9f12f387ba95a94e276b",
+      "description": "List the signed-in person's own WeInc websites, newest activity first: name, live URL if published, editor link and last updated time. Use the id with website_details or request_change.",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "website_details",
+      "descriptionHash": "ee223bf9e4d1ac07a3659f0c94a8dbac4d064611da3d83919ced400349150572",
+      "description": "Details of one of the person's own websites: name, whether it is published, live URL, custom domains with status, last published time and editor link."
+    },
+    {
+      "name": "request_change",
+      "descriptionHash": "cedd6e722fc3172b17064aed1a93008ff84dc850e2028b130acf8b892d25b304",
+      "description": "Prepare a change to one of the person's own websites. Returns an editor link that opens their site with the instruction already typed in the WeInc chat box; it is NOT sent until they press send. The instruction should say what to change, where, and the exact new text.",
+      "labels": [
+        "public-sink"
+      ]
+    },
     {
       "name": "list_projects",
       "descriptionHash": "7732d7bcc951fd80134547de2f43591963aaa052c3b476ebf84b86776b84db2c",
@@ -35,8 +69,8 @@
     },
     {
       "name": "update_project",
-      "descriptionHash": "8ade666ddd6a6bc211109bf56535550f3ea85a5348476dbb50fdd998db7d8322",
-      "description": "Update a project's name, description, or status."
+      "descriptionHash": "dc33bb78d42f5b13fc358e6fc85fa3a0e579664a3491699d4d439ad56f92fd40",
+      "description": "Update a project's name, description, or status. This overwrites the current values; changing the status (for example archiving) can take the site out of normal use, so confirm with the person first."
     },
     {
       "name": "get_preview_urls",
@@ -75,21 +109,35 @@
   "findings": [
     {
       "id": "MCP-TOXIC-FLOW-001",
-      "severity": "medium",
+      "severity": "high",
       "category": "toxic-flow",
-      "title": "Toxic flow: untrusted input can reach an external sink",
-      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: get_preview_urls · Public sink: create_project.",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: my_websites, get_preview_urls · Private data: start_website · Public sink: request_change, create_project.",
       "evidence": {
         "source": "server:mcp",
-        "snippet": "Untrusted content: get_preview_urls · Public sink: create_project"
+        "snippet": "Untrusted content: my_websites, get_preview_urls · Private data: start_website · Public sink: request_change, create_project"
       },
-      "confidence": 0.45,
+      "confidence": 0.6,
       "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"update_project\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:update_project",
+        "snippet": "before: \"Update a project's name, description, or status.\" → after: \"Update a project's name, description, or status. This overwrites the current values; changing the status (for example archiving) can take the site out of normal use, so confirm with the person first.\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
     }
   ],
-  "score": 92,
+  "score": 60,
   "scoreBreakdown": {
-    "toxic-flow": 8
+    "toxic-flow": 20,
+    "tool-poisoning": 20
   },
   "errors": []
 }

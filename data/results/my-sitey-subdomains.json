@@ -8,8 +8,8 @@
     "kind": "url",
     "ref": "https://sitey.my/mcp"
   },
-  "scannedAt": "2026-09-17T09:46:17.168Z",
-  "durationMs": 3264,
+  "scannedAt": "2026-10-27T10:05:25.208Z",
+  "durationMs": 2541,
   "layers": {
     "metadata": true,
     "static": false
@@ -27,7 +27,7 @@
     },
     {
       "name": "create_subdomain",
-      "descriptionHash": "a6d6390734945d6947ef5332e4f16ddbd847f9dc9cf438ef9c8f79e23b396fef",
+      "descriptionHash": "c73ff7bf6f2be3fe4c18afd5f5309b601d9fc9f6c1fbb39da2d535286f7d937c",
       "description": "Create a new DNS record for a subdomain. Supports A records (IP address), CNAME records (hostname) and REDIRECT records (an https:// URL — visitors to the name are sent there with a 301). Example: create demo.sitey.my pointing to 1.2.3.4. No account, API key or signup is needed. The target does not ",
       "labels": [
         "private-data",
@@ -53,6 +53,11 @@
       ]
     },
     {
+      "name": "extend_subdomain",
+      "descriptionHash": "6bb63f637900719173986ab0d211a7dbd719bffb9aadcedefc958dff1312d0a2",
+      "description": "Paying for a year is switched off on this server, so this always answers PAYMENT_DISABLED. Use renew_subdomain, which is free and adds a month."
+    },
+    {
       "name": "update_subdomain",
       "descriptionHash": "f9cf87ea6ecc181413c93c9d132e25d5366612dab4447aa67925e1a6dfdaca62",
       "description": "Update the DNS record value of a subdomain you own. For example, change the IP address that demo.sitey.my points to. The new target does not have to be serving yet; the result carries reachable:false when nothing answered, and the record is moved either way.",
@@ -71,10 +76,11 @@
     },
     {
       "name": "create_txt_record",
-      "descriptionHash": "c0b3e6742cad7e8d7eef04d258ab61dd77718781122c637c019fc02b5de9ec95",
+      "descriptionHash": "03ef85e8f36b82dc9be565f766bc1da7f58b2f3830b27679224e18e3ec5b9f98",
       "description": "Create or update a TXT record for domain verification. Used for services like Vercel (_vercel) and Netlify that require DNS-based ownership proof. The record is placed at the root domain under the prefix you give (e.g. _vercel.sitey.my), alongside the other owners' values — that is the name Vercel r",
       "labels": [
-        "private-data"
+        "private-data",
+        "public-sink"
       ]
     },
     {
@@ -89,14 +95,26 @@
   ],
   "findings": [
     {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"create_txt_record\" references sensitive artifacts (authorization, bearer). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:create_txt_record",
+        "snippet": "Create or update a TXT record for domain verification. Used for services like Vercel (_vercel) and Netlify that require DNS-based ownership proof. The record is…"
+      },
+      "confidence": 0.65
+    },
+    {
       "id": "MCP-TOXIC-FLOW-001",
       "severity": "high",
       "category": "toxic-flow",
       "title": "Lethal trifecta: untrusted input + private data + external sink",
-      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: renew_subdomain · Private data: create_subdomain, list_subdomains, renew_subdomain, update_subdomain, delete_subdomain, create_txt_record, delete_txt_record · Public sink: create_subdomain · Destructive: create_subdomain, delete_subdomain, delete_txt_record.",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: renew_subdomain · Private data: create_subdomain, list_subdomains, renew_subdomain, update_subdomain, delete_subdomain, create_txt_record, delete_txt_record · Public sink: create_subdomain, create_txt_record · Destructive: create_subdomain, delete_subdomain, delete_txt_record.",
       "evidence": {
         "source": "server:mcp",
-        "snippet": "Untrusted content: renew_subdomain · Private data: create_subdomain, list_subdomains, renew_subdomain, update_subdomain, delete_subdomain, create_txt_record, delete_txt_record · Public sink: create_subdomain · Destructive: create_subdomain, delete_subdomain, delete_txt_record"
+        "snippet": "Untrusted content: renew_subdomain · Private data: create_subdomain, list_subdomains, renew_subdomain, update_subdomain, delete_subdomain, create_txt_record, delete_txt_record · Public sink: create_subdomain, create_txt_record · Destructive: create_subdomain, delete_subdomain, delete_txt_record"
       },
       "confidence": 0.6,
       "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
@@ -106,19 +124,32 @@
       "severity": "high",
       "category": "tool-poisoning",
       "title": "Tool description changed since last scan",
-      "detail": "Tool \"list_subdomains\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "detail": "Tool \"create_subdomain\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
       "evidence": {
-        "source": "tool:list_subdomains",
-        "snippet": "before: \"List all subdomains you own. Returns subdomain name, domain, record type, value, and creation date. Filtered by your API key, or by the owner_token you pass, or — for records made before tokens existed — by your IP address.\" → after: \"List all subdomains you own. Returns subdomain name, domain, record type, value, and creation date. A REDIRECT record also carries hits: how many visits it has answered in total, how many this calendar month, and when the last one was. Filtered by your API key, or by the owner_token you pass, or — f\""
+        "source": "tool:create_subdomain",
+        "snippet": "before: \"Create a new DNS record for a subdomain. Supports A records (IP address), CNAME records (hostname) and REDIRECT records (an https:// URL — visitors to the name are sent there with a 301). Example: create demo.sitey.my pointing to 1.2.3.4. No account, API key or signup is needed. The target does not \" → after: \"Create a new DNS record for a subdomain. Supports A records (IP address), CNAME records (hostname) and REDIRECT records (an https:// URL — visitors to the name are sent there with a 301). Example: create demo.sitey.my pointing to 1.2.3.4. No account, API key or signup is needed. The target does not \""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"create_txt_record\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:create_txt_record",
+        "snippet": "before: \"Create or update a TXT record for domain verification. Used for services like Vercel (_vercel) and Netlify that require DNS-based ownership proof. The record is placed at the root domain under the prefix you give (e.g. _vercel.sitey.my), alongside the other owners' values — that is the name Vercel r\" → after: \"Create or update a TXT record for domain verification. Used for services like Vercel (_vercel) and Netlify that require DNS-based ownership proof. The record is placed at the root domain under the prefix you give (e.g. _vercel.sitey.my), alongside the other owners' values — that is the name Vercel r\""
       },
       "confidence": 0.8,
       "remediation": "Re-review the tool before continuing to trust it."
     }
   ],
-  "score": 60,
+  "score": 45,
   "scoreBreakdown": {
-    "toxic-flow": 20,
-    "tool-poisoning": 20
+    "tool-poisoning": 35,
+    "toxic-flow": 20
   },
   "errors": []
 }
