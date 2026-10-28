@@ -1,0 +1,121 @@
+{
+  "schemaVersion": 1,
+  "scanner": {
+    "version": "1.6.0",
+    "rules": "402995650b68"
+  },
+  "target": {
+    "kind": "url",
+    "ref": "https://courierpr.com/api/mcp"
+  },
+  "scannedAt": "2026-10-28T10:41:07.773Z",
+  "durationMs": 1483,
+  "layers": {
+    "metadata": true,
+    "static": false
+  },
+  "tools": [
+    {
+      "name": "list_desks",
+      "descriptionHash": "ad9cf9471ee998019a55db99b617ca436c1dc035de9261448344620647a60537",
+      "description": "The six newsroom desks and the twenty categories under them, with slugs and links. Use it to resolve a topic the user named ('tech', 'health') into a desk or category before calling latest_releases. Returns no releases."
+    },
+    {
+      "name": "latest_releases",
+      "descriptionHash": "a46af45829bd12c787c2f388b12a9d5bd75f23828669470c7bfc150de4aee3ba",
+      "description": "The newest published press releases, optionally within one desk or one category. Use it for 'what is new in tech', 'latest funding announcements', 'recent releases on CourierPR'. Each result is a title, company, date, short summary and a link; the full text is on the linked page. Limitation: at most"
+    },
+    {
+      "name": "search_releases",
+      "descriptionHash": "af69599d47e5fb1b6d48e1a75e689bb36191325c74d1489e80ee421c9540ce93",
+      "description": "Full-text search over every published press release (title and body), optionally within one category. Use it when the user names a company, product, person or topic. Returns short summaries with links; the full text is on the linked page. Limitation: English full-text matching, at most 10 results, n"
+    },
+    {
+      "name": "get_release",
+      "descriptionHash": "b88ee658dcfdf7b4ea5f60183d6c4287f511fbc0baff8245ea4c2b108d4a43f8",
+      "description": "One published press release by slug (the last part of its URL) or by its full courierpr.com URL: title, company, category, dateline, date, the opening 120 words and a link to the full release. Use it after a search or list result when the user wants more on one item. Limitation: returns a summary, n",
+      "labels": [
+        "untrusted-content",
+        "private-data"
+      ]
+    },
+    {
+      "name": "how_to_file",
+      "descriptionHash": "f199fedd1929192d0217713d43625eb5fd634d3f4f45ab5985ab3c22ce8e0800",
+      "description": "What filing a release on CourierPR involves: what is accepted (the press code) and the links to file, for agencies and for journalists. Use it when the user asks how to publish or distribute a press release. Returns links only; it does not file anything.",
+      "labels": [
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "search",
+      "descriptionHash": "4f096f40951362561b2b11f4322c024a2d2c5076d6e1e8acce15ce54d67d17dc",
+      "description": "Connector-style search over published press releases. Returns ids for fetch. Prefer search_releases when you can filter by category."
+    },
+    {
+      "name": "fetch",
+      "descriptionHash": "fb6c00b600fcf987b44c52083c7718cb9ccaf5d4ed850d949f6a18e5c6043f5f",
+      "description": "Connector-style fetch of one press release by the id from search. Same summary as get_release."
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOOL-POISON-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description issues instructions to the model",
+      "detail": "Description of \"list_desks\" contains imperative instructions directed at the AI assistant rather than describing the tool. This is the core tool-poisoning technique.",
+      "evidence": {
+        "source": "tool:list_desks",
+        "snippet": "The six newsroom desks and the twenty categories under them, with slugs and links. Use it to resolve a topic the user named ('tech', 'health') into a desk or ca…"
+      },
+      "confidence": 0.7,
+      "remediation": "Treat the server as untrusted; the model may obey embedded instructions."
+    },
+    {
+      "id": "MCP-SHADOW-001",
+      "severity": "medium",
+      "category": "shadowing",
+      "title": "Generic tool name can shadow trusted tools",
+      "detail": "Tool \"search\" uses a generic high-value name. When multiple servers load together, this can intercept calls meant for a trusted server.",
+      "evidence": {
+        "source": "tool:search",
+        "snippet": "search"
+      },
+      "confidence": 0.4
+    },
+    {
+      "id": "MCP-SHADOW-001",
+      "severity": "medium",
+      "category": "shadowing",
+      "title": "Generic tool name can shadow trusted tools",
+      "detail": "Tool \"fetch\" uses a generic high-value name. When multiple servers load together, this can intercept calls meant for a trusted server.",
+      "evidence": {
+        "source": "tool:fetch",
+        "snippet": "fetch"
+      },
+      "confidence": 0.4
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: get_release · Private data: get_release, how_to_file · Public sink: how_to_file.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: get_release · Private data: get_release, how_to_file · Public sink: how_to_file"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 48,
+  "scoreBreakdown": {
+    "tool-poisoning": 20,
+    "shadowing": 12,
+    "toxic-flow": 20
+  },
+  "errors": []
+}

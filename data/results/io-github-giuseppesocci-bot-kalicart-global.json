@@ -8,8 +8,8 @@
     "kind": "url",
     "ref": "https://global.kalicart.com/mcp-public"
   },
-  "scannedAt": "2026-10-09T11:30:58.200Z",
-  "durationMs": 1449,
+  "scannedAt": "2026-10-28T10:47:44.286Z",
+  "durationMs": 2882,
   "layers": {
     "metadata": true,
     "static": false
@@ -17,8 +17,34 @@
   "tools": [
     {
       "name": "global_search",
-      "descriptionHash": "c61edb48ec245d80151991db0157bd80549c64d6bf82a6f55da63a2b506d0ad6",
-      "description": "Use this when a user wants to find or compare product candidates across participating WooCommerce merchants. Search with q and/or a canonical category leaf; results contain snapshot price and stock, match evidence, provenance, and merchant Bridge handoff links. Do not use this as final price, varian"
+      "descriptionHash": "02221025617c721c841c34723e6960cbebe26f9e65866cd478ebea08865c182f",
+      "description": "Use this when a user wants to find or compare product candidates across participating WooCommerce merchants. Search cards include bounded variants_compact and variant_option_values from the merchant snapshot. Option values are independent and do not prove a purchasable combination. Verify the select",
+      "labels": [
+        "destructive"
+      ]
+    },
+    {
+      "name": "get_offer_attestation",
+      "descriptionHash": "f66758477d9d7fa78280feb7c4e9e90625a8100ee8ea0dd688983c86545823a5",
+      "description": "Returns a cryptographic proof that this offer's product row is exactly the one the merchant signed in its catalog snapshot: the signed row, its bucket hashes, the Ed25519-signed manifest, the merchant public key and step-by-step verification. Trust is anchored on the merchant domain (key fingerprint"
+    },
+    {
+      "name": "estimate_delivered_cost",
+      "descriptionHash": "e4122486dbea2a5a9b3ec44a2296341cefdc682734d28fd21c1e513851f16b3b",
+      "description": "Deterministic estimate from the merchant's own data: item price x quantity plus the shipping options the store declares for the destination (flat rate = declared base rate; free shipping with its threshold, whether this quantity reaches it and how much is missing). Lists what is not included (shippi"
+    },
+    {
+      "name": "verify_basket",
+      "descriptionHash": "0586ff9484416de86dc0191c1aff6dd378a3e296531a5846c7b8e417be744ae1",
+      "description": "For a multi-item request, collect p2209_id and any selected variation_id from global_search results and send all selected items in one call. For every variable product, include a variation_id from its selected variants_compact entry on the first call; without it the price and basket total may be unk",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "verify_offer",
+      "descriptionHash": "59b69a66f2d493bcbb901bbe7c12f8c8c209849d163c23869870e181dee32e8d",
+      "description": "Checks ONE offer (optionally a selected variant) and returns true, false or unknown per constraint with evidence. Pass constraints as an ARRAY, for example [{\"field\":\"available\"},{\"field\":\"price\",\"max\":300,\"currency\":\"EUR\"},{\"field\":\"ships_to\",\"value\":\"IT:CB\"}]. available has no expected key: ask fo"
     },
     {
       "name": "lookup_merchant",
@@ -27,8 +53,8 @@
     },
     {
       "name": "get_product",
-      "descriptionHash": "e109584be7f53c68c4e4205b787539a476e661f237555a941657201418bc5a5a",
-      "description": "Use this after global_search when the selected candidate needs indexed details that are not already on its search card. The p2209_id must come from global_search. This remains a snapshot, not live merchant verification; follow the returned handoff before confirming variant, price, or stock. Skip thi"
+      "descriptionHash": "62ee1fc6d62aa97bd84afd5af12b3819a79509c239e50fcc5bb684547d429f0e",
+      "description": "Use this after global_search when the selected candidate needs indexed details that are not already on its search card. The p2209_id must come from global_search. Variant options and colors are merchant-declared snapshot evidence matched by variation ID. This remains a snapshot, not live merchant ve"
     },
     {
       "name": "list_merchants",
@@ -57,11 +83,51 @@
       },
       "confidence": 0.7,
       "remediation": "Treat the server as untrusted; the model may obey embedded instructions."
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "medium",
+      "category": "toxic-flow",
+      "title": "Toxic flow: untrusted input can reach an external sink",
+      "detail": "Server \"mcp-public\" exposes tools that together enable an exfiltration flow. Untrusted content: list_merchants · Public sink: verify_basket · Destructive: global_search.",
+      "evidence": {
+        "source": "server:mcp-public",
+        "snippet": "Untrusted content: list_merchants · Public sink: verify_basket · Destructive: global_search"
+      },
+      "confidence": 0.45,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"global_search\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:global_search",
+        "snippet": "before: \"Use this when a user wants to find or compare product candidates across participating WooCommerce merchants. Search with q and/or a canonical category leaf; results contain snapshot price and stock, match evidence, provenance, and merchant Bridge handoff links. Do not use this as final price, varian\" → after: \"Use this when a user wants to find or compare product candidates across participating WooCommerce merchants. Search cards include bounded variants_compact and variant_option_values from the merchant snapshot. Option values are independent and do not prove a purchasable combination. Verify the select\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"get_product\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:get_product",
+        "snippet": "before: \"Use this after global_search when the selected candidate needs indexed details that are not already on its search card. The p2209_id must come from global_search. This remains a snapshot, not live merchant verification; follow the returned handoff before confirming variant, price, or stock. Skip thi\" → after: \"Use this after global_search when the selected candidate needs indexed details that are not already on its search card. The p2209_id must come from global_search. Variant options and colors are merchant-declared snapshot evidence matched by variation ID. This remains a snapshot, not live merchant ve\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
     }
   ],
-  "score": 80,
+  "score": 57,
   "scoreBreakdown": {
-    "tool-poisoning": 20
+    "tool-poisoning": 35,
+    "toxic-flow": 8
   },
   "errors": []
 }

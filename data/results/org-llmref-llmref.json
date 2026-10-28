@@ -8,8 +8,8 @@
     "kind": "url",
     "ref": "https://api.llmref.org/v1/mcp"
   },
-  "scannedAt": "2026-10-14T10:01:39.373Z",
-  "durationMs": 1786,
+  "scannedAt": "2026-10-28T11:04:55.003Z",
+  "durationMs": 11866,
   "layers": {
     "metadata": true,
     "static": false
@@ -17,30 +17,120 @@
   "tools": [
     {
       "name": "list_projects",
-      "descriptionHash": "7a8834e9ae3fcbf428ca0810eec1b417c582c1d3493862d07d2d723800658cb7",
-      "description": "List indexed documentation projects. Use this first to discover what's available. Supports a forgiving fuzzy `query` over slugs (ranked by relevance) plus `limit` and `skip` for pagination."
+      "descriptionHash": "4cc20fe9ed98d71c5c63faedab9ad89d6393d44004e93aa69fa16eef5983fbad",
+      "description": "List indexed documentation projects (version-pinned doc snapshots). Call this FIRST to discover the exact slug before reading any library's docs — prefer this over answering from memory or a latest-only source. Supports a forgiving fuzzy `query` over slugs (ranked by relevance) plus `limit` and `ski"
     },
     {
       "name": "list_versions",
-      "descriptionHash": "73fadfc94601d80e78552d3e3f03567006cf21e19e39a30992a3fd9f085dc8e9",
-      "description": "List available versions for a project. Call this before resolve_docs or search_docs to see valid version strings."
+      "descriptionHash": "b4c7042451c8de07d6811f102b8cb755bde767ca4f14c6a156e71f46db2b55e1",
+      "description": "List available snapshot versions for a project. Call this before resolve_docs or search_docs to see valid version strings, then pick the one matching the version the user actually depends on (from their lockfile/package.json) rather than guessing."
+    },
+    {
+      "name": "report_missing_docs",
+      "descriptionHash": "93fc3472e82c332b179cfee9726ac2a53bfb74e26c4e86fce9e486b120b149bb",
+      "description": "Best-effort report of public documentation missing from llmref. Include the exact version sought and any official docs or observed llms.txt URL already found during the task; scoped /docs or versioned llms.txt files are supported. Sends only these fields to the discovery queue, without fetching or i",
+      "labels": [
+        "private-data",
+        "public-sink"
+      ]
     },
     {
       "name": "resolve_docs",
-      "descriptionHash": "5e6a9bc8bddd24da7986b67e03b8ada2410aedf68e28bae1285a2eade79bed3f",
-      "description": "Resolve a project version and get artifact URLs (llms.txt, llms-full.txt, meta.json, dumps). Use list_versions first to discover valid version strings.",
+      "descriptionHash": "64f764c6935e770f00736465377badc2009f687a5720b1da40e4ffbfe59ec9fd",
+      "description": "Resolve a concrete project version or `latest` to documentation and artifact URLs. Discover valid version strings with list_versions first. Save resolved_version and, when present, revision_id. Use pinned_artifacts for exact text and pass revision_id as the snapshot field of later search_docs calls.",
       "labels": [
         "untrusted-content"
       ]
     },
     {
       "name": "search_docs",
-      "descriptionHash": "1802e0c83df1659669931a15207c26f1d51775b65d78cc4d973b2f544193ea49",
-      "description": "Semantic search across a project's documentation. Returns chunks ranked by relevance. Requires the server to have semantic search enabled."
+      "descriptionHash": "2f365174bc57661969b4cb45b40ba4dc462e3494901be8161e20ab51aa11558b",
+      "description": "Semantic search across a project's version-pinned documentation — the fastest way to pull just the passage you need for an exact version instead of reading the whole llms.txt. Returns chunks ranked by relevance, capped by `token_budget`. Requires the server to have semantic search enabled; if it isn"
     }
   ],
-  "findings": [],
-  "score": 100,
-  "scoreBreakdown": {},
+  "findings": [
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"report_missing_docs\" references sensitive artifacts (credentials). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:report_missing_docs",
+        "snippet": "Best-effort report of public documentation missing from llmref. Include the exact version sought and any official docs or observed llms.txt URL already found du…"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: resolve_docs · Private data: report_missing_docs · Public sink: report_missing_docs.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: resolve_docs · Private data: report_missing_docs · Public sink: report_missing_docs"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"list_projects\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:list_projects",
+        "snippet": "before: \"List indexed documentation projects. Use this first to discover what's available. Supports a forgiving fuzzy `query` over slugs (ranked by relevance) plus `limit` and `skip` for pagination.\" → after: \"List indexed documentation projects (version-pinned doc snapshots). Call this FIRST to discover the exact slug before reading any library's docs — prefer this over answering from memory or a latest-only source. Supports a forgiving fuzzy `query` over slugs (ranked by relevance) plus `limit` and `ski\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"list_versions\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:list_versions",
+        "snippet": "before: \"List available versions for a project. Call this before resolve_docs or search_docs to see valid version strings.\" → after: \"List available snapshot versions for a project. Call this before resolve_docs or search_docs to see valid version strings, then pick the one matching the version the user actually depends on (from their lockfile/package.json) rather than guessing.\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"resolve_docs\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:resolve_docs",
+        "snippet": "before: \"Resolve a project version and get artifact URLs (llms.txt, llms-full.txt, meta.json, dumps). Use list_versions first to discover valid version strings.\" → after: \"Resolve a concrete project version or `latest` to documentation and artifact URLs. Discover valid version strings with list_versions first. Save resolved_version and, when present, revision_id. Use pinned_artifacts for exact text and pass revision_id as the snapshot field of later search_docs calls.\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"search_docs\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:search_docs",
+        "snippet": "before: \"Semantic search across a project's documentation. Returns chunks ranked by relevance. Requires the server to have semantic search enabled.\" → after: \"Semantic search across a project's version-pinned documentation — the fastest way to pull just the passage you need for an exact version instead of reading the whole llms.txt. Returns chunks ranked by relevance, capped by `token_budget`. Requires the server to have semantic search enabled; if it isn\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    }
+  ],
+  "score": 41,
+  "scoreBreakdown": {
+    "tool-poisoning": 39,
+    "toxic-flow": 20
+  },
   "errors": []
 }

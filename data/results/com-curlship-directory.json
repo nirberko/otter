@@ -8,8 +8,8 @@
     "kind": "url",
     "ref": "https://curlship.com/mcp"
   },
-  "scannedAt": "2026-10-13T12:11:38.567Z",
-  "durationMs": 1205,
+  "scannedAt": "2026-10-28T10:59:39.403Z",
+  "durationMs": 1073,
   "layers": {
     "metadata": true,
     "static": false
@@ -52,6 +52,14 @@
       "description": "Point an existing listing at a new URL. One listing per root domain, so this is how a second page replaces the first."
     },
     {
+      "name": "set_tracking_params",
+      "descriptionHash": "73ea3136678ccff89bffca77056e07182b9da3ace25c3541ba709dd4128136d4",
+      "description": "Set the tracking params on a paid listing's outbound link (Bronze and up). Keys: ref or utm_* (<=10, lowercase/digits/_); values: 1-100 of A-Z a-z 0-9 . _ ~ -. Send {} to clear back to ?ref=curlship. Free listings are refused.",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
       "name": "remove_free_listing",
       "descriptionHash": "889e122000a52966db8161404bc8b22b7a4270c06e44be08f20ccf15ac028b43",
       "description": "Take a free listing off the directory. Send remove true and no url or email. A paid listing or the Featured holder is refused.",
@@ -71,9 +79,14 @@
       "description": "Re-check the listed site for a link to curlship.com. A free listing with the badge becomes dofollow."
     },
     {
+      "name": "list_categories",
+      "descriptionHash": "458d85e1b6f446b714592cb3981ae9337029daa3a5b098b35e0cf19854bc5800",
+      "description": "The category tree with a listing count per category — a group slug like developer-tools, plus any promoted leaf categories under it. Each listing's category field carries one of these slugs."
+    },
+    {
       "name": "list_listings",
-      "descriptionHash": "cd68def6a2c9059182f220791b5db65a056f30f79b52962eb5bacf251ff8fd37",
-      "description": "Active listings as JSON. No query returns every listing, in the same order as before. Optional query parameters: limit, offset, q, and since. q matches the title, description, or URL. since is an ISO timestamp; listings created at or after it are kept. Each listing includes created_at. There is no c",
+      "descriptionHash": "8a88a1d0209d3c4998d0b76d31e8ed46ea4128188fe8b702f68b28d5b62a4a84",
+      "description": "Active listings as JSON. No query returns every listing, in the same order as before. Optional query parameters: limit, offset, q, since, and category. q matches the title, description, or URL. since is an ISO timestamp; listings created at or after it are kept. category is a slug from list_categori",
       "labels": [
         "untrusted-content"
       ]
@@ -92,25 +105,76 @@
       "name": "get_dr_history",
       "descriptionHash": "b4b3f86f61005c606a2563f5c9f252464c3e86c42f70d14266d8ea2f8411bfe1",
       "description": "The site's Ahrefs Domain Rating over time — the series behind /stats#dr. Every recorded reading, one per UTC day, plus the current value, the last step (change vs the most recent different reading) and the growth since the first reading."
+    },
+    {
+      "name": "x402_submit_listing",
+      "descriptionHash": "e224e776de0aade4c3f9a174fc72d4cc09c38a8cd0fb9798daeb05101715a4e5",
+      "description": "Buy bronze_lifetime ($30 USDC once, forever) or platinum ($49 USDC per prepaid year) with USDC over x402 — settled on-chain, no checkout page, no human in the loop. Call without payment_signature and the reply is a 402 whose body (also the PAYMENT-REQUIRED header, base64) is the quote; sign accepts[",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "x402_bid_featured",
+      "descriptionHash": "4f77de209d698b5f772017f80676b855c3121ed5130af2eaf9ed31664cec81ed",
+      "description": "Bid on the Featured spot in USDC over x402 — the same auction as bid_featured (minimum $51 right now), but settled on-chain with no checkout and no human in the loop. Call without payment_signature for the 402 quote, sign accepts[0] as an EIP-3009 authorization, call again with payment_signature ech"
     }
   ],
   "findings": [
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"x402_submit_listing\" references sensitive artifacts (authorization). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:x402_submit_listing",
+        "snippet": "Buy bronze_lifetime ($30 USDC once, forever) or platinum ($49 USDC per prepaid year) with USDC over x402 — settled on-chain, no checkout page, no human in the l…"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"x402_bid_featured\" references sensitive artifacts (authorization). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:x402_bid_featured",
+        "snippet": "Bid on the Featured spot in USDC over x402 — the same auction as bid_featured (minimum $51 right now), but settled on-chain with no checkout and no human in the…"
+      },
+      "confidence": 0.65
+    },
     {
       "id": "MCP-TOXIC-FLOW-001",
       "severity": "medium",
       "category": "toxic-flow",
       "title": "Toxic flow: untrusted input can reach an external sink",
-      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: list_listings · Public sink: submit_listing, refresh_listing, remove_free_listing · Destructive: remove_free_listing.",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: list_listings · Public sink: submit_listing, refresh_listing, set_tracking_params, remove_free_listing, x402_submit_listing · Destructive: remove_free_listing.",
       "evidence": {
         "source": "server:mcp",
-        "snippet": "Untrusted content: list_listings · Public sink: submit_listing, refresh_listing, remove_free_listing · Destructive: remove_free_listing"
+        "snippet": "Untrusted content: list_listings · Public sink: submit_listing, refresh_listing, set_tracking_params, remove_free_listing, x402_submit_listing · Destructive: remove_free_listing"
       },
       "confidence": 0.45,
       "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"list_listings\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:list_listings",
+        "snippet": "before: \"Active listings as JSON. No query returns every listing, in the same order as before. Optional query parameters: limit, offset, q, and since. q matches the title, description, or URL. since is an ISO timestamp; listings created at or after it are kept. Each listing includes created_at. There is no c\" → after: \"Active listings as JSON. No query returns every listing, in the same order as before. Optional query parameters: limit, offset, q, since, and category. q matches the title, description, or URL. since is an ISO timestamp; listings created at or after it are kept. category is a slug from list_categori\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
     }
   ],
-  "score": 92,
+  "score": 57,
   "scoreBreakdown": {
+    "tool-poisoning": 35,
     "toxic-flow": 8
   },
   "errors": []

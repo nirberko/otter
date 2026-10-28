@@ -8,8 +8,8 @@
     "kind": "url",
     "ref": "https://api.exchangerate.dev/v1/mcp/"
   },
-  "scannedAt": "2026-10-13T12:01:06.009Z",
-  "durationMs": 747,
+  "scannedAt": "2026-10-28T10:48:59.799Z",
+  "durationMs": 12399,
   "layers": {
     "metadata": true,
     "static": false
@@ -30,13 +30,13 @@
     },
     {
       "name": "get_usd_index",
-      "descriptionHash": "46d046e07beac3f2738dda43ffed3b11b178bd9c60ff1d2c557a0114de6c33e5",
-      "description": "Get the latest independently calculated USD index. dxy-reconstructed uses the published six-currency basket formula but is not official or licensed ICE data. usd-strength is the versioned exchangerate.dev equal-weight 13-currency index, with 2026-01-02 = 100. Both require a complete, time-aligned ba"
+      "descriptionHash": "7cf32067d6f509918fbdf1867e3204289ab6d0e6509530d6d7141d8f2359c936",
+      "description": "Get the latest independently calculated USD index. dxy-reconstructed uses the published six-currency basket formula but is not the official index. usd-strength is the versioned exchangerate.dev equal-weight 13-currency index, with 2026-01-02 = 100. Both require a complete, time-aligned basket."
     },
     {
       "name": "get_rate",
-      "descriptionHash": "50346b2f79e982ba95cc8e37db4e60018990bff7c960d2ca63560538cbdc21ee",
-      "description": "Get the current — or historical, with date — exchange rate from one currency to another. Indicative developer-grade reference rates (live market data + public reference rates), not for settlement or trading. Rates update ~60s for real-time currencies through the trading week when the live feed is ac",
+      "descriptionHash": "7cfc4ad4a3fa437b27046c2c3d8fef86f2f0afd4d31f79b8bc659d94cf51ad7e",
+      "description": "Get the current (or, with date, historical) exchange rate from one currency to another. Indicative developer-grade reference rates (live market data + public reference rates), not for settlement or trading. Rates update ~60s for real-time currencies through the trading week when the live feed is act",
       "labels": [
         "untrusted-content"
       ]
@@ -55,6 +55,19 @@
       "name": "search_docs",
       "descriptionHash": "8626cf3aa70c642fd6f1014f162f0c5dc1ce20b0abb8bb622e5cb7fc1e4d1a09",
       "description": "Search the exchangerate.dev FAQ corpus via BM25. Returns the top-K matching questions and answers with relevance scores. Use before answering how-to / pricing / data-sourcing questions so you cite the canonical text instead of guessing from training data."
+    },
+    {
+      "name": "list_official_rate_tables",
+      "descriptionHash": "2c7aefef2dcda6bebde35498b0d7f09d796e6d629de3e44922a3fdd3c8b1b025",
+      "description": "List the countries and rate types with government-published exchange rates (for example IDN tax, GBR customs, USA government-reporting). Country codes are ISO 3166-1 alpha-3; use them with get_official_rate."
+    },
+    {
+      "name": "get_official_rate",
+      "descriptionHash": "8387834aea1cacf36997793d0cd364020e740882d730de26cb5163f681517c36",
+      "description": "Get the exchange rate a government authority published for a date (tax, customs, central bank), with the period it is valid for. These are the published values, not market rates. Every plan gets the rate valid today; a past date needs a paid plan. Pairs the authority does not publish are refused.",
+      "labels": [
+        "public-sink"
+      ]
     }
   ],
   "findings": [
@@ -70,11 +83,51 @@
       },
       "confidence": 0.7,
       "remediation": "Treat the server as untrusted; the model may obey embedded instructions."
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "medium",
+      "category": "toxic-flow",
+      "title": "Toxic flow: untrusted input can reach an external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: start_checkout, get_rate · Public sink: get_official_rate.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: start_checkout, get_rate · Public sink: get_official_rate"
+      },
+      "confidence": 0.45,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"get_usd_index\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:get_usd_index",
+        "snippet": "before: \"Get the latest independently calculated USD index. dxy-reconstructed uses the published six-currency basket formula but is not official or licensed ICE data. usd-strength is the versioned exchangerate.dev equal-weight 13-currency index, with 2026-01-02 = 100. Both require a complete, time-aligned ba\" → after: \"Get the latest independently calculated USD index. dxy-reconstructed uses the published six-currency basket formula but is not the official index. usd-strength is the versioned exchangerate.dev equal-weight 13-currency index, with 2026-01-02 = 100. Both require a complete, time-aligned basket.\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"get_rate\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:get_rate",
+        "snippet": "before: \"Get the current — or historical, with date — exchange rate from one currency to another. Indicative developer-grade reference rates (live market data + public reference rates), not for settlement or trading. Rates update ~60s for real-time currencies through the trading week when the live feed is ac\" → after: \"Get the current (or, with date, historical) exchange rate from one currency to another. Indicative developer-grade reference rates (live market data + public reference rates), not for settlement or trading. Rates update ~60s for real-time currencies through the trading week when the live feed is act\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
     }
   ],
-  "score": 80,
+  "score": 57,
   "scoreBreakdown": {
-    "tool-poisoning": 20
+    "tool-poisoning": 35,
+    "toxic-flow": 8
   },
   "errors": []
 }

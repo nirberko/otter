@@ -8,8 +8,8 @@
     "kind": "url",
     "ref": "https://barman-ai-agent.onrender.com/mcp"
   },
-  "scannedAt": "2026-10-24T09:08:09.814Z",
-  "durationMs": 952,
+  "scannedAt": "2026-10-28T10:50:01.619Z",
+  "durationMs": 846,
   "layers": {
     "metadata": true,
     "static": false
@@ -46,8 +46,8 @@
     },
     {
       "name": "place_order",
-      "descriptionHash": "366c329486283af3f63275c73f9776c2cce76425dd6c53de00c3b458e75ef3bb",
-      "description": "Explicitly order one item. Totals: beer 0, sponsor round 300, report 500 EUR cents.\n\n        Paid orders return a Stripe-hosted checkout URL for the payer to approve;\n        this tool cannot itself charge a card. Use public_credit only for explicit\n        opt-in sponsor display. A prepared diagnos",
+      "descriptionHash": "86e0735a58102de8d32cdc049e5346e8bac58b2d7d03a6b8078311fa4ebfe0dc",
+      "description": "Order one item: beer 0, sponsor 300, report 500, listing copy 900 EUR cents.\n\n        Paid orders return a Stripe-hosted checkout URL for the payer to approve;\n        this tool cannot itself charge a card. Use public_credit only for explicit\n        opt-in sponsor display. A prepared diagnosis requ",
       "labels": [
         "private-data"
       ]
@@ -56,6 +56,32 @@
       "name": "get_receipt",
       "descriptionHash": "2c2f1bf0f161c46cb653643f835feceba5b41a9a7b6bc65a2567ce14ad9eb6a7",
       "description": "Privately refresh an order against Stripe and retrieve its receipt/digital fulfillment.\n\n        A diag_ identifier returns its free preview, not the paid evidence report.\n        A successful refresh may complete delivery of an already-paid toast or\n        integration report. No new order, charge "
+    },
+    {
+      "name": "prepare_listing_copy",
+      "descriptionHash": "6c6306a1eca46b56dd3dc76d67619c19ffe921b8db48f7d757c6b99d875d8e0d",
+      "description": "Free sample of an AI product-listing draft from supplied facts.\n\n            No browsing or publishing. Omit private data; explicit consent sends\n            the brief to OpenRouter free model providers. Full prepared pack is\n            optional EUR 9, one-time, including applicable tax, through pl",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "prepare_microtask",
+      "descriptionHash": "8c4043838b3d81c078ba176360ea24f8e25b7130779bc247e1266d947467dc73",
+      "description": "Prepare one tiny service; no payment is initiated.\n\n            JSON/schema check: 0.01 USDC. Public HTTPS evidence for 1-5 URLs:\n            0.05 USDC, anonymous GET only, explicit probe permission. Optional\n            support: 0.01 USDC. Use native USDC on Base mainnet only; read the\n            ",
+      "labels": [
+        "untrusted-content",
+        "private-data"
+      ]
+    },
+    {
+      "name": "confirm_microtask",
+      "descriptionHash": "aeec74eeccaf9c60ead53f7f307846282b0c5af90fe93d9d70c8c3cf8ffe1e06",
+      "description": "Verify an already-made, buyer-authorized USDC payment and release its saved result.\n\n            No transfer, approval or settlement is submitted by this tool. Use\n            the exact quote claim message with the lower-case transaction hash\n            and personal_sign by its payer wallet. Two RP",
+      "labels": [
+        "private-data",
+        "public-sink"
+      ]
     }
   ],
   "findings": [
@@ -79,14 +105,53 @@
       "detail": "Description of \"place_order\" references sensitive artifacts (secret). A tool description has no reason to mention credentials.",
       "evidence": {
         "source": "tool:place_order",
-        "snippet": "Explicitly order one item. Totals: beer 0, sponsor round 300, report 500 EUR cents. Paid orders return a Stripe-hosted checkout URL for the payer to approve; th…"
+        "snippet": "Order one item: beer 0, sponsor 300, report 500, listing copy 900 EUR cents. Paid orders return a Stripe-hosted checkout URL for the payer to approve; this tool…"
       },
       "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"prepare_microtask\" references sensitive artifacts (secret). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:prepare_microtask",
+        "snippet": "Prepare one tiny service; no payment is initiated. JSON/schema check: 0.01 USDC. Public HTTPS evidence for 1-5 URLs: 0.05 USDC, anonymous GET only, explicit pro…"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: prepare_microtask · Private data: ask_barman, diagnose_integration, report_diagnosis_feedback, place_order, prepare_listing_copy, prepare_microtask, confirm_microtask · Public sink: confirm_microtask.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: prepare_microtask · Private data: ask_barman, diagnose_integration, report_diagnosis_feedback, place_order, prepare_listing_copy, prepare_microtask, confirm_microtask · Public sink: confirm_microtask"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"place_order\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:place_order",
+        "snippet": "before: \"Explicitly order one item. Totals: beer 0, sponsor round 300, report 500 EUR cents.\n\n        Paid orders return a Stripe-hosted checkout URL for the payer to approve;\n        this tool cannot itself charge a card. Use public_credit only for explicit\n        opt-in sponsor display. A prepared diagnos\" → after: \"Order one item: beer 0, sponsor 300, report 500, listing copy 900 EUR cents.\n\n        Paid orders return a Stripe-hosted checkout URL for the payer to approve;\n        this tool cannot itself charge a card. Use public_credit only for explicit\n        opt-in sponsor display. A prepared diagnosis requ\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
     }
   ],
-  "score": 70,
+  "score": 43,
   "scoreBreakdown": {
-    "tool-poisoning": 30
+    "tool-poisoning": 38,
+    "toxic-flow": 20
   },
   "errors": []
 }

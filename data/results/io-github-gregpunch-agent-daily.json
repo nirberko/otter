@@ -8,13 +8,36 @@
     "kind": "url",
     "ref": "https://agent-daily.agentdaily.workers.dev/mcp"
   },
-  "scannedAt": "2026-10-24T09:06:16.369Z",
-  "durationMs": 209,
+  "scannedAt": "2026-10-28T10:47:50.290Z",
+  "durationMs": 204,
   "layers": {
     "metadata": true,
     "static": false
   },
   "tools": [
+    {
+      "name": "llm_leaderboard",
+      "descriptionHash": "808fdb22dd8bed6d3b0b5679039e1262ca17f89f002787b3c8f05afede02a329",
+      "description": "Which LLMs are up, correct and fast right now. Every 15 minutes ~20 popular models (OpenAI, Anthropic, Google, Meta, Mistral, DeepSeek, xAI, Qwen, Cohere...) are asked to reply 'pong'; returns rank, score (60% 24h correctness + 40% speed), correct %, p50 time-to-first-token, p50 total time, cost per",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "recommend",
+      "descriptionHash": "c3c33aa07240c22871c613973a4319afcf7b12f5ec185822f55dee80f2db065a",
+      "description": "Before calling an external API, ask which provider to use. Give a task phrase or category (e.g. 'send email', 'web search', 'llm', 'scrape a page', 'vector db', 'speech to text', 'payments', 'geocode'). Returns the top healthy pick plus 1-2 fallbacks ranked by live status, vendor status, 7-day uptim",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "incidents",
+      "descriptionHash": "ac0756c3921a9334472a163ed9fa617aa481f061f5b74056d980348fd0623dd7",
+      "description": "Outages (consecutive failed probes) and vendor status-page incidents with UTC start/end over the last N days (max 7). Optional provider name filter. Use to judge whether a failing API is a known incident."
+    },
     {
       "name": "list_tools",
       "descriptionHash": "f0ba081c69da2df29f6ff3548ae566784d3432073153515a0124901ebd6256e0",
@@ -29,8 +52,38 @@
       ]
     }
   ],
-  "findings": [],
-  "score": 100,
-  "scoreBreakdown": {},
+  "findings": [
+    {
+      "id": "MCP-TOOL-POISON-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description issues instructions to the model",
+      "detail": "Description of \"recommend\" contains imperative instructions directed at the AI assistant rather than describing the tool. This is the core tool-poisoning technique.",
+      "evidence": {
+        "source": "tool:recommend",
+        "snippet": "Before calling an external API, ask which provider to use. Give a task phrase or category (e.g. 'send email', 'web search', 'llm', 'scrape a page', 'vector db',…"
+      },
+      "confidence": 0.7,
+      "remediation": "Treat the server as untrusted; the model may obey embedded instructions."
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: recommend · Private data: llm_leaderboard, recommend, tool_status · Public sink: recommend.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: recommend · Private data: llm_leaderboard, recommend, tool_status · Public sink: recommend"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 60,
+  "scoreBreakdown": {
+    "tool-poisoning": 20,
+    "toxic-flow": 20
+  },
   "errors": []
 }

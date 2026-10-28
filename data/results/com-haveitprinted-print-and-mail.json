@@ -8,8 +8,8 @@
     "kind": "url",
     "ref": "https://agents.haveitprinted.com/mcp"
   },
-  "scannedAt": "2026-09-10T09:16:28.852Z",
-  "durationMs": 1006,
+  "scannedAt": "2026-10-28T11:00:42.545Z",
+  "durationMs": 49353,
   "layers": {
     "metadata": true,
     "static": false
@@ -17,10 +17,12 @@
   "tools": [
     {
       "name": "hip_get_service_info",
-      "descriptionHash": "50a6f87ae15b66ff43fbee077e76d23112a1be79c0fd9cc4e265672d33d75cb0",
-      "description": "What Have It Printed does, what it costs, what file types and sizes are accepted, and how mailing works. Public; no account needed.",
+      "descriptionHash": "21a7326838e7460ddbb61c9969fe830f2fd186ccda0ab12645b14cd3b442478f",
+      "description": "What Have It Printed does, what it costs, what file types and sizes are accepted, and how mailing works. Needs a Bearer API key, like every tools/call (POST /v1/onboard to get one).",
       "labels": [
-        "private-data"
+        "untrusted-content",
+        "private-data",
+        "public-sink"
       ]
     },
     {
@@ -36,6 +38,14 @@
         "untrusted-content",
         "private-data",
         "public-sink"
+      ]
+    },
+    {
+      "name": "hip_add_text_document",
+      "descriptionHash": "7731fcf8cc87a8893a20078d0ec09d18694d59d2a6503fe49f134cf751d076ae",
+      "description": "Add a letter or document whose text you wrote with the person. Have It Printed typesets it on US Letter paper in a clean serif font, in black and white, and counts its pages. Plain text only: separate paragraphs with a blank line; no images, tables or formatting. Call once per document.",
+      "labels": [
+        "private-data"
       ]
     },
     {
@@ -84,11 +94,23 @@
     },
     {
       "name": "hip_get_order",
-      "descriptionHash": "d9224f4bcc1cc05f1f4862690937f3132d2224b5569f5a03be916b59b9b70380",
-      "description": "Status and USPS tracking for the paid order belonging to this job."
+      "descriptionHash": "24b4d7bc13563e4fb924292f9f4c6eacdbc59ddc3d5c533c4751408ced797eee",
+      "description": "Status and tracking number for the paid order belonging to this job."
     }
   ],
   "findings": [
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"hip_get_service_info\" references sensitive artifacts (bearer). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:hip_get_service_info",
+        "snippet": "What Have It Printed does, what it costs, what file types and sizes are accepted, and how mailing works. Needs a Bearer API key, like every tools/call (POST /v1…"
+      },
+      "confidence": 0.65
+    },
     {
       "id": "MCP-TOOL-POISON-003",
       "severity": "high",
@@ -106,7 +128,7 @@
       "severity": "low",
       "category": "tool-poisoning",
       "title": "Anomalously long tool description",
-      "detail": "Description of \"hip_prepare_payment\" is 672 chars, far longer than this server's median (132). Overlong descriptions are a common place to bury instructions.",
+      "detail": "Description of \"hip_prepare_payment\" is 672 chars, far longer than this server's median (133). Overlong descriptions are a common place to bury instructions.",
       "evidence": {
         "source": "tool:hip_prepare_payment",
         "snippet": "Resolve the EXACT amount HIP will charge, before any payment authorization is obtained or spent. This does NOT charge anything. Returns subtotal_cents, tax_cent…"
@@ -130,18 +152,44 @@
       "severity": "high",
       "category": "toxic-flow",
       "title": "Lethal trifecta: untrusted input + private data + external sink",
-      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: hip_get_upload_target · Private data: hip_get_service_info, hip_get_upload_target, hip_update_job, hip_get_checkout_status, hip_prepare_payment, hip_complete_payment · Public sink: hip_get_upload_target, hip_get_checkout_status, hip_complete_payment.",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: hip_get_service_info, hip_get_upload_target · Private data: hip_get_service_info, hip_get_upload_target, hip_add_text_document, hip_update_job, hip_get_checkout_status, hip_prepare_payment, hip_complete_payment · Public sink: hip_get_service_info, hip_get_upload_target, hip_get_checkout_status, hip_complete_payment.",
       "evidence": {
         "source": "server:mcp",
-        "snippet": "Untrusted content: hip_get_upload_target · Private data: hip_get_service_info, hip_get_upload_target, hip_update_job, hip_get_checkout_status, hip_prepare_payment, hip_complete_payment · Public sink: hip_get_upload_target, hip_get_checkout_status, hip_complete_payment"
+        "snippet": "Untrusted content: hip_get_service_info, hip_get_upload_target · Private data: hip_get_service_info, hip_get_upload_target, hip_add_text_document, hip_update_job, hip_get_checkout_status, hip_prepare_payment, hip_complete_payment · Public sink: hip_get_service_info, hip_get_upload_target, hip_get_checkout_status, hip_complete_payment"
       },
       "confidence": 0.6,
       "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"hip_get_service_info\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:hip_get_service_info",
+        "snippet": "before: \"What Have It Printed does, what it costs, what file types and sizes are accepted, and how mailing works. Public; no account needed.\" → after: \"What Have It Printed does, what it costs, what file types and sizes are accepted, and how mailing works. Needs a Bearer API key, like every tools/call (POST /v1/onboard to get one).\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"hip_get_order\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:hip_get_order",
+        "snippet": "before: \"Status and USPS tracking for the paid order belonging to this job.\" → after: \"Status and tracking number for the paid order belonging to this job.\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
     }
   ],
-  "score": 49,
+  "score": 41,
   "scoreBreakdown": {
-    "tool-poisoning": 31,
+    "tool-poisoning": 39,
     "toxic-flow": 20
   },
   "errors": []

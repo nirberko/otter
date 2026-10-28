@@ -1,0 +1,84 @@
+{
+  "schemaVersion": 1,
+  "scanner": {
+    "version": "1.6.0",
+    "rules": "402995650b68"
+  },
+  "target": {
+    "kind": "url",
+    "ref": "https://api.x402.celo.org/mcp"
+  },
+  "scannedAt": "2026-10-28T11:05:15.731Z",
+  "durationMs": 230,
+  "layers": {
+    "metadata": true,
+    "static": false
+  },
+  "tools": [
+    {
+      "name": "get_supported",
+      "descriptionHash": "65672d8c4edef3a9dcb84d6b89524b711d68665401443ae00a24a7251fae9397",
+      "description": "The (x402Version, scheme, network) kinds and extensions this facilitator verifies and settles. Same answer as GET /supported."
+    },
+    {
+      "name": "get_config",
+      "descriptionHash": "ee4819c3fc64569d29f5db49ed7391903d943fdcb81162cc8f9ea50cb799cbf4",
+      "description": "Every settleable asset with its address, decimals, transfer method and EIP-712 domain values, plus the pricing model (gas at cost, plus a fee in basis points on the payment value when the asset has a USD price), the gas fallback and the free-credit allowances. Same answer as GET /api/config."
+    },
+    {
+      "name": "get_health",
+      "descriptionHash": "18dc384f35989d920cb9614dec64803d207d8e706334bc944547cf7d39532d3b",
+      "description": "Whether the facilitator behind this host is answering. Same answer as GET /health."
+    },
+    {
+      "name": "verify_payment",
+      "descriptionHash": "93b9cf783024f7410bb0ae5bdc4b75b6098908b48cc685bd5a5b6924af420917",
+      "description": "Check a signed x402 payment against its requirements: signature, amount, balance and simulation. Moves no funds. Same answer as POST /verify, and it spends the same per-IP allowance.",
+      "labels": [
+        "untrusted-content",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "payment_status",
+      "descriptionHash": "7123c3f801977a7b658022bd2657e385353c84e58cee291e5548e048fbb1951c",
+      "description": "Whether a signed payment authorization has been used on chain, for a client whose settle reply was lost. Answers unspent, consumed or expired from the chain (EIP-3009 authorizationState, or the Permit2 nonce bitmap). unspent is not final: the authorization can still be used until validBefore, and a ",
+      "labels": [
+        "private-data"
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"payment_status\" references sensitive artifacts (authorization). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:payment_status",
+        "snippet": "Whether a signed payment authorization has been used on chain, for a client whose settle reply was lost. Answers unspent, consumed or expired from the chain (EI…"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: verify_payment · Private data: payment_status · Public sink: verify_payment.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: verify_payment · Private data: payment_status · Public sink: verify_payment"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 60,
+  "scoreBreakdown": {
+    "tool-poisoning": 20,
+    "toxic-flow": 20
+  },
+  "errors": []
+}

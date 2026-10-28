@@ -8,8 +8,8 @@
     "kind": "url",
     "ref": "https://mcp.crevio.co/mcp"
   },
-  "scannedAt": "2026-10-09T11:26:00.901Z",
-  "durationMs": 541,
+  "scannedAt": "2026-10-28T10:40:40.106Z",
+  "durationMs": 520,
   "layers": {
     "metadata": true,
     "static": false
@@ -35,9 +35,10 @@
     },
     {
       "name": "run_script",
-      "descriptionHash": "ca031096714b0d3904c034563d3a2d88a57166f9feb91f884e24b7570dadd3b6",
+      "descriptionHash": "246e97cb43989b5354f41cf21234a1622b3e58bbc0e07005cbf39414152a14f3",
       "description": "Run JavaScript on the account's computer with bun — no agent turn — and wait for its result. `tools.<namespace>.<function>(args)` calls anything list_integration_tools shows (every call returns its result and throws on failure; top-level await works), and the script's last expression is its result. ",
       "labels": [
+        "private-data",
         "destructive"
       ]
     },
@@ -120,8 +121,8 @@
     },
     {
       "name": "wait_for_run",
-      "descriptionHash": "340493cb04d61ceba03cde2d0aca4c1d2f23e7ca68531bea84795d2997beb011",
-      "description": "Wait for a run to settle (completed, failed, or needs_input) and return it with the agent's final reply. If it is still running when the wait ends, the reply has wait_timed_out: true — call wait_for_run again.",
+      "descriptionHash": "6b6187f06a2163bfe6f1c1aaa4d13dd9f7f3a0f80f04e187ff00813bf15759a2",
+      "description": "Wait for a run to settle (completed, failed, cancelled, or needs_input) and return it with the agent's final reply. If it is still running when the wait ends, the reply has wait_timed_out: true — call wait_for_run again.",
       "labels": [
         "destructive"
       ]
@@ -136,8 +137,11 @@
     },
     {
       "name": "list_runs",
-      "descriptionHash": "a80fb26a9df7b6c4a1f9fc93b825ba2bf4ce2977d2239894c72285343214b946",
-      "description": "List the account's task runs, newest first — delegated jobs and scheduled tasks alike. Filter by status or task."
+      "descriptionHash": "b9359c0eb111865b4ab530c75036b06b39d316766b70679397c9e183ae5a83bc",
+      "description": "List the account's task runs, newest first — delegated jobs and scheduled tasks alike. Filter by status, task, or chat.",
+      "labels": [
+        "untrusted-content"
+      ]
     },
     {
       "name": "resolve_approvals",
@@ -150,14 +154,44 @@
     },
     {
       "name": "cancel_run",
-      "descriptionHash": "c432b62145b01531498287627459f09ba9eb77dbc8abba2caf7533b1b2b05ae1",
-      "description": "Stop a run that is pending, running, or waiting for input. The run is finalized as failed with 'Cancelled by the caller'.",
+      "descriptionHash": "304fe4d0088c9e81615d3f9a52b00590359aeda139d5e549b8a4273ed15bb314",
+      "description": "Stop a run that is pending, running, or waiting for input, and its media generations still in flight. A run mid-step finishes that step first: it returns with cancel_requested_at set and settles as cancelled moments later (wait_for_run to confirm). Repeating it is harmless.",
       "labels": [
         "destructive"
+      ]
+    },
+    {
+      "name": "get_file_download_url",
+      "descriptionHash": "bae411b6a1c34a262c2ac36775ff1b6000cb0fba20852770121f20c9112e83a5",
+      "description": "Exchange an artifact id (art_...) from a run's or script run's `artifacts` for a download link. The link needs no credentials and expires after 15 minutes; ask again for a fresh one.",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "destructive"
+      ]
+    },
+    {
+      "name": "list_audit_events",
+      "descriptionHash": "ca1b2d54db05798d86ca91b64f3f8d1db88640666318904125bc0cd6962b8f88",
+      "description": "List the account's audit events, newest first: access and configuration changes, approvals, API key use, and (at the full capture level) the agent's tool calls.",
+      "labels": [
+        "private-data"
       ]
     }
   ],
   "findings": [
+    {
+      "id": "MCP-TOOL-POISON-006",
+      "severity": "low",
+      "category": "tool-poisoning",
+      "title": "Anomalously long tool description",
+      "detail": "Description of \"run_script\" is 1013 chars, far longer than this server's median (186). Overlong descriptions are a common place to bury instructions.",
+      "evidence": {
+        "source": "tool:run_script",
+        "snippet": "Run JavaScript on the account's computer with bun — no agent turn — and wait for its result. `tools.<namespace>.<function>(args)` calls anything list_integratio…"
+      },
+      "confidence": 0.4
+    },
     {
       "id": "MCP-SCHEMA-SMELL-001",
       "severity": "medium",
@@ -166,26 +200,91 @@
       "detail": "Tool \"run_script\" appears informational but accepts parameters (code) that enable code/file/secret access.",
       "evidence": {
         "source": "tool:run_script",
-        "snippet": "code, timeout_seconds, wait_seconds, idempotency_key"
+        "snippet": "code, timeout_seconds, args, wait_seconds, idempotency_key"
       },
       "confidence": 0.55
+    },
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"get_file_download_url\" references sensitive artifacts (credentials). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:get_file_download_url",
+        "snippet": "Exchange an artifact id (art_...) from a run's or script run's `artifacts` for a download link. The link needs no credentials and expires after 15 minutes; ask …"
+      },
+      "confidence": 0.65
     },
     {
       "id": "MCP-TOXIC-FLOW-001",
       "severity": "high",
       "category": "toxic-flow",
       "title": "Lethal trifecta: untrusted input + private data + external sink",
-      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: ask_crevio, start_chat, list_chats, get_chat, list_messages · Private data: whoami · Public sink: ask_crevio, send_message, resolve_approvals · Destructive: run_script, wait_for_script_run, get_script_run, cancel_script_run, ask_crevio, start_chat, get_chat, send_message, wait_for_run, get_run, resolve_approvals, cancel_run.",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: ask_crevio, start_chat, list_chats, get_chat, list_messages, list_runs, get_file_download_url · Private data: whoami, run_script, get_file_download_url, list_audit_events · Public sink: ask_crevio, send_message, resolve_approvals · Destructive: run_script, wait_for_script_run, get_script_run, cancel_script_run, ask_crevio, start_chat, get_chat, send_message, wait_for_run, get_run, resolve_approvals, cancel_run, get_file_download_url.",
       "evidence": {
         "source": "server:mcp",
-        "snippet": "Untrusted content: ask_crevio, start_chat, list_chats, get_chat, list_messages · Private data: whoami · Public sink: ask_crevio, send_message, resolve_approvals · Destructive: run_script, wait_for_script_run, get_script_run, cancel_script_run, ask_crevio, start_chat, get_chat, send_message, wait_for_run, get_run, resolve_approvals, cancel_run"
+        "snippet": "Untrusted content: ask_crevio, start_chat, list_chats, get_chat, list_messages, list_runs, get_file_download_url · Private data: whoami, run_script, get_file_download_url, list_audit_events · Public sink: ask_crevio, send_message, resolve_approvals · Destructive: run_script, wait_for_script_run, get_script_run, cancel_script_run, ask_crevio, start_chat, get_chat, send_message, wait_for_run, get_run, resolve_approvals, cancel_run, get_file_download_url"
       },
       "confidence": 0.6,
       "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"run_script\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:run_script",
+        "snippet": "before: \"Run JavaScript on the account's computer with bun — no agent turn — and wait for its result. `tools.<namespace>.<function>(args)` calls anything list_integration_tools shows (every call returns its result and throws on failure; top-level await works), and the script's last expression is its result. \" → after: \"Run JavaScript on the account's computer with bun — no agent turn — and wait for its result. `tools.<namespace>.<function>(args)` calls anything list_integration_tools shows (every call returns its result and throws on failure; top-level await works), and the script's last expression is its result. \""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"wait_for_run\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:wait_for_run",
+        "snippet": "before: \"Wait for a run to settle (completed, failed, or needs_input) and return it with the agent's final reply. If it is still running when the wait ends, the reply has wait_timed_out: true — call wait_for_run again.\" → after: \"Wait for a run to settle (completed, failed, cancelled, or needs_input) and return it with the agent's final reply. If it is still running when the wait ends, the reply has wait_timed_out: true — call wait_for_run again.\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"list_runs\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:list_runs",
+        "snippet": "before: \"List the account's task runs, newest first — delegated jobs and scheduled tasks alike. Filter by status or task.\" → after: \"List the account's task runs, newest first — delegated jobs and scheduled tasks alike. Filter by status, task, or chat.\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"cancel_run\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:cancel_run",
+        "snippet": "before: \"Stop a run that is pending, running, or waiting for input. The run is finalized as failed with 'Cancelled by the caller'.\" → after: \"Stop a run that is pending, running, or waiting for input, and its media generations still in flight. A run mid-step finishes that step first: it returns with cancel_requested_at set and settles as cancelled moments later (wait_for_run to confirm). Repeating it is harmless.\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
     }
   ],
-  "score": 72,
+  "score": 33,
   "scoreBreakdown": {
+    "tool-poisoning": 39,
     "schema-smell": 8,
     "toxic-flow": 20
   },

@@ -1,0 +1,120 @@
+{
+  "schemaVersion": 1,
+  "scanner": {
+    "version": "1.6.0",
+    "rules": "402995650b68"
+  },
+  "target": {
+    "kind": "url",
+    "ref": "https://simplenpi.com/mcp"
+  },
+  "scannedAt": "2026-10-28T10:48:12.099Z",
+  "durationMs": 718,
+  "layers": {
+    "metadata": true,
+    "static": false
+  },
+  "tools": [
+    {
+      "name": "how_to_get_an_npi",
+      "descriptionHash": "7800b67c1945d16f66412885f4201b9e90825270577c8404d310d8046ef3f9dc",
+      "description": "Answers \"how do I get an NPI number\", \"how to apply for an NPI\", \"what do I need for an NPI\", \"what is an NPI\", \"NPI for a massage therapist / counselor / nurse / chiropractor / social worker\". Returns the plain steps for getting an individual (Type 1) NPI: the free do-it-yourself path at nppes.cms."
+    },
+    {
+      "name": "lookup_npi",
+      "descriptionHash": "d2fea8da8765b631986e2cdcf32d617eb570f677b488131d0c975cd1043dbf87",
+      "description": "Free NPI lookup in the CMS NPPES registry (refreshed daily). Use for \"look up an NPI\", \"find my NPI\", \"what is Dr Smith's NPI\", \"NPI registry search\", \"do I already have an NPI\", \"NPI for a clinic / practice / organization\", \"search NPI by name\". Pass first + last (+ optional state) for a person, or"
+    },
+    {
+      "name": "verify_npi",
+      "descriptionHash": "b9c71988a043ddc762bf2f356ab27f0afcbedd3aa1c8dc5a74643708bc42544d",
+      "description": "Free NPI verification / validation by number from the CMS NPPES registry. Use for \"verify this NPI\", \"is this NPI valid\", \"is my NPI active\", \"check an NPI\", \"NPI status\", \"did my NPI get deactivated\", \"who does NPI 1234567890 belong to\", \"what taxonomy is on my NPI\". Returns status (active / deacti"
+    },
+    {
+      "name": "start_npi_application",
+      "descriptionHash": "99e9509899a48474d4161de2b19e987771958735847d439159372649a0811828",
+      "description": "Use for \"get me an NPI number\", \"I need an NPI\", \"apply for an NPI\", \"new NPI for a therapist / counselor / nurse / chiropractor / acupuncturist\", \"Type 1 NPI\", \"individual NPI application\". First checks the registry so nobody applies twice (CMS issues one NPI per person for life), then returns a pe",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "check_npi_status",
+      "descriptionHash": "20f7d843e6e90a511eb3af988d3e8fbf1eafdffd5f37e2f88efb937eb801d125",
+      "description": "Use for \"did my NPI come through\", \"where is my NPI application\", \"NPI application status\", \"has my NPI been issued yet\". Takes the status link SimpleNPI emailed the applicant (https://simplenpi.com/s/<id>?k=<key>). Returns the status, the NPI once issued, and what happens next."
+    },
+    {
+      "name": "search",
+      "descriptionHash": "07e83652e8068ae32dd1bc19ef7b2043d4393948eced72dd99b113b79742252d",
+      "description": "Search the CMS NPI registry with a free-text query: a provider name (\"Jane Smith UT\"), a business name, or a 10-digit NPI. Free, no login. Returns matching providers as results with an id (the NPI) that fetch can expand."
+    },
+    {
+      "name": "fetch",
+      "descriptionHash": "8fd034277ed7d2dd4edb6a2a5147875f2cd9ab2c890454d17b8f3fbd929e4b3e",
+      "description": "Fetch the full CMS registry record for one NPI (the id returned by search, or any 10-digit NPI): status, name, taxonomies and licenses, practice and mailing address, dates.",
+      "labels": [
+        "private-data"
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"start_npi_application\" references sensitive artifacts (authorization). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:start_npi_application",
+        "snippet": "Use for \"get me an NPI number\", \"I need an NPI\", \"apply for an NPI\", \"new NPI for a therapist / counselor / nurse / chiropractor / acupuncturist\", \"Type 1 NPI\",…"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-SHADOW-001",
+      "severity": "medium",
+      "category": "shadowing",
+      "title": "Generic tool name can shadow trusted tools",
+      "detail": "Tool \"search\" uses a generic high-value name. When multiple servers load together, this can intercept calls meant for a trusted server.",
+      "evidence": {
+        "source": "tool:search",
+        "snippet": "search"
+      },
+      "confidence": 0.4
+    },
+    {
+      "id": "MCP-SHADOW-001",
+      "severity": "medium",
+      "category": "shadowing",
+      "title": "Generic tool name can shadow trusted tools",
+      "detail": "Tool \"fetch\" uses a generic high-value name. When multiple servers load together, this can intercept calls meant for a trusted server.",
+      "evidence": {
+        "source": "tool:fetch",
+        "snippet": "fetch"
+      },
+      "confidence": 0.4
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: start_npi_application · Private data: start_npi_application, fetch · Public sink: start_npi_application.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: start_npi_application · Private data: start_npi_application, fetch · Public sink: start_npi_application"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 48,
+  "scoreBreakdown": {
+    "tool-poisoning": 20,
+    "shadowing": 12,
+    "toxic-flow": 20
+  },
+  "errors": []
+}

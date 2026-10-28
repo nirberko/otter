@@ -8,8 +8,8 @@
     "kind": "url",
     "ref": "https://api.mangrovedeveloper.ai/mcp/"
   },
-  "scannedAt": "2026-10-24T09:07:13.056Z",
-  "durationMs": 876,
+  "scannedAt": "2026-10-28T10:48:54.379Z",
+  "durationMs": 965,
   "layers": {
     "metadata": true,
     "static": false
@@ -17,16 +17,13 @@
   "tools": [
     {
       "name": "delete_strategy",
-      "descriptionHash": "fc22212bef1790faa0ebde21b43b4e922eefaca1fa3cdea4160818c388cc0999",
-      "description": "Permanently delete a strategy by its ID. Use this only when the user explicitly asks to delete a strategy. Always confirm the strategy name and ID before deleting.",
+      "descriptionHash": "794409fad3f7af5d92c15065a3fe3538ee7f843681c2aac6686b82059fa2f6bd",
+      "description": "Archive a stopped strategy that has no open positions. Strategies are never hard-deleted: this hides the strategy from the default lists and keeps the strategy and its backtests, and it can be restored with POST /strategies/{id}/unarchive. Use this only when the user explicitly asks to delete or rem",
       "labels": [
+        "untrusted-content",
+        "public-sink",
         "destructive"
       ]
-    },
-    {
-      "name": "update_strategy_status",
-      "descriptionHash": "c2cd8662545d3a77e3b1af800a248bcddd5c0023d79dcf94e5e58edf6bda7cab",
-      "description": "Update the status of a strategy. Valid statuses: draft, inactive, paper, live, archived. Use this when the user wants to activate, pause, archive, or promote a strategy (e.g. 'pause my BTC strategy', 'archive the old ETH strategy')."
     },
     {
       "name": "get_trades_for_strategy",
@@ -43,8 +40,11 @@
     },
     {
       "name": "evaluate_strategy",
-      "descriptionHash": "b5d44320533bb438543bbaf205ea44f4bdb632a052ab08e17a3d5572dd2cbe72",
-      "description": "Evaluate a strategy against current live market data to check if entry or exit signals are active — read-only signal check, does NOT place any orders. Returns the current asset price and any order intents the signals would produce. Use this when the user asks whether a strategy should be entering or"
+      "descriptionHash": "450cea7724d43aefe2076e6480425631b340268410f9251bb62dc3d850239e63",
+      "description": "Evaluate a strategy against current live market data to check if entry or exit signals are active. It places no orders and opens no positions, but each call records the evaluation: it updates the strategy's last_evaluated_at and evaluation_count and adds an agent_evaluations audit row. Returns the c",
+      "labels": [
+        "private-data"
+      ]
     },
     {
       "name": "list_evaluations",
@@ -67,6 +67,14 @@
       "labels": [
         "untrusted-content",
         "private-data"
+      ]
+    },
+    {
+      "name": "create_sweep",
+      "descriptionHash": "3781ea7a3fafe461e57a94844714ea58d65544b231f345ca5cee717b2c75af97",
+      "description": "Create the search, once the person has agreed to its size. The engine builds every candidate strategy itself out of the pool you give it -- the whole signal library unless narrowed by class or by naming signals -- and draws the parameters too. USE size_sweep FIRST and say the run count it reports: t",
+      "labels": [
+        "destructive"
       ]
     },
     {
@@ -122,7 +130,7 @@
     },
     {
       "name": "get_benchmark",
-      "descriptionHash": "dc2550f201a470b7935113faf744e7f3efcc134dea4352f6dbec87248bc10e87",
+      "descriptionHash": "9d3d269ffef0a318bb224baf0fc9ab560977176c2bd3915ac94822d456be63d3",
       "description": "Buy-and-hold return for an asset between two dates, as a percentage. Use it whenever you state what a strategy returned: a return with nothing to compare it against does not answer whether the strategy was worth running. run_backtest already includes this for its own window, so call this for a diffe",
       "labels": [
         "private-data"
@@ -340,6 +348,27 @@
       ]
     },
     {
+      "name": "get_sweep",
+      "descriptionHash": "34a617fc102bf0fc441d495f19a52ba8ec0fb684d3b810ecc50fca582af19320",
+      "description": "Where one sweep has got to: its status and how many of its runs have finished. This is how you answer 'is it done yet' -- read it when the person asks, not on a loop, because the engine works for minutes or hours and a second look a moment later says the same thing. Results can be read while it is s"
+    },
+    {
+      "name": "get_sweep_limits",
+      "descriptionHash": "d55738717b9e80d0f24818017773e2995365acdbb4c331dcfea3ee6fe59fcfad",
+      "description": "The sweep limits this person's plan actually enforces: the most backtests one sweep may run, the most history it may read, and how many sweeps may be in flight at once. Read these rather than guessing, and say the size in plan terms when a search is over one. Zero means no limit is enforced for this",
+      "labels": [
+        "destructive"
+      ]
+    },
+    {
+      "name": "get_sweep_run",
+      "descriptionHash": "3b7db37ed39f5e0d93d8020a7a084c699e4d717af59966a1e54b456baa0537ac",
+      "description": "One run rebuilt as the strategy it was, entry and exit rules with the parameter values the engine drew. This is the way OUT of a sweep: a row worth acting on becomes a saved strategy and then a real backtest over a window the person chose. Reach for it once a row is interesting, not for every row in",
+      "labels": [
+        "destructive"
+      ]
+    },
+    {
       "name": "get_symbol_exchanges",
       "descriptionHash": "6e6f53651f0c40a9e49491c605a5a14bd1234715c4c4342d8ece762eb3ee829a",
       "description": "The exchanges that list one specific token, with per-venue metadata. Use it when the user asks where a token trades or which venues carry it, rather than for a price on any one of them.\n\n[Access: pay 0.001 USDC via x402 (PAYMENT-SIGNATURE header) OR authenticate with an API key. An x402-capable clie",
@@ -438,6 +467,15 @@
       ]
     },
     {
+      "name": "launch_sweep",
+      "descriptionHash": "81cdc97e0d992a09003afaa8d7af4cc1ec11a9feda3ffa480648870f6a33a285",
+      "description": "Start a validated sweep. THIS IS THE ONE CALL THAT SPENDS: it puts the engine to work on every run the search describes, for minutes or hours, and there is no undoing it -- pause_sweep stops further work but does not give back what already ran. So say the run count out loud and get the person's agre",
+      "labels": [
+        "private-data",
+        "destructive"
+      ]
+    },
+    {
       "name": "list_approved_assets",
       "descriptionHash": "8a373b079eddc1eaa1ea22b9ab5aed7ea826cacbb4a484754dc3b908a28fba1a",
       "description": "List assets approved by Mangrove, including supported stablecoins and tokens. Approval is independent of risk assessment. Unassessed risk scores are null; do not interpret them as zero or infer regulatory approval. Returns available market metadata and risk scores.\n\n[Access: pay 0.001 USDC via x402 ",
@@ -476,6 +514,14 @@
       "description": "Return metadata for all available playground CSV datasets."
     },
     {
+      "name": "list_run_filters",
+      "descriptionHash": "3eed16114b647eafb327daf7572aca09b0854ed8b885048d2ebd01ae047d9671",
+      "description": "The values a sweep's runs actually carry: which assets, which candle sizes, and which entry triggers the engine drew. Read this before filtering by one of them, because a value nothing carries comes back as an empty page that reads exactly like a search with nothing good in it.",
+      "labels": [
+        "destructive"
+      ]
+    },
+    {
       "name": "list_signal_labels",
       "descriptionHash": "0796fdb091d36bfd8fe5e9de1123ec9bd714f728d2ec4ebc11234a732bcf0f61",
       "description": "Every signal's friendly name, display name and short description, keyed by code name."
@@ -490,10 +536,26 @@
     },
     {
       "name": "list_strategies",
-      "descriptionHash": "d3b64af13f6e278b93941df278a12c5f9e0b23a0ff70efb60a0a6e2e1e80db71",
-      "description": "List the strategy definitions saved HERE, in this service -- drafts and backtested strategies authored through chat. This store never knows deployment state: for what the user is actually running (live or paper deployments, balances, PnL), use list_platform_strategies instead. Returns id, name, asse",
+      "descriptionHash": "cf3064e896fa52b104d9fd1336b9705789e5173d302b2a128fbe7e1e43b6b8a5",
+      "description": "List the caller's saved strategies, including drafts, backtested strategies and server-managed paper strategies. Returns id, name, asset and status. Use paper execution status for current run state and balances. list_platform_strategies covers separate platform deployments.",
       "labels": [
-        "untrusted-content"
+        "destructive"
+      ]
+    },
+    {
+      "name": "list_sweep_markets",
+      "descriptionHash": "778cbefc24ae1f764132d1267518a3dbd892be1d22a2f8ff297f2ec0c0a37dc3",
+      "description": "What history a sweep could run over, as the choices to offer and how many windows each one would add. Oracle keeps MANY separate windows per asset -- different date spans of the same market, each labelled with the character of the market inside it -- and a sweep runs over every one that matches, whi",
+      "labels": [
+        "destructive"
+      ]
+    },
+    {
+      "name": "list_sweeps",
+      "descriptionHash": "c3638de12a01f34826e54732cd3e6491ac2c132f2def1ce9c6ab32d57b5a08bb",
+      "description": "The sweeps this account can see, newest first. Call it whenever the person refers to a search rather than asking for a new one -- 'how did that one go', 'what have I run' -- so you read an existing sweep instead of paying to repeat it. Live progress is not in this list; get_sweep has it for the one ",
+      "labels": [
+        "destructive"
       ]
     },
     {
@@ -519,6 +581,11 @@
       "labels": [
         "private-data"
       ]
+    },
+    {
+      "name": "pause_sweep",
+      "descriptionHash": "9d1a268f74fb24c8dd39865a30f570e512426286e0805fe8cad8fcbde9a8ad06",
+      "description": "Stop a running sweep from doing any more work, keeping every result it has already written. Use it when the person has seen enough, or when a search turned out far larger than they wanted. It does not undo what already ran, and the results stay readable afterwards -- so it is a way to stop spending,"
     },
     {
       "name": "query_knowledge",
@@ -588,6 +655,11 @@
       ]
     },
     {
+      "name": "size_sweep",
+      "descriptionHash": "5b3de439bf1b7e3087de023f40b339aef6a1512db792a4f90f90f42da78dea35",
+      "description": "How big a search would be, without creating anything. THIS IS THE NUMBER YOU SAY OUT LOUD, and it is almost never the number the person named: the draw count is PER WINDOW and Oracle keeps many windows per asset. Oracle counts it by walking exactly what the plan would walk, so nothing else can be tr"
+    },
+    {
       "name": "update_strategy",
       "descriptionHash": "26f6542c6b7b2511e38d2b77b3f4f682a76df901274bb4290f5277e52d56a7c4",
       "description": "Change a DRAFT strategy in place: its signals, their parameters, or a stated execution value. Pass the COMPLETE entry and exit signal lists when changing signals -- what you pass replaces what was stored, it is not merged, while constraints merge onto the stored execution config. Only a draft that h",
@@ -620,6 +692,18 @@
   ],
   "findings": [
     {
+      "id": "MCP-TOOL-POISON-007",
+      "severity": "low",
+      "category": "tool-poisoning",
+      "title": "Description uses pressure/override language",
+      "detail": "Description of \"delete_strategy\" stacks urgency/override words (always, never). Legitimate tool descriptions rarely pressure the model to act or ignore prior guidance.",
+      "evidence": {
+        "source": "tool:delete_strategy",
+        "snippet": "Archive a stopped strategy that has no open positions. Strategies are never hard-deleted: this hides the strategy from the default lists and keeps the strategy …"
+      },
+      "confidence": 0.3
+    },
+    {
       "id": "MCP-TOOL-POISON-001",
       "severity": "high",
       "category": "tool-poisoning",
@@ -633,11 +717,36 @@
       "remediation": "Treat the server as untrusted; the model may obey embedded instructions."
     },
     {
+      "id": "MCP-TOOL-POISON-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description issues instructions to the model",
+      "detail": "Description of \"launch_sweep\" contains imperative instructions directed at the AI assistant rather than describing the tool. This is the core tool-poisoning technique.",
+      "evidence": {
+        "source": "tool:launch_sweep",
+        "snippet": "Start a validated sweep. THIS IS THE ONE CALL THAT SPENDS: it puts the engine to work on every run the search describes, for minutes or hours, and there is no u…"
+      },
+      "confidence": 0.7,
+      "remediation": "Treat the server as untrusted; the model may obey embedded instructions."
+    },
+    {
+      "id": "MCP-TOOL-POISON-007",
+      "severity": "low",
+      "category": "tool-poisoning",
+      "title": "Description uses pressure/override language",
+      "detail": "Description of \"launch_sweep\" stacks urgency/override words (immediately, never). Legitimate tool descriptions rarely pressure the model to act or ignore prior guidance.",
+      "evidence": {
+        "source": "tool:launch_sweep",
+        "snippet": "Start a validated sweep. THIS IS THE ONE CALL THAT SPENDS: it puts the engine to work on every run the search describes, for minutes or hours, and there is no u…"
+      },
+      "confidence": 0.3
+    },
+    {
       "id": "MCP-TOOL-POISON-006",
       "severity": "low",
       "category": "tool-poisoning",
       "title": "Anomalously long tool description",
-      "detail": "Description of \"query_knowledge\" is 3524 chars, far longer than this server's median (438). Overlong descriptions are a common place to bury instructions.",
+      "detail": "Description of \"query_knowledge\" is 3524 chars, far longer than this server's median (440). Overlong descriptions are a common place to bury instructions.",
       "evidence": {
         "source": "tool:query_knowledge",
         "snippet": "Explain trading concepts, definitions, relationships, comparisons and when signals work or fail using Michael's knowledge graph. This is the first tool for a ge…"
@@ -685,18 +794,82 @@
       "severity": "high",
       "category": "toxic-flow",
       "title": "Lethal trifecta: untrusted input + private data + external sink",
-      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: classify_market_segment, get_market_regime, get_smart_money_dex_trades, get_social_mentions, get_social_sentiment, get_token_dex_trades, list_strategies, run_backtest · Private data: get_trades_for_strategy, build_strategy_for_regime, classify_market_segment, evaluate_multiple_signals_series, evaluate_signal, find_sweep_runs, get_asset, get_backtest, get_backtest_trades, get_benchmark, get_chain_tvl, get_etf_flows, get_execution_config_schema, get_global_market, get_influence_score, get_lending_rates, get_market_data, get_market_regime, get_marketplace_strategy, get_ohlcv, get_onchain_series, get_perp_funding_rates, get_protocol_tvl, get_signal, get_smart_money_dex_trades, get_smart_money_flows, get_smart_money_historical_holdings, get_smart_money_holdings, get_smart_money_netflows, get_smart_money_perp_trades, get_smart_money_sentiment, get_social_mentions, get_social_sentiment, get_stablecoin_metrics, get_strategy, get_symbol_exchanges, get_token_dex_trades, get_token_flows, get_token_holders, get_token_unlocks, get_treasuries, get_trending, kb_get_document, kb_get_signal_quick_reference, kb_glossary_get, kb_list_documents, list_approved_assets, list_backtest_markets, list_backtests, list_exchanges, list_signals, list_trades, load_skill, match_signals, query_knowledge, query_signal_behavior, run_backtest, save_strategy, screen_candidates, screen_smart_money, search_marketplace, search_signals, update_strategy, validate_signal_params, verify_strategy · Public sink: get_social_mentions, get_social_sentiment, get_token_dex_trades, kb_search · Destructive: delete_strategy, build_strategy_for_regime, find_sweep_runs, get_backtest, get_backtest_trades, list_backtests, query_knowledge, run_backtest, verify_strategy.",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: delete_strategy, classify_market_segment, get_market_regime, get_smart_money_dex_trades, get_social_mentions, get_social_sentiment, get_token_dex_trades, run_backtest · Private data: get_trades_for_strategy, evaluate_strategy, build_strategy_for_regime, classify_market_segment, evaluate_multiple_signals_series, evaluate_signal, find_sweep_runs, get_asset, get_backtest, get_backtest_trades, get_benchmark, get_chain_tvl, get_etf_flows, get_execution_config_schema, get_global_market, get_influence_score, get_lending_rates, get_market_data, get_market_regime, get_marketplace_strategy, get_ohlcv, get_onchain_series, get_perp_funding_rates, get_protocol_tvl, get_signal, get_smart_money_dex_trades, get_smart_money_flows, get_smart_money_historical_holdings, get_smart_money_holdings, get_smart_money_netflows, get_smart_money_perp_trades, get_smart_money_sentiment, get_social_mentions, get_social_sentiment, get_stablecoin_metrics, get_strategy, get_symbol_exchanges, get_token_dex_trades, get_token_flows, get_token_holders, get_token_unlocks, get_treasuries, get_trending, kb_get_document, kb_get_signal_quick_reference, kb_glossary_get, kb_list_documents, launch_sweep, list_approved_assets, list_backtest_markets, list_backtests, list_exchanges, list_signals, list_trades, load_skill, match_signals, query_knowledge, query_signal_behavior, run_backtest, save_strategy, screen_candidates, screen_smart_money, search_marketplace, search_signals, update_strategy, validate_signal_params, verify_strategy · Public sink: delete_strategy, get_social_mentions, get_social_sentiment, get_token_dex_trades, kb_search · Destructive: delete_strategy, build_strategy_for_regime, create_sweep, find_sweep_runs, get_backtest, get_backtest_trades, get_sweep_limits, get_sweep_run, launch_sweep, list_backtests, list_run_filters, list_strategies, list_sweep_markets, list_sweeps, query_knowledge, run_backtest, verify_strategy.",
       "evidence": {
         "source": "server:mcp",
-        "snippet": "Untrusted content: classify_market_segment, get_market_regime, get_smart_money_dex_trades, get_social_mentions, get_social_sentiment, get_token_dex_trades, list_strategies, run_backtest · Private data: get_trades_for_strategy, build_strategy_for_regime, classify_market_segment, evaluate_multiple_signals_series, evaluate_signal, find_sweep_runs, get_asset, get_backtest, get_backtest_trades, get_benchmark, get_chain_tvl, get_etf_flows, get_execution_config_schema, get_global_market, get_influence_score, get_lending_rates, get_market_data, get_market_regime, get_marketplace_strategy, get_ohlcv, get_onchain_series, get_perp_funding_rates, get_protocol_tvl, get_signal, get_smart_money_dex_trades, get_smart_money_flows, get_smart_money_historical_holdings, get_smart_money_holdings, get_smart_money_netflows, get_smart_money_perp_trades, get_smart_money_sentiment, get_social_mentions, get_social_sentiment, get_stablecoin_metrics, get_strategy, get_symbol_exchanges, get_token_dex_trades, get_token_flows, get_token_holders, get_token_unlocks, get_treasuries, get_trending, kb_get_document, kb_get_signal_quick_reference, kb_glossary_get, kb_list_documents, list_approved_assets, list_backtest_markets, list_backtests, list_exchanges, list_signals, list_trades, load_skill, match_signals, query_knowledge, query_signal_behavior, run_backtest, save_strategy, screen_candidates, screen_smart_money, search_marketplace, search_signals, update_strategy, validate_signal_params, verify_strategy · Public sink: get_social_mentions, get_social_sentiment, get_token_dex_trades, kb_search · Destructive: delete_strategy, build_strategy_for_regime, find_sweep_runs, get_backtest, get_backtest_trades, list_backtests, query_knowledge, run_backtest, verify_strategy"
+        "snippet": "Untrusted content: delete_strategy, classify_market_segment, get_market_regime, get_smart_money_dex_trades, get_social_mentions, get_social_sentiment, get_token_dex_trades, run_backtest · Private data: get_trades_for_strategy, evaluate_strategy, build_strategy_for_regime, classify_market_segment, evaluate_multiple_signals_series, evaluate_signal, find_sweep_runs, get_asset, get_backtest, get_backtest_trades, get_benchmark, get_chain_tvl, get_etf_flows, get_execution_config_schema, get_global_market, get_influence_score, get_lending_rates, get_market_data, get_market_regime, get_marketplace_strategy, get_ohlcv, get_onchain_series, get_perp_funding_rates, get_protocol_tvl, get_signal, get_smart_money_dex_trades, get_smart_money_flows, get_smart_money_historical_holdings, get_smart_money_holdings, get_smart_money_netflows, get_smart_money_perp_trades, get_smart_money_sentiment, get_social_mentions, get_social_sentiment, get_stablecoin_metrics, get_strategy, get_symbol_exchanges, get_token_dex_trades, get_token_flows, get_token_holders, get_token_unlocks, get_treasuries, get_trending, kb_get_document, kb_get_signal_quick_reference, kb_glossary_get, kb_list_documents, launch_sweep, list_approved_assets, list_backtest_markets, list_backtests, list_exchanges, list_signals, list_trades, load_skill, match_signals, query_knowledge, query_signal_behavior, run_backtest, save_strategy, screen_candidates, screen_smart_money, search_marketplace, search_signals, update_strategy, validate_signal_params, verify_strategy · Public sink: delete_strategy, get_social_mentions, get_social_sentiment, get_token_dex_trades, kb_search · Destructive: delete_strategy, build_strategy_for_regime, create_sweep, find_sweep_runs, get_backtest, get_backtest_trades, get_sweep_limits, get_sweep_run, launch_sweep, list_backtests, list_run_filters, list_strategies, list_sweep_markets, list_sweeps, query_knowledge, run_backtest, verify_strategy"
       },
       "confidence": 0.6,
       "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"delete_strategy\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:delete_strategy",
+        "snippet": "before: \"Permanently delete a strategy by its ID. Use this only when the user explicitly asks to delete a strategy. Always confirm the strategy name and ID before deleting.\" → after: \"Archive a stopped strategy that has no open positions. Strategies are never hard-deleted: this hides the strategy from the default lists and keeps the strategy and its backtests, and it can be restored with POST /strategies/{id}/unarchive. Use this only when the user explicitly asks to delete or rem\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "medium",
+      "category": "tool-poisoning",
+      "title": "Tool removed since last scan",
+      "detail": "Tool \"update_strategy_status\" is no longer advertised. Removal can precede a shadowing replacement from another server.",
+      "evidence": {
+        "source": "tool:update_strategy_status",
+        "snippet": "removed: update_strategy_status"
+      },
+      "confidence": 0.5
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"evaluate_strategy\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:evaluate_strategy",
+        "snippet": "before: \"Evaluate a strategy against current live market data to check if entry or exit signals are active — read-only signal check, does NOT place any orders. Returns the current asset price and any order intents the signals would produce. Use this when the user asks whether a strategy should be entering or\" → after: \"Evaluate a strategy against current live market data to check if entry or exit signals are active. It places no orders and opens no positions, but each call records the evaluation: it updates the strategy's last_evaluated_at and evaluation_count and adds an agent_evaluations audit row. Returns the c\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"get_benchmark\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:get_benchmark",
+        "snippet": "before: \"Buy-and-hold return for an asset between two dates, as a percentage. Use it whenever you state what a strategy returned: a return with nothing to compare it against does not answer whether the strategy was worth running. run_backtest already includes this for its own window, so call this for a diffe\" → after: \"Buy-and-hold return for an asset between two dates, as a percentage. Use it whenever you state what a strategy returned: a return with nothing to compare it against does not answer whether the strategy was worth running. run_backtest already includes this for its own window, so call this for a diffe\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"list_strategies\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:list_strategies",
+        "snippet": "before: \"List the strategy definitions saved HERE, in this service -- drafts and backtested strategies authored through chat. This store never knows deployment state: for what the user is actually running (live or paper deployments, balances, PnL), use list_platform_strategies instead. Returns id, name, asse\" → after: \"List the caller's saved strategies, including drafts, backtested strategies and server-managed paper strategies. Returns id, name, asset and status. Use paper execution status for current run state and balances. list_platform_strategies covers separate platform deployments.\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
     }
   ],
-  "score": 49,
+  "score": 37,
   "scoreBreakdown": {
-    "tool-poisoning": 31,
+    "tool-poisoning": 43,
     "toxic-flow": 20
   },
   "errors": []

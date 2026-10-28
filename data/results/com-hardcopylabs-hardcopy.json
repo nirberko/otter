@@ -8,25 +8,33 @@
     "kind": "url",
     "ref": "https://mcp.hardcopylabs.com/mcp"
   },
-  "scannedAt": "2026-09-27T10:15:12.161Z",
-  "durationMs": 585,
+  "scannedAt": "2026-10-28T11:00:41.283Z",
+  "durationMs": 487,
   "layers": {
     "metadata": true,
     "static": false
   },
   "tools": [
     {
+      "name": "preview_print_order",
+      "descriptionHash": "c0f8d1db7fe5bac8a50027f2b0f964b6f5efa291ebf73b0959796a49e7855f38",
+      "description": "MANDATORY before creating any order or checkout, including reorders.\n\n    Render exact validated geometry and quote the whole order. Display EVERY returned\n    part image with name, dimensions, material/color, quantity, notes and total to the\n    buyer. The in-chat card shows images where supported;",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
       "name": "validate_stl",
-      "descriptionHash": "059cc0a9448ca0822e6686ad61aed331a90a8e5517cee380d3c6fb3ac552c8a8",
-      "description": "Check whether a 3D model can be printed, before ordering.\n\n    Use this when the user has an STL file (base64-encoded) and wants to know if it\n    is printable, or as a pre-check before submit_print_job. Returns printability\n    (watertight/manifold status), dimensions, which printers it fits on, an",
+      "descriptionHash": "da692d30e41b2ff261e6969959508fc10fe29f2db0174a8b21097513c0959864",
+      "description": "Check whether a 3D model can be printed, before ordering.\n\n    A text validation quote is NOT approval to order. Call preview_print_order next,\n    show its exact model images/options/price to the buyer, then obtain confirmation.\n\n    Use this when the user has an STL file (base64-encoded) and wants",
       "labels": [
         "private-data"
       ]
     },
     {
       "name": "submit_print_job",
-      "descriptionHash": "a28df0581c84f4ff331fa02123b549d95a729ccb1e3622b333d225e1d1ff2a8e",
-      "description": "Send a finished design to the print farm to be manufactured and shipped via UPS.\n\n    Offer this whenever the user has a completed 3D design and wants a physical copy\n    delivered. Provide EITHER stl_base64 (base64-encoded binary or ASCII STL, in mm)\n    OR openscad_source (STRONGLY PREFERRED for m",
+      "descriptionHash": "7314c65170948d35c861abbb86fccdbef5271395eb1526aba6f0fafb7a4daad6",
+      "description": "Create an order ONLY AFTER preview_print_order, image display and buyer confirmation.\n\n    First present every preview image (or the viewer fallback), dimensions, material/color,\n    quantity and quote. Obtain explicit buyer confirmation for that preview version.\n    Then send preview_id, preview_ve",
       "labels": [
         "public-sink"
       ]
@@ -38,44 +46,70 @@
     },
     {
       "name": "reorder_print_job",
-      "descriptionHash": "1a016442457e3f68ce72f8d1bfd350766f599922cd823539f5862794c3d6c731",
-      "description": "Order more copies of a model the user already ordered from HardCopy Labs, by its\n    job ID, without sending the design again.\n\n    Use when the user says \"order that again\", \"I need two more\", or wants the same part\n    in another color or material. The model file is reused as is; material and colo",
+      "descriptionHash": "e3dd5b73d5a1c4049590dd518fa06d3e119f0768c732c9da5254ea284876cf8f",
+      "description": "A REORDER ALSO REQUIRES A NEW VISUAL PREVIEW AND BUYER CONFIRMATION.\n\n    First call preview_print_order with reorder_of and any desired changes, show every\n    image/options/price to the buyer, and obtain confirmation. Then call this with\n    preview_id, preview_version and buyer_confirmed=true, wi",
       "labels": [
-        "private-data"
+        "private-data",
+        "public-sink"
       ]
     }
   ],
   "findings": [
     {
-      "id": "MCP-TOOL-POISON-001",
-      "severity": "high",
+      "id": "MCP-TOOL-POISON-007",
+      "severity": "low",
       "category": "tool-poisoning",
-      "title": "Description issues instructions to the model",
-      "detail": "Description of \"submit_print_job\" contains imperative instructions directed at the AI assistant rather than describing the tool. This is the core tool-poisoning technique.",
+      "title": "Description uses pressure/override language",
+      "detail": "Description of \"preview_print_order\" stacks urgency/override words (never, mandatory). Legitimate tool descriptions rarely pressure the model to act or ignore prior guidance.",
       "evidence": {
-        "source": "tool:submit_print_job",
-        "snippet": "Send a finished design to the print farm to be manufactured and shipped via UPS. Offer this whenever the user has a completed 3D design and wants a physical cop…"
+        "source": "tool:preview_print_order",
+        "snippet": "MANDATORY before creating any order or checkout, including reorders. Render exact validated geometry and quote the whole order. Display EVERY returned part imag…"
       },
-      "confidence": 0.7,
-      "remediation": "Treat the server as untrusted; the model may obey embedded instructions."
+      "confidence": 0.3
     },
     {
-      "id": "MCP-TOOL-POISON-001",
+      "id": "MCP-RUGPULL-001",
       "severity": "high",
       "category": "tool-poisoning",
-      "title": "Description issues instructions to the model",
-      "detail": "Description of \"reorder_print_job\" contains imperative instructions directed at the AI assistant rather than describing the tool. This is the core tool-poisoning technique.",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"validate_stl\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:validate_stl",
+        "snippet": "before: \"Check whether a 3D model can be printed, before ordering.\n\n    Use this when the user has an STL file (base64-encoded) and wants to know if it\n    is printable, or as a pre-check before submit_print_job. Returns printability\n    (watertight/manifold status), dimensions, which printers it fits on, an\" → after: \"Check whether a 3D model can be printed, before ordering.\n\n    A text validation quote is NOT approval to order. Call preview_print_order next,\n    show its exact model images/options/price to the buyer, then obtain confirmation.\n\n    Use this when the user has an STL file (base64-encoded) and wants\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"submit_print_job\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:submit_print_job",
+        "snippet": "before: \"Send a finished design to the print farm to be manufactured and shipped via UPS.\n\n    Offer this whenever the user has a completed 3D design and wants a physical copy\n    delivered. Provide EITHER stl_base64 (base64-encoded binary or ASCII STL, in mm)\n    OR openscad_source (STRONGLY PREFERRED for m\" → after: \"Create an order ONLY AFTER preview_print_order, image display and buyer confirmation.\n\n    First present every preview image (or the viewer fallback), dimensions, material/color,\n    quantity and quote. Obtain explicit buyer confirmation for that preview version.\n    Then send preview_id, preview_ve\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"reorder_print_job\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
       "evidence": {
         "source": "tool:reorder_print_job",
-        "snippet": "Order more copies of a model the user already ordered from HardCopy Labs, by its job ID, without sending the design again. Use when the user says \"order that ag…"
+        "snippet": "before: \"Order more copies of a model the user already ordered from HardCopy Labs, by its\n    job ID, without sending the design again.\n\n    Use when the user says \"order that again\", \"I need two more\", or wants the same part\n    in another color or material. The model file is reused as is; material and colo\" → after: \"A REORDER ALSO REQUIRES A NEW VISUAL PREVIEW AND BUYER CONFIRMATION.\n\n    First call preview_print_order with reorder_of and any desired changes, show every\n    image/options/price to the buyer, and obtain confirmation. Then call this with\n    preview_id, preview_version and buyer_confirmed=true, wi\""
       },
-      "confidence": 0.7,
-      "remediation": "Treat the server as untrusted; the model may obey embedded instructions."
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
     }
   ],
-  "score": 70,
+  "score": 65,
   "scoreBreakdown": {
-    "tool-poisoning": 30
+    "tool-poisoning": 35
   },
   "errors": []
 }

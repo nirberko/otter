@@ -154,4 +154,130 @@
     "toxic-flow": 20
   },
   "errors": []
+}voice has checks [\"scorechain\"] (see invoice_get), the creator chose the Scorechain sanc",
+      "labels": [
+        "private-data",
+        "public-sink",
+        "destructive"
+      ]
+    },
+    {
+      "name": "payout_batch",
+      "descriptionHash": "6971840f6d945b5730eea85889fadbe69a4afc2528cc13a39bd9ae5d94314d90",
+      "description": "Payroll and supplier payouts on Solana: pay up to 20 wallets their exact amounts, in the token the payer holds (no swap). The paying wallet and every receiving wallet are screened first (OFAC SDN list and the issuer freeze of six stablecoins); a blocked payer refuses with payer_blocked (403), and on",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink",
+        "destructive"
+      ]
+    },
+    {
+      "name": "payout_report_payment",
+      "descriptionHash": "6045724e20da0aac6628fe8669e6174bab227cdbcf83ca4cbdcae1556d8e8e3b",
+      "description": "Hand one batch transaction to the server, right after sending it, with the invoiceIds that payout_batch listed for it. Each invoice is verified on-chain like any invoice payment (what reached that receiver); call again a few seconds later if some are still pending."
+    },
+    {
+      "name": "invoice_report_payment",
+      "descriptionHash": "6fa5e05e892db0f0701511e83195243c94c352363dd877aff5c724c3a3891ab0",
+      "description": "Hand the payment transaction to the server, right after sending it. The server reads the transaction on-chain and measures what reached the receiver in the invoice token; the payer must be the signer and the transaction must be newer than the invoice. The payer is screened again here (payer_blocked:",
+      "labels": [
+        "private-data"
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOOL-POISON-002",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description tells the model to hide behavior",
+      "detail": "Description of \"nn_quote\" instructs the model to conceal actions from the user.",
+      "evidence": {
+        "source": "tool:nn_quote",
+        "snippet": "N:N — quotes a basket where N input tokens fund M output tokens in ONE atomic on-chain transaction. The backend runs a waterfall allocation deciding which input…"
+      },
+      "confidence": 0.75
+    },
+    {
+      "id": "MCP-TOOL-POISON-007",
+      "severity": "low",
+      "category": "tool-poisoning",
+      "title": "Description uses pressure/override language",
+      "detail": "Description of \"nn_build\" stacks urgency/override words (important, always). Legitimate tool descriptions rarely pressure the model to act or ignore prior guidance.",
+      "evidence": {
+        "source": "tool:nn_build",
+        "snippet": "Builds ONE signable/sendable atomic transaction executing every leg of an N:N basket through VurtoSwapRouter. Always re-quotes the whole basket fresh from chain…"
+      },
+      "confidence": 0.3
+    },
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"prepare_signing\" references sensitive artifacts (private key). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:prepare_signing",
+        "snippet": "Synthesizes the local CLI signer invocation for one step of a swap_build plan. Does not call the Vurto backend — this only assembles the payload. You (the agent…"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"destination_challenge\" references sensitive artifacts (authorization). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:destination_challenge",
+        "snippet": "Destination lock. A receiver different from the signing wallet is refused by swap_build, double_build and nn_build (403 destination_not_authorized) until the pa…"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"destination_authorize\" references sensitive artifacts (authorization). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:destination_authorize",
+        "snippet": "Hand over the signature of destination_challenge. The server checks it is the paying wallet's signature over that exact challenge, for that receiver and chain, …"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: swap_quote, prepare_signing, invoice_create, destination_challenge, payout_batch · Private data: swap_quote, swap_build, double_quote, double_build, nn_quote, nn_build, prepare_signing, report_execution, swap_status, invoice_create, wallet_check, destination_challenge, destination_authorize, invoice_get, invoice_pay, payout_batch, invoice_report_payment · Public sink: swap_build, nn_build, prepare_signing, invoice_create, destination_challenge, invoice_pay, payout_batch · Destructive: swap_build, double_build, nn_quote, prepare_signing, wallet_check, destination_challenge, invoice_pay, payout_batch.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: swap_quote, prepare_signing, invoice_create, destination_challenge, payout_batch · Private data: swap_quote, swap_build, double_quote, double_build, nn_quote, nn_build, prepare_signing, report_execution, swap_status, invoice_create, wallet_check, destination_challenge, destination_authorize, invoice_get, invoice_pay, payout_batch, invoice_report_payment · Public sink: swap_build, nn_build, prepare_signing, invoice_create, destination_challenge, invoice_pay, payout_batch · Destructive: swap_build, double_build, nn_quote, prepare_signing, wallet_check, destination_challenge, invoice_pay, payout_batch"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"swap_build\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:swap_build",
+        "snippet": "before: \"Build a signable/sendable plan for a swap. This is the tool that does the work — an agent that only knows this tool can execute a swap end to end. Quotes and builds the best route in one call when quoteId is omitted (recommended); pass quoteId from a prior swap_quote to build exactly that route inst\" → after: \"Build a signable/sendable plan for a swap. This is the tool that does the work — an agent that only knows this tool can execute a swap end to end. Quotes and builds the best route in one call when quoteId is omitted (recommended): a route with GAIN first, re-quoting up to 3 rounds total before accep\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    }
+  ],
+  "score": 41,
+  "scoreBreakdown": {
+    "tool-poisoning": 39,
+    "toxic-flow": 20
+  },
+  "errors": []
 }

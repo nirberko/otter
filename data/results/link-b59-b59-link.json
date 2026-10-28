@@ -8,8 +8,8 @@
     "kind": "url",
     "ref": "https://b59.link/api/mcp"
   },
-  "scannedAt": "2026-10-26T10:41:54.741Z",
-  "durationMs": 295,
+  "scannedAt": "2026-10-28T11:04:04.308Z",
+  "durationMs": 393,
   "layers": {
     "metadata": true,
     "static": false
@@ -17,8 +17,8 @@
   "tools": [
     {
       "name": "auth",
-      "descriptionHash": "f41f463db60b71122885d80979bb82d5a3229be02f9e7970f45e05a8ebcca406",
-      "description": "Sign in to b59.link to raise the rate limit from 2 to 300 requests/minute and own what you create. Pass api_key to get a session key straight away. Or pass email to have a 6-digit code emailed, then call again with email and otp to get a session key (new emails are signed up and also get their api_k",
+      "descriptionHash": "c2015d381a972b87e90240e2150616445e06595c446d2d0d260a616cf78e4d6b",
+      "description": "Sign in to b59.link to own what you create (and for 300 requests/minute on the REST API). Pass api_key to get a session key straight away. Or pass email to have a 6-digit code emailed, then call again with email and otp to get a session key (new emails are signed up and also get their api_key). Send",
       "labels": [
         "untrusted-content",
         "public-sink"
@@ -68,6 +68,20 @@
       "labels": [
         "public-sink"
       ]
+    },
+    {
+      "name": "watch_printed_links",
+      "descriptionHash": "41f1bcf56d61562589e8a061f673fdeba1911cebc68198386c0505e8ba230137",
+      "description": "Watch up to 25 printed links (QR codes on menus, short links on flyers, posters, packaging, cards). Checks each one now and then once a day, and records the whole redirect chain. A link is flagged when it dies (fails twice, 6 hours apart), lands somewhere new, lands on a QR or short-link vendor's 'd",
+      "labels": [
+        "private-data",
+        "destructive"
+      ]
+    },
+    {
+      "name": "get_watch_report",
+      "descriptionHash": "874d7ca6144f52596ebd3f3333a0614706ca75c0fdb45071c5607449e561970b",
+      "description": "Get the state of every link in a printed-link watch: working, dead, moved, deactivated page, redirect changed or certificate expiring, what changed since the first check, the latest redirect chain and the last 30 days."
     }
   ],
   "findings": [
@@ -79,28 +93,41 @@
       "detail": "Description of \"auth\" references sensitive artifacts (api_key, authorization, bearer). A tool description has no reason to mention credentials.",
       "evidence": {
         "source": "tool:auth",
-        "snippet": "Sign in to b59.link to raise the rate limit from 2 to 300 requests/minute and own what you create. Pass api_key to get a session key straight away. Or pass emai…"
+        "snippet": "Sign in to b59.link to own what you create (and for 300 requests/minute on the REST API). Pass api_key to get a session key straight away. Or pass email to have…"
       },
       "confidence": 0.65
     },
     {
       "id": "MCP-TOXIC-FLOW-001",
-      "severity": "medium",
+      "severity": "high",
       "category": "toxic-flow",
-      "title": "Toxic flow: untrusted input can reach an external sink",
-      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: auth, shorten_url, create_tracker, get_stats_url, lookup_url · Public sink: auth, make_qr_image.",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: auth, shorten_url, create_tracker, get_stats_url, lookup_url · Private data: watch_printed_links · Public sink: auth, make_qr_image · Destructive: watch_printed_links.",
       "evidence": {
         "source": "server:mcp",
-        "snippet": "Untrusted content: auth, shorten_url, create_tracker, get_stats_url, lookup_url · Public sink: auth, make_qr_image"
+        "snippet": "Untrusted content: auth, shorten_url, create_tracker, get_stats_url, lookup_url · Private data: watch_printed_links · Public sink: auth, make_qr_image · Destructive: watch_printed_links"
       },
-      "confidence": 0.45,
+      "confidence": 0.6,
       "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"auth\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:auth",
+        "snippet": "before: \"Sign in to b59.link to raise the rate limit from 2 to 300 requests/minute and own what you create. Pass api_key to get a session key straight away. Or pass email to have a 6-digit code emailed, then call again with email and otp to get a session key (new emails are signed up and also get their api_k\" → after: \"Sign in to b59.link to own what you create (and for 300 requests/minute on the REST API). Pass api_key to get a session key straight away. Or pass email to have a 6-digit code emailed, then call again with email and otp to get a session key (new emails are signed up and also get their api_key). Send\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
     }
   ],
-  "score": 72,
+  "score": 50,
   "scoreBreakdown": {
-    "tool-poisoning": 20,
-    "toxic-flow": 8
+    "tool-poisoning": 30,
+    "toxic-flow": 20
   },
   "errors": []
 }

@@ -1,0 +1,135 @@
+{
+  "schemaVersion": 1,
+  "scanner": {
+    "version": "1.6.0",
+    "rules": "402995650b68"
+  },
+  "target": {
+    "kind": "url",
+    "ref": "https://mcp.securelend.ai/v1/lender/mcp"
+  },
+  "scannedAt": "2026-10-28T10:39:52.634Z",
+  "durationMs": 1289,
+  "layers": {
+    "metadata": true,
+    "static": false
+  },
+  "tools": [
+    {
+      "name": "resolve_listed_company",
+      "descriptionHash": "566a85093174575184c65aaca00379f44f684f926a27569277ac59bf9fccf7f4",
+      "description": "Resolve a ticker, legal name, or CIK. Writes nothing. Returns one chosen company or the candidates."
+    },
+    {
+      "name": "read_listed_company",
+      "descriptionHash": "97029660129c81f0da7bcab29067d006697049894899c496bb7bfa28d2cec838",
+      "description": "Fetches the annual filing and attaches a citation to the open case when the company resolves uniquely. Ambiguous names write nothing."
+    },
+    {
+      "name": "open_case",
+      "descriptionHash": "aab2fecd607b6a22d19d92ef5f210854802641315c54e6fb1de0973149937c02",
+      "description": "Open a case on the caller's tenant. Same record as New file. Ignores any tenant id in the arguments.",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "read_case",
+      "descriptionHash": "3af605f7c06e737f2cd1b8c6a154005f49d278e81d5ce88090f13ddbae9f936c",
+      "description": "Read one case: status, facts, evidence ids, gaps, recommendation, document file names and types, pending jobs, and memo id plus status. No storage keys.",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "walk_credit_file",
+      "descriptionHash": "5f81ca201cf3289a815e69842ee829cabfcdb97c68dfa81a67ddd4f645073ecb",
+      "description": "Index documents on the open case, extract facts from the package (including image PDFs where supported), and spread financials into the case. Starts or returns the walk job already running. Does not draft the credit memo and does not approve a loan.",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "score_case_against_pack",
+      "descriptionHash": "cc52c28d131be27d528707c0bfdeebb8818bc4608e759e6093b568f883eea4f7",
+      "description": "Score facts already on the open case against the active underwriting pack/rubric. Does not accept new facts in the arguments. Returns walk_pending while a file walk is still running. Does not approve a loan.",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "chase_missing_documents",
+      "descriptionHash": "d8b195eec9f9e4760390c48c18f5634ba065be137e3b006ab1504b66a9a74e87",
+      "description": "Name every missing pack document and missing required number. Drafts a chase email when the file has a borrower email, and does not send it. Returns the existing draft when the same items are still missing.",
+      "labels": [
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "screen_sanctions",
+      "descriptionHash": "8e061e03afd42e9143d5efeca520e192f972e3c8557dc634460414e52e0cc9b1",
+      "description": "Screen a name on the case with OpenSanctions. Same as Screen OpenSanctions. SANCTIONS or PEP. A missing key writes nothing and does not pass the file.",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "draft_memo_from_file",
+      "descriptionHash": "28e84a346a0c201699827e72993a60c9dddc63e4c71d00d91301c67dba5cf23a",
+      "description": "Draft a credit memo from the case file. Same CaseSchema.id as Draft from file. Uses the tenant model when one is saved, otherwise the file template.",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "start_underwriting_package",
+      "descriptionHash": "01928a33e80d1a7a9779ec465cb1b5c39d6e5b5307f8519c8bef5c5e19acca45",
+      "description": "Create a new underwriting package for a borrower and return deskUrl, dashboardUrl (hosted package page), and exportUrl (zip). Background checks may start automatically. Requires borrower, amount, currency, and security; a secured loan also needs a complete guarantee. Does not approve the loan. Human"
+    },
+    {
+      "name": "read_package",
+      "descriptionHash": "10175e82ff4dc2b3d6285e52c82da99818d549533cc9fcfc5a6f3204bc230e2e",
+      "description": "Read an underwriting package. Does not re-run the checks. POST requires an OAuth bearer token with scope lender. Pass packageId or caseId for the caller's workspace.",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink",
+        "destructive"
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"read_package\" references sensitive artifacts (bearer). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:read_package",
+        "snippet": "Read an underwriting package. Does not re-run the checks. POST requires an OAuth bearer token with scope lender. Pass packageId or caseId for the caller's works…"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: read_package · Private data: open_case, read_case, walk_credit_file, score_case_against_pack, chase_missing_documents, screen_sanctions, draft_memo_from_file, read_package · Public sink: chase_missing_documents, read_package · Destructive: read_package.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: read_package · Private data: open_case, read_case, walk_credit_file, score_case_against_pack, chase_missing_documents, screen_sanctions, draft_memo_from_file, read_package · Public sink: chase_missing_documents, read_package · Destructive: read_package"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 60,
+  "scoreBreakdown": {
+    "tool-poisoning": 20,
+    "toxic-flow": 20
+  },
+  "errors": []
+}

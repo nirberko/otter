@@ -1,0 +1,82 @@
+{
+  "schemaVersion": 1,
+  "scanner": {
+    "version": "1.6.0",
+    "rules": "402995650b68"
+  },
+  "target": {
+    "kind": "url",
+    "ref": "https://inboxesim.com/mcp"
+  },
+  "scannedAt": "2026-10-28T10:42:13.510Z",
+  "durationMs": 690,
+  "layers": {
+    "metadata": true,
+    "static": false
+  },
+  "tools": [
+    {
+      "name": "find_esim_plans",
+      "descriptionHash": "5d6ec60cae867f0d35c6858023605451cc22d4c927e8e6ea6ba83eec4441c617",
+      "description": "Lists Inbox eSIM data plans for a destination (country, city, region such as Europe, or 'global'), cheapest first, with plan_id, data in GB, validity in days and price in USD. Data only, no phone number; works on unlocked eSIM phones."
+    },
+    {
+      "name": "buy_esim",
+      "descriptionHash": "ada0e4bf99f359020c838d0119e816b0d29e53b7852837e63274c4cdf9464237",
+      "description": "Starts the purchase of one eSIM plan for the customer and returns a payment link. Pay it with the Machine Payments Protocol (HTTP 402, Stripe shared payment token) to complete the order. Before calling, confirm the plan, the price and the email with the customer, and get their agreement to the terms",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "check_esim_device",
+      "descriptionHash": "a89085bb1f00b0affaf42338e8e161fa52f01d3460d83c7bd95ac7209c1fd549",
+      "description": "Says whether a phone model is likely to take an eSIM (likely, unlikely or check), from the model name, with how to be sure on the phone itself. Call it before buy_esim when the customer is unsure."
+    },
+    {
+      "name": "get_order_status",
+      "descriptionHash": "0f563d9d81276f3e7bd2541569b6d706a1a96a5cdd4e084b86deef35451ffda2",
+      "description": "Where an Inbox eSIM order is (awaiting_payment, preparing, ready_to_install, installed, in_use, ended, refunded, cancelled, with_support), with data used, the end date and the order page. Needs the order number and the email it was bought with.",
+      "labels": [
+        "untrusted-content",
+        "public-sink"
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOOL-POISON-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description issues instructions to the model",
+      "detail": "Description of \"buy_esim\" contains imperative instructions directed at the AI assistant rather than describing the tool. This is the core tool-poisoning technique.",
+      "evidence": {
+        "source": "tool:buy_esim",
+        "snippet": "Starts the purchase of one eSIM plan for the customer and returns a payment link. Pay it with the Machine Payments Protocol (HTTP 402, Stripe shared payment tok…"
+      },
+      "confidence": 0.7,
+      "remediation": "Treat the server as untrusted; the model may obey embedded instructions."
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: buy_esim, get_order_status · Private data: buy_esim · Public sink: buy_esim, get_order_status.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: buy_esim, get_order_status · Private data: buy_esim · Public sink: buy_esim, get_order_status"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 60,
+  "scoreBreakdown": {
+    "tool-poisoning": 20,
+    "toxic-flow": 20
+  },
+  "errors": []
+}
