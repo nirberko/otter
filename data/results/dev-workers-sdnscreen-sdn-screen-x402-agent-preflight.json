@@ -8,8 +8,8 @@
     "kind": "url",
     "ref": "https://sdn-screen-x402.sdnscreen.workers.dev/mcp"
   },
-  "scannedAt": "2026-10-12T12:22:21.457Z",
-  "durationMs": 445,
+  "scannedAt": "2026-10-29T11:18:36.218Z",
+  "durationMs": 713,
   "layers": {
     "metadata": true,
     "static": false
@@ -43,25 +43,65 @@
         "private-data",
         "public-sink"
       ]
+    },
+    {
+      "name": "whois_domain_age",
+      "descriptionHash": "f99d7004932f2214c11a38dc4182a5fb7216d7a86c9c8bf003a6661da2e151cb",
+      "description": "Looks up a domain in its registry's RDAP server (the ICANN successor to WHOIS, found via the IANA bootstrap): registration date, age in days/years, newlyRegistered (<30 days), expiry, last change, registrar name + IANA ID, EPP status, nameservers and DNSSEC. No personal contact data. Use when an age",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "email_mx_verify",
+      "descriptionHash": "d34a5a05db60f6f12705675691fb6555e0e8e7f675b5fea3d56419032f4bcca0",
+      "description": "Checks an email address without sending mail or opening SMTP: syntax, domain exists, MX records (or RFC 5321 A/AAAA fallback), RFC 7505 null MX, MX host resolves, disposable-domain list (~9.9k domains), role account (info@, support@) and free provider. Verdict deliverable_domain, risky, undeliverabl",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "url_unshorten",
+      "descriptionHash": "384fce6a6acbeeb29386900b7ff98461d2e55f327aeaceb782a99ee5feafd61f",
+      "description": "Follows a URL's HTTP redirects hop by hop (max 10, page bodies never read) and returns the final URL, status, the full chain and heuristic safety flags: shortener_used, cross_domain_redirect, https_downgrade, ip_address_host, punycode_host, userinfo_in_url, high_abuse_tld, credential_keyword_after_r",
+      "labels": [
+        "untrusted-content"
+      ]
     }
   ],
   "findings": [
+    {
+      "id": "MCP-TOOL-POISON-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description issues instructions to the model",
+      "detail": "Description of \"email_mx_verify\" contains imperative instructions directed at the AI assistant rather than describing the tool. This is the core tool-poisoning technique.",
+      "evidence": {
+        "source": "tool:email_mx_verify",
+        "snippet": "Checks an email address without sending mail or opening SMTP: syntax, domain exists, MX records (or RFC 5321 A/AAAA fallback), RFC 7505 null MX, MX host resolve…"
+      },
+      "confidence": 0.7,
+      "remediation": "Treat the server as untrusted; the model may obey embedded instructions."
+    },
     {
       "id": "MCP-TOXIC-FLOW-001",
       "severity": "high",
       "category": "toxic-flow",
       "title": "Lethal trifecta: untrusted input + private data + external sink",
-      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: dns_lookup, email_auth_check · Private data: ofac_wallet_screen, dns_lookup, email_auth_check · Public sink: ofac_wallet_screen, dns_lookup, email_auth_check.",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: dns_lookup, email_auth_check, email_mx_verify, url_unshorten · Private data: ofac_wallet_screen, dns_lookup, email_auth_check, whois_domain_age, email_mx_verify · Public sink: ofac_wallet_screen, dns_lookup, email_auth_check, email_mx_verify.",
       "evidence": {
         "source": "server:mcp",
-        "snippet": "Untrusted content: dns_lookup, email_auth_check · Private data: ofac_wallet_screen, dns_lookup, email_auth_check · Public sink: ofac_wallet_screen, dns_lookup, email_auth_check"
+        "snippet": "Untrusted content: dns_lookup, email_auth_check, email_mx_verify, url_unshorten · Private data: ofac_wallet_screen, dns_lookup, email_auth_check, whois_domain_age, email_mx_verify · Public sink: ofac_wallet_screen, dns_lookup, email_auth_check, email_mx_verify"
       },
       "confidence": 0.6,
       "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
     }
   ],
-  "score": 80,
+  "score": 60,
   "scoreBreakdown": {
+    "tool-poisoning": 20,
     "toxic-flow": 20
   },
   "errors": []

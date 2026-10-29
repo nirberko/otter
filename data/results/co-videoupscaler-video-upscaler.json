@@ -8,19 +8,78 @@
     "kind": "url",
     "ref": "https://videoupscaler.co/api/mcp"
   },
-  "scannedAt": "2026-10-14T10:05:01.209Z",
-  "durationMs": 1020,
+  "scannedAt": "2026-10-29T11:14:37.051Z",
+  "durationMs": 417,
   "layers": {
-    "metadata": false,
+    "metadata": true,
     "static": false
   },
-  "findings": [],
-  "score": 100,
-  "scoreBreakdown": {},
-  "errors": [
+  "tools": [
     {
-      "scanner": "metadata",
-      "message": "Streamable HTTP error: Error POSTing to endpoint: {\"error\":\"invalid_token\",\"error_description\":\"No authorization provided\"}"
+      "name": "upscale_video",
+      "descriptionHash": "7f3d29bc4092292ceeaeda58ccf5baa4d66bf17662e7090baee13c04180af622",
+      "description": "Start upscaling a video to 1080p, 2k or 4k. Charges credits for the whole video (its length is read from the file) and returns the task. Downloading a large video can take a few minutes. If this call times out or fails, first call list_tasks to see whether the task was created, and retry only with t",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "get_task",
+      "descriptionHash": "b2e5329b7e100fc011f1391e085a81cb3c3dee8e165d61885213bd39a6576fce",
+      "description": "Get an upscale task. Status is queued, processing, completed (output_url is the result) or failed (credits were refunded). Set wait_seconds (up to 45) to wait for it to finish before returning; call again if it is still running."
+    },
+    {
+      "name": "list_tasks",
+      "descriptionHash": "01546ba860ca92a34cd0979fcb27572005b8f892a884eae16a1db685ebfdee91",
+      "description": "List your upscale tasks, newest first, including ones started on the website."
+    },
+    {
+      "name": "get_account",
+      "descriptionHash": "a0786ead8c435b8ccc080232fc57a243d57c453c80bd5a5627edbefb6aadb780",
+      "description": "Your credit balance and the price per second of video for each resolution."
+    },
+    {
+      "name": "create_upload",
+      "descriptionHash": "41c77b92aac5e236965880b62b57845519aa8e4d7929a59ec60ec9215cc210ea",
+      "description": "Get a signed URL to upload a local video file (up to 100MB) when it has no public URL. PUT the file bytes to upload_url with the returned headers (no Authorization header), then pass video_url to upscale_video. The URL expires in 1 hour.",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink"
+      ]
     }
-  ]
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"create_upload\" references sensitive artifacts (authorization). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:create_upload",
+        "snippet": "Get a signed URL to upload a local video file (up to 100MB) when it has no public URL. PUT the file bytes to upload_url with the returned headers (no Authorizat…"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: create_upload · Private data: upscale_video, create_upload · Public sink: create_upload.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: create_upload · Private data: upscale_video, create_upload · Public sink: create_upload"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 60,
+  "scoreBreakdown": {
+    "tool-poisoning": 20,
+    "toxic-flow": 20
+  },
+  "errors": []
 }

@@ -1,0 +1,119 @@
+{
+  "schemaVersion": 1,
+  "scanner": {
+    "version": "1.6.0",
+    "rules": "402995650b68"
+  },
+  "target": {
+    "kind": "url",
+    "ref": "https://carriervet.dev/mcp"
+  },
+  "scannedAt": "2026-10-29T11:18:12.444Z",
+  "durationMs": 783,
+  "layers": {
+    "metadata": true,
+    "static": false
+  },
+  "tools": [
+    {
+      "name": "lookup_carrier",
+      "descriptionHash": "d9b942ca9dfbc1b45100cdf21a6e0dd235d5e413aaacb44d102020e93ff9439a",
+      "description": "Get a US motor carrier's FMCSA profile by USDOT number or MC/FF/MX docket number: legal name, operating authority status and age, insurance on file, out-of-service status, fleet size, address and contact. Returns an overall verdict (PASS, REVIEW or FAIL) with verdict_reasons, based on the PASS/FLAG/",
+      "labels": [
+        "untrusted-content",
+        "private-data"
+      ]
+    },
+    {
+      "name": "get_risk",
+      "descriptionHash": "8cb660c2ad7defc7f399a0fa50d36f6c070517dfc6573fc16c501b75c6171a39",
+      "description": "Get a 0-100 risk score for a carrier by USDOT number or MC/FF/MX docket number, with reason codes (e.g. insurance_lapsed, authority_under_90_days, shared_phone, multiple_contact_changes). Levels: low 0-24, elevated 25-49, high 50-74, severe 75-100. Hard failures (revoked, inactive or missing authori",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "get_receipt",
+      "descriptionHash": "8228e92d82ec7ed8d29240e4c054291848cd56556586f13d8511e0055be9c478",
+      "description": "Fetch the saved copy of an earlier lookup by its receipt_id: the time it was made, the endpoint, the identifier, and the exact response CarrierVet returned, with its SHA-256. Any API key on the account that made the lookup can read it. Receipts are saved a few seconds after the lookup. Free; does no",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "get_history",
+      "descriptionHash": "7f15c67f7a6abeb89675a2fa3b5f286e3ed353a0d5d1c3435de3afd42583f2b5",
+      "description": "List changes CarrierVet detected in a carrier's FMCSA record (address, phone, email, authority, insurance, out-of-service), newest first, plus fmcsa_history: dated changes from FMCSA's daily files and census, each with the date FMCSA recorded it, the date CarrierVet saw it, and the before and after ",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "search_carriers",
+      "descriptionHash": "c815b2b6d53b776e7dd7690c29aec4edf3040d59d668ac7e903bd47ea1f025d3",
+      "description": "Find carriers already stored by CarrierVet whose legal or DBA name contains the given text (max 25). Prefer lookup_carrier when you have a USDOT or MC number. Costs 1 lookup."
+    },
+    {
+      "name": "batch_lookup",
+      "descriptionHash": "52f4feff8a40af8d855878f662a32d1c7eac9c2bfde3c4f3e5131de843397c8f",
+      "description": "Look up to 500 USDOT or MC numbers in one call from stored snapshots (Pro and Business plans). Each found result includes the same verdict, verdict_reasons and verdict_basis as lookup_carrier. Costs 1 lookup per unique identifier."
+    },
+    {
+      "name": "get_usage",
+      "descriptionHash": "501d713f2b11c7f7ffa679d3a0cd2e611053e05f810219c031848cd714c1eb75",
+      "description": "Show this API key's plan, lookups used and remaining this UTC month, monitor count and rate limit. Free; does not cost a lookup.",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "list_watchlist",
+      "descriptionHash": "7f10f6ef959767660bc1f96a8d7056f4dfc2dc8ff7e485b3592e12db1d894b95",
+      "description": "List carriers on this account's watchlist (monitors) with alert email, webhook and last delivery status.",
+      "labels": [
+        "untrusted-content",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "add_to_watchlist",
+      "descriptionHash": "5fa412f55abb3b15e43e3b67ca41626f717ecc691f7f816b4eb661983758152d",
+      "description": "Watch a carrier (paid plans) and get an email and/or signed webhook (Pro+) when its FMCSA record changes. The carrier must have been looked up at least once. Provide alert_email, webhook_url, or both.",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "remove_from_watchlist",
+      "descriptionHash": "2641ab3a95de787abc53b770a08d9b33a924250d1cce4af25000245671160686",
+      "description": "Stop watching a carrier on this account.",
+      "labels": [
+        "destructive"
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: lookup_carrier, get_risk, get_history, list_watchlist, add_to_watchlist · Private data: lookup_carrier, get_receipt, get_history, get_usage, add_to_watchlist · Public sink: get_history, list_watchlist, add_to_watchlist · Destructive: remove_from_watchlist.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: lookup_carrier, get_risk, get_history, list_watchlist, add_to_watchlist · Private data: lookup_carrier, get_receipt, get_history, get_usage, add_to_watchlist · Public sink: get_history, list_watchlist, add_to_watchlist · Destructive: remove_from_watchlist"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 80,
+  "scoreBreakdown": {
+    "toxic-flow": 20
+  },
+  "errors": []
+}

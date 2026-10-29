@@ -8,8 +8,8 @@
     "kind": "url",
     "ref": "https://mcp.openvan.camp/mcp"
   },
-  "scannedAt": "2026-10-13T12:17:30.803Z",
-  "durationMs": 2200,
+  "scannedAt": "2026-10-29T11:21:44.026Z",
+  "durationMs": 2265,
   "layers": {
     "metadata": true,
     "static": false
@@ -27,11 +27,6 @@
       "name": "get_country_travel_brief",
       "descriptionHash": "080d38bbaf527d3646f2a1a2f74ce8cb03dfc84600c62332676e48439edcbb02",
       "description": "Everything to know before driving into one country by campervan or car, in one call: entry rule and how long the person and the vehicle may stay (with passport), travel weather now and this week, fuel prices, tolls and vignettes, public holidays in the next 30 days, safety advice, power plugs, custo"
-    },
-    {
-      "name": "get_roadbook_build_status",
-      "descriptionHash": "9d893f606becc6afaccea1997a08e29383ec1b389f645066f274b24f84e4b656",
-      "description": "Internal helper for the plan_road_trip card: progress of the roadbook build (route, tolls, borders and cities, campsites, weather, news). Not for direct use — call plan_road_trip."
     },
     {
       "name": "get_fuel_prices",
@@ -55,13 +50,18 @@
     },
     {
       "name": "get_city_travel_weather",
-      "descriptionHash": "498dc6f1625b6d7f3dc675ee45b9b74374c5b76a234c4e52abf4e82dd6c587e7",
-      "description": "How suitable the weather in one city or town is for travelling and sleeping in a campervan, as a 0-100 score for today and for the coming 7 days, with sleep, driving and solar scores and daily scores. Use this, not get_country_travel_weather, when the user names a place (Barcelona, Málaga, Alicante)"
+      "descriptionHash": "e293e67594f003c9bc7fe16a2a641e9dbe0905647e9ba05cf4710135d84b5c47",
+      "description": "How suitable the weather in one city or town is for travelling and sleeping in a campervan, as a 0-100 score for today and for the coming 7 days, with the city's place among the cities of its country this week, comfortable days, the best stretch and the worst day, a 7-day forecast with day and night"
+    },
+    {
+      "name": "get_city_climate",
+      "descriptionHash": "1828116ffffb2a7d736c36e8689994c44204df174391250d41defccd68a4fac7",
+      "description": "What the weather is usually like in a city or at any point on a given day of the year, from the ERA5 climate archive 2021–2025 (median of 35 archive days: the date ±3 days over five years): day and night temperature, on how many of the 35 days there was precipitation, the usual sky, sea or large-lak"
     },
     {
       "name": "list_best_weather_countries",
-      "descriptionHash": "5300eb26a9b8ed4dbd88b4056ca0ca3b475791f2c073bd970624d59b5031d6e9",
-      "description": "List the N countries where today's weather is best for travelling by campervan, highest 0-100 travel score first. Use it when no country is named and someone asks where to go for warm or good weather right now — worldwide or in a region (region=europe…); with sort=warmest only when they literally as"
+      "descriptionHash": "874d9ec3f4dded7df5f72c1614ab4dec12045f5cec80a915980138a7bcf23497",
+      "description": "List the N countries where the weather is best for travelling by campervan, highest 0-100 travel score first: today's score by default, or with period=week the score of the coming 7 days (the ranking used on OpenVan.camp). Use it when no country is named and someone asks where to go for warm or good"
     },
     {
       "name": "list_events",
@@ -147,6 +147,20 @@
       "description": "Plug types (IEC A–N), mains voltage and frequency for one country, with the source of the value, plus the campsite hook-up connector in Europe (CEE17). Use it for socket and plug types, adapters, mains voltage and campsite hook-ups."
     },
     {
+      "name": "find_ferries",
+      "descriptionHash": "12ea5b0e6b42ce436991adfa9c9283bf08445e2269a726e65c28f04a8488dc50",
+      "description": "Ferry and river crossing lines in a bounding box from OpenStreetMap: name, operator, countries, whether cars are carried, crossing time, the operator site checked by hand and a booking link where confirmed, and whether an open timetable exists. bbox is west,south,east,north in degrees — longitude fi"
+    },
+    {
+      "name": "get_ferry_schedule",
+      "descriptionHash": "ee61bf066f6c99b7ce217916c39aa6ed61e5c2db78222e2a9f32f3e683528ff2",
+      "description": "One ferry line by id from find_ferries: both ends with country, operator site and booking link, and a timetable digest from open GTFS feeds — next departures today in local time, sailings per day, daytime and night rhythm, weekdays over the next 8 days, crossing time. available: false means no open ",
+      "labels": [
+        "untrusted-content",
+        "destructive"
+      ]
+    },
+    {
       "name": "get_customs_rules",
       "descriptionHash": "209bc7af3617a7953684329ca6fb095f850c6016058ce20408dc5009359de02d",
       "description": "Customs rules when driving into a country, optionally from a given country: food bans, cash declaration, alcohol and tobacco limits, goods value, fuel in a canister. Each rule carries a verbatim official quote and source link. A country without data returns an error saying so — never present that as"
@@ -183,26 +197,39 @@
   ],
   "findings": [
     {
-      "id": "MCP-SCHEMA-SMELL-001",
+      "id": "MCP-TOXIC-FLOW-001",
       "severity": "medium",
-      "category": "schema-smell",
-      "title": "Read-only tool requests dangerous parameters",
-      "detail": "Tool \"get_roadbook_build_status\" appears informational but accepts parameters (code) that enable code/file/secret access.",
+      "category": "toxic-flow",
+      "title": "Toxic flow: untrusted input can reach an external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: get_ferry_schedule · Public sink: plan_road_trip · Destructive: check_visa_rules, get_ferry_schedule, get_license_plate_country, check_license_plate, get_license_plate_image.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: get_ferry_schedule · Public sink: plan_road_trip · Destructive: check_visa_rules, get_ferry_schedule, get_license_plate_country, check_license_plate, get_license_plate_image"
+      },
+      "confidence": 0.45,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "medium",
+      "category": "tool-poisoning",
+      "title": "Tool removed since last scan",
+      "detail": "Tool \"get_roadbook_build_status\" is no longer advertised. Removal can precede a shadowing replacement from another server.",
       "evidence": {
         "source": "tool:get_roadbook_build_status",
-        "snippet": "locale, waypoints, passports, residence, kids, pets, plates, weight, vehicle_class, fuel, consumption, tank, start_date, hours_per_day, round_trip, avoid_tolls, currency, code"
+        "snippet": "removed: get_roadbook_build_status"
       },
-      "confidence": 0.55
+      "confidence": 0.5
     },
     {
       "id": "MCP-RUGPULL-001",
       "severity": "high",
       "category": "tool-poisoning",
       "title": "Tool description changed since last scan",
-      "detail": "Tool \"get_fuel_prices\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "detail": "Tool \"get_city_travel_weather\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
       "evidence": {
-        "source": "tool:get_fuel_prices",
-        "snippet": "before: \"Current retail fuel prices for all API-supported countries. Supports the same price keys as /api/fuel/prices, including gasoline, diesel, LPG, CNG, E85, kerosene and grade variants. Pass country_code to get one country in detail; omit it for a summary list.\" → after: \"Current retail fuel prices for all API-supported countries. Covers gasoline, diesel, LPG, CNG, E85, kerosene and grade variants. Pass country_code to get one country in detail; omit it for a summary list. Use it for the price of petrol, diesel, LPG/autogas/propane or CNG in one country; without a co\""
+        "source": "tool:get_city_travel_weather",
+        "snippet": "before: \"How suitable the weather in one city or town is for travelling and sleeping in a campervan, as a 0-100 score for today and for the coming 7 days, with sleep, driving and solar scores and daily scores. Use this, not get_country_travel_weather, when the user names a place (Barcelona, Málaga, Alicante)\" → after: \"How suitable the weather in one city or town is for travelling and sleeping in a campervan, as a 0-100 score for today and for the coming 7 days, with the city's place among the cities of its country this week, comfortable days, the best stretch and the worst day, a 7-day forecast with day and night\""
       },
       "confidence": 0.8,
       "remediation": "Re-review the tool before continuing to trust it."
@@ -212,106 +239,19 @@
       "severity": "high",
       "category": "tool-poisoning",
       "title": "Tool description changed since last scan",
-      "detail": "Tool \"compare_fuel_prices\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "detail": "Tool \"list_best_weather_countries\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
       "evidence": {
-        "source": "tool:compare_fuel_prices",
-        "snippet": "before: \"Compare current prices for one fuel type across 2-10 countries. Returns sorted table cheapest-first.\" → after: \"Compare current prices for one fuel type across 2-10 countries. Returns sorted table cheapest-first. Use it when someone asks which of two or more named countries has cheaper or more expensive fuel.\""
-      },
-      "confidence": 0.8,
-      "remediation": "Re-review the tool before continuing to trust it."
-    },
-    {
-      "id": "MCP-RUGPULL-001",
-      "severity": "high",
-      "category": "tool-poisoning",
-      "title": "Tool description changed since last scan",
-      "detail": "Tool \"find_cheapest_fuel\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
-      "evidence": {
-        "source": "tool:find_cheapest_fuel",
-        "snippet": "before: \"Find the cheapest countries for a given fuel type in a region (or worldwide). Useful for route planning.\" → after: \"Rank countries by the price of a fuel type in a region (or worldwide): the cheapest first, or with order=most_expensive the most expensive first. Useful for route planning. Use it for «where is fuel cheapest» and, with order=most_expensive, «where is fuel the most expensive», in a region or worldwid\""
-      },
-      "confidence": 0.8,
-      "remediation": "Re-review the tool before continuing to trust it."
-    },
-    {
-      "id": "MCP-RUGPULL-001",
-      "severity": "medium",
-      "category": "tool-poisoning",
-      "title": "Tool removed since last scan",
-      "detail": "Tool \"get_vansky_weather\" is no longer advertised. Removal can precede a shadowing replacement from another server.",
-      "evidence": {
-        "source": "tool:get_vansky_weather",
-        "snippet": "removed: get_vansky_weather"
-      },
-      "confidence": 0.5
-    },
-    {
-      "id": "MCP-RUGPULL-001",
-      "severity": "medium",
-      "category": "tool-poisoning",
-      "title": "Tool removed since last scan",
-      "detail": "Tool \"list_vansky_top\" is no longer advertised. Removal can precede a shadowing replacement from another server.",
-      "evidence": {
-        "source": "tool:list_vansky_top",
-        "snippet": "removed: list_vansky_top"
-      },
-      "confidence": 0.5
-    },
-    {
-      "id": "MCP-RUGPULL-001",
-      "severity": "high",
-      "category": "tool-poisoning",
-      "title": "Tool description changed since last scan",
-      "detail": "Tool \"search_stories\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
-      "evidence": {
-        "source": "tool:search_stories",
-        "snippet": "before: \"Search aggregated vanlife news stories (7 languages, 400+ sources). Filter by search query, category, country, locale.\" → after: \"Search recent news about campervans, motorhomes and road travel collected by OpenVan.camp from public news sources. Returns for each story only a headline, a short summary of up to 300 characters, date, category, countries and a link to the story page on openvan.camp, which credits the original publ\""
-      },
-      "confidence": 0.8,
-      "remediation": "Re-review the tool before continuing to trust it."
-    },
-    {
-      "id": "MCP-RUGPULL-001",
-      "severity": "medium",
-      "category": "tool-poisoning",
-      "title": "Tool removed since last scan",
-      "detail": "Tool \"compare_vanbasket\" is no longer advertised. Removal can precede a shadowing replacement from another server.",
-      "evidence": {
-        "source": "tool:compare_vanbasket",
-        "snippet": "removed: compare_vanbasket"
-      },
-      "confidence": 0.5
-    },
-    {
-      "id": "MCP-RUGPULL-001",
-      "severity": "medium",
-      "category": "tool-poisoning",
-      "title": "Tool removed since last scan",
-      "detail": "Tool \"get_vanbasket\" is no longer advertised. Removal can precede a shadowing replacement from another server.",
-      "evidence": {
-        "source": "tool:get_vanbasket",
-        "snippet": "removed: get_vanbasket"
-      },
-      "confidence": 0.5
-    },
-    {
-      "id": "MCP-RUGPULL-001",
-      "severity": "high",
-      "category": "tool-poisoning",
-      "title": "Tool description changed since last scan",
-      "detail": "Tool \"get_currency_rate\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
-      "evidence": {
-        "source": "tool:get_currency_rate",
-        "snippet": "before: \"Convert an amount between two currencies using live rates (150+ currencies, daily updates).\" → after: \"Convert an amount between two currencies using live rates (150+ currencies, daily updates). Use it for exchange rates and converting an amount between currencies.\""
+        "source": "tool:list_best_weather_countries",
+        "snippet": "before: \"List the N countries where today's weather is best for travelling by campervan, highest 0-100 travel score first. Use it when no country is named and someone asks where to go for warm or good weather right now — worldwide or in a region (region=europe…); with sort=warmest only when they literally as\" → after: \"List the N countries where the weather is best for travelling by campervan, highest 0-100 travel score first: today's score by default, or with period=week the score of the coming 7 days (the ranking used on OpenVan.camp). Use it when no country is named and someone asks where to go for warm or good\""
       },
       "confidence": 0.8,
       "remediation": "Re-review the tool before continuing to trust it."
     }
   ],
-  "score": 51,
+  "score": 60,
   "scoreBreakdown": {
-    "schema-smell": 8,
-    "tool-poisoning": 41
+    "toxic-flow": 8,
+    "tool-poisoning": 32
   },
   "errors": []
 }

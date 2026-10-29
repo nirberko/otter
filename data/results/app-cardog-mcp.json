@@ -8,8 +8,8 @@
     "kind": "url",
     "ref": "https://mcp.cardog.io/mcp?api_key={api_key}"
   },
-  "scannedAt": "2026-10-12T12:19:06.807Z",
-  "durationMs": 2060,
+  "scannedAt": "2026-10-29T11:13:49.715Z",
+  "durationMs": 2422,
   "layers": {
     "metadata": true,
     "static": false
@@ -25,16 +25,17 @@
     },
     {
       "name": "identify_vehicle",
-      "descriptionHash": "fd9f556573955bf46ccd5988926bc3ee83b8331d24e2f4beeb23619ba9aacbb1",
+      "descriptionHash": "797caa4be2bee9892ad7147bc866c622916d9166badddeef0a26abf2fd97cce0",
       "description": "Decode a 17-character VIN into its full Cardog identity: canonical entity refs, the market grains (nano/squish), spec highlights, and links to adjacent resources.\n\nVIN ONLY — this tool never fuzzy-matches. If you hold free text (\"2021 Civic\", a make or model name), do NOT call this: call resolve_ent",
       "labels": [
-        "untrusted-content"
+        "untrusted-content",
+        "public-sink"
       ]
     },
     {
       "name": "search_inventory",
-      "descriptionHash": "c553996332c630e3d2469d84825af61650ce5d5796b7bc6615b7223be481286b",
-      "description": "Search live Canadian vehicle listings — ref-native. One call returns listings + facets + the total count.\n\nFilters take entity REFS from resolve_entity / identify_vehicle, never free-text names: makes: [\"make:mini\"], models: [\"model:mini/hardtop\"], fuelTypes: [\"fuel-type:electric\"] — plus year/price",
+      "descriptionHash": "9c3befbc38c5002b29329c2d0482437c6c85e9a9c8da768f5600900ff05d0973",
+      "description": "Search live vehicle listings — ref-native. One call returns listings + facets + the total count. The market defaults to Canada, which is the only inventory market today: prices are in each listing's own currency (CAD for Canadian listings) and odometers in km.\n\nFilters take entity REFS from resolve_",
       "labels": [
         "untrusted-content"
       ]
@@ -49,16 +50,35 @@
     },
     {
       "name": "check_recalls",
-      "descriptionHash": "92598a128334448f383a9f6c0a79afcb5d2e029ba415f65d49e43bef3b7ccae9",
-      "description": "The authoritative \"is this vehicle under recall?\" check — Transport Canada + NHTSA recall campaigns, fused and ref-keyed. Compliance guide: https://cardog.app/docs/compliance.\n\nPass EXACTLY ONE of:\n- `vin` (17 characters) — the per-vehicle recall check. In the result, `resolved: false` means the VIN",
+      "descriptionHash": "438d28fce890c11abf473402b6ba54caa6cde53c65e9215ed163da893c78cf1a",
+      "description": "Recall campaigns LISTED for a vehicle's model year in its market of sale, ref-keyed, one record per authority, never merged. Default market CA: Transport Canada safety recalls and ECCC emissions notices (each row carries `regime`; never call an emissions notice a safety recall). Pass `market` when t",
       "labels": [
-        "untrusted-content"
+        "untrusted-content",
+        "private-data"
       ]
     },
     {
       "name": "window_sticker",
-      "descriptionHash": "3a1b46804a61434a14d6cea9c55dbd753aad3dfc1c0815ff5913c99d1c0d61b1",
+      "descriptionHash": "dfd9120f78d30c9e9dd0abb36c7f52fc6fe871932592bb2c6c42ff80d0c5ff28",
       "description": "The factory window sticker (Monroney label) we hold for a VIN, or why there is none. Guide: https://cardog.app/docs/window-sticker.\n\nPass `vin` (17 characters). The result has exactly one of:\n- `label` — we hold the manufacturer's label: `issuer`, `retrievedAt`, `vinVerified` (true only when the VIN",
+      "labels": [
+        "untrusted-content",
+        "private-data"
+      ]
+    },
+    {
+      "name": "vehicle_operators",
+      "descriptionHash": "785dabcb008c90abd21d950f5e42713ff7c372cfd01d91c45765078de5c9ce0f",
+      "description": "Every motor carrier a commercial vehicle was observed running under, from the US federal roadside record. Guide: https://cardog.app/docs/carriers.\n\nPass `vin` (17 characters). The result is one item per day a roadside inspection or crash report put a carrier on the unit, most recent first. Each item",
+      "labels": [
+        "private-data",
+        "destructive"
+      ]
+    },
+    {
+      "name": "carrier_lookup",
+      "descriptionHash": "d034082d15ccd94bddf4cc0914421785a8c7483bbc290410b21ff9ee3d8d0ec9",
+      "description": "Find a motor carrier and read its record: name → US DOT number → every unit observed under it. Guide: https://cardog.app/docs/carriers.\n\nPass `q`: a carrier name or part of one (\"bison transport\"), a US DOT number (\"245330\"), or a 17-character VIN (the carriers that unit was observed under). Optiona",
       "labels": [
         "untrusted-content",
         "private-data"
@@ -134,7 +154,7 @@
       "detail": "Tool \"check_recalls\" appears informational but accepts parameters (context) that enable code/file/secret access.",
       "evidence": {
         "source": "tool:check_recalls",
-        "snippet": "vin, ref, limit, context"
+        "snippet": "vin, ref, limit, market, authority, regime, include_other, context"
       },
       "confidence": 0.55
     },
@@ -149,12 +169,102 @@
         "snippet": "vin, context"
       },
       "confidence": 0.55
+    },
+    {
+      "id": "MCP-TOOL-POISON-007",
+      "severity": "low",
+      "category": "tool-poisoning",
+      "title": "Description uses pressure/override language",
+      "detail": "Description of \"vehicle_operators\" stacks urgency/override words (always, never). Legitimate tool descriptions rarely pressure the model to act or ignore prior guidance.",
+      "evidence": {
+        "source": "tool:vehicle_operators",
+        "snippet": "Every motor carrier a commercial vehicle was observed running under, from the US federal roadside record. Guide: https://cardog.app/docs/carriers. Pass `vin` (1…"
+      },
+      "confidence": 0.3
+    },
+    {
+      "id": "MCP-SCHEMA-SMELL-001",
+      "severity": "medium",
+      "category": "schema-smell",
+      "title": "Read-only tool requests dangerous parameters",
+      "detail": "Tool \"carrier_lookup\" appears informational but accepts parameters (context) that enable code/file/secret access.",
+      "evidence": {
+        "source": "tool:carrier_lookup",
+        "snippet": "q, state, country, limit, vehicles, context"
+      },
+      "confidence": 0.55
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp?api_key={api_key}\" exposes tools that together enable an exfiltration flow. Untrusted content: resolve_entity, identify_vehicle, search_inventory, market_quote, check_recalls, window_sticker, carrier_lookup · Private data: check_recalls, window_sticker, vehicle_operators, carrier_lookup · Public sink: identify_vehicle · Destructive: vehicle_operators.",
+      "evidence": {
+        "source": "server:mcp?api_key={api_key}",
+        "snippet": "Untrusted content: resolve_entity, identify_vehicle, search_inventory, market_quote, check_recalls, window_sticker, carrier_lookup · Private data: check_recalls, window_sticker, vehicle_operators, carrier_lookup · Public sink: identify_vehicle · Destructive: vehicle_operators"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"identify_vehicle\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:identify_vehicle",
+        "snippet": "before: \"Decode a 17-character VIN into its full Cardog identity: canonical entity refs, the market grains (nano/squish), spec highlights, and links to adjacent resources.\n\nVIN ONLY — this tool never fuzzy-matches. If you hold free text (\"2021 Civic\", a make or model name), do NOT call this: call resolve_ent\" → after: \"Decode a 17-character VIN into its full Cardog identity: canonical entity refs, the market grains (nano/squish), spec highlights, and links to adjacent resources.\n\nVIN ONLY — this tool never fuzzy-matches. If you hold free text (\"2021 Civic\", a make or model name), do NOT call this: call resolve_ent\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"search_inventory\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:search_inventory",
+        "snippet": "before: \"Search live Canadian vehicle listings — ref-native. One call returns listings + facets + the total count.\n\nFilters take entity REFS from resolve_entity / identify_vehicle, never free-text names: makes: [\"make:mini\"], models: [\"model:mini/hardtop\"], fuelTypes: [\"fuel-type:electric\"] — plus year/price\" → after: \"Search live vehicle listings — ref-native. One call returns listings + facets + the total count. The market defaults to Canada, which is the only inventory market today: prices are in each listing's own currency (CAD for Canadian listings) and odometers in km.\n\nFilters take entity REFS from resolve_\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"check_recalls\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:check_recalls",
+        "snippet": "before: \"The authoritative \"is this vehicle under recall?\" check — Transport Canada + NHTSA recall campaigns, fused and ref-keyed. Compliance guide: https://cardog.app/docs/compliance.\n\nPass EXACTLY ONE of:\n- `vin` (17 characters) — the per-vehicle recall check. In the result, `resolved: false` means the VIN\" → after: \"Recall campaigns LISTED for a vehicle's model year in its market of sale, ref-keyed, one record per authority, never merged. Default market CA: Transport Canada safety recalls and ECCC emissions notices (each row carries `regime`; never call an emissions notice a safety recall). Pass `market` when t\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"window_sticker\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:window_sticker",
+        "snippet": "before: \"The factory window sticker (Monroney label) we hold for a VIN, or why there is none. Guide: https://cardog.app/docs/window-sticker.\n\nPass `vin` (17 characters). The result has exactly one of:\n- `label` — we hold the manufacturer's label: `issuer`, `retrievedAt`, `vinVerified` (true only when the VIN\" → after: \"The factory window sticker (Monroney label) we hold for a VIN, or why there is none. Guide: https://cardog.app/docs/window-sticker.\n\nPass `vin` (17 characters). The result has exactly one of:\n- `label` — we hold the manufacturer's label: `issuer`, `retrievedAt`, `vinVerified` (true only when the VIN\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
     }
   ],
-  "score": 81,
+  "score": 26,
   "scoreBreakdown": {
-    "schema-smell": 16,
-    "tool-poisoning": 3
+    "schema-smell": 17,
+    "tool-poisoning": 38,
+    "toxic-flow": 20
   },
   "errors": []
 }

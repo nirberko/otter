@@ -1,0 +1,100 @@
+{
+  "schemaVersion": 1,
+  "scanner": {
+    "version": "1.6.0",
+    "rules": "402995650b68"
+  },
+  "target": {
+    "kind": "url",
+    "ref": "https://mcp.chatstack.app/mcp"
+  },
+  "scannedAt": "2026-10-29T11:13:50.370Z",
+  "durationMs": 1401,
+  "layers": {
+    "metadata": true,
+    "static": false
+  },
+  "tools": [
+    {
+      "name": "start_session",
+      "descriptionHash": "2cd5e73a765a0b87b5a8c2d02d70f09e0ac51324e3ddd2be5075916cf51daac2",
+      "description": "Start a guided session to estimate app development cost, scope an MVP, and generate a software PRD. No portal account or personal access token is required. Call it with no arguments unless the user already named Review each step (clarify_first) or Run it for me (auto_complete). Do not choose an inte",
+      "labels": [
+        "private-data",
+        "destructive"
+      ]
+    },
+    {
+      "name": "send_turn",
+      "descriptionHash": "08b046af53cc331a0975b7403f707f78be9c44be6bab7a6ce84a1e21765026cf",
+      "description": "Continue an app cost estimate by sending the user's answers or requested changes to the MVP scope, user stories, requirements, or technical specification. Pass their exact words in input_as_text, even when next_tool is send_action. Compact replies such as \"1A, 2B\" are valid. Preserve the user's sele",
+      "labels": [
+        "public-sink",
+        "destructive"
+      ]
+    },
+    {
+      "name": "send_action",
+      "descriptionHash": "5265bab395a8f7e2a80856027923a706a4babc3d1bc24f76f63937684529d959",
+      "description": "Submit the user's pending choice. Set action_type to a value from pending_gate_payload.allowed_actions. In Review each step, action_type is required; confirmed_by_user=true is preferred and is not a substitute for it. In Run it for me, omit action_type and payload to advance one milestone, and do no",
+      "labels": [
+        "public-sink",
+        "destructive"
+      ]
+    },
+    {
+      "name": "get_estimate_status",
+      "descriptionHash": "eaf1a6cf81b90b4b608340405232071c012b72b18424f466daf4edd18f223a48",
+      "description": "Read the current app cost estimate without advancing it. Returns flow_stage, pending_gate, and pending_gate_payload. After submission it also returns post_submit_notice and post_submit_links: relay the notice verbatim, keep every URL, and do not add an email-delivery caveat. Pass the thread_id and i",
+      "labels": [
+        "untrusted-content",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "submit_prd",
+      "descriptionHash": "015afade4caf80c530d78e13f78eac8c721179d19b8e55b5d416005ac555af30",
+      "description": "Submit the completed software PRD and app development estimate for email delivery and portal project creation. Call it only after user stories, requirements, tech specs, and the estimate exist. (flow_stage estimate). Run it for me stops at this tool. Offer submission and wait for the user. Do not su",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink",
+        "destructive"
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOOL-POISON-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description issues instructions to the model",
+      "detail": "Description of \"submit_prd\" contains imperative instructions directed at the AI assistant rather than describing the tool. This is the core tool-poisoning technique.",
+      "evidence": {
+        "source": "tool:submit_prd",
+        "snippet": "Submit the completed software PRD and app development estimate for email delivery and portal project creation. Call it only after user stories, requirements, te…"
+      },
+      "confidence": 0.7,
+      "remediation": "Treat the server as untrusted; the model may obey embedded instructions."
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: get_estimate_status, submit_prd · Private data: start_session, submit_prd · Public sink: send_turn, send_action, get_estimate_status, submit_prd · Destructive: start_session, send_turn, send_action, submit_prd.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: get_estimate_status, submit_prd · Private data: start_session, submit_prd · Public sink: send_turn, send_action, get_estimate_status, submit_prd · Destructive: start_session, send_turn, send_action, submit_prd"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 60,
+  "scoreBreakdown": {
+    "tool-poisoning": 20,
+    "toxic-flow": 20
+  },
+  "errors": []
+}

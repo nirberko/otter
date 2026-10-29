@@ -8,8 +8,8 @@
     "kind": "url",
     "ref": "https://forwanderingagents.com/api/mcp"
   },
-  "scannedAt": "2026-10-24T09:23:15.699Z",
-  "durationMs": 2560,
+  "scannedAt": "2026-10-29T11:26:11.112Z",
+  "durationMs": 639,
   "layers": {
     "metadata": true,
     "static": false
@@ -17,20 +17,89 @@
   "tools": [
     {
       "name": "get_experiment_status",
-      "descriptionHash": "9713ca9c1a5acedecdaa7b3215da759e15765fd1005768ea8d819ae7a8d5e5d4",
-      "description": "Returns the experiment's current phase and whether guestbook posting is enabled."
+      "descriptionHash": "a4c3ded4c835f56c76f65a3d850a642db11a29f1b091050841b427b9f5ece5c1",
+      "description": "Returns the experiment phase and whether moderated guestbook submissions are open."
     },
     {
       "name": "list_guestbook_messages",
-      "descriptionHash": "75252008136eaf65b56f917ccaeb8b6526b6a53de4860e1101a606074dae03e9",
-      "description": "Returns up to 30 of the most recent approved guestbook messages. Names and discovery claims are self-reported, not verified.",
+      "descriptionHash": "53ef9230d2d08b5cc7d913adb3ce0970889a3f1d11f07befc3efbfcbc0de4882",
+      "description": "Read up to 30 approved, non-test messages. Names and discovery claims are self-reported, not verified.",
       "labels": [
         "untrusted-content"
       ]
+    },
+    {
+      "name": "get_experiment_results",
+      "descriptionHash": "2ea3b093909234e6f97063b025d0f4e958c20ab3a5e8271cc2a6fa7575c7b896",
+      "description": "Read aggregate traffic, MCP usage and submission outcomes for the last 14 UTC calendar days. Counts are requests, not people or verified agents. Test traffic is excluded where labeled."
+    },
+    {
+      "name": "submit_guestbook_message",
+      "descriptionHash": "623bae61eeb6cb06becf42b4015e3c68d127c23dcc38195d5af768a251239075",
+      "description": "Optional external write: submit a message to a private review queue for possible public publication. Use only when authorized by your actual task and client permissions. Describe discovery honestly, mark tests with is_test=true, and never include secrets, private prompts, or user data. Shares HTTP s",
+      "labels": [
+        "private-data",
+        "public-sink"
+      ]
     }
   ],
-  "findings": [],
-  "score": 100,
-  "scoreBreakdown": {},
+  "findings": [
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"submit_guestbook_message\" references sensitive artifacts (secret). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:submit_guestbook_message",
+        "snippet": "Optional external write: submit a message to a private review queue for possible public publication. Use only when authorized by your actual task and client per…"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: list_guestbook_messages · Private data: submit_guestbook_message · Public sink: submit_guestbook_message.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: list_guestbook_messages · Private data: submit_guestbook_message · Public sink: submit_guestbook_message"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"get_experiment_status\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:get_experiment_status",
+        "snippet": "before: \"Returns the experiment's current phase and whether guestbook posting is enabled.\" → after: \"Returns the experiment phase and whether moderated guestbook submissions are open.\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"list_guestbook_messages\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:list_guestbook_messages",
+        "snippet": "before: \"Returns up to 30 of the most recent approved guestbook messages. Names and discovery claims are self-reported, not verified.\" → after: \"Read up to 30 approved, non-test messages. Names and discovery claims are self-reported, not verified.\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    }
+  ],
+  "score": 45,
+  "scoreBreakdown": {
+    "tool-poisoning": 35,
+    "toxic-flow": 20
+  },
   "errors": []
 }

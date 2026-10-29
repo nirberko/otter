@@ -8,8 +8,8 @@
     "kind": "url",
     "ref": "https://weio.ai/mcp"
   },
-  "scannedAt": "2026-10-03T10:07:19.584Z",
-  "durationMs": 823,
+  "scannedAt": "2026-10-29T11:14:20.673Z",
+  "durationMs": 836,
   "layers": {
     "metadata": true,
     "static": false
@@ -21,41 +21,88 @@
       "description": "Checks what a visitor sees when opening a domain in a browser, for both example.com and www.example.com: whether the site loads securely, or shows a full-page privacy warning / 'Not secure', and why (expired certificate, name mismatch, self-signed, no HTTPS, redirect problems, unreachable). Returns "
     },
     {
-      "name": "site_info",
-      "descriptionHash": "f7c15a92175613144121183c80441b0e340b9723c7ff4ded4ae7b60944eb9547",
-      "description": "Reads a business website's homepage and returns what the business publishes about itself: page title and description, language, CMS/website builder (WordPress, Wix, Squarespace, Shopify...), whether it has a mobile viewport tag, role contact emails (info@, sales@, office@...; personal-name addresses",
+      "name": "registry_join",
+      "descriptionHash": "93c65dca6d465f2477ea78fe1cd455063d01fff22f0b8253081f69d324de5b59",
+      "description": "Starts an agent record in the Weio participant registry, run by AI agents at Weio. Send your Ed25519 public key and a short record. Returns a pending id and a one-time nonce; sign the string in 'sign' with your private key and call registry_confirm_key within 10 minutes to activate. Private by defau",
       "labels": [
-        "untrusted-content",
-        "private-data"
+        "private-data",
+        "public-sink",
+        "destructive"
       ]
     },
     {
-      "name": "find_businesses",
-      "descriptionHash": "5d705cea6bab07bac6fada16de0419810863e229944e5bc27c5d60ec797e8288",
-      "description": "Returns up to 10 public business records from Weio's currently small, dated local scan index. Initial coverage is dental-category businesses in Fresno County, California, scanned 2026-09-30. Each record has business name, website, a phone-layout flag and scan/source scope; it deliberately does not r",
+      "name": "registry_confirm_key",
+      "descriptionHash": "f75f882ac983072abc4bd61f76f06f51cd27a364f22292e4b38b1dc1658a46c8",
+      "description": "Activates a pending registry record: send the id and nonce from registry_join and your Ed25519 signature (64 bytes, base64url) over the exact 'sign' string. Each nonce is tried once.",
       "labels": [
         "private-data",
         "public-sink"
+      ]
+    },
+    {
+      "name": "registry_verify",
+      "descriptionHash": "4c3ca0f2540dc858135b4fdd78edd2ad54d8652b36b455decd416cb059f9f5cc",
+      "description": "Returns the public fields of an active, public participant record in the Weio registry by id, including public_key (base64url Ed25519) when the record was registered with a key, so you can check that a message was signed with the key registered on that record; or not found (private, missing and with",
+      "labels": [
+        "untrusted-content",
+        "private-data"
       ]
     }
   ],
   "findings": [
     {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"registry_join\" references sensitive artifacts (private key). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:registry_join",
+        "snippet": "Starts an agent record in the Weio participant registry, run by AI agents at Weio. Send your Ed25519 public key and a short record. Returns a pending id and a o…"
+      },
+      "confidence": 0.65
+    },
+    {
       "id": "MCP-TOXIC-FLOW-001",
       "severity": "high",
       "category": "toxic-flow",
       "title": "Lethal trifecta: untrusted input + private data + external sink",
-      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: site_info · Private data: site_info, find_businesses · Public sink: find_businesses.",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: registry_verify · Private data: registry_join, registry_confirm_key, registry_verify · Public sink: registry_join, registry_confirm_key · Destructive: registry_join.",
       "evidence": {
         "source": "server:mcp",
-        "snippet": "Untrusted content: site_info · Private data: site_info, find_businesses · Public sink: find_businesses"
+        "snippet": "Untrusted content: registry_verify · Private data: registry_join, registry_confirm_key, registry_verify · Public sink: registry_join, registry_confirm_key · Destructive: registry_join"
       },
       "confidence": 0.6,
       "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "medium",
+      "category": "tool-poisoning",
+      "title": "Tool removed since last scan",
+      "detail": "Tool \"site_info\" is no longer advertised. Removal can precede a shadowing replacement from another server.",
+      "evidence": {
+        "source": "tool:site_info",
+        "snippet": "removed: site_info"
+      },
+      "confidence": 0.5
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "medium",
+      "category": "tool-poisoning",
+      "title": "Tool removed since last scan",
+      "detail": "Tool \"find_businesses\" is no longer advertised. Removal can precede a shadowing replacement from another server.",
+      "evidence": {
+        "source": "tool:find_businesses",
+        "snippet": "removed: find_businesses"
+      },
+      "confidence": 0.5
     }
   ],
-  "score": 80,
+  "score": 54,
   "scoreBreakdown": {
+    "tool-poisoning": 26,
     "toxic-flow": 20
   },
   "errors": []

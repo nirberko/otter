@@ -1,0 +1,129 @@
+{
+  "schemaVersion": 1,
+  "scanner": {
+    "version": "1.6.0",
+    "rules": "402995650b68"
+  },
+  "target": {
+    "kind": "url",
+    "ref": "https://lens.bastionhelix.com/mcp"
+  },
+  "scannedAt": "2026-10-29T11:15:04.125Z",
+  "durationMs": 236,
+  "layers": {
+    "metadata": true,
+    "static": false
+  },
+  "tools": [
+    {
+      "name": "preflight",
+      "descriptionHash": "01e11764ed5a5563c0d70d066e1dd4709d28d397fc7aea15161525690e97a400",
+      "description": "Free. Before an agent spends money or time on a URL: is it allowed (robots.txt for this service and, if you pass user_agent, for your own bot; Content Signals such as ai-input and ai-train; meta robots), does a bot check or sign-in stand in the way, and which engine each task needs — plain fetch, Ki",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "read",
+      "descriptionHash": "90f0adb77773f40c68adb4cddf4f9597fa35480f70455466891abb7c66bc892d",
+      "description": "Returns the main content of a web page as clean Markdown with absolute links. Tries the cheapest way that works: plain fetch, then Kitesurf, then Chromium, and reports which one worked. Refuses (and charges nothing) when the site's robots.txt or Content Signals say no, or when a bot check answers in",
+      "labels": [
+        "untrusted-content",
+        "private-data"
+      ]
+    },
+    {
+      "name": "actions",
+      "descriptionHash": "932dd21d10e06e6140b9148c107350a4e4be501cecc0e5ce55349086256d0aae",
+      "description": "Returns the forms (with every field, its label and whether it is required), buttons and links on a page, each with a CSS selector an automation tool can use. Uses the rendered page when the HTML alone has none. Charged only on success. Price: US$0.004 per successful call (API key credits or x402).",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "extract",
+      "descriptionHash": "984a2b7f68ddaaee5698d70490d27d667dc099a0b63440f2abcfda9e0356f9bf",
+      "description": "No AI model involved: returns the structured data the page already publishes — JSON-LD / schema.org objects (products, articles, events, organisations, breadcrumbs), prices and offers, meta and Open Graph tags, canonical URL, language versions, licence, RSS/Atom/JSON feeds, and HTML data tables as c",
+      "labels": [
+        "untrusted-content",
+        "private-data"
+      ]
+    },
+    {
+      "name": "delta",
+      "descriptionHash": "1c596f2bb0bd79d59ed201909ef42e487a381fad81a2dbc16d30dda50127f034",
+      "description": "For pages an agent checks again and again. The first call returns the page as sections plus a fingerprint; send that fingerprint back as \"previous\" next time and get only the sections that changed (and the headings of removed ones), or changed:false. Uses HTTP ETag/Last-Modified when the site suppor",
+      "labels": [
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "site",
+      "descriptionHash": "346cddef9eb44e8914b5431c60572d3a48a858c4972ee8ef5fac8216a4f21052",
+      "description": "Free. Everything an agent should know about a website before using it: its llms.txt (and llms-full.txt), sitemap (page count and first URLs), feeds, language versions, Content Signals, and which known AI crawlers and agents its robots.txt allows. Rate-limited per IP."
+    },
+    {
+      "name": "screenshot",
+      "descriptionHash": "31963c65df7f19a76174b403b0d50ed53025598f2f2ebc90dcdcff0b6b372047",
+      "description": "PNG screenshot of a page at 1280×800 (or the full page). engine \"auto\" uses Kitesurf unless the page needs video or WebGL, then Chromium. Charged only on success. Price: US$0.008 per successful call (API key credits or x402).",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "credits",
+      "descriptionHash": "df059c802492abf599180643fe64c0ef46112640076e157cd9846da0fbd0de1c",
+      "description": "Free. Credits remaining on the API key sent in the Authorization header (1 credit = US$0.001).",
+      "labels": [
+        "private-data"
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOOL-POISON-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description issues instructions to the model",
+      "detail": "Description of \"site\" contains imperative instructions directed at the AI assistant rather than describing the tool. This is the core tool-poisoning technique.",
+      "evidence": {
+        "source": "tool:site",
+        "snippet": "Free. Everything an agent should know about a website before using it: its llms.txt (and llms-full.txt), sitemap (page count and first URLs), feeds, language ve…"
+      },
+      "confidence": 0.7,
+      "remediation": "Treat the server as untrusted; the model may obey embedded instructions."
+    },
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"credits\" references sensitive artifacts (authorization). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:credits",
+        "snippet": "Free. Credits remaining on the API key sent in the Authorization header (1 credit = US$0.001)."
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: preflight, read, extract · Private data: read, actions, extract, delta, screenshot, credits · Public sink: delta.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: preflight, read, extract · Private data: read, actions, extract, delta, screenshot, credits · Public sink: delta"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 50,
+  "scoreBreakdown": {
+    "tool-poisoning": 30,
+    "toxic-flow": 20
+  },
+  "errors": []
+}

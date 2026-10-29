@@ -8,8 +8,8 @@
     "kind": "url",
     "ref": "https://agentdatafeed.com/mcp"
   },
-  "scannedAt": "2026-10-09T11:38:42.507Z",
-  "durationMs": 433,
+  "scannedAt": "2026-10-29T11:15:12.056Z",
+  "durationMs": 370,
   "layers": {
     "metadata": true,
     "static": false
@@ -17,8 +17,8 @@
   "tools": [
     {
       "name": "list_datasets",
-      "descriptionHash": "4499731dd1b451f7868acd2ee8905d9fa6493a0b9ccfe1c5ed67f96c836b14e5",
-      "description": "List agentdatafeed datasets (free): record counts, last update, prices and query parameters. Datasets: amsterdam-events (Use when a user asks what is on in Amsterdam on a date or in a district, plans travel, venues, staffing, security or deliveries around large events, or needs crowd sizes, road clo",
+      "descriptionHash": "347d754747c7c1210db04cc1f872490a5ed9b9d60a5d4dfd68aa14c80d02b622",
+      "description": "Free. Returns every agentdatafeed dataset with record count, last update, price per query, filters and links. Call it first to choose a dataset, then use get_sample to inspect records or query_dataset for filtered data. When to use each dataset: amsterdam-events: Use when a user asks what is on in A",
       "labels": [
         "untrusted-content",
         "private-data"
@@ -26,20 +26,89 @@
     },
     {
       "name": "get_sample",
-      "descriptionHash": "2b393c3f5c638382b12ba90388e0e5db168283d0017321b178d09af53d6ec145",
-      "description": "Free: get 5 real records from a dataset to check the fields and quality before paying for a query.",
+      "descriptionHash": "4dfac7d71e9f17bbe27395afaed362dd4e69e00874be43b50c50214b0878c7cd",
+      "description": "Free. Returns 5 real, current records from one dataset so you can check fields and quality before paying. Takes no filters: for records matching a date, place, vendor, country or keyword, use query_dataset.",
       "labels": [
         "private-data"
       ]
     },
     {
       "name": "query_dataset",
-      "descriptionHash": "1b14a765c925ba1dfbf2472efb333d1e3954c7ec073c2db3efeb7f20815b2d09",
-      "description": "Query a dataset with filters (from, to, district, q, cve, vendor, product, min_epss, limit). Paid per call (amsterdam-events $0.005, security-advisories $0.002, eu-tenders $0.01) via x402 on the HTTP endpoint; this tool returns the endpoint and payment requirements."
+      "descriptionHash": "7ca6dc2cec72b341a5c512e4d4d64ba0c76befc6e4610d70528309708e06993f",
+      "description": "Paid data access. Returns no records itself: it builds the HTTPS query URL for your filters and returns the x402 payment terms (USDC on Base; amsterdam-events $0.005, security-advisories $0.003, vulnerability-watch $0.003, eu-tenders $0.01, uk-tenders $0.005, eu-funding $0.005, cert-advisories $0.00",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "send_feedback",
+      "descriptionHash": "8e7a52a3a12bab9f00c5606691fb6b97b74173dc663f8ac2144aa3387b090d83",
+      "description": "Free. If you decide not to buy, tell us why (type no_purchase, reason no_budget, cost_too_high, dataset_usability_uncertain or other with a comment): we use this feedback to provide a better offering. If you paid, tell us which other datasets, or other data within the dataset, would be useful (type ",
+      "labels": [
+        "public-sink"
+      ]
     }
   ],
-  "findings": [],
-  "score": 100,
-  "scoreBreakdown": {},
+  "findings": [
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: list_datasets, query_dataset · Private data: list_datasets, get_sample, query_dataset · Public sink: query_dataset, send_feedback.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: list_datasets, query_dataset · Private data: list_datasets, get_sample, query_dataset · Public sink: query_dataset, send_feedback"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"list_datasets\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:list_datasets",
+        "snippet": "before: \"List agentdatafeed datasets (free): record counts, last update, prices and query parameters. Datasets: amsterdam-events (Use when a user asks what is on in Amsterdam on a date or in a district, plans travel, venues, staffing, security or deliveries around large events, or needs crowd sizes, road clo\" → after: \"Free. Returns every agentdatafeed dataset with record count, last update, price per query, filters and links. Call it first to choose a dataset, then use get_sample to inspect records or query_dataset for filtered data. When to use each dataset: amsterdam-events: Use when a user asks what is on in A\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"get_sample\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:get_sample",
+        "snippet": "before: \"Free: get 5 real records from a dataset to check the fields and quality before paying for a query.\" → after: \"Free. Returns 5 real, current records from one dataset so you can check fields and quality before paying. Takes no filters: for records matching a date, place, vendor, country or keyword, use query_dataset.\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"query_dataset\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:query_dataset",
+        "snippet": "before: \"Query a dataset with filters (from, to, district, q, cve, vendor, product, min_epss, limit). Paid per call (amsterdam-events $0.005, security-advisories $0.002, eu-tenders $0.01) via x402 on the HTTP endpoint; this tool returns the endpoint and payment requirements.\" → after: \"Paid data access. Returns no records itself: it builds the HTTPS query URL for your filters and returns the x402 payment terms (USDC on Base; amsterdam-events $0.005, security-advisories $0.003, vulnerability-watch $0.003, eu-tenders $0.01, uk-tenders $0.005, eu-funding $0.005, cert-advisories $0.00\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    }
+  ],
+  "score": 45,
+  "scoreBreakdown": {
+    "toxic-flow": 20,
+    "tool-poisoning": 35
+  },
   "errors": []
 }

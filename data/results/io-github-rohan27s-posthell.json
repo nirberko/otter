@@ -8,8 +8,8 @@
     "kind": "url",
     "ref": "https://www.posthell.com/api/mcp"
   },
-  "scannedAt": "2026-10-13T12:20:03.526Z",
-  "durationMs": 1254,
+  "scannedAt": "2026-10-29T11:24:37.369Z",
+  "durationMs": 1052,
   "layers": {
     "metadata": true,
     "static": false
@@ -24,17 +24,50 @@
       ]
     },
     {
+      "name": "list_accounts",
+      "descriptionHash": "e7dda933cd33ecd4be02049c57b5d20897bf3371d77befcd30f08d0d0112981c",
+      "description": "The user's connected social accounts (id, network, handle), their account groups (a named set, e.g. one business's Instagram + YouTube), and what each network needs: caption limit, whether it needs a photo or video, and the settings it takes. Call this first, then pass a group name or account handle"
+    },
+    {
+      "name": "get_upload_url",
+      "descriptionHash": "d14ae4b662be4c37d23cf7366087197169a1b35b45bc8adb15d98119e23faa8d",
+      "description": "Use this to post a file from the user's computer (a video you rendered, a photo). Returns uploadUrl and mediaUrl: PUT the raw file bytes to uploadUrl with its Content-Type header (the curl line in the result does it), then pass mediaUrl in the media list of create_draft or publish_post. Files are st",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
       "name": "create_draft",
-      "descriptionHash": "13b6a239490a544e5918b061d4d57b513c5ec15214215290a5ce7f6440604161",
-      "description": "Save a post as a DRAFT in the user's posthell queue. It is never published by this tool - the user approves it in the dashboard. Optionally propose a publish time (pre-fills their scheduler) and limit which platforms it targets (default: every connected account).",
+      "descriptionHash": "4947b17197ace1796183ddfbab429692b527fc9932e455d80d8555631f547909",
+      "description": "Save a post as a DRAFT in the user's posthell queue, with any photos or videos and per-network settings (Instagram Reel cover, YouTube title/tags). Nothing is published by this tool: the user approves it in the dashboard. Optionally propose a publish time. Warnings in the result are what would stop ",
       "labels": [
         "public-sink"
       ]
     },
     {
       "name": "list_posts",
-      "descriptionHash": "ffea88cc3f32fd8046902acb08c1b8c599fe1ad01efe9f146e667e770aa9106c",
-      "description": "Read the user's recent posts and drafts with per-platform status. Published posts include engagement metrics (likes, comments, shares, engagementRate - impressions on plans with full analytics) once analytics have synced. Use it to avoid duplicating a topic AND to learn which topics performed before",
+      "descriptionHash": "f52b59cffc037ab92417f6f28ff7823c43fc02436837b2adce6ab51a3fbc627f",
+      "description": "Read the user's recent posts and drafts with per-network status, the live link once a post is up, and the reason when one failed. Published posts include engagement metrics (likes, comments, shares, engagementRate - impressions on plans with full analytics) once analytics have synced. Use it to avoi",
+      "labels": [
+        "untrusted-content",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "reschedule_post",
+      "descriptionHash": "17d5f4dcbc23fede8873c21269d3e599596ed499e0b9c92e91af6c2ee2646303",
+      "description": "Change when a post goes out. Works on a post in the calendar (scheduled) and on a draft (its suggested time). Get the id from list_posts. A scheduled post is taken out of the network's queue and queued again at the new time; every network it was going to moves together.",
+      "labels": [
+        "untrusted-content",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "edit_post",
+      "descriptionHash": "70a02c77802dbdf421e6e995cf57c918479740eec896ee243d94bbe0d8170542",
+      "description": "Change the caption (body), a network's own caption (overrides), and/or the suggested time of a DRAFT. Scheduled posts can only be moved with reschedule_post: changing the text of a post that is already scheduled needs a key the user has allowed to publish. Get the id from list_posts.",
       "labels": [
         "untrusted-content",
         "public-sink"
@@ -53,21 +86,48 @@
   "findings": [
     {
       "id": "MCP-TOXIC-FLOW-001",
-      "severity": "medium",
+      "severity": "high",
       "category": "toxic-flow",
-      "title": "Toxic flow: untrusted input can reach an external sink",
-      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: list_posts, get_growth · Public sink: shape_post, create_draft, list_posts, get_growth.",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: get_upload_url, list_posts, reschedule_post, edit_post, get_growth · Private data: get_upload_url · Public sink: shape_post, get_upload_url, create_draft, list_posts, reschedule_post, edit_post, get_growth.",
       "evidence": {
         "source": "server:mcp",
-        "snippet": "Untrusted content: list_posts, get_growth · Public sink: shape_post, create_draft, list_posts, get_growth"
+        "snippet": "Untrusted content: get_upload_url, list_posts, reschedule_post, edit_post, get_growth · Private data: get_upload_url · Public sink: shape_post, get_upload_url, create_draft, list_posts, reschedule_post, edit_post, get_growth"
       },
-      "confidence": 0.45,
+      "confidence": 0.6,
       "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"create_draft\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:create_draft",
+        "snippet": "before: \"Save a post as a DRAFT in the user's posthell queue. It is never published by this tool - the user approves it in the dashboard. Optionally propose a publish time (pre-fills their scheduler) and limit which platforms it targets (default: every connected account).\" → after: \"Save a post as a DRAFT in the user's posthell queue, with any photos or videos and per-network settings (Instagram Reel cover, YouTube title/tags). Nothing is published by this tool: the user approves it in the dashboard. Optionally propose a publish time. Warnings in the result are what would stop \""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"list_posts\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:list_posts",
+        "snippet": "before: \"Read the user's recent posts and drafts with per-platform status. Published posts include engagement metrics (likes, comments, shares, engagementRate - impressions on plans with full analytics) once analytics have synced. Use it to avoid duplicating a topic AND to learn which topics performed before\" → after: \"Read the user's recent posts and drafts with per-network status, the live link once a post is up, and the reason when one failed. Published posts include engagement metrics (likes, comments, shares, engagementRate - impressions on plans with full analytics) once analytics have synced. Use it to avoi\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
     }
   ],
-  "score": 92,
+  "score": 50,
   "scoreBreakdown": {
-    "toxic-flow": 8
+    "toxic-flow": 20,
+    "tool-poisoning": 30
   },
   "errors": []
 }

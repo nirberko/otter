@@ -8,8 +8,8 @@
     "kind": "url",
     "ref": "https://scribo.causaprima.ai/mcp"
   },
-  "scannedAt": "2026-10-13T12:15:53.495Z",
-  "durationMs": 1180,
+  "scannedAt": "2026-10-29T11:19:52.601Z",
+  "durationMs": 1718,
   "layers": {
     "metadata": true,
     "static": false
@@ -17,7 +17,7 @@
   "tools": [
     {
       "name": "create_invoice",
-      "descriptionHash": "ef04e4a757c82caf589ad5a0a582ca9f472f71da692b291c6f7ce82d358c8b88",
+      "descriptionHash": "fee1703eee33f79bb5fbb1944ebe350d8bfe6af26a27298844fb0dc12559ed41",
       "description": "Generate an invoice. **Phase 1 supports Germany (DE) and the United States (US) only** — DE emits an EN 16931-compliant XRechnung (UBL by default, CII via format_override) or ZUGFeRD COMFORT, US emits a plain PDF. Any other sender jurisdiction is rejected with `unsupported_jurisdiction`. The format ",
       "labels": [
         "untrusted-content",
@@ -28,10 +28,11 @@
     },
     {
       "name": "get_invoice",
-      "descriptionHash": "964d43bb907ba0e992485c6f203bd040421a0318bae4c065bbca26abf6c6e618",
-      "description": "Fetch a previously generated invoice by its `invoice_id` and return its current metadata plus a freshly signed download URL. Read-only and tenant-scoped — cross-tenant lookups return 404. Use this after `create_invoice` to re-download bytes from a different device, or to obtain a new signed URL afte",
+      "descriptionHash": "f712e37015d149c98356eb677ea5c3c0b9f13705e97cfcdc3ce5af3e8d04b8dc",
+      "description": "Fetch a previously generated invoice by its `invoice_id` and return its current metadata plus its download URL. Read-only. For Scribo invoices the `invoice_id` is the access credential: anyone who holds it can read the metadata and download the file, so treat it as a secret. The download URL is not ",
       "labels": [
-        "untrusted-content"
+        "untrusted-content",
+        "private-data"
       ]
     },
     {
@@ -44,7 +45,7 @@
     },
     {
       "name": "verify_email_code",
-      "descriptionHash": "6cfd4b0231c3119be3159b4cd835c22caf9efe50081f5dc685e213484dfff8f4",
+      "descriptionHash": "2c717722189f1cefd9752d83f4c457aba8f27f0c10bd0146d7ba5a0a00c88309",
       "description": "Use this after `create_invoice` returns `verification_required`. Arguments: `{ challenge_id, code }`. On success returns a `verification_token`. Retry `create_invoice` with the same arguments plus that `verification_token` passed in its `verification_token` field. The token is reusable for ~30 min, ",
       "labels": [
         "private-data",
@@ -66,14 +67,26 @@
       "confidence": 0.3
     },
     {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"get_invoice\" references sensitive artifacts (secret). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:get_invoice",
+        "snippet": "Fetch a previously generated invoice by its `invoice_id` and return its current metadata plus its download URL. Read-only. For Scribo invoices the `invoice_id` …"
+      },
+      "confidence": 0.65
+    },
+    {
       "id": "MCP-TOXIC-FLOW-001",
       "severity": "high",
       "category": "toxic-flow",
       "title": "Lethal trifecta: untrusted input + private data + external sink",
-      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: create_invoice, get_invoice · Private data: create_invoice, verify_email_code · Public sink: create_invoice, verify_email_code · Destructive: create_invoice, list_supported_jurisdictions.",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: create_invoice, get_invoice · Private data: create_invoice, get_invoice, verify_email_code · Public sink: create_invoice, verify_email_code · Destructive: create_invoice, list_supported_jurisdictions.",
       "evidence": {
         "source": "server:mcp",
-        "snippet": "Untrusted content: create_invoice, get_invoice · Private data: create_invoice, verify_email_code · Public sink: create_invoice, verify_email_code · Destructive: create_invoice, list_supported_jurisdictions"
+        "snippet": "Untrusted content: create_invoice, get_invoice · Private data: create_invoice, get_invoice, verify_email_code · Public sink: create_invoice, verify_email_code · Destructive: create_invoice, list_supported_jurisdictions"
       },
       "confidence": 0.6,
       "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
@@ -90,11 +103,37 @@
       },
       "confidence": 0.8,
       "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"get_invoice\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:get_invoice",
+        "snippet": "before: \"Fetch a previously generated invoice by its `invoice_id` and return its current metadata plus a freshly signed download URL. Read-only and tenant-scoped — cross-tenant lookups return 404. Use this after `create_invoice` to re-download bytes from a different device, or to obtain a new signed URL afte\" → after: \"Fetch a previously generated invoice by its `invoice_id` and return its current metadata plus its download URL. Read-only. For Scribo invoices the `invoice_id` is the access credential: anyone who holds it can read the metadata and download the file, so treat it as a secret. The download URL is not \""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"verify_email_code\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:verify_email_code",
+        "snippet": "before: \"Use this after `create_invoice` returns `verification_required`. Arguments: `{ challenge_id, code }`. On success returns a `verification_token`. Retry `create_invoice` with the same arguments plus that `verification_token` passed in its `verification_token` field. The token is reusable for ~30 min, \" → after: \"Use this after `create_invoice` returns `verification_required`. Arguments: `{ challenge_id, code }`. On success returns a `verification_token`. Retry `create_invoice` with the same arguments plus that `verification_token` passed in its `verification_token` field. The token is reusable for ~30 min, \""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
     }
   ],
-  "score": 59,
+  "score": 42,
   "scoreBreakdown": {
-    "tool-poisoning": 22,
+    "tool-poisoning": 38,
     "toxic-flow": 20
   },
   "errors": []

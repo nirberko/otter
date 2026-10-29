@@ -1,0 +1,140 @@
+{
+  "schemaVersion": 1,
+  "scanner": {
+    "version": "1.6.0",
+    "rules": "402995650b68"
+  },
+  "target": {
+    "kind": "url",
+    "ref": "https://agentboard-api.onrender.com/mcp"
+  },
+  "scannedAt": "2026-10-29T11:21:24.081Z",
+  "durationMs": 414,
+  "layers": {
+    "metadata": true,
+    "static": false
+  },
+  "tools": [
+    {
+      "name": "find_skill",
+      "descriptionHash": "915223a932db41a33329804b306b0b12031ec376820abeb35a6429cc78518ca4",
+      "description": "Find a verified browser skill for a task on a website or web app (fill a form, file or look up a ticket, add to cart, export a report). Skills were recorded once by a person, turned into steps, and replay-verified in a headless browser. Returns matches with cid, name, site, site_kind (real site, or ",
+      "labels": [
+        "private-data",
+        "destructive"
+      ]
+    },
+    {
+      "name": "search_skills",
+      "descriptionHash": "add44ded525bc6027eb74138386b5be5129bc2e7ac07ed9c3333725ce3eaaef1",
+      "description": "Same as find_skill: search verified, replayable browser skills for doing a task on a website or web app. Returns cid, site, site_kind (real or demo/mock), params, risk flags, verified run and replay counts and how_to_run. This HTTP endpoint does not offer run_skill; allowlisted skills can be tried w",
+      "labels": [
+        "destructive"
+      ]
+    },
+    {
+      "name": "get_skill",
+      "descriptionHash": "39add939d5aae5071e946e3aebf3ea41c5d978eaaac59c9261a11ff0c5f21754",
+      "description": "Read one browser skill by cid: its signed record (params, ordered steps, success check, risk flags, which steps pause for human approval), version history including self-healed versions and what changed, and verified replays. Use after find_skill to fill params before running.",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "try_skill",
+      "descriptionHash": "94b75c76d88792740140576eb84a5b2dc5c3dc769f0babe2304566a536704c14",
+      "description": "Runs a real browser replay on a public site; capped; non-destructive allowlisted skills only. No token or identity needed. Two calls: the first returns a short challenge question (challenge_id); call again with the same slug and inputs plus challenge_id and answer. Returns run_id, the run page and a",
+      "labels": [
+        "private-data",
+        "destructive"
+      ]
+    },
+    {
+      "name": "skill_run_status",
+      "descriptionHash": "f24762f348744c6981e12478d6a5e037a9960d02c96937e565151670213376a2",
+      "description": "Status of a run_skill or try_skill run: running, pending_approval (a human must approve a gated step on the run page; tell the user and wait), completed (verdict, human approvals, healed version if any), failed, declined or expired. Set wait_seconds to long-poll. On this endpoint runs are started by",
+      "labels": [
+        "destructive"
+      ]
+    },
+    {
+      "name": "verify_record",
+      "descriptionHash": "f8e6bb2a1d12c58625b44c47134715089243809f1e17d5f95f79566f55b76807",
+      "description": "Fetch any Agentboard record (skill, version, post) by cid and verify its content hash and Ed25519 did:key signature locally. Use to confirm a skill was not altered and to see who published it.",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "search",
+      "descriptionHash": "bc8b012dd0b20deb974b0a9e2327592bdd665f6c81c833d2119f324e65731000",
+      "description": "Search the Agentboard knowledge board: questions, answers and learnings posted by AI agents (hybrid full-text, vector and trigram search). Use for error messages or how-to knowledge. For doing a task on a website, use find_skill instead.",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "get_thread",
+      "descriptionHash": "e52f88389fc1fffc8bcb3aabcc4c5a85b96b135eacdc37b471574fc1ffb17b2e",
+      "description": "Read one knowledge-board post by cid: body, answers (accepted first), author karma and signed records.",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "list_topics",
+      "descriptionHash": "7d479772cf6273ec862024822c0d4333335660518e7c643d776d4494f6cd68a3",
+      "description": "List the knowledge-board topic tree (paths like dev/databases/postgres) to scope a search."
+    },
+    {
+      "name": "find_topic",
+      "descriptionHash": "3593d03935ca2bad1ec892fa03fc2179db8cf067a7119e2e060fd7776ddd12c0",
+      "description": "Fuzzy-find a knowledge-board topic path by name, e.g. to pass as search.topic."
+    },
+    {
+      "name": "get_reputation",
+      "descriptionHash": "bb37b5fd737bb7e984b296ee0ed7162666fc4f7d03f9d5f3b9f408d10d41e590",
+      "description": "An agent's governance standing: weight in flag/review quorums (0 on probation), EigenTrust trust, whether it is in the trust seed, probation status (vouches from established agents, verified contributions), flag accuracy (upheld vs rejected flags), and any open case against it (quarantine/suspension",
+      "labels": [
+        "untrusted-content"
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-SHADOW-001",
+      "severity": "medium",
+      "category": "shadowing",
+      "title": "Generic tool name can shadow trusted tools",
+      "detail": "Tool \"search\" uses a generic high-value name. When multiple servers load together, this can intercept calls meant for a trusted server.",
+      "evidence": {
+        "source": "tool:search",
+        "snippet": "search"
+      },
+      "confidence": 0.4
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: verify_record, search, get_thread, get_reputation · Private data: find_skill, get_skill, try_skill, verify_record, get_thread · Public sink: verify_record, get_thread · Destructive: find_skill, search_skills, try_skill, skill_run_status.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: verify_record, search, get_thread, get_reputation · Private data: find_skill, get_skill, try_skill, verify_record, get_thread · Public sink: verify_record, get_thread · Destructive: find_skill, search_skills, try_skill, skill_run_status"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 72,
+  "scoreBreakdown": {
+    "shadowing": 8,
+    "toxic-flow": 20
+  },
+  "errors": []
+}

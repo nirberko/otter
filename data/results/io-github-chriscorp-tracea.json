@@ -8,8 +8,8 @@
     "kind": "url",
     "ref": "https://mcp.tracea.online/mcp"
   },
-  "scannedAt": "2026-10-13T12:15:57.439Z",
-  "durationMs": 2015,
+  "scannedAt": "2026-10-29T11:19:56.827Z",
+  "durationMs": 2637,
   "layers": {
     "metadata": true,
     "static": false
@@ -108,6 +108,70 @@
       "name": "payment_status",
       "descriptionHash": "ea0d9fbcd5103d3b206137888804221c10abfd027a607eb14ea1826d7743741a",
       "description": "Get the status of a x402 payment session (pending | paid | fulfilled | expired), with destination, amount and tx hash. Useful to poll while waiting for the paying agent's on-chain transaction."
+    },
+    {
+      "name": "tracea_list_demarches",
+      "descriptionHash": "39f8f111d828d1e888596e01a96f652c31cf69a753e2d8fa04d86df696fdd5d5",
+      "description": "List the administrative procedures Tracea supports. ALWAYS call this first: it returns the exact procedure IDs so the AI never has to guess which form (CERFA) applies. `schemaPret: true` means guided mode (anti-rejection check available) is ready for that procedure."
+    },
+    {
+      "name": "tracea_demarche_schema",
+      "descriptionHash": "daf3d4b41dab29560c5e49df5c5dfef2420b4632cb058bc73a3e89c3593159c9",
+      "description": "Return exactly which fields a given administrative procedure requires (name, type, required, format/pattern, bounds, example). Call this after tracea_list_demarches so you ask the user ONLY for the real fields, in the right format. Prevents hallucinated fields.",
+      "labels": [
+        "destructive"
+      ]
+    },
+    {
+      "name": "tracea_check_demarche",
+      "descriptionHash": "a3350b674a89a833d03b0edcef0aec9b7a5ebe7779f6aaf33f2ec7d2383ecfba",
+      "description": "THE anti-rejection check. Submit the data you collected; it validates every field against the official procedure schema AND cross-checks critical values against official French registries (e.g. SIRET against INSEE Sirene). Returns { ok: true, recordHash } or { ok: false, errors: [{ field, message }]",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "tracea_anchor_demarche",
+      "descriptionHash": "ea103dbd7511863fa42df0182f9436417f29272cb162673e489578c167eabfe8",
+      "description": "Seal a validated file as an immutable on-chain proof (Tracea Online, Base). Call this ONLY after tracea_check_demarche returned ok:true — it re-checks everything before anchoring. Requires the caller to be an authorized harness. Returns the proof fingerprint and the record hash.",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "tracea_demarche_preuve",
+      "descriptionHash": "4e70678e712fefc8150e4b05128e0d5a14808a8fa5aae7b28538186b583af37b",
+      "description": "Verify an existing proof: was this file really anchored, when, by which operator, and under which rule version? Use the recordHash returned by tracea_check_demarche / tracea_anchor_demarche. Read-only and free.",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "tracea_demarche_document",
+      "descriptionHash": "aa08ef7246e1e8968d7239eb96a5ba9ccf977096202cf10dc727107c615dd9de",
+      "description": "Prepare le document officiel d'une demarche (CERFA ou demarche libre) et le rend signable. Appelle le generateur du backend Tracea, enregistre le dossier pour l'agent du visiteur et renvoie la reference + le chemin du PDF. A appeler APRES tracea_check_demarche (ok:true) et AVANT tracea_signature. Si",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "tracea_signature",
+      "descriptionHash": "86034bc910c4b990fee2d499e38c920acae027f501bce831ad772a1e5871ee61",
+      "description": "DEPOSE REELLEMENT le document prepare dans Tracea Sign : cree les signataires, place la zone de signature, produit un lien de signature par personne et envoie les invitations. Exige pdfPath et signataires. Sans eux, aucun lien n'est renvoye.",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "get_verification_card",
+      "descriptionHash": "640a59c17894c66645e647723fbe9e680b50d973a7f5b1d9719a2f031e5fb42d",
+      "description": "Get the public URL of an agent's Tracea KYA verification card — the shareable page that presents the mandant entity, the permission scope, the financial cap and a proof hash, with a bilingual FR/EN transparency statement. Use it to hand a verifier a link. Returns the ready-to-share link plus the mac",
+      "labels": [
+        "untrusted-content",
+        "public-sink"
+      ]
     }
   ],
   "findings": [
@@ -146,11 +210,37 @@
         "snippet": "Get this agent's full Tracea identity (activity apiKey +, for v2 agents, its EOA private key and ERC-4337 smart account address) using a one-time activation cod…"
       },
       "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOOL-POISON-007",
+      "severity": "low",
+      "category": "tool-poisoning",
+      "title": "Description uses pressure/override language",
+      "detail": "Description of \"tracea_list_demarches\" stacks urgency/override words (always, never). Legitimate tool descriptions rarely pressure the model to act or ignore prior guidance.",
+      "evidence": {
+        "source": "tool:tracea_list_demarches",
+        "snippet": "List the administrative procedures Tracea supports. ALWAYS call this first: it returns the exact procedure IDs so the AI never has to guess which form (CERFA) a…"
+      },
+      "confidence": 0.3
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: tracea_check_demarche, get_verification_card · Private data: get_agent_info, log_action, get_registration_file, report_activity, get_my_identity, tracea_check_demarche, tracea_anchor_demarche, tracea_demarche_preuve, tracea_demarche_document, tracea_signature · Public sink: report_activity, tracea_check_demarche, get_verification_card · Destructive: check_payment_allowed, tracea_demarche_schema.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: tracea_check_demarche, get_verification_card · Private data: get_agent_info, log_action, get_registration_file, report_activity, get_my_identity, tracea_check_demarche, tracea_anchor_demarche, tracea_demarche_preuve, tracea_demarche_document, tracea_signature · Public sink: report_activity, tracea_check_demarche, get_verification_card · Destructive: check_payment_allowed, tracea_demarche_schema"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
     }
   ],
-  "score": 65,
+  "score": 45,
   "scoreBreakdown": {
-    "tool-poisoning": 35
+    "tool-poisoning": 35,
+    "toxic-flow": 20
   },
   "errors": []
 }

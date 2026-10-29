@@ -8,8 +8,8 @@
     "kind": "url",
     "ref": "https://finisma.de/api/mcp"
   },
-  "scannedAt": "2026-10-13T12:14:27.152Z",
-  "durationMs": 1977,
+  "scannedAt": "2026-10-29T11:18:06.474Z",
+  "durationMs": 2078,
   "layers": {
     "metadata": true,
     "static": false
@@ -22,8 +22,8 @@
     },
     {
       "name": "create_zugferd",
-      "descriptionHash": "23cb3ce842a11d7135bd41be10e1df34c9aa00f0ddd62b9eb145157e95b34d74",
-      "description": "Erzeugt eine ZUGFeRD-PDF aus visueller PDF und strukturierten EN-16931-Daten (kein LLM). Verletzen die Daten EN-16931-Geschäftsregeln, liefert der Remote-Kanal (Chat-Connector) strukturierte Issues statt einer Datei zurück — invoice korrigieren (siehe extract_invoice) und mit denselben Quelldaten (u",
+      "descriptionHash": "2c6174eb8f923f3383a16119d50cbfe63b4c48d76b224cdd42b7879393914260",
+      "description": "Erzeugt eine ZUGFeRD-PDF aus strukturierten EN-16931-Daten (kein LLM). Mit visueller PDF (pdf_base64/upload_id) wird das XML in diese PDF eingebettet; ohne PDF wird die Rechnung aus den Daten gesetzt, optional mit Logo (logo_base64: PNG, JPEG oder SVG, max. 500 KB) und Sprache (lang: de oder en). Ve",
       "labels": [
         "destructive"
       ]
@@ -57,6 +57,24 @@
       "labels": [
         "untrusted-content"
       ]
+    },
+    {
+      "name": "validate_payment_file",
+      "descriptionHash": "0e6c88ecf7fe8985dcf81c92b208648da00cfe1f679161475a261cf733def942",
+      "description": "Prüft eine Zahlungsdatei pain.001 (SEPA-Überweisung oder Auslandszahlung AXZ, Versionen .09 und .03). Erkennt das Profil selbst, fasst den Zahllauf zusammen (Anzahl, Summe je Währung), liefert die Befunde der fachlichen Prüfregeln (Code, Schwere, Meldung, Pfad), das Ergebnis der Schemaprüfung (mit Z",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "validate_bank_statement",
+      "descriptionHash": "8f51f6540f3f6ef58178a7851dd0320acdc9f5c421020cea711bd83013d7deee",
+      "description": "Prüft Kontoauszüge, Kontoberichte und Avise (camt.052, camt.053, camt.054 in den Versionen .02 und .08) sowie Gebührenabrechnungen (camt.086, .01 bis .05); auch mehrere Dateien als ZIP. Liefert je Datei Nachricht, Version, die Befunde der Prüfregeln (Salden, Summen, IBAN-Prüfziffern, Reihenfolge), d"
+    },
+    {
+      "name": "parse_bank_statement",
+      "descriptionHash": "ced3b39762ef7ce1c6d435ed3c2ecc20fc60597fd31c176661b7dba296146f84",
+      "description": "Liest Kontoauszüge, Kontoberichte und Avise (camt.052, camt.053, camt.054, Versionen .02 und .08) und Gebührenabrechnungen (camt.086, .01 bis .05) in strukturiertes JSON; auch mehrere Dateien als ZIP. 052/053/054: Konten, Salden und Buchungen (Buchungs- und Valutadatum, Betrag, Währung, Soll/Haben, "
     }
   ],
   "findings": [
@@ -65,18 +83,32 @@
       "severity": "high",
       "category": "toxic-flow",
       "title": "Lethal trifecta: untrusted input + private data + external sink",
-      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: check_vat_id, check_peppol_participant · Private data: request_upload_link · Public sink: request_upload_link · Destructive: create_zugferd.",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: check_vat_id, check_peppol_participant · Private data: request_upload_link, validate_payment_file · Public sink: request_upload_link · Destructive: create_zugferd.",
       "evidence": {
         "source": "server:mcp",
-        "snippet": "Untrusted content: check_vat_id, check_peppol_participant · Private data: request_upload_link · Public sink: request_upload_link · Destructive: create_zugferd"
+        "snippet": "Untrusted content: check_vat_id, check_peppol_participant · Private data: request_upload_link, validate_payment_file · Public sink: request_upload_link · Destructive: create_zugferd"
       },
       "confidence": 0.6,
       "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"create_zugferd\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:create_zugferd",
+        "snippet": "before: \"Erzeugt eine ZUGFeRD-PDF aus visueller PDF und strukturierten EN-16931-Daten (kein LLM). Verletzen die Daten EN-16931-Geschäftsregeln, liefert der Remote-Kanal (Chat-Connector) strukturierte Issues statt einer Datei zurück — invoice korrigieren (siehe extract_invoice) und mit denselben Quelldaten (u\" → after: \"Erzeugt eine ZUGFeRD-PDF aus strukturierten EN-16931-Daten (kein LLM). Mit visueller PDF (pdf_base64/upload_id) wird das XML in diese PDF eingebettet; ohne PDF wird die Rechnung aus den Daten gesetzt, optional mit Logo (logo_base64: PNG, JPEG oder SVG, max. 500 KB) und Sprache (lang: de oder en). Ve\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
     }
   ],
-  "score": 80,
+  "score": 60,
   "scoreBreakdown": {
-    "toxic-flow": 20
+    "toxic-flow": 20,
+    "tool-poisoning": 20
   },
   "errors": []
 }
