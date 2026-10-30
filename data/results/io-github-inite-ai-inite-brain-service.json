@@ -6,21 +6,225 @@
   },
   "target": {
     "kind": "url",
-    "ref": "https://brain.inite.ai/mcp/{companyId}"
+    "ref": "https://brain.inite.ai/mcp"
   },
-  "scannedAt": "2026-10-14T09:56:59.236Z",
-  "durationMs": 227,
+  "scannedAt": "2026-10-30T11:02:12.335Z",
+  "durationMs": 1511,
   "layers": {
-    "metadata": false,
+    "metadata": true,
     "static": false
   },
-  "findings": [],
-  "score": 100,
-  "scoreBreakdown": {},
-  "errors": [
+  "tools": [
     {
-      "scanner": "metadata",
-      "message": "Streamable HTTP error: Error POSTing to endpoint: {\"message\":\"Missing or malformed Authorization header\",\"error\":\"Unauthorized\",\"statusCode\":401,\"requestId\":\"ba2c9e0e-ebdb-49b2-b336-c668320e5f78\"}"
+      "name": "about_brain",
+      "descriptionHash": "31d331b99fa327140dd19333c3b2022832f442ce580020210e675676f6d0f83b",
+      "description": "What this server is and what it can do, before you connect. Reads nothing and stores nothing."
+    },
+    {
+      "name": "how_to_connect",
+      "descriptionHash": "cf011916575ec8f446d7bd8de37c5d09c21419d0299ad24337918b732b5311d7",
+      "description": "The two ways to authenticate, and what each is for. Reads nothing and stores nothing."
+    },
+    {
+      "name": "search_knowledge",
+      "descriptionHash": "c90077fa5a06b84a7dace78510b74f2c96e300e45c998fad69eb5163dcf1fe29",
+      "description": "Semantic search over the company knowledge graph. Returns entities with their top facts and external references back to the originating verticals. Apply asOf for historical \"what was true on X\" queries (valid time: a fact brain learned after X still shows). Embedding model on this tenant: set per wo"
+    },
+    {
+      "name": "search_multi_hop",
+      "descriptionHash": "863b0188b6c981c6c19ce3c93e3c0c8510a64adae266f96f02732c6e43348fb4",
+      "description": "Planner-LLM decomposes the query into ≤ maxHops anchored sub-queries; later hops are anchored to the running entity set so the engine never spends compute on candidates already disqualified. Built for questions that combine evidence across turns / sessions, or that require reasoning over multiple en"
+    },
+    {
+      "name": "graph_retrieve",
+      "descriptionHash": "d030680ca3ef26247047bc5fb3dbf393589a12287796f7ae57f790381c28c539",
+      "description": "Resolves the named entities by canonical name, walks their 1-hop neighbourhood over knowledge_edge, and returns facts across seeds ∪ neighbours, optionally filtered by predicate hints. Works from entities named up front and returns what the graph holds around them (\"who runs engineering at Acme\" — t"
+    },
+    {
+      "name": "synthesize",
+      "descriptionHash": "ca4d6f1ac3f815cf049e898eff78f2b3ad91025ee2168092d4c805eba905f1a0",
+      "description": "Runs hybrid search then feeds the retrieved facts to a generator LLM that produces a citation-bearing answer (each claim ends with [factId]); a verifier LLM then judges whether every claim is supported. Three guardrail modes: strict (default) returns null on partial / unsupported / verifier outage (",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "memory_diff",
+      "descriptionHash": "5447c0ddd1b178cd34e36a704e3464bba38a3cd218fe2160b98e0dca7822a9d4",
+      "description": "Returns everything brain learned, unlearned, or replaced between two ISO 8601 cursors [from, to). createdFacts = new active facts; retractedFacts = facts marked retracted in-window with no successor; changedFacts = facts that were superseded by another (carries before+after); newEntities = entities "
+    },
+    {
+      "name": "get_entity_profile",
+      "descriptionHash": "376999eba7142a998e3e6729df0fffbd03f8b07b676576cff68c35ea915ab87d",
+      "description": "Full profile of one entity: canonical name, type, externalRefs (cross-vertical ids), and active facts. externalRefs point back to the originating vertical, where fresh state can be rehydrated via @inite/api-kit."
+    },
+    {
+      "name": "get_entity_timeline",
+      "descriptionHash": "85b60bd4c6434271565ed83c6170434c551da6e8c450dd95a5fa3847a39ab926",
+      "description": "Chronological audit of all facts brain has learned about this entity, including retracted ones. Useful for \"what did we know when\" investigations."
+    },
+    {
+      "name": "summarize_entity",
+      "descriptionHash": "fb094061f6267b26a61075087b69423965f6e3120a8d29e36a5aa6bdcadcd26d",
+      "description": "Returns a short one-line briefing about the entity — name, type, the most-confident active facts, external refs — suitable for dropping into an LLM context window. Caches in-process (per companyId / entityId / asOf / styleHint) so a hot entity touched across many turns doesn't reload the profile. st"
+    },
+    {
+      "name": "get_competing_facts",
+      "descriptionHash": "5922993b85b0a684e77c4f1d1ac72faaf0b2c381647de2174cb2f9cc63f77261",
+      "description": "Returns facts in COMPETING status — those the conflict resolver couldn't auto-supersede because two same-predicate bitemporal facts overlap in valid-time and are too cosine-close within margin. Grouped by (entityId, predicate); 2-fact groups are pairs the resolver left for adjudication, 3+-fact grou",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "detect_contradiction",
+      "descriptionHash": "d34b75e5d545318d44906ec868b311d9c7f900dd3ea85b2905e5649896add609",
+      "description": "Dry-run preflight against fn::resolve_fact. Answers \"if I were to record this fact right now, what would the resolver decide?\" without writing to the database. wouldOutcome ∈ {INSERTED, SUPERSEDED, COMPETING, REJECTED}; reasoning explains which rule fired (semantics class, score gap vs margin, cosin",
+      "labels": [
+        "private-data",
+        "destructive"
+      ]
+    },
+    {
+      "name": "get_fact",
+      "descriptionHash": "33a5ca7fcf821f2496147a7355a1792fc09eb06cdde9b9686111a7b8dcfd0001",
+      "description": "Read a single fact as stored — predicate (aspect), object (statement), confidence, validity window, source attribution (vertical / recorder / conversationId), and lifecycle state. Retracted facts still resolve (retracted: true) — \"why did I stop remembering this\" is part of the trust story; only vis",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "get_fact_provenance",
+      "descriptionHash": "caafe207d413ab6d23235d1f7ab06fa7c624ae5e201d070f6b5eeb0d9effa274",
+      "description": "Return the grounding provenance behind one fact: the verbatim conversation turns it was derived from (episodes, chronological, with char-span quotes when the deriver stamped them). When the server runs with the recursive-closure flag the response additionally carries derivedFacts + closure (the tran"
+    },
+    {
+      "name": "find_related_entities",
+      "descriptionHash": "84dd919a139902faa0df45f68f4d77f4f7c786e8dd545e85e60bc38d3e1812fa",
+      "description": "Get entities connected to the given one via the knowledge graph."
+    },
+    {
+      "name": "match_procedure",
+      "descriptionHash": "fd6749d77c90d0eab7c1194c5450edef313be6a939084693d46f2b0d0e581372",
+      "description": "Cosine-matches procedural memory (curated 'how to' patterns the operator recorded) against a free-text context query. Returns top-K procedures sorted by similarity DESC then priority ASC. Surfaces the behaviour rules that apply to a context — e.g. \"user asks about pricing\" → \"mention they're on plat"
+    },
+    {
+      "name": "list_procedures",
+      "descriptionHash": "8cc20192f4e51434d65240aaa8fc6d6c3b542c377b005767276d37e28db3e500",
+      "description": "Paginated listing of procedural memory for admin/review UIs. Sorted by priority ASC, createdAt DESC. Set includeRetired=true to see soft-deleted rows.",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "search_communities",
+      "descriptionHash": "41c481ad33f7c90a1c18bb81cb5112d029a9f6fb9654d80136f84bcdb3b9ad9a",
+      "description": "Cosine-matches the query against topic-community summaries — the coarse retrieval scope. A community is a cluster of related entities (label propagation over the entity graph) with one rolled-up summary. Suited to broad questions (\"what do we know about X domain\"): it returns an overview of a domain",
+      "labels": [
+        "destructive"
+      ]
+    },
+    {
+      "name": "list_communities",
+      "descriptionHash": "9789cc2fc44fc8af36bd0bdeaecd3a1c8ff6111e4a610eed8b78e01df8fd9cf3",
+      "description": "Paginated listing of topic communities, largest first. Each row carries a label, a rolled-up summary, and the member count. Gives the knowledge map at a glance."
+    },
+    {
+      "name": "find_entity_communities",
+      "descriptionHash": "a30ca774bbc58320e288b84bc7056f28822d17afa9d40a8dc5ba61a27b872e3c",
+      "description": "Returns the topic communities a given entity is a member of. Places an entity in its broader context — which clusters / themes it participates in — and leads from one entity to the wider neighbourhood the cluster summarises."
+    },
+    {
+      "name": "why",
+      "descriptionHash": "033d63266df83af1c79a6b9dde9606f38217bc55bcfcab4a3cdbac97769472e3",
+      "description": "Return the design decisions, rationale, invariants and gotchas recorded against a code anchor — the non-derivable engineering \"why\" a parser cannot recover from source. The anchor is a SCIP-style symbol string (\"pkg/namespace/symbol\") or a file path (\"repo/path/file.ts\"). Pass asOf to recall what wa",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "recall_decisions",
+      "descriptionHash": "b0347046dd230a7fc898f24199530b9f72725e2c857d9af1a35a9e3eacd98e50",
+      "description": "Find recorded design decisions / rationale / invariants / gotchas by NL topic (\"why do we resolve facts through one gateway?\"), across ALL code anchors — a semantic search over code-memory, rather than one known anchor. Returns matches with their code anchor + kind, ranked by relevance."
+    },
+    {
+      "name": "get_source_reputation",
+      "descriptionHash": "03238e489d3da241a6893d0fec20f454b15c519c6cc41b1019893a0fe8fa02f5",
+      "description": "Return everything brain knows ABOUT a source (not its facts): the operator-declared identity (type, authLevel — authority in conflict resolution), the learned per-domain agreement rates (domain = predicate; null domain = the global blended rate; rates need >=8 samples before the resolver trusts them"
+    },
+    {
+      "name": "workspace_status",
+      "descriptionHash": "d53a523965a446803598df8ddc161259c6ce1ce56be6fa1d45edb7230e5860f0",
+      "description": "The tenant this credential writes to (companyId, its display name, whether it is a personal workspace), what is already in its memory (entities, active facts, facts recorded in the last 7 days), how many Domain Packs are installed, for a user-bound connection who the user is in this memory (`user.na",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "record_fact",
+      "descriptionHash": "707150669913ce13ca2110abc1d6718889a45d45c348c7402bf7b1cf7f7e3c99",
+      "description": "Insert a fact about an entity. Triggers brain conflict resolution (INSERTED / SUPERSEDED / COMPETING / REJECTED). Most facts come from event ingestion; this records one directly.",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "link_entities",
+      "descriptionHash": "6bbe6130bcede88a3073e6cc43702b0344b944771f37673e811c199be29e104b",
+      "description": "Insert an edge between two entities. `kind` is the edge type — `identity_of` merges the `from` entity into `to` (cross-vertical identity reconciliation), other typed edges (`paid_for`, `mentioned_in`, `worked_with`, …) are surfaced in related-entity reads and contribute to PPR / SubgraphRAG context."
+    },
+    {
+      "name": "retract_fact",
+      "descriptionHash": "e1c2df5133c9f3bd0ca45bcc8873524f1ec536e6a5c166cfdd1a6503183fddbf",
+      "description": "Mark a fact as no longer believed. Cascades to facts derived from this one. Does not delete; the row remains for audit.",
+      "labels": [
+        "destructive"
+      ]
+    },
+    {
+      "name": "record_procedure",
+      "descriptionHash": "98c178d81ed00fe4bcbbedabdfb4087cd5d37768a0dfeb58fd9d02dab2ed0afb",
+      "description": "Record a 'how to' pattern that is surfaced when a similar context appears later. trigger = the context phrase the rule should match against (e.g. \"user asks about pricing\"); action = the behaviour to apply (e.g. \"mention they're on platinum tier; they get 20% off\"). priority orders ties when multipl",
+      "labels": [
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "retire_procedure",
+      "descriptionHash": "8389d53911c70790ca026bc643816108d43bb21cdf8327fd336338b2d6e74c80",
+      "description": "Mark a procedural memory row as retired (sets retiredAt). A retired procedure is no longer matched or listed by default. For a rule that no longer applies — distinct from a hard delete because the row stays for audit.",
+      "labels": [
+        "destructive"
+      ]
+    },
+    {
+      "name": "record_decision",
+      "descriptionHash": "5c05fce97fc33f807db34e4175209b73148511532ebb81c31290555cec914642",
+      "description": "Capture the non-derivable engineering \"why\" about a code location: a design decision, its rationale, an invariant that must hold, or a gotcha. Anchored to a SCIP-style symbol or file path (NOT line numbers — survives edits). Stored as a bitemporal typed fact: re-recording a `decided` / `invariant` f",
+      "labels": [
+        "private-data"
+      ]
     }
-  ]
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: synthesize, get_competing_facts, list_procedures · Private data: detect_contradiction, get_fact, why, workspace_status, record_fact, record_procedure, record_decision · Public sink: record_procedure · Destructive: detect_contradiction, search_communities, retract_fact, retire_procedure.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: synthesize, get_competing_facts, list_procedures · Private data: detect_contradiction, get_fact, why, workspace_status, record_fact, record_procedure, record_decision · Public sink: record_procedure · Destructive: detect_contradiction, search_communities, retract_fact, retire_procedure"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 80,
+  "scoreBreakdown": {
+    "toxic-flow": 20
+  },
+  "errors": []
 }

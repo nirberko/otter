@@ -1,0 +1,106 @@
+{
+  "schemaVersion": 1,
+  "scanner": {
+    "version": "1.6.0",
+    "rules": "402995650b68"
+  },
+  "target": {
+    "kind": "url",
+    "ref": "https://ultrapedia.run/mcp"
+  },
+  "scannedAt": "2026-10-30T11:11:01.350Z",
+  "durationMs": 890,
+  "layers": {
+    "metadata": true,
+    "static": false
+  },
+  "tools": [
+    {
+      "name": "describe",
+      "descriptionHash": "61b294a2373c3b4ccce41699e4898eb840c28dff0ab0da542f0252ef31193f5c",
+      "description": "What Ultrapedia holds: the queryable views, every column and what it means,\nthe allowed values of category columns, and how many races there are. Read this\nbefore writing SQL for `query`."
+    },
+    {
+      "name": "query",
+      "descriptionHash": "a289cada278ad3202f9a2a546d114a2daf352c2a2d23b2a3a7dab92a2856f582",
+      "description": "Run one read-only SQL SELECT (SQLite) over the views `races`, `editions` and\n`sources`. Returns columns and rows; `truncated` is true when more rows exist\nthan `limit` (max 500). Example:\nSELECT slug, name, date, city FROM races WHERE state='CO'\nAND distance_category='100M' AND date >= date('now') O",
+      "labels": [
+        "destructive"
+      ]
+    },
+    {
+      "name": "search_races",
+      "descriptionHash": "1785180345e183a4de3f24426aedac85f5e6b6e56499bbe51d5a299ccda7568b",
+      "description": "Find races. `text` matches the name, city or start location; `state` is a\ntwo-letter code; `distance_category` is one of the values in `describe`; dates\nare yyyy-mm-dd and filter the current edition's date. Returns the main columns;\nuse `get_race` for everything about one race."
+    },
+    {
+      "name": "get_race",
+      "descriptionHash": "56bad8d49277f6d0d2d95257bb1a1cd4a649101d8b14383d191cfc83c1a24693",
+      "description": "Everything about one race: its values, its editions, and for every value the\npage it was read from and the verbatim quote."
+    },
+    {
+      "name": "read_source",
+      "descriptionHash": "27a8407e773baf94a05f01eb89839f82fee408c5151aeb3b273a8e9ce0505143",
+      "description": "Read a public web page the way this server reads it when it checks a quote:\nits visible text and its links. Use it before `propose_correction` to copy an\nexact quote, or to read a race page your own tools cannot open. `find` returns\nonly the passages around that text. A value that is a URL (website_",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "propose_correction",
+      "descriptionHash": "de322d2ef59f58a28156df6e3e026c3bcff0e95ffce6e835e0c0085ea4ddb1f8",
+      "description": "Send a value for one field of one race, read from a web page — a correction\nor a value the index is missing. `field` is a column name from `describe`;\n`value` is in that column's form and units (gain_m in metres, dates yyyy-mm-dd,\nstart_time HH:MM 24h, price_usd a number). `quote` must be copied ver",
+      "labels": [
+        "untrusted-content",
+        "public-sink",
+        "destructive"
+      ]
+    },
+    {
+      "name": "propose_race",
+      "descriptionHash": "fe9ab2c1ab8b162711a392e971943d91c3972485d6d38264edb04ca0365fc257",
+      "description": "Send a US ultramarathon the index does not have yet. Check with search_races\nfirst. `quote` is copied verbatim from `source_url` and names the race. One call\nfor each distance (a 50K and a 100M at the same event are two races).",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "report_problem",
+      "descriptionHash": "1188c09c920b052e159216b6ef6d694cd29d2e9268ebecf68d846b55c7d92feb",
+      "description": "Report something a single value cannot fix: a cancelled or discontinued race,\ntwo rows for the same race, a race filed under the wrong distance. Include a\nsource and quote when you have one."
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-SHADOW-001",
+      "severity": "medium",
+      "category": "shadowing",
+      "title": "Generic tool name can shadow trusted tools",
+      "detail": "Tool \"query\" uses a generic high-value name. When multiple servers load together, this can intercept calls meant for a trusted server.",
+      "evidence": {
+        "source": "tool:query",
+        "snippet": "query"
+      },
+      "confidence": 0.4
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "medium",
+      "category": "toxic-flow",
+      "title": "Toxic flow: untrusted input can reach an external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: read_source, propose_correction · Public sink: propose_correction, propose_race · Destructive: query, propose_correction.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: read_source, propose_correction · Public sink: propose_correction, propose_race · Destructive: query, propose_correction"
+      },
+      "confidence": 0.45,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 84,
+  "scoreBreakdown": {
+    "shadowing": 8,
+    "toxic-flow": 8
+  },
+  "errors": []
+}

@@ -1,0 +1,127 @@
+{
+  "schemaVersion": 1,
+  "scanner": {
+    "version": "1.6.0",
+    "rules": "402995650b68"
+  },
+  "target": {
+    "kind": "url",
+    "ref": "https://mcp.bitcli.io/mcp"
+  },
+  "scannedAt": "2026-10-30T11:18:35.101Z",
+  "durationMs": 1768,
+  "layers": {
+    "metadata": true,
+    "static": false
+  },
+  "tools": [
+    {
+      "name": "system_docs",
+      "descriptionHash": "0ee71c63311edb082fe8596f23fd361d1720b49312087e01506e909f3452c719",
+      "description": "BEHAVIOR: Read-only RAG documentation tool. Reads and returns official BitCLI markdown specifications, indicator formulas, CLI command guides, and webhook setups. Returns a single string containing the requested Markdown document.\n\nPRICING: Free ($0.000). Does not consume quotas.\n\nUSAGE GUIDELINES: ",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "market_data",
+      "descriptionHash": "2bdbab14b58f96d13f2b9aa3c994b17b75585eca6ea3adb28c05482c4dd396f2",
+      "description": "BEHAVIOR: Read-only analytical gateway. Fetches real-time derivatives intelligence across Binance, Bybit, and Hyperliquid.\n\nPRICING: $0.001 USD per execution. Deducted from daily tariff quota or USD balance.\n\nACTIONS & RETURNS:\n- 'screener': Scans 1,650+ perpetuals. Returns a JSON array of matched a",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "calc_engine",
+      "descriptionHash": "9e8bf491be4116f445d0330e7bf402cdfe7d94c701067534b72cea0d5e73a42f",
+      "description": "BEHAVIOR: Deterministic mathematical calculation. Evaluates crypto futures risk management models using live exchange parameters.\n\nPRICING: $0.001 USD per execution. Deducted from daily tariff quota or USD balance.\n\nSYNTAX EXAMPLES (Passed in 'command'):\n- '/pos btc 65k 63.7k 50' (Position Sizing)\n-"
+    },
+    {
+      "name": "alert_manager",
+      "descriptionHash": "421b92933b41ebe79c055b06391bd0a8640f7c1eebaad0d6d46b4f9f060d9edd",
+      "description": "BEHAVIOR: State-mutating operation. Injects or removes in-memory execution triggers in the C++ engine. When triggered, it dispatches asynchronous out-of-band notifications (Telegram/Discord) without requiring the agent to remain awake.\n\nPRICING: Targeted coin alerts cost $0.001 USD. Global wildcard ",
+      "labels": [
+        "untrusted-content",
+        "private-data"
+      ]
+    },
+    {
+      "name": "user_account",
+      "descriptionHash": "c1161b9ff36e7178c879fd7d8faeaebc50217a1d47d6a44ffe39e7fff5ec9850",
+      "description": "BEHAVIOR: Read-only configuration query. Inspects user ledger states, subscription tiers, and verified notification endpoints.\n\nPRICING: Free ($0.000). Does not consume daily quotas or balance.\n\nACTIONS:\n- 'get_billing': Returns subscription tier, available daily USD API quota, remaining USD balance",
+      "labels": [
+        "untrusted-content",
+        "private-data"
+      ]
+    },
+    {
+      "name": "send_notification",
+      "descriptionHash": "e746a6effeae938d0e318afad4f6f4f277acde069e1a5674f910b2dc1b545a8f",
+      "description": "BEHAVIOR: Outbound messaging operation. Routes proactive notifications to the human trader's verified Telegram chat, channel, or Discord webhook. Dispatches discretionary trade ideas, market condition updates, or risk reports to keep the user informed without waiting for prompts.\n\nPRICING: $0.001 US",
+      "labels": [
+        "untrusted-content",
+        "public-sink"
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-SCHEMA-SMELL-001",
+      "severity": "medium",
+      "category": "schema-smell",
+      "title": "Read-only tool requests dangerous parameters",
+      "detail": "Tool \"market_data\" appears informational but accepts parameters (command) that enable code/file/secret access.",
+      "evidence": {
+        "source": "tool:market_data",
+        "snippet": "action, command, coin, exchange, tf, limit, indicators, columns, inline_indicators"
+      },
+      "confidence": 0.55
+    },
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"alert_manager\" references sensitive artifacts (authorization). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:alert_manager",
+        "snippet": "BEHAVIOR: State-mutating operation. Injects or removes in-memory execution triggers in the C++ engine. When triggered, it dispatches asynchronous out-of-band no…"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-SCHEMA-SMELL-001",
+      "severity": "medium",
+      "category": "schema-smell",
+      "title": "Read-only tool requests dangerous parameters",
+      "detail": "Tool \"alert_manager\" appears informational but accepts parameters (command) that enable code/file/secret access.",
+      "evidence": {
+        "source": "tool:alert_manager",
+        "snippet": "action, command, ttl_minutes, destinations, alert_id"
+      },
+      "confidence": 0.55
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: system_docs, alert_manager, user_account, send_notification · Private data: system_docs, market_data, alert_manager, user_account · Public sink: system_docs, send_notification.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: system_docs, alert_manager, user_account, send_notification · Private data: system_docs, market_data, alert_manager, user_account · Public sink: system_docs, send_notification"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 48,
+  "scoreBreakdown": {
+    "schema-smell": 12,
+    "tool-poisoning": 20,
+    "toxic-flow": 20
+  },
+  "errors": []
+}

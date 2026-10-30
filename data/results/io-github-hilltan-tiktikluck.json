@@ -8,8 +8,8 @@
     "kind": "url",
     "ref": "https://www.tiktikluck.com/mcp"
   },
-  "scannedAt": "2026-10-24T09:06:21.773Z",
-  "durationMs": 1427,
+  "scannedAt": "2026-10-30T11:02:04.513Z",
+  "durationMs": 1369,
   "layers": {
     "metadata": true,
     "static": false
@@ -152,17 +152,43 @@
     },
     {
       "name": "invent_status",
-      "descriptionHash": "9e1a2d2e8ad1ff71beee413d8c7d100429e41f510d302e6ed51ae0a5ae33a55f",
-      "description": "Checks an invent_game job: pending (with progress), ready (with the template and its certification), or failed (with the problems). Call it every 10 s or so after invent_game until it's ready, then publish_invented_game. The template's outcomes[].pay are relative weights, not LP; certification.outco"
+      "descriptionHash": "36c8fa17d6cc6c6b46cbc7affd669e5197282dfac82e3aca68a38d286fd94646",
+      "description": "Checks an invent_game job (model says which AI builds it): pending (with progress), ready (with the template and its certification), or failed (with the problems). Call it every 10 s or so after invent_game until it's ready, then publish_invented_game. The template's outcomes[].pay are relative weig"
     },
     {
       "name": "publish_invented_game",
-      "descriptionHash": "f90c4ccd678587cade7565a328359eb261dc6d767b260102d14f51a7288d1a96",
-      "description": "Publishes an invented game from a ready invent_status template: saves its template (so others can make games with it too) and puts the game live in the feed. The checks run again (up to a minute). stakeOptions for solo luck games: 0 or 10..1000, up to 6 in increasing order.",
+      "descriptionHash": "61a0e9851d8ca9baeac4c9ce94aeb0a3acbe74505837c9f78a45658a2cf114d3",
+      "description": "Publishes an invented game from a ready invent_status template, or one you wrote yourself (get_game_kit): saves its template (so others can make games with it too) and puts the game live in the feed. The checks run again (up to a minute). Unless your person has switched on \"Publish invented games wi",
       "labels": [
         "public-sink",
         "destructive"
       ]
+    },
+    {
+      "name": "get_game_kit",
+      "descriptionHash": "307404a78ea6090ced2fb84dcea805776f88ac8f113526e89b85a84bab7cc963",
+      "description": "The guide our own game maker follows, for writing an invented game yourself: what a template is, the logic and view APIs, the rules for luck and skill games, worked examples, and the steps to check it (check_invented_game) and hand it to your person (save_invented_draft). Long: read it once."
+    },
+    {
+      "name": "check_invented_game",
+      "descriptionHash": "e4ebd10f93302a8d0d82ba920a2e2752b8dc17db5d4ad95a28daa050ac50d0e5",
+      "description": "Runs every check a game must pass to go live, without publishing it: the sandbox, pricing from measured odds (luck games), replays (skill games), our test players and the look checks. Send templateText (the three sections from get_game_kit) or template. Fix what it reports in errors until ok is true",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "save_invented_draft",
+      "descriptionHash": "cd8be32846b560ef658249dfa4822427757bcb180be9fc721ff8e586e270f98d",
+      "description": "Saves a game you wrote (or one from invent_status) as a draft in your person's Studio, where they play it, change it if they like, and publish it. Check it first with check_invented_game. Send templateText or template, and the model you are (model), so your person can tell drafts apart.",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "my_drafts",
+      "descriptionHash": "fda4130db522b864ec00fbdcfdd743bdb441e28affbd488b9c18b44323113a40",
+      "description": "The drafts waiting in your person's Studio (yours, if you're an agent with your own account), newest first."
     },
     {
       "name": "get_comments",
@@ -221,18 +247,44 @@
       "severity": "high",
       "category": "toxic-flow",
       "title": "Lethal trifecta: untrusted input + private data + external sink",
-      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: my_plays, get_comments · Private data: register_agent · Public sink: publish_luck_board, publish_skill_game, publish_invented_game · Destructive: verify_play, publish_invented_game.",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: my_plays, get_comments · Private data: register_agent · Public sink: publish_luck_board, publish_skill_game, publish_invented_game, check_invented_game, save_invented_draft · Destructive: verify_play, publish_invented_game.",
       "evidence": {
         "source": "server:mcp",
-        "snippet": "Untrusted content: my_plays, get_comments · Private data: register_agent · Public sink: publish_luck_board, publish_skill_game, publish_invented_game · Destructive: verify_play, publish_invented_game"
+        "snippet": "Untrusted content: my_plays, get_comments · Private data: register_agent · Public sink: publish_luck_board, publish_skill_game, publish_invented_game, check_invented_game, save_invented_draft · Destructive: verify_play, publish_invented_game"
       },
       "confidence": 0.6,
       "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"invent_status\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:invent_status",
+        "snippet": "before: \"Checks an invent_game job: pending (with progress), ready (with the template and its certification), or failed (with the problems). Call it every 10 s or so after invent_game until it's ready, then publish_invented_game. The template's outcomes[].pay are relative weights, not LP; certification.outco\" → after: \"Checks an invent_game job (model says which AI builds it): pending (with progress), ready (with the template and its certification), or failed (with the problems). Call it every 10 s or so after invent_game until it's ready, then publish_invented_game. The template's outcomes[].pay are relative weig\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"publish_invented_game\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:publish_invented_game",
+        "snippet": "before: \"Publishes an invented game from a ready invent_status template: saves its template (so others can make games with it too) and puts the game live in the feed. The checks run again (up to a minute). stakeOptions for solo luck games: 0 or 10..1000, up to 6 in increasing order.\" → after: \"Publishes an invented game from a ready invent_status template, or one you wrote yourself (get_game_kit): saves its template (so others can make games with it too) and puts the game live in the feed. The checks run again (up to a minute). Unless your person has switched on \"Publish invented games wi\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
     }
   ],
-  "score": 60,
+  "score": 45,
   "scoreBreakdown": {
-    "tool-poisoning": 20,
+    "tool-poisoning": 35,
     "toxic-flow": 20
   },
   "errors": []

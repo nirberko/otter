@@ -1,0 +1,115 @@
+{
+  "schemaVersion": 1,
+  "scanner": {
+    "version": "1.6.0",
+    "rules": "402995650b68"
+  },
+  "target": {
+    "kind": "url",
+    "ref": "https://paidrouter.com/mcp"
+  },
+  "scannedAt": "2026-10-30T10:58:10.224Z",
+  "durationMs": 945,
+  "layers": {
+    "metadata": true,
+    "static": false
+  },
+  "tools": [
+    {
+      "name": "cheapest_way_to_get_paid",
+      "descriptionHash": "74489e521e27d80e5cf24557f38bb4fd0b171b25959594f665516eb522f2869d",
+      "description": "Ask this before the owner invoices or accepts a payment, or when they wonder if they overpay in fees. Give the amount and how the payer can pay (card online, card in person, bank transfer, payment app, or any). Returns every route ranked by fee, cheapest first: provider, method, fee in dollars, what"
+    },
+    {
+      "name": "get_fees",
+      "descriptionHash": "fe4fc90e977664176f1a458177f73ec8c4bf29c2d78b81e0d0ce2a0eff4f0e39",
+      "description": "The raw, sourced fee entries behind every answer: percent, fixed fee, caps, minimums, extras (international, instant payout, chargebacks), the source URL and the date verified. Filter by platform (stripe, square, paypal, venmo, cash_app, helcim, melio, payoneer, wise_business, shopify_payments, zell",
+      "labels": [
+        "untrusted-content",
+        "private-data"
+      ]
+    },
+    {
+      "name": "explain_fees",
+      "descriptionHash": "e55f99d71bdfde8452315f4360c48d22c240a3548d104ed08bed22f72afd588a",
+      "description": "When the owner asks why a provider took a certain amount ('why did PayPal take $35 from my $1,000?'). Give the platform, the method and the amount; returns a plain-words explanation: the fee, the formula, the effective percent, extras that can apply, and the source."
+    },
+    {
+      "name": "compare_send_money",
+      "descriptionHash": "4d126238105f0c9cd50cf4301abb928c37c89186b7336dbd58b8d2477afe168a",
+      "description": "When the owner wants to send US dollars abroad and asks who is cheapest. Supports USD->MXN and USD->INR today, paid by bank transfer. Returns providers ranked by what the recipient gets, with each provider's fee and exchange rate, the quote date and the source. Uses the nearest stored quote amount (",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "my_effective_rate",
+      "descriptionHash": "1534243b929d6148f63c57e7d72d6562be9174b07c670ad07c7a96261353743b",
+      "description": "What the owner really pays to get paid, from their own exports, next to the published fee for the same payments and the cheapest route their payers can use, with the yearly saving in dollars. Send totals only, one row per route and period: {route, period_start, period_end, gross_volume, fees_paid, p",
+      "labels": [
+        "untrusted-content",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "report_observed_fee",
+      "descriptionHash": "89d6f62e3764e63b4164500d3cafc07b6e76d41ba36eb7ed3d9428a9484eb316",
+      "description": "When the owner was charged a fee and you can see it (a Stripe, PayPal or Square payment detail, a statement line), send the route, the payment amount, the fee charged and the date. Returns the published fee for that payment, the difference, and a one-line reading: matches, promo (fee waived or reduc",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "watch_routes",
+      "descriptionHash": "253f13b6846a534e882a3cdb725ce8ffb610382579ef0dfed05cb7a536eec194",
+      "description": "Tell PaidRouter which routes the owner uses (e.g. stripe_card, paypal_checkout, venmo_business, or a corridor like USD->MXN). From then on, any PaidRouter answer to this key starts with 'Since your last call, routes you watch changed: ...' when a fee or the best FX provider moved. Optionally give an",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "route_it_for_me",
+      "descriptionHash": "1f4370993ba7e3a40fe6c111fd0d535be873376a4fd581103ac0c9842db27887",
+      "description": "Ask PaidRouter to set up the cheapest route for the owner's real payments instead of just reporting it. Not live yet: this records the request on the routing waitlist (with the owner's email only if they agreed) and tells you what the owner can do today. Call it when the owner says 'just switch me' ",
+      "labels": [
+        "private-data",
+        "public-sink"
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"watch_routes\" references sensitive artifacts (secret). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:watch_routes",
+        "snippet": "Tell PaidRouter which routes the owner uses (e.g. stripe_card, paypal_checkout, venmo_business, or a corridor like USD->MXN). From then on, any PaidRouter answe…"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: get_fees, my_effective_rate, watch_routes · Private data: get_fees, watch_routes, route_it_for_me · Public sink: compare_send_money, my_effective_rate, report_observed_fee, watch_routes, route_it_for_me.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: get_fees, my_effective_rate, watch_routes · Private data: get_fees, watch_routes, route_it_for_me · Public sink: compare_send_money, my_effective_rate, report_observed_fee, watch_routes, route_it_for_me"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 60,
+  "scoreBreakdown": {
+    "tool-poisoning": 20,
+    "toxic-flow": 20
+  },
+  "errors": []
+}

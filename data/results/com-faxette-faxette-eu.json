@@ -8,13 +8,68 @@
     "kind": "url",
     "ref": "https://mcp.eu.faxette.com/mcp"
   },
-  "scannedAt": "2026-10-29T11:16:00.606Z",
-  "durationMs": 1276,
+  "scannedAt": "2026-10-30T11:14:41.416Z",
+  "durationMs": 1604,
   "layers": {
     "metadata": true,
     "static": false
   },
   "tools": [
+    {
+      "name": "open_fax_review",
+      "descriptionHash": "b80b9dc0b401271df76368c7191d7e5f94fddc7f7aa70bda290f303e6196b2fa",
+      "description": "Open the private upload and PDF review interface for an account fax before approving payment. Requires sign-in. The browser review link works when the client cannot show MCP Apps.",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "get_fax_review",
+      "descriptionHash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "prepare_fax_upload",
+      "descriptionHash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "update_fax_review",
+      "descriptionHash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "get_capabilities",
+      "descriptionHash": "934ef4958dfbf6e7d9325dbdd5ef53af1f0dc20bbcfdb31ee50d7b5d514b077d",
+      "description": "Use this before preparing a fax to check this region's supported countries, languages, file limits and current retail and credit pricing rules. Prices are before tax; the exact total is confirmed after document processing and at checkout. It changes nothing.",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "lookup_fax_number",
+      "descriptionHash": "b587225b4f403b40d6e64213d883627fe0758ba4d1027b9ec001ae4e73269253",
+      "description": "Search Faxette's catalog by agency, form number or purpose. Returns only numbers supported by this connector, with the official source and verification date. An empty result means we have no current match, not that the office has no fax number. Show the source and have the person confirm the right o"
+    },
+    {
+      "name": "get_fax_report",
+      "descriptionHash": "42beac736ad79264a5807744248cb11c631bbddf967cc2ef3f542b6e1d5f1692",
+      "description": "Use this when the person asks for a delivery report or the transmitted document. Returns the destination, page count, delivery result, timestamps and attempts. A report URL is available after delivery, failure or cancellation. Document links are only returned for the signed-in owner of an account fa",
+      "labels": [
+        "untrusted-content",
+        "private-data"
+      ]
+    },
+    {
+      "name": "resend_fax",
+      "descriptionHash": "d3b11e1399a565f5a07663cf69ced903dc2e0073758e9758be81d7fa365f8e6a",
+      "description": "Use this only after the person asks to resend a failed fax and confirms its destination, including any corrected number. Check get_fax or get_fax_status first. Reuses the existing fax, payment hold and resend rules; it does not create a new paid fax. Faxette refuses expired resend windows and exhaus"
+    },
     {
       "name": "create_document",
       "descriptionHash": "e9a66fef14b081abf9d892f62ff6feff5af1d25ff2abe7e07a0f1a7ad6151a42",
@@ -25,9 +80,10 @@
     },
     {
       "name": "create_fax",
-      "descriptionHash": "bbdde8fcba5369cad8f5b1140d815272c1de267a3cdd980b1b4a32c95646c07e",
+      "descriptionHash": "7a1fa2536041f81e52681e3f39d85883f2f8312158b0a878116091049dc260a0",
       "description": "Use this once the person has confirmed the fax number, and given you their email if they aren't signed in. It creates the fax and returns status_url, the page where the person checks the fax number, documents and price, and pays to send it. Nothing is sent or charged until they pay there. Pass the d",
       "labels": [
+        "untrusted-content",
         "private-data",
         "public-sink"
       ]
@@ -61,30 +117,71 @@
     },
     {
       "name": "send_fax",
-      "descriptionHash": "259058ff5cee0b735cd3cc90d99fe3b5912f4695a924e3d0a6682f2a51ab1c60",
-      "description": "Use this to send a fax from the person's Faxette credit. Only for a fax in their account that's ready to pay for: call get_fax first. Tell the person its credit_price and that it comes from their credit, and call this only once they clearly agree. If get_account shows their credit doesn't cover it, ",
+      "descriptionHash": "6c8258cc2a4d89bc0a9dd0915cbb9ffdf0abe4295b02f39e1e5b9a8df6ce72fc",
+      "description": "Use this to send a fax from the person's Faxette credit. Only for a fax in their account that's ready to pay for: call get_fax first. Show the prepared PDF with open_fax_review or its review_url. Have the person confirm the destination, documents and credit_price, explain that it comes from their cr",
       "labels": [
+        "private-data",
         "public-sink"
       ]
     }
   ],
   "findings": [
     {
+      "id": "MCP-TOOL-POISON-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description issues instructions to the model",
+      "detail": "Description of \"resend_fax\" contains imperative instructions directed at the AI assistant rather than describing the tool. This is the core tool-poisoning technique.",
+      "evidence": {
+        "source": "tool:resend_fax",
+        "snippet": "Use this only after the person asks to resend a failed fax and confirms its destination, including any corrected number. Check get_fax or get_fax_status first. …"
+      },
+      "confidence": 0.7,
+      "remediation": "Treat the server as untrusted; the model may obey embedded instructions."
+    },
+    {
       "id": "MCP-TOXIC-FLOW-001",
       "severity": "high",
       "category": "toxic-flow",
       "title": "Lethal trifecta: untrusted input + private data + external sink",
-      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: get_account · Private data: create_document, create_fax, get_fax · Public sink: create_fax, get_account, send_fax.",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: open_fax_review, get_fax_review, get_fax_report, create_fax, get_account · Private data: open_fax_review, get_capabilities, get_fax_report, create_document, create_fax, get_fax, send_fax · Public sink: open_fax_review, prepare_fax_upload, create_fax, get_account, send_fax.",
       "evidence": {
         "source": "server:mcp",
-        "snippet": "Untrusted content: get_account · Private data: create_document, create_fax, get_fax · Public sink: create_fax, get_account, send_fax"
+        "snippet": "Untrusted content: open_fax_review, get_fax_review, get_fax_report, create_fax, get_account · Private data: open_fax_review, get_capabilities, get_fax_report, create_document, create_fax, get_fax, send_fax · Public sink: open_fax_review, prepare_fax_upload, create_fax, get_account, send_fax"
       },
       "confidence": 0.6,
       "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"create_fax\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:create_fax",
+        "snippet": "before: \"Use this once the person has confirmed the fax number, and given you their email if they aren't signed in. It creates the fax and returns status_url, the page where the person checks the fax number, documents and price, and pays to send it. Nothing is sent or charged until they pay there. Pass the d\" → after: \"Use this once the person has confirmed the fax number, and given you their email if they aren't signed in. It creates the fax and returns status_url, the page where the person checks the fax number, documents and price, and pays to send it. Nothing is sent or charged until they pay there. Pass the d\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"send_fax\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:send_fax",
+        "snippet": "before: \"Use this to send a fax from the person's Faxette credit. Only for a fax in their account that's ready to pay for: call get_fax first. Tell the person its credit_price and that it comes from their credit, and call this only once they clearly agree. If get_account shows their credit doesn't cover it, \" → after: \"Use this to send a fax from the person's Faxette credit. Only for a fax in their account that's ready to pay for: call get_fax first. Show the prepared PDF with open_fax_review or its review_url. Have the person confirm the destination, documents and credit_price, explain that it comes from their cr\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
     }
   ],
-  "score": 80,
+  "score": 45,
   "scoreBreakdown": {
+    "tool-poisoning": 35,
     "toxic-flow": 20
   },
   "errors": []

@@ -8,8 +8,8 @@
     "kind": "url",
     "ref": "https://claimdone.com.au/mcp"
   },
-  "scannedAt": "2026-10-13T11:58:06.342Z",
-  "durationMs": 1886,
+  "scannedAt": "2026-10-30T10:56:00.440Z",
+  "durationMs": 1973,
   "layers": {
     "metadata": true,
     "static": false
@@ -41,16 +41,25 @@
     },
     {
       "name": "answer_questions",
-      "descriptionHash": "17e1b4ac489f3171daca224ca312c2b1e35bc81f62137b59b0af695567c5d6bc",
-      "description": "Saves the person's answers (question key => answer) for a case. Returns any questions still open, any follow-up questions the drafting needs, and ready_to_pay when the document can be drafted.",
+      "descriptionHash": "95c6843286f12b78d9c1a4522eb1ea61494f9c586597d6278236907a98254d57",
+      "description": "Saves the person's answers (question key => answer) for a case. Returns any questions still open and, for eligible ordinary documents, ready_for_protected_draft when the real protected draft can be created for $0 before payment.",
       "labels": [
         "private-data"
       ]
     },
     {
+      "name": "prepare_protected_draft",
+      "descriptionHash": "5f218478b80b1df0aadd53816b1d1cdf45db0a6d934f707959bd7adf29667bd7",
+      "description": "For an eligible ordinary document whose questions are complete, starts the real draft for $0 and returns the private dashboard link. The person reviews authorised, watermarked raster pages there. Raw unpaid text and original PDF/DOCX files are never returned by the connector. Daily, email and networ",
+      "labels": [
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
       "name": "get_payment_link",
-      "descriptionHash": "ac9ead4a0b77a27d4c5c3a0ee0aae5ccdf9b62e29de2c068af055a85d7f3e8b3",
-      "description": "Returns a hosted Stripe Checkout URL for the case at the live flat price, for the person to pay. The document is drafted automatically once payment goes through, usually within about 5 minutes. If the case carries an eligibility notice, the notice is returned and acknowledge_notice must be true befo",
+      "descriptionHash": "c802d7094851af4d3f3ca10569531b5f4e0d8d4b76ca5481b9358b50faec39ee",
+      "description": "Returns a hosted Stripe Checkout URL at the live flat price. For an eligible ordinary document, the protected draft must already be ready and the person must have accepted the private review; payment then unlocks the clean PDF, download and delivery options. Purpose-built report/workspace flows may ",
       "labels": [
         "untrusted-content",
         "private-data"
@@ -58,13 +67,17 @@
     },
     {
       "name": "get_status",
-      "descriptionHash": "c278e851879b9e9c2f9236cbffa255f51d2a246f8875f8e89140aa706ad627fd",
-      "description": "Whether the case is paid, whether the draft is ready, and the dashboard link where the person reads, edits and approves it."
+      "descriptionHash": "9746ba438348880e2e5a2966f1db79d4c22f8528f2c33386b9d1c88027ea0124",
+      "description": "Whether the case is paid, whether a protected draft is processing or ready, whether the person accepted the review, and the private dashboard link. It never returns raw unpaid document text.",
+      "labels": [
+        "untrusted-content",
+        "private-data"
+      ]
     },
     {
       "name": "get_document",
-      "descriptionHash": "82eb4e224d613a7b68bbe70b74843b27816faeab1fb3e3c93eff8cb3815a9e22",
-      "description": "After payment: the full text of each drafted document, plus the dashboard link where the person reads, edits and approves it (and, for letters, has it sent). Documents are never sent without the person's approval on the dashboard.",
+      "descriptionHash": "ba7bdd01c7af7da9697a6904389c78b480c56e39467223c22fe1181a4f7ba817",
+      "description": "After genuine payment only: the full text of each drafted document, plus the dashboard link where the person approves it (and, for eligible letters, has it sent). Before payment, protected drafts remain watermarked raster pages on the private dashboard and raw text is never returned.",
       "labels": [
         "private-data"
       ]
@@ -82,11 +95,77 @@
         "snippet": "Creates a Claim Done case for a document and returns the questions the person needs to answer, with a case_id and access_token for the later steps. Nothing is c…"
       },
       "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: get_payment_link, get_status · Private data: list_services, match_problem, start_document, answer_questions, prepare_protected_draft, get_payment_link, get_status, get_document · Public sink: prepare_protected_draft.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: get_payment_link, get_status · Private data: list_services, match_problem, start_document, answer_questions, prepare_protected_draft, get_payment_link, get_status, get_document · Public sink: prepare_protected_draft"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"answer_questions\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:answer_questions",
+        "snippet": "before: \"Saves the person's answers (question key => answer) for a case. Returns any questions still open, any follow-up questions the drafting needs, and ready_to_pay when the document can be drafted.\" → after: \"Saves the person's answers (question key => answer) for a case. Returns any questions still open and, for eligible ordinary documents, ready_for_protected_draft when the real protected draft can be created for $0 before payment.\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"get_payment_link\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:get_payment_link",
+        "snippet": "before: \"Returns a hosted Stripe Checkout URL for the case at the live flat price, for the person to pay. The document is drafted automatically once payment goes through, usually within about 5 minutes. If the case carries an eligibility notice, the notice is returned and acknowledge_notice must be true befo\" → after: \"Returns a hosted Stripe Checkout URL at the live flat price. For an eligible ordinary document, the protected draft must already be ready and the person must have accepted the private review; payment then unlocks the clean PDF, download and delivery options. Purpose-built report/workspace flows may \""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"get_status\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:get_status",
+        "snippet": "before: \"Whether the case is paid, whether the draft is ready, and the dashboard link where the person reads, edits and approves it.\" → after: \"Whether the case is paid, whether a protected draft is processing or ready, whether the person accepted the review, and the private dashboard link. It never returns raw unpaid document text.\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"get_document\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:get_document",
+        "snippet": "before: \"After payment: the full text of each drafted document, plus the dashboard link where the person reads, edits and approves it (and, for letters, has it sent). Documents are never sent without the person's approval on the dashboard.\" → after: \"After genuine payment only: the full text of each drafted document, plus the dashboard link where the person approves it (and, for eligible letters, has it sent). Before payment, protected drafts remain watermarked raster pages on the private dashboard and raw text is never returned.\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
     }
   ],
-  "score": 80,
+  "score": 41,
   "scoreBreakdown": {
-    "tool-poisoning": 20
+    "tool-poisoning": 39,
+    "toxic-flow": 20
   },
   "errors": []
 }

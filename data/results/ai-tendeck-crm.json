@@ -1,0 +1,126 @@
+{
+  "schemaVersion": 1,
+  "scanner": {
+    "version": "1.6.0",
+    "rules": "402995650b68"
+  },
+  "target": {
+    "kind": "url",
+    "ref": "https://tendeck.ai/mcp"
+  },
+  "scannedAt": "2026-10-30T10:55:26.861Z",
+  "durationMs": 444,
+  "layers": {
+    "metadata": true,
+    "static": false
+  },
+  "tools": [
+    {
+      "name": "describe_product",
+      "descriptionHash": "b1bd0b84a0d8355fe1b2216d0cffdad6b80a244dd7988ef548ace0c85fdbcccd",
+      "description": "Plain-language description of the two Nuvidian products (P1 brokerage recruiting CRM, P2 agent CRM), what is free, and what the product never does."
+    },
+    {
+      "name": "get_free_limits",
+      "descriptionHash": "06c2056bb148180bea6c8a0cbcf60a96149e1124e13cca7e4b1495b9ff8e4d9c",
+      "description": "What each product includes for free, in plain numbers (P1: full pond + pipeline, 3 recruiters; P2: unlimited people/deals, no AI quotas because Tendeck runs no AI of its own, 1 farm list)."
+    },
+    {
+      "name": "list_addons",
+      "descriptionHash": "0870927808d3c932d162dd6b2356431ce923300cc5657d0e7f9015a3c68eb1fc",
+      "description": "Optional paid add-ons with their unit and price in cents. Prices only — no costs, no margins."
+    },
+    {
+      "name": "start_workspace",
+      "descriptionHash": "2cce781bb4790e1871e9e3469e4a83fb0760b6a1e6592eaa47ace5961ffddfbb",
+      "description": "Sign up for free: create a pending workspace and send a 6-digit code to the user's email (preferred) or US phone. Ask the user for the code, then call verify_phone. Idempotent on idem_key. FIRST show the human the Terms of Service (https://tendeck.ai/terms) and Privacy Notice (https://tendeck.ai/pri",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "verify_phone",
+      "descriptionHash": "03be6f57d8ee3c0a2d69953a37fd6bc21dd53715ce7eab67b444722325edfde6",
+      "description": "Finish signup: check the 6-digit code the user received by email (or text), activate the workspace and return a session token.",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "p1_practice_deck",
+      "descriptionHash": "7e92ffcb726f8d5745c687d676b7f506a0943e10f4e22e0e77c2039452cbd138",
+      "description": "Show a sample of Nuvidian P1's 'Today's 10' deck built from fictional Florida agents, so a human can see what the product does before signing up. Call it when someone asks 'what is P1?' or 'show me'. The cards are unmistakably fake (555-01xx phones, @example.com emails, brokerages ending in  ' (demo",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "p2_practice_today",
+      "descriptionHash": "61c53334df6b8fae7bb46e41152d4f497be05bf1d80f1cdbe33968f39e0e5003",
+      "description": "Show a sample of Nuvidian P2's Today's 10 built from fictional people, so a human can see what the product does before signing up. Call it when someone asks 'what is P2?' or 'show me'. Each card is a fictional person with a plain-English reason to reach out today (overdue follow-up, a deal with no n"
+    },
+    {
+      "name": "tendeck_help",
+      "descriptionHash": "914ddceadaa702531363762340acc91ee0e643023af967454ce8a713add784e5",
+      "description": "Answer any how-to or support question about Tendeck (sign-in, password, billing, connecting ChatGPT/Claude, importing, texting, privacy). Call this BEFORE telling the user you don't know.",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "connectors_catalog",
+      "descriptionHash": "abe6ac5265d2d00383ba505d8c11017fe67530bcdba29eb9d836c4ae0fd1ec7f",
+      "description": "What Tendeck plugs into: live connectors, the next ones being built, and what is planned, each with what it gives the agent and how to connect. Use it when they ask 'does Tendeck work with X?' or name a tool they use (dotloop, SkySlope, Zillow, kvCORE, Canva...). If X is not live, tell them honestly",
+      "labels": [
+        "private-data"
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"verify_phone\" references sensitive artifacts (session token). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:verify_phone",
+        "snippet": "Finish signup: check the 6-digit code the user received by email (or text), activate the workspace and return a session token."
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"tendeck_help\" references sensitive artifacts (password). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:tendeck_help",
+        "snippet": "Answer any how-to or support question about Tendeck (sign-in, password, billing, connecting ChatGPT/Claude, importing, texting, privacy). Call this BEFORE telli…"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: verify_phone, p1_practice_deck · Private data: verify_phone, tendeck_help, connectors_catalog · Public sink: start_workspace, verify_phone.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: verify_phone, p1_practice_deck · Private data: verify_phone, tendeck_help, connectors_catalog · Public sink: start_workspace, verify_phone"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 50,
+  "scoreBreakdown": {
+    "tool-poisoning": 30,
+    "toxic-flow": 20
+  },
+  "errors": []
+}

@@ -146,4 +146,171 @@
     "toxic-flow": 20
   },
   "errors": []
+}                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                tionHash": "58d4b6f370928542df3a4511960f51c362cede2d202ad9a679215ab69da97548",
+      "description": "Free tier: 25 calls/day per IP with header X-Free-Call: 1 (or ?free=1), then pay per call. Rule-based prompt-injection screen for untrusted text such as scraped web pages, emails and tool output. JSON body {text} (max 50,000 chars). Detects instruction-override phrasing, role-spoofing tags, data-lea",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "pii_redact",
+      "descriptionHash": "182c7d5b80233989aa49ca9e81c2d0e4e107a30e04830e95e277f5c1e4e0edda",
+      "description": "Free tier: 25 calls/day per IP with header X-Free-Call: 1 (or ?free=1), then pay per call. Scrub text before it goes to a model or a log: JSON body {text, mask} (max 100,000 chars). Finds emails, phones, SSNs, cards (Luhn), IBANs, IPs, MAC addresses, API keys, JWTs, private keys, wallet addresses. m",
+      "labels": [
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "federal_register_search",
+      "descriptionHash": "f1b74ca211725bd4b895b55be4f497bd8e330d468ca96861c1313bd63451be73",
+      "description": "Free tier: 25 calls/day per IP with header X-Free-Call: 1 (or ?free=1), then pay per call. Search the US Federal Register: final rules, proposed rules, notices and presidential documents with title, agencies, publication date, effective date, comment deadline, docket IDs, abstract and links. Filter ",
+      "labels": [
+        "untrusted-content",
+        "private-data"
+      ]
+    },
+    {
+      "name": "sec_filings",
+      "descriptionHash": "90566ab414cc40bdc28abcfc463a33d628b830cf7254dbdb3fe01e72695cbb7c",
+      "description": "Free tier: 25 calls/day per IP with header X-Free-Call: 1 (or ?free=1), then pay per call. Recent SEC EDGAR filings for a US-listed company by ticker or CIK: form type, filing and report dates, 8-K item codes with plain labels, accession number and direct document links. Filter by form (8-K, 10-K, 1",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "papers_search",
+      "descriptionHash": "29c74b9e082c92ec038f83d0e8d9ac05ea616f919047e9f391f434e1bec46c7a",
+      "description": "Free tier: 25 calls/day per IP with header X-Free-Call: 1 (or ?free=1), then pay per call. Scholarly paper search for research agents: keywords or a DOI in, matching papers out with title, authors, year, venue, DOI, citation count, open access PDF or page link, retraction flag and abstract. Filter b"
+    },
+    {
+      "name": "dependency_audit",
+      "descriptionHash": "665e9a6ad851e17db60a134b6015a980db26500cc8c0e56bd53f6e1b2b5bde1f",
+      "description": "Audit a whole project before an agent installs or runs it: JSON body {manifest, type, readme}. manifest is package.json (npm) or requirements.txt (PyPI) text. Checks up to 25 dependencies against OSV.dev advisories, deprecation and latest versions, and screens the optional README for prompt injectio"
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"pii_redact\" references sensitive artifacts (private key). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:pii_redact",
+        "snippet": "Free tier: 25 calls/day per IP with header X-Free-Call: 1 (or ?free=1), then pay per call. Scrub text before it goes to a model or a log: JSON body {text, mask}…"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: email_check, email_check_full, pdf_to_text, image_ocr, web_to_markdown, web_read_full, url_metadata, x402_endpoint_check, x402_seller_audit, email_check_batch, invoice_intake, url_check, prompt_injection_check, federal_register_search · Private data: pdf_to_text, document_extract, domain_lookup, file_convert, token_info, x402_endpoint_check, invoice_intake, token_preflight, wallet_balance, pii_redact, federal_register_search, sec_filings · Public sink: email_check, email_check_full, email_check_batch, invoice_intake, ens_resolve, pii_redact · Destructive: pdf_to_text, file_convert.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: email_check, email_check_full, pdf_to_text, image_ocr, web_to_markdown, web_read_full, url_metadata, x402_endpoint_check, x402_seller_audit, email_check_batch, invoice_intake, url_check, prompt_injection_check, federal_register_search · Private data: pdf_to_text, document_extract, domain_lookup, file_convert, token_info, x402_endpoint_check, invoice_intake, token_preflight, wallet_balance, pii_redact, federal_register_search, sec_filings · Public sink: email_check, email_check_full, email_check_batch, invoice_intake, ens_resolve, pii_redact · Destructive: pdf_to_text, file_convert"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"email_check_full\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:email_check_full",
+        "snippet": "before: \"One call email risk check: everything in email_check plus sender domain health (domain age, registrar, SPF, DMARC, website reachable) and a 0-100 risk score with accept/review/reject verdict. Use for fraud screening, lead qualification and signup gating. Price $0.0025 USDC per call via x402. Example\" → after: \"One call email risk check: everything in email_check plus sender domain health (domain age, registrar, SPF, DMARC, website reachable) and a 0-100 risk score with accept/review/reject verdict. Use for fraud screening, lead qualification and signup gating. Price $0.004 USDC per call via x402. Example \""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"pdf_to_text\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:pdf_to_text",
+        "snippet": "before: \"PDF to text or markdown for RAG, summarizing, search indexing and reading reports, papers, contracts and invoices. Give a PDF URL (max 20 MB); returns text per page. format=text or markdown. Not stored. Price $0.0035 USDC per call via x402. Example output: {\"pages\":1,\"format\":\"markdown\",\"characters\"\" → after: \"PDF to text or markdown for RAG, summarizing, search indexing and reading reports, papers, contracts and invoices. Give a PDF URL (max 20 MB); returns text per page. format=text or markdown. Not stored. Price $0.006 USDC per call via x402. Example output: {\"pages\":1,\"format\":\"markdown\",\"characters\":\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"document_extract\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:document_extract",
+        "snippet": "before: \"One call document parsing for invoices, receipts, statements, forms and scanned pages: PDF or image URL in, full text plus extracted fields out (dates, money amounts, totals/tax/amount due, invoice or order numbers, key: value pairs, emails, phones, URLs, simple tables). Images and scans use OCR. Pr\" → after: \"One call document parsing for invoices, receipts, statements, forms and scanned pages: PDF or image URL in, full text plus extracted fields out (dates, money amounts, totals/tax/amount due, invoice or order numbers, key: value pairs, emails, phones, URLs, simple tables). Images and scans use OCR. Pr\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"domain_lookup\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:domain_lookup",
+        "snippet": "before: \"Domain intelligence for due diligence, phishing checks and lead research: registrar, creation and expiry dates (RDAP/WHOIS), A/AAAA/MX/NS/TXT records, SPF, DMARC and HTTPS reachability in one call. Price $0.0018 USDC per call via x402. Example output: {\"domain\":\"example.com\",\"registered\":true,\"regis\" → after: \"Domain intelligence for due diligence, phishing checks and lead research: registrar, creation and expiry dates (RDAP/WHOIS), A/AAAA/MX/NS/TXT records, SPF, DMARC and HTTPS reachability in one call. Price $0.003 USDC per call via x402. Example output: {\"domain\":\"example.com\",\"registered\":true,\"regist\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"image_ocr\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:image_ocr",
+        "snippet": "before: \"OCR: read all text from a screenshot, photo, receipt, sign, scanned page or chart image at a URL (PNG/JPEG, max 10 MB). Keeps line breaks. Price $0.0038 USDC per call via x402. Example output: {\"text\":\"Hello Agent Tools\"}\" → after: \"OCR: read all text from a screenshot, photo, receipt, sign, scanned page or chart image at a URL (PNG/JPEG, max 10 MB). Keeps line breaks. Price $0.005 USDC per call via x402. Example output: {\"text\":\"Hello Agent Tools\"}\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"web_read_full\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:web_read_full",
+        "snippet": "before: \"One call page reader: clean markdown plus page metadata (title, description, Open Graph, canonical, favicon), outbound links, word count and extracted dates, prices, emails and phones. Use for research agents, price checks and lead enrichment from public pages. Price $0.003 USDC per call via x402. E\" → after: \"One call page reader: clean markdown plus page metadata (title, description, Open Graph, canonical, favicon), outbound links, word count and extracted dates, prices, emails and phones. Use for research agents, price checks and lead enrichment from public pages. Price $0.004 USDC per call via x402. E\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"ip_lookup\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:ip_lookup",
+        "snippet": "before: \"IP address lookup for security triage, log analysis and fraud checks: owning network, allocation range, registry country (RDAP) and reverse DNS. Price $0.002 USDC per call via x402. Example output: {\"ip\":\"1.1.1.1\",\"network\":\"APNIC-LABS\",\"range\":\"1.1.1.0 - 1.1.1.255\",\"country\":\"AU\",\"type\":\"ASSIGNED P\" → after: \"IP address lookup for security triage, log analysis and fraud checks: owning network, allocation range, registry country (RDAP) and reverse DNS. Price $0.003 USDC per call via x402. Example output: {\"ip\":\"1.1.1.1\",\"network\":\"APNIC-LABS\",\"range\":\"1.1.1.0 - 1.1.1.255\",\"country\":\"AU\",\"type\":\"ASSIGNED P\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    }
+  ],
+  "score": 38,
+  "scoreBreakdown": {
+    "tool-poisoning": 43,
+    "toxic-flow": 20
+  },
+  "errors": []
 }
