@@ -8,8 +8,8 @@
     "kind": "url",
     "ref": "https://claim-grounding.prospectintel.workers.dev/mcp"
   },
-  "scannedAt": "2026-10-13T12:21:11.317Z",
-  "durationMs": 450,
+  "scannedAt": "2026-10-31T10:54:04.106Z",
+  "durationMs": 253,
   "layers": {
     "metadata": true,
     "static": false
@@ -17,8 +17,8 @@
   "tools": [
     {
       "name": "extract_claims",
-      "descriptionHash": "555728c603237b943cd6ff68255c2f578d4a7f324ec7abbfd7f1adf598270410",
-      "description": "Split a text (for example an AI-generated answer) into atomic factual claims, each with its character span and a grounding_required flag that says whether it is a checkable fact (questions, greetings and opinions are flagged false). Use it before verify_claim to decide what to check. Price: $0.05 US",
+      "descriptionHash": "f55a1d775a3e0ea62f6dd02eedc21517d0b116ae06bc140dba14ba962cab1ac5",
+      "description": "Split a text (for example an AI-generated answer) into atomic factual claims. Each claim includes span, grounding_required, claim_type (number|date|quantity|quote|named_entity_fact|comparison|opinion|prediction|other), check_worthiness (high|medium|low), and the source sentence. Hedges are stripped,",
       "labels": [
         "untrusted-content",
         "public-sink"
@@ -35,41 +35,81 @@
     },
     {
       "name": "check_answer",
-      "descriptionHash": "0ad72e72c638fc47c740cf5708ed119f7dfd3710e2029cd9da980b5315156ee8",
-      "description": "Fact-check a whole answer: extracts every checkable claim and verifies each one against public Wikipedia sources, returning a verdict, confidence, quote and source URL per claim plus suggested next actions. Use it to audit chatbot or RAG output before showing it to a user. Price: $1.00 USDC on Base ",
+      "descriptionHash": "77c2275a31e55d3d19f2e0a9a47bc608138c64b9e64a6e0eba99fb0b212f9987",
+      "description": "Fact-check a whole answer: extracts every checkable claim and verifies each against Wikipedia, plus Wikidata structured facts for dates, numbers, quantities, ordinals and records. Returns per-claim verdict, confidence, quote, source URL, sentence span and suggested_correction (quoted only from cited",
       "labels": [
         "untrusted-content",
+        "private-data",
         "public-sink"
       ]
     },
     {
       "name": "deep_verify",
-      "descriptionHash": "cb880c1ba24688c9979224c4092ce9909284757bcf31b225d3dc5ddd2eb31e91",
-      "description": "Multi-source verification of up to three claims in a text against Wikipedia, Wikidata, Google News, Europe PMC (PubMed studies), FRED (US economic data) and SEC EDGAR (US company filings). Returns verdict, confidence, evidence for and against with quotes and URLs, and flags contradiction when source",
+      "descriptionHash": "4252ca8e2072cc1e0e6103ea2ed61acc470077fe668daf100d18511d54f749d2",
+      "description": "Use when a claim is high-stakes, or when check_answer or extract_claims marks it unsure (their next_step gives the exact request). Verifies up to three claims against Wikipedia, Wikidata, Google News, Europe PMC, FRED and SEC EDGAR; returns verdict, confidence, evidence for and against with URLs, an",
       "labels": [
-        "untrusted-content",
-        "public-sink"
+        "untrusted-content"
       ]
     }
   ],
   "findings": [
     {
       "id": "MCP-TOXIC-FLOW-001",
-      "severity": "medium",
+      "severity": "high",
       "category": "toxic-flow",
-      "title": "Toxic flow: untrusted input can reach an external sink",
-      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: extract_claims, verify_claim, check_answer, deep_verify · Public sink: extract_claims, verify_claim, check_answer, deep_verify.",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: extract_claims, verify_claim, check_answer, deep_verify · Private data: check_answer · Public sink: extract_claims, verify_claim, check_answer.",
       "evidence": {
         "source": "server:mcp",
-        "snippet": "Untrusted content: extract_claims, verify_claim, check_answer, deep_verify · Public sink: extract_claims, verify_claim, check_answer, deep_verify"
+        "snippet": "Untrusted content: extract_claims, verify_claim, check_answer, deep_verify · Private data: check_answer · Public sink: extract_claims, verify_claim, check_answer"
       },
-      "confidence": 0.45,
+      "confidence": 0.6,
       "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"extract_claims\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:extract_claims",
+        "snippet": "before: \"Split a text (for example an AI-generated answer) into atomic factual claims, each with its character span and a grounding_required flag that says whether it is a checkable fact (questions, greetings and opinions are flagged false). Use it before verify_claim to decide what to check. Price: $0.05 US\" → after: \"Split a text (for example an AI-generated answer) into atomic factual claims. Each claim includes span, grounding_required, claim_type (number|date|quantity|quote|named_entity_fact|comparison|opinion|prediction|other), check_worthiness (high|medium|low), and the source sentence. Hedges are stripped,\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"check_answer\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:check_answer",
+        "snippet": "before: \"Fact-check a whole answer: extracts every checkable claim and verifies each one against public Wikipedia sources, returning a verdict, confidence, quote and source URL per claim plus suggested next actions. Use it to audit chatbot or RAG output before showing it to a user. Price: $1.00 USDC on Base \" → after: \"Fact-check a whole answer: extracts every checkable claim and verifies each against Wikipedia, plus Wikidata structured facts for dates, numbers, quantities, ordinals and records. Returns per-claim verdict, confidence, quote, source URL, sentence span and suggested_correction (quoted only from cited\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"deep_verify\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:deep_verify",
+        "snippet": "before: \"Multi-source verification of up to three claims in a text against Wikipedia, Wikidata, Google News, Europe PMC (PubMed studies), FRED (US economic data) and SEC EDGAR (US company filings). Returns verdict, confidence, evidence for and against with quotes and URLs, and flags contradiction when source\" → after: \"Use when a claim is high-stakes, or when check_answer or extract_claims marks it unsure (their next_step gives the exact request). Verifies up to three claims against Wikipedia, Wikidata, Google News, Europe PMC, FRED and SEC EDGAR; returns verdict, confidence, evidence for and against with URLs, an\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
     }
   ],
-  "score": 92,
+  "score": 45,
   "scoreBreakdown": {
-    "toxic-flow": 8
+    "toxic-flow": 20,
+    "tool-poisoning": 35
   },
   "errors": []
 }

@@ -1,0 +1,133 @@
+{
+  "schemaVersion": 1,
+  "scanner": {
+    "version": "1.6.0",
+    "rules": "402995650b68"
+  },
+  "target": {
+    "kind": "url",
+    "ref": "https://brier-engine.onrender.com/mcp"
+  },
+  "scannedAt": "2026-10-31T10:33:51.252Z",
+  "durationMs": 233,
+  "layers": {
+    "metadata": true,
+    "static": false
+  },
+  "tools": [
+    {
+      "name": "brier_about",
+      "descriptionHash": "0a256ee1399460fa1ea7603d2b46db677ab835f02e3db40b54cef3b133d1976d",
+      "description": "What Brier is, the network and contract addresses, units, costs (free on testnet), and the exact steps for an agent to register, get test funds, forecast and trade. Call this first."
+    },
+    {
+      "name": "list_markets",
+      "descriptionHash": "5e0f61cbcc97239a3ce01215e6c5794e1a4bfd70b34d2da9c00a2470de581ed3",
+      "description": "Markets with their question, close time, best bid/ask for YES, last price, volume and status. Prices are probabilities (0..1)."
+    },
+    {
+      "name": "get_market",
+      "descriptionHash": "9bfb602de873def42fb82ade6f2378c9130ca04797ca76419cd1eb27ed492133",
+      "description": "One market: full resolution rules, machine-readable resolution terms, order book (YES side, 6dp integers), recent trades and the latest forecast of each agent."
+    },
+    {
+      "name": "get_leaderboard",
+      "descriptionHash": "231bea5bda9dc564efcee27a9372dd0544dd33ba4ea639200092b50ed0962b60",
+      "description": "Every agent's equity, P&L, ROI, max drawdown, Brier score (once markets resolve) and composite rating. Amounts are 6dp integers."
+    },
+    {
+      "name": "get_agent",
+      "descriptionHash": "22455b9e6b292600f7fb6392bfb6be8d633bfa6432a668e5035fa3cecbe0c341",
+      "description": "One agent's stats, rank and open orders."
+    },
+    {
+      "name": "prepare_registration",
+      "descriptionHash": "c29103eddbb490937de8c41fe874988202ce07269abde75588b1047a4d6b8a8a",
+      "description": "Returns the EIP-712 typed data that registers a new agent gaslessly. Sign it (eth_signTypedData_v4) with the owner key, then call submit_registration. The trading signer defaults to the owner."
+    },
+    {
+      "name": "submit_registration",
+      "descriptionHash": "f7747bbc7a33478bd98b1e4b225e456159403c8a50579c9a9b94d29f2e993e27",
+      "description": "Submits a signed registration. The relayer pays gas; the registry re-verifies the signature on-chain. Returns the new agentId.",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "request_test_funds",
+      "descriptionHash": "218ec16f09e8731a1328fcd8f7d38220ebc395581123dbdfd5740d1595f2da50",
+      "description": "Credits test points (tUSDC, no value) straight into an agent's vault. Testnet only, capped per agent.",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "prepare_forecast",
+      "descriptionHash": "f2bbd4dd61ff013b38e9ec1d190574054ead1e194e5d21b4eb801c477c31c392",
+      "description": "Returns the exact message to sign (EIP-191 personal_sign) with the agent's trading key to publish a probability for a market. Forecasts are what the Brier score ranks; publish before the market closes.",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "submit_forecast",
+      "descriptionHash": "7aa0f29d126254b8edddadfff256fba3130a3bdb127766765c26b162a4fd7a37",
+      "description": "Publishes a signed forecast (from prepare_forecast).",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "prepare_order",
+      "descriptionHash": "e26343c2228e53aa0607dedbd14d0ed2c781c794cb8d7860ac86a895d35d6ded",
+      "description": "Returns the EIP-712 order to sign with the agent's trading key. Buying YES at 0.30 means paying 0.30 per share that pays 1 if YES. To bet against, BUY NO. Then call submit_order.",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "submit_order",
+      "descriptionHash": "48d310e4676bbc2db461335f3976a78561182012b9be5ee4eeef93be0bef30d3",
+      "description": "Submits a signed order. It matches immediately against the book where it can; the rest rests until expiry. Fills settle on-chain.",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "prepare_cancel",
+      "descriptionHash": "c98abc21c4b10614510368eaf19c9d40723bb6c5217a0b731fe6b7106501ae2f",
+      "description": "Returns the message to personal_sign with the trading key to cancel one open order off-chain (instant, free).",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "submit_cancel",
+      "descriptionHash": "3f64260c36ae8b77366ee99ec0b4bd6a8024a1861d8bc694530a66415314b71d",
+      "description": "Cancels an open order with a signature from prepare_cancel.",
+      "labels": [
+        "public-sink"
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: prepare_cancel · Private data: request_test_funds · Public sink: submit_registration, prepare_forecast, submit_forecast, prepare_order, submit_order, submit_cancel.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: prepare_cancel · Private data: request_test_funds · Public sink: submit_registration, prepare_forecast, submit_forecast, prepare_order, submit_order, submit_cancel"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 80,
+  "scoreBreakdown": {
+    "toxic-flow": 20
+  },
+  "errors": []
+}

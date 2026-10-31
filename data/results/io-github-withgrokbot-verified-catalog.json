@@ -6,10 +6,10 @@
   },
   "target": {
     "kind": "url",
-    "ref": "https://verified-catalog-lookup.withgrokbot.workers.dev/mcp"
+    "ref": "https://api.402xagent.com/mcp"
   },
-  "scannedAt": "2026-10-06T11:51:32.308Z",
-  "durationMs": 131,
+  "scannedAt": "2026-10-31T10:54:18.448Z",
+  "durationMs": 253,
   "layers": {
     "metadata": true,
     "static": false
@@ -17,21 +17,29 @@
   "tools": [
     {
       "name": "search_catalog",
-      "descriptionHash": "7ea5881974deced0c4205bd568ab785cae13a5cec8b0c94231661fa2bfa94a5f",
-      "description": "Search pay-per-call (x402) agent services in the verified catalog. Returns factual latest-check results (reachable, latency, advertised vs quoted price). No grades."
+      "descriptionHash": "310c501e1d35e33ed09bb971d1819a4a3297443a4b82ba3a1998c6a3c7464220",
+      "description": "Browse or keyword-search the verified catalog of pay-per-call (x402) agent services. Use it when you don't know the task name or want to see what exists; use lookup to rank endpoints for a known task at a max price, and get_service for one id's full record. Read-only. No auth or API key; free, no qu",
+      "labels": [
+        "private-data"
+      ]
     },
     {
       "name": "get_service",
-      "descriptionHash": "66f77e2da41df77707ec51f387003eaa90eb60d3a79e2f3a6ace1660aa9f9fb9",
-      "description": "Get the full catalog record for one service id, including its latest check and raw log link.",
+      "descriptionHash": "78e470a5d6cb0c671a71b007ff92143f45977986c5e6bca3a8336eeb19ecb9c6",
+      "description": "Fetch the complete catalog record for one known service id (e.g. from search_catalog or lookup results). Use search_catalog to find ids and lookup to rank services for a task; get_service has no per-call receipts, so for receipts with tx and Basescan links call lookup with endpoint=<id>. Read-only. ",
       "labels": [
         "private-data"
       ]
     },
     {
       "name": "lookup",
-      "descriptionHash": "71497f04e2cc8a6b3c85a5f95146782026805c96a46c79705a7f0af87979585d",
-      "description": "Is an x402 endpoint reliable for a task at a price? Asks the catalog's lookup service for services matching a task at or under max_price_usd, sorted by known-answer pass rate over the last n paid calls, then price. Each result has its paid receipts (time, tx, Basescan link, charged, delivered, pass/"
+      "descriptionHash": "5452ce8bff11bdc8a0183566031a4b4d7685ea4391bf77394fc61ae0fb847d06",
+      "description": "Rank x402 endpoints for a known task at or under a price: \"which endpoint should I pay for task X at <= $Y?\". Prefer it over search_catalog (keyword browsing, unranked) and get_service (one id's raw record). No auth or API key. Calls the hosted lookup service as client=vc-mcp; all MCP users share th",
+      "labels": [
+        "private-data",
+        "public-sink",
+        "destructive"
+      ]
     },
     {
       "name": "get_overnight_cos_pack",
@@ -42,14 +50,54 @@
       ]
     },
     {
-      "name": "endpoint_spot_check",
-      "descriptionHash": "a16c686e0c4b0d13ae0cfad595de11ced8ee29e6f8b70ebe79505ec78d2a8b4f",
-      "description": "SSRF-safe spot-check of a public URL for an x402 PAYMENT-REQUIRED / 402 challenge. Returns reachable, http_status, latency_ms, parsed accepts summary, quoted_price_usd, and optional price_matches_claimed. Never pays the target (probe GET only). 1 free check per client per UTC day (client=vc-mcp for ",
+      "name": "get_receipt",
+      "descriptionHash": "e2a6d46de50cb1db3f237e51ec953aa07f85540234fbc40a099a52655a95e2c7",
+      "description": "Free: read a public 402xAgent receipt. Give id (sc-... from endpoint_spot_check's receipt_id, or a 10-hex crawl id) or url (latest live + crawl receipt for that URL). Receipts hold the listing URL, the live 402 terms, verdict, reason, reason_code, confidence, history summary, timestamp, and a status",
       "labels": [
         "untrusted-content",
+        "destructive"
+      ]
+    },
+    {
+      "name": "endpoint_spot_check",
+      "descriptionHash": "67ddf71c12b88396d8e4476a48b4baad902dcb72a3b94cdf608328f82f1aabf3",
+      "description": "Decision-shaped 402xAgent check of a public URL (private, loopback and link-local addresses blocked on every redirect hop) for an x402 PAYMENT-REQUIRED / 402 challenge. Every answer has reason_code (stable code) and confidence (high|medium|low); rules: https://402xagent.com/rules.json. History: stab",
+      "labels": [
+        "untrusted-content",
+        "private-data",
         "public-sink",
         "destructive"
       ]
+    },
+    {
+      "name": "payment_status",
+      "descriptionHash": "250560a56fb5a80c7fe7ed215a6c84fb24a06b662d182cc16689ba13300bd9bb",
+      "description": "After you pay an x402 endpoint (Base USDC, EIP-3009 exact): did the payment land, and is it safe to sign a new one? Give payment_payload (the base64 PAYMENT-SIGNATURE you sent), or tx_hash, or from + nonce (+ valid_before). Returns status landed|not_landed|pending|canceled|unknown, safe_to_retry_sam",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "x402_hygiene",
+      "descriptionHash": "2aeeae9d51d9ceda7fb4e317461dfdad682105e61c09113e8d37cd7167854cd4",
+      "description": "Free x402 hygiene score for an endpoint you run: {score, grade, deductions[{code, points, fix}]} from normal unpaid requests (never pays, never sends bad params). 20 per day per network, cached 24 h. Grades are returned only to you.",
+      "labels": [
+        "destructive"
+      ]
+    },
+    {
+      "name": "discover",
+      "descriptionHash": "886fb0b280a69467a0b68c1e4b2d282f89baa4e1b37302d355eb87b73c3e43e0",
+      "description": "Free discovery of x402 pay-per-call endpoints from 402xAgent's weekly crawl. Returns up to 20 endpoints matching the words in q (URL or source list), each with the verified (quoted) price, network, last_checked, stale flag, verdict pay|skip|recheck with its reason, and a receipt. Skips are included ",
+      "labels": [
+        "untrusted-content",
+        "destructive"
+      ]
+    },
+    {
+      "name": "endpoint_report",
+      "descriptionHash": "751fa45c84691802d25ad3d9fd3abbd7dae2e56877e7e7f40ea3ccf24321f615",
+      "description": "Paid ($0.05 USDC on Base via x402, no free tier): the exact committed snapshots behind endpoint_spot_check's locked teasers: which payment terms changed in the last 30 days, when, from what to what, and the full hygiene checks. Pass the url and the commitment_ref from the free answer's locked_commit"
     }
   ],
   "findings": [
@@ -70,18 +118,70 @@
       "severity": "high",
       "category": "toxic-flow",
       "title": "Lethal trifecta: untrusted input + private data + external sink",
-      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: get_overnight_cos_pack, endpoint_spot_check · Private data: get_service · Public sink: endpoint_spot_check · Destructive: endpoint_spot_check.",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: get_overnight_cos_pack, get_receipt, endpoint_spot_check, discover · Private data: search_catalog, get_service, lookup, endpoint_spot_check · Public sink: lookup, endpoint_spot_check, payment_status · Destructive: lookup, get_receipt, endpoint_spot_check, x402_hygiene, discover.",
       "evidence": {
         "source": "server:mcp",
-        "snippet": "Untrusted content: get_overnight_cos_pack, endpoint_spot_check · Private data: get_service · Public sink: endpoint_spot_check · Destructive: endpoint_spot_check"
+        "snippet": "Untrusted content: get_overnight_cos_pack, get_receipt, endpoint_spot_check, discover · Private data: search_catalog, get_service, lookup, endpoint_spot_check · Public sink: lookup, endpoint_spot_check, payment_status · Destructive: lookup, get_receipt, endpoint_spot_check, x402_hygiene, discover"
       },
       "confidence": 0.6,
       "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"search_catalog\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:search_catalog",
+        "snippet": "before: \"Search pay-per-call (x402) agent services in the verified catalog. Returns factual latest-check results (reachable, latency, advertised vs quoted price). No grades.\" → after: \"Browse or keyword-search the verified catalog of pay-per-call (x402) agent services. Use it when you don't know the task name or want to see what exists; use lookup to rank endpoints for a known task at a max price, and get_service for one id's full record. Read-only. No auth or API key; free, no qu\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"get_service\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:get_service",
+        "snippet": "before: \"Get the full catalog record for one service id, including its latest check and raw log link.\" → after: \"Fetch the complete catalog record for one known service id (e.g. from search_catalog or lookup results). Use search_catalog to find ids and lookup to rank services for a task; get_service has no per-call receipts, so for receipts with tx and Basescan links call lookup with endpoint=<id>. Read-only. \""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"lookup\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:lookup",
+        "snippet": "before: \"Is an x402 endpoint reliable for a task at a price? Asks the catalog's lookup service for services matching a task at or under max_price_usd, sorted by known-answer pass rate over the last n paid calls, then price. Each result has its paid receipts (time, tx, Basescan link, charged, delivered, pass/\" → after: \"Rank x402 endpoints for a known task at or under a price: \"which endpoint should I pay for task X at <= $Y?\". Prefer it over search_catalog (keyword browsing, unranked) and get_service (one id's raw record). No auth or API key. Calls the hosted lookup service as client=vc-mcp; all MCP users share th\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"endpoint_spot_check\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:endpoint_spot_check",
+        "snippet": "before: \"SSRF-safe spot-check of a public URL for an x402 PAYMENT-REQUIRED / 402 challenge. Returns reachable, http_status, latency_ms, parsed accepts summary, quoted_price_usd, and optional price_matches_claimed. Never pays the target (probe GET only). 1 free check per client per UTC day (client=vc-mcp for \" → after: \"Decision-shaped 402xAgent check of a public URL (private, loopback and link-local addresses blocked on every redirect hop) for an x402 PAYMENT-REQUIRED / 402 challenge. Every answer has reason_code (stable code) and confidence (high|medium|low); rules: https://402xagent.com/rules.json. History: stab\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
     }
   ],
-  "score": 60,
+  "score": 41,
   "scoreBreakdown": {
-    "tool-poisoning": 20,
+    "tool-poisoning": 39,
     "toxic-flow": 20
   },
   "errors": []

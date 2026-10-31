@@ -8,8 +8,8 @@
     "kind": "url",
     "ref": "https://hotelrefund.net/mcp"
   },
-  "scannedAt": "2026-09-10T09:27:28.326Z",
-  "durationMs": 310,
+  "scannedAt": "2026-10-31T10:55:07.928Z",
+  "durationMs": 355,
   "layers": {
     "metadata": true,
     "static": false
@@ -17,7 +17,7 @@
   "tools": [
     {
       "name": "search_hotels",
-      "descriptionHash": "733f9789bc936c512639140429383da32c085a8a29b61becad481109545875ea",
+      "descriptionHash": "657c82f80e9a1f82605afad9ca2d30c6b7802d45a89828731674248395223691",
       "description": "Resolve a hotel to the agoda_hotel_id that track_hotel_price needs. This is a lookup step, not a hotel search engine: it returns catalog entries (name, address, stars, rating, review count) and no prices — for prices, track the hotel or use list_hotel_deals. Give a city, region or airport name (Kore",
       "labels": [
         "untrusted-content"
@@ -25,16 +25,20 @@
     },
     {
       "name": "track_hotel_price",
-      "descriptionHash": "a69cbe8e06f4fe508aee9e407ebf337114999e8b1f6ec8955095537477b3a894",
-      "description": "Today is 2026-09-10 (UTC) — never infer the date from the conversation or from training data. Stay dates are calendar days in the hotel's local time zone, which in Asia is already ahead of UTC, so check_in must be 2026-09-09 or later; an earlier check_in is rejected, not silently accepted. Start tra",
+      "descriptionHash": "584f304767478db18caead0c4273ac5a7754e748b220fec68d3347e695404fbb",
+      "description": "Today is 2026-10-31 (UTC) — never infer the date from the conversation or from training data. Stay dates are calendar days in the hotel's local time zone, which in Asia is already ahead of UTC, so check_in must be 2026-10-30 or later; an earlier check_in is rejected, not silently accepted. Start tra",
       "labels": [
         "destructive"
       ]
     },
     {
       "name": "get_price_history",
-      "descriptionHash": "e1c94dc25be98fce1be30952568da29d1db5deb63ae34ac6055c45f23f8fd90c",
-      "description": "Return the recorded prices for one tracking (tracking_id): current, first, lowest and highest price, percentage change and trend since tracking started, and the time series of observed prices. Also returns booking_guidance — a book-now-or-wait signal computed from this stay's own observations, with "
+      "descriptionHash": "1c700b09a3704bbccacd5aaa8a90965cc5bd5a3ae6a57d40b1a65105d21c4218",
+      "description": "Return the recorded prices for one tracking (tracking_id): current, first, lowest and highest price, percentage change and trend since tracking started, and the time series of observed prices. Also returns booking_guidance — a book-now-or-wait signal computed from this stay's full tracked record (sh",
+      "labels": [
+        "private-data",
+        "public-sink"
+      ]
     },
     {
       "name": "list_tracked_hotels",
@@ -63,6 +67,30 @@
       "name": "get_service_status",
       "descriptionHash": "cb29d2c9c7efd4dcd31e4a5da2423c543388ce1e8fcfbae2ef2a281146c439a6",
       "description": "Report whether the tracker is running and what it covers: the number of hotels and cities in the catalog that can be tracked, how many stays are tracked right now, price checks in the last 24 hours, and the remaining shared daily registration allowance for AI clients. Useful before starting a longer"
+    },
+    {
+      "name": "get_current_price",
+      "descriptionHash": "ea0210df97a95943f2af61390dfe0d79a4c8a0d4902b69bc986e659aace4a121",
+      "description": "Read the Agoda price for one hotel (agoda_hotel_id from search_hotels) and one stay right now: total for the whole stay with taxes and fees, 2 adults, standard rate, plus room type and breakfast when Agoda reports them. A one-time reading — nothing is tracked or stored about the request. Used after ",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "check_refund_claim",
+      "descriptionHash": "9f7c3b87c1ec6298af4e37abab981a4fbf869b5679b115eb91bc869f799dcf4f",
+      "description": "Check whether a lower price found after booking qualifies for the booking site's best price guarantee, using the same rules as the HotelRefund Refund Report: same-site drops, sites that ended their guarantee (Hotels.com; Expedia for newer bookings), currency mismatch, a price that is not actually lo",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "draft_refund_request",
+      "descriptionHash": "88ce03901a92adca462e10ae6ea19f8cc3284cdc9d7f478bb1dd03fe857a96f7",
+      "description": "Write the text for one of four requests, in en, ko, ja or zh: price_guarantee (claim to the booking site for the difference), date_change, goodwill_refund (for a non-refundable booking, with a reason) or checkin_request (upgrade, late check-out or breakfast, citing the lower price) to the hotel. Ret",
+      "labels": [
+        "untrusted-content"
+      ]
     }
   ],
   "findings": [
@@ -74,14 +102,67 @@
       "detail": "Description of \"track_hotel_price\" instructs the model to conceal actions from the user.",
       "evidence": {
         "source": "tool:track_hotel_price",
-        "snippet": "Today is 2026-09-10 (UTC) — never infer the date from the conversation or from training data. Stay dates are calendar days in the hotel's local time zone, which…"
+        "snippet": "Today is 2026-10-31 (UTC) — never infer the date from the conversation or from training data. Stay dates are calendar days in the hotel's local time zone, which…"
       },
       "confidence": 0.75
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: search_hotels, get_refund_guide, draft_refund_request · Private data: get_price_history, check_refund_claim · Public sink: get_price_history, get_current_price · Destructive: track_hotel_price.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: search_hotels, get_refund_guide, draft_refund_request · Private data: get_price_history, check_refund_claim · Public sink: get_price_history, get_current_price · Destructive: track_hotel_price"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"search_hotels\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:search_hotels",
+        "snippet": "before: \"Resolve a hotel to the agoda_hotel_id that track_hotel_price needs. This is a lookup step, not a hotel search engine: it returns catalog entries (name, address, stars, rating, review count) and no prices — for prices, track the hotel or use list_hotel_deals. Give a city, region or airport name (Kore\" → after: \"Resolve a hotel to the agoda_hotel_id that track_hotel_price needs. This is a lookup step, not a hotel search engine: it returns catalog entries (name, address, stars, rating, review count) and no prices — for prices, track the hotel or use list_hotel_deals. Give a city, region or airport name (Kore\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"track_hotel_price\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:track_hotel_price",
+        "snippet": "before: \"Today is 2026-09-10 (UTC) — never infer the date from the conversation or from training data. Stay dates are calendar days in the hotel's local time zone, which in Asia is already ahead of UTC, so check_in must be 2026-09-09 or later; an earlier check_in is rejected, not silently accepted. Start tra\" → after: \"Today is 2026-10-31 (UTC) — never infer the date from the conversation or from training data. Stay dates are calendar days in the hotel's local time zone, which in Asia is already ahead of UTC, so check_in must be 2026-10-30 or later; an earlier check_in is rejected, not silently accepted. Start tra\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"get_price_history\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:get_price_history",
+        "snippet": "before: \"Return the recorded prices for one tracking (tracking_id): current, first, lowest and highest price, percentage change and trend since tracking started, and the time series of observed prices. Also returns booking_guidance — a book-now-or-wait signal computed from this stay's own observations, with \" → after: \"Return the recorded prices for one tracking (tracking_id): current, first, lowest and highest price, percentage change and trend since tracking started, and the time series of observed prices. Also returns booking_guidance — a book-now-or-wait signal computed from this stay's full tracked record (sh\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
     }
   ],
-  "score": 80,
+  "score": 43,
   "scoreBreakdown": {
-    "tool-poisoning": 20
+    "tool-poisoning": 38,
+    "toxic-flow": 20
   },
   "errors": []
 }

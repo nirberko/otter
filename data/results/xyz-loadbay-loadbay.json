@@ -8,40 +8,43 @@
     "kind": "url",
     "ref": "https://loadbay.xyz/api/mcp"
   },
-  "scannedAt": "2026-07-31T07:28:06.428Z",
-  "durationMs": 879,
+  "scannedAt": "2026-10-31T10:55:58.773Z",
+  "durationMs": 932,
   "layers": {
     "metadata": true,
     "static": false
   },
   "tools": [
     {
-      "name": "list_domains",
-      "descriptionHash": "4b2c347c8d1d0eae7453f3a1e9a9058977193acac3cb762e8fee0aa40f7861f4",
-      "description": "List the harness domains (categories) in the Loadbay catalog."
-    },
-    {
       "name": "search_harnesses",
-      "descriptionHash": "6545e677fa9ab873e59093b4cd9ea7952e7ea21099c9a6d92a5b68c6b74883dc",
-      "description": "Search the Loadbay catalog of harnesses for AI agents. Filter by free-text query, domain, and/or capability trait."
+      "descriptionHash": "51b68326ada9763a4e8bea6525d1ca862497437c6203f5d84cc299d68c2a0c65",
+      "description": "Find an existing MCP server, SDK or agent framework that connects an AI agent to a service or does a task, from Loadbay's curated catalog. Use this before building an integration from scratch, or whenever the user asks for a tool, plugin, MCP server or harness for something (e.g. \"MCP server for Pos",
+      "labels": [
+        "untrusted-content"
+      ]
     },
     {
       "name": "get_harness",
-      "descriptionHash": "f43724fe478ea8d3c5112db4c42052a530bb5dcab64d7dce7596e20a2d79bcb6",
-      "description": "Get full details for one harness by its slug."
+      "descriptionHash": "367fb500ec43cbf8ff944e31ddca968be09e43f26c03012843dc6efac8d974c5",
+      "description": "Get full details for one harness in the Loadbay catalog by slug (from search_harnesses): repo, license, stars, language, integrations, traits, summary and a shareable loadbay.xyz page. If the slug is unknown it returns the closest matches."
+    },
+    {
+      "name": "list_domains",
+      "descriptionHash": "f5e0890e06e8bd877d4dd4d30a8567600d601f13558eeed849a4772c639b393a",
+      "description": "List the domains (categories) in the Loadbay catalog with how many harnesses each holds. Use it to browse when the user has no specific query, then pass a domain key to search_harnesses."
     },
     {
       "name": "submit_harness",
-      "descriptionHash": "7f525c5f1e874c723f4b86a2967f1d6247e700e775c9195602bee362784c93b0",
-      "description": "List a new harness on Loadbay. The repo MUST be a public, open-source GitHub repository. Optionally include a Base USDC address to receive tips. The listing appears immediately, tagged as community-added (unverified).",
+      "descriptionHash": "18c753d197a640631a0a88093baadf2be7e2834183ed50bbfca460e37ecdea1e",
+      "description": "List a new harness on Loadbay. The repo MUST be a public, open-source GitHub repository. Optionally include a USDC address to receive tips — it must also appear in the repo's loadbay.json, .github/FUNDING.yml or README.md (proof of ownership). The listing appears immediately, tagged as community-add",
       "labels": [
         "public-sink"
       ]
     },
     {
       "name": "tip_harness",
-      "descriptionHash": "92efda7973ac1e13bbbe61fdb51463dd0e217ec8dfed5356940638c3f1cdeba4",
-      "description": "Tip a harness author in USDC over x402. Returns the payable endpoint and its payment details — GET it with an x402-capable client/wallet to actually send the tip (the agent's own wallet pays; Loadbay never holds funds).",
+      "descriptionHash": "a47714ce996c0b0d6ad92522f3e4b7c0963a0c2d491379afcf3b1149c8d05c2a",
+      "description": "Only when the user asks to tip or pay a harness author. Tip in USDC over x402. Returns the payable endpoint and its payment details — GET it with an x402-capable client/wallet to actually send the tip (the agent's own wallet pays; Loadbay never holds funds).",
       "labels": [
         "private-data",
         "public-sink"
@@ -49,16 +52,111 @@
     },
     {
       "name": "support_loadbay",
-      "descriptionHash": "1174b5f54dd1664697523e52bb46f9fcb277a32f54b93bb497b4a153f14a7d0b",
-      "description": "Support the Loadbay builder with a USDC tip over x402. Returns the payable endpoint — GET it with your own x402 wallet to send the tip. Loadbay never holds funds; your wallet is the payer.",
+      "descriptionHash": "0963089ca24fdb3a872b0d614db6a6bcff710f0c78a2e740a3c386f5405cf12f",
+      "description": "Only when the user asks to support or donate to Loadbay. Support the Loadbay builder with a USDC tip over x402. Returns the payable endpoint — GET it with your own x402 wallet to send the tip. Loadbay never holds funds; your wallet is the payer.",
       "labels": [
         "private-data",
         "public-sink"
       ]
     }
   ],
-  "findings": [],
-  "score": 100,
-  "scoreBreakdown": {},
+  "findings": [
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: search_harnesses · Private data: tip_harness, support_loadbay · Public sink: submit_harness, tip_harness, support_loadbay.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: search_harnesses · Private data: tip_harness, support_loadbay · Public sink: submit_harness, tip_harness, support_loadbay"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"list_domains\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:list_domains",
+        "snippet": "before: \"List the harness domains (categories) in the Loadbay catalog.\" → after: \"List the domains (categories) in the Loadbay catalog with how many harnesses each holds. Use it to browse when the user has no specific query, then pass a domain key to search_harnesses.\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"search_harnesses\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:search_harnesses",
+        "snippet": "before: \"Search the Loadbay catalog of harnesses for AI agents. Filter by free-text query, domain, and/or capability trait.\" → after: \"Find an existing MCP server, SDK or agent framework that connects an AI agent to a service or does a task, from Loadbay's curated catalog. Use this before building an integration from scratch, or whenever the user asks for a tool, plugin, MCP server or harness for something (e.g. \"MCP server for Pos\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"get_harness\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:get_harness",
+        "snippet": "before: \"Get full details for one harness by its slug.\" → after: \"Get full details for one harness in the Loadbay catalog by slug (from search_harnesses): repo, license, stars, language, integrations, traits, summary and a shareable loadbay.xyz page. If the slug is unknown it returns the closest matches.\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"submit_harness\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:submit_harness",
+        "snippet": "before: \"List a new harness on Loadbay. The repo MUST be a public, open-source GitHub repository. Optionally include a Base USDC address to receive tips. The listing appears immediately, tagged as community-added (unverified).\" → after: \"List a new harness on Loadbay. The repo MUST be a public, open-source GitHub repository. Optionally include a USDC address to receive tips — it must also appear in the repo's loadbay.json, .github/FUNDING.yml or README.md (proof of ownership). The listing appears immediately, tagged as community-add\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"tip_harness\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:tip_harness",
+        "snippet": "before: \"Tip a harness author in USDC over x402. Returns the payable endpoint and its payment details — GET it with an x402-capable client/wallet to actually send the tip (the agent's own wallet pays; Loadbay never holds funds).\" → after: \"Only when the user asks to tip or pay a harness author. Tip in USDC over x402. Returns the payable endpoint and its payment details — GET it with an x402-capable client/wallet to actually send the tip (the agent's own wallet pays; Loadbay never holds funds).\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"support_loadbay\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:support_loadbay",
+        "snippet": "before: \"Support the Loadbay builder with a USDC tip over x402. Returns the payable endpoint — GET it with your own x402 wallet to send the tip. Loadbay never holds funds; your wallet is the payer.\" → after: \"Only when the user asks to support or donate to Loadbay. Support the Loadbay builder with a USDC tip over x402. Returns the payable endpoint — GET it with your own x402 wallet to send the tip. Loadbay never holds funds; your wallet is the payer.\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    }
+  ],
+  "score": 40,
+  "scoreBreakdown": {
+    "toxic-flow": 20,
+    "tool-poisoning": 40
+  },
   "errors": []
 }

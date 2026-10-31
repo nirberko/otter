@@ -8,8 +8,8 @@
     "kind": "url",
     "ref": "https://getstackversus.com/api/mcp"
   },
-  "scannedAt": "2026-10-30T11:19:10.719Z",
-  "durationMs": 539,
+  "scannedAt": "2026-10-31T10:48:15.648Z",
+  "durationMs": 379,
   "layers": {
     "metadata": true,
     "static": false
@@ -17,22 +17,26 @@
   "tools": [
     {
       "name": "list_datasets",
-      "descriptionHash": "1c54528e3d85f418af5e54f17071e605d872cec73d5a2a29ec7cc0d738d36bd8",
-      "description": "The datasets this server holds (AI plan limits, SaaS usage limits, voice-agent $/min, AI media credits, search and scraping APIs, LLM APIs, email platforms...), with tool counts, last update and page URL.",
+      "descriptionHash": "afeb31c935eab4a8861a46fa0b49b3ac129191bac611230be4899f7492bc0904",
+      "description": "Read-only catalog of the datasets on this server. Returns one row per dataset with `id` (the value other tools accept as `dataset`), `title`, `kind`, `tools` (number of products), `plans` (number of plans), `updated` (date of the last verified change), `page` URL and `json` endpoint on getstackversu",
       "labels": [
         "untrusted-content",
+        "private-data",
         "public-sink"
       ]
     },
     {
       "name": "list_tools",
-      "descriptionHash": "cc9d3363e93524fd84346e7c32b1fc950552b4ae6db488e9d088ebb8a99354ce",
-      "description": "Vendors/products covered, with ids to pass to get_tool. Optionally filter by dataset id from list_datasets."
+      "descriptionHash": "e794bb6dd23c9a16ff5c487bda3001984fc1f654b72e5c6827b5b8ce9ddbaa2c",
+      "description": "Read-only list of the products (vendors) covered, to look up ids before calling get_tool or compare_tools. Returns `count` and `tools`, each with `id`, `name`, `vendor`, `dataset`, `checked` (date the vendor page was last read), `plans` (count) and `page` URL; no prices or limits, those live in get_",
+      "labels": [
+        "untrusted-content"
+      ]
     },
     {
       "name": "get_tool",
-      "descriptionHash": "0c16c8b6583f8806af3ef266cf7482192815a20a652177ff3bd4830383374a44",
-      "description": "Full verified record for a product: plans with prices, limits or rates with vendor quotes, free tier, overage policy, gotchas, source URLs and check date. Pass the tool id (e.g. \"claude\", \"cursor\", \"vapi\", \"openai-api\"); a name also works.",
+      "descriptionHash": "59f73ce336298cbf10cdaa9220ddede12486986499074a7f8fa3261c0504f753",
+      "description": "Read-only full verified record for one product. Returns `matches` and up to 3 `records`; each record has `dataset`, `plans` (name, monthly and annual price, metering unit, limits per window), `rates` (per-unit prices such as $/min or $/1M tokens, each with the vendor `quote`), `free` tier, `overage`",
       "labels": [
         "untrusted-content",
         "private-data"
@@ -40,40 +44,134 @@
     },
     {
       "name": "search_limits",
-      "descriptionHash": "679913b7fa59a166a83cde698093a0d4f45ca6da74ff85a67d437217c4518524",
-      "description": "Keyword search across every plan, limit, rate and gotcha. Returns matching rows with value, vendor quote, source URL and check date. Good first call for questions like \"Cursor Pro requests per month\", \"Retell cost per minute\", \"Gemini API free tier RPM\".",
-      "labels": [
-        "untrusted-content"
-      ]
+      "descriptionHash": "aa8cca742cb09e928295501878770fedb4c26ba7488b94ed6d3619eb19b703bc",
+      "description": "Read-only keyword search across every plan, limit, rate, free tier, overage rule and gotcha in all datasets. Best first call for a question like \"Cursor Pro requests per month\", \"Retell cost per minute\" or \"Gemini API free tier RPM\". Returns `query`, `relaxed` (true when fewer than all words matched"
     },
     {
       "name": "compare_tools",
-      "descriptionHash": "5d17dde84989ebf8345df219c45eaf74915371cc539ea36760abfce8e5e5a1b3",
-      "description": "Compact side-by-side of 2 to 6 products: each plan with price and its headline limits or rates, free tier and overage policy, with check dates. Ids as in list_tools."
+      "descriptionHash": "d9f0aa71d8003c9063dbdb7c16ab9d99405fbbe54a9a2e54c8ef6ab686fa08c1",
+      "description": "Read-only compact comparison of 2 to 6 products. Returns `compared` (count), `missing` (ids not found, never an error), `note` and `tools`, one compact record each: id, name, dataset, `checked` date, every plan with price and its headline limits or rates, `free` tier and `overage` policy. Products m",
+      "labels": [
+        "private-data"
+      ]
     },
     {
-      "name": "recent_changes",
-      "descriptionHash": "a5c6e3ffaf2bb1fb4dfea9546b2c07f16f6ff456c24e9fe39431947b5710684f",
-      "description": "Dated change log for the AI plan limits dataset: price moves, limit changes, new or removed plans, each with the vendor source. Defaults to the last 30 days."
+      "name": "list_changes",
+      "descriptionHash": "ac0d1fd972c6151f50ea6cdb64875978ba092cd64dca74324ddfbca8c68177b9",
+      "description": "Read-only dated change log for the AI assistant and coding-agent plans dataset (\"ai-plans\" only; other datasets carry a `checked` date but no history yet). Returns `since` (cut-off date), `count`, `changelog` URL and up to 60 `changes`, newest first, each with `date`, `tool`, `tool_id`, `plan`, `fie",
+      "labels": [
+        "untrusted-content"
+      ]
     }
   ],
   "findings": [
+    {
+      "id": "MCP-TOOL-POISON-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description issues instructions to the model",
+      "detail": "Description of \"list_tools\" contains imperative instructions directed at the AI assistant rather than describing the tool. This is the core tool-poisoning technique.",
+      "evidence": {
+        "source": "tool:list_tools",
+        "snippet": "Read-only list of the products (vendors) covered, to look up ids before calling get_tool or compare_tools. Returns `count` and `tools`, each with `id`, `name`, …"
+      },
+      "confidence": 0.7,
+      "remediation": "Treat the server as untrusted; the model may obey embedded instructions."
+    },
     {
       "id": "MCP-TOXIC-FLOW-001",
       "severity": "high",
       "category": "toxic-flow",
       "title": "Lethal trifecta: untrusted input + private data + external sink",
-      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: list_datasets, get_tool, search_limits · Private data: get_tool · Public sink: list_datasets.",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: list_datasets, list_tools, get_tool, list_changes · Private data: list_datasets, get_tool, compare_tools · Public sink: list_datasets.",
       "evidence": {
         "source": "server:mcp",
-        "snippet": "Untrusted content: list_datasets, get_tool, search_limits · Private data: get_tool · Public sink: list_datasets"
+        "snippet": "Untrusted content: list_datasets, list_tools, get_tool, list_changes · Private data: list_datasets, get_tool, compare_tools · Public sink: list_datasets"
       },
       "confidence": 0.6,
       "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"list_datasets\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:list_datasets",
+        "snippet": "before: \"The datasets this server holds (AI plan limits, SaaS usage limits, voice-agent $/min, AI media credits, search and scraping APIs, LLM APIs, email platforms...), with tool counts, last update and page URL.\" → after: \"Read-only catalog of the datasets on this server. Returns one row per dataset with `id` (the value other tools accept as `dataset`), `title`, `kind`, `tools` (number of products), `plans` (number of plans), `updated` (date of the last verified change), `page` URL and `json` endpoint on getstackversu\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"list_tools\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:list_tools",
+        "snippet": "before: \"Vendors/products covered, with ids to pass to get_tool. Optionally filter by dataset id from list_datasets.\" → after: \"Read-only list of the products (vendors) covered, to look up ids before calling get_tool or compare_tools. Returns `count` and `tools`, each with `id`, `name`, `vendor`, `dataset`, `checked` (date the vendor page was last read), `plans` (count) and `page` URL; no prices or limits, those live in get_\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"get_tool\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:get_tool",
+        "snippet": "before: \"Full verified record for a product: plans with prices, limits or rates with vendor quotes, free tier, overage policy, gotchas, source URLs and check date. Pass the tool id (e.g. \"claude\", \"cursor\", \"vapi\", \"openai-api\"); a name also works.\" → after: \"Read-only full verified record for one product. Returns `matches` and up to 3 `records`; each record has `dataset`, `plans` (name, monthly and annual price, metering unit, limits per window), `rates` (per-unit prices such as $/min or $/1M tokens, each with the vendor `quote`), `free` tier, `overage`\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"search_limits\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:search_limits",
+        "snippet": "before: \"Keyword search across every plan, limit, rate and gotcha. Returns matching rows with value, vendor quote, source URL and check date. Good first call for questions like \"Cursor Pro requests per month\", \"Retell cost per minute\", \"Gemini API free tier RPM\".\" → after: \"Read-only keyword search across every plan, limit, rate, free tier, overage rule and gotcha in all datasets. Best first call for a question like \"Cursor Pro requests per month\", \"Retell cost per minute\" or \"Gemini API free tier RPM\". Returns `query`, `relaxed` (true when fewer than all words matched\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"compare_tools\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:compare_tools",
+        "snippet": "before: \"Compact side-by-side of 2 to 6 products: each plan with price and its headline limits or rates, free tier and overage policy, with check dates. Ids as in list_tools.\" → after: \"Read-only compact comparison of 2 to 6 products. Returns `compared` (count), `missing` (ids not found, never an error), `note` and `tools`, one compact record each: id, name, dataset, `checked` date, every plan with price and its headline limits or rates, `free` tier and `overage` policy. Products m\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "medium",
+      "category": "tool-poisoning",
+      "title": "Tool removed since last scan",
+      "detail": "Tool \"recent_changes\" is no longer advertised. Removal can precede a shadowing replacement from another server.",
+      "evidence": {
+        "source": "tool:recent_changes",
+        "snippet": "removed: recent_changes"
+      },
+      "confidence": 0.5
     }
   ],
-  "score": 80,
+  "score": 40,
   "scoreBreakdown": {
+    "tool-poisoning": 41,
     "toxic-flow": 20
   },
   "errors": []

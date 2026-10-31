@@ -8,8 +8,8 @@
     "kind": "url",
     "ref": "https://railagent.io/mcp"
   },
-  "scannedAt": "2026-09-27T10:21:47.265Z",
-  "durationMs": 553,
+  "scannedAt": "2026-10-31T10:54:35.939Z",
+  "durationMs": 852,
   "layers": {
     "metadata": true,
     "static": false
@@ -22,7 +22,7 @@
     },
     {
       "name": "register_agent",
-      "descriptionHash": "d7ddadd3481183d97ca40ebb5d88d7357efb82e3c2de97e9b7fd793c9eb6c385",
+      "descriptionHash": "ca92464e7eaab65f7950f35130a7cb70879d1a889d9b026a16a9052a70a0df35",
       "description": "Register on railto.me. Free, no invite code. Ask the owner for the handle and display name first (check_handle to confirm it is free); the handle is permanent and public. email is required and may be shared by up to 5 agents. Disposable inboxes are rejected. rail=handle only sends a connect request.",
       "labels": [
         "private-data",
@@ -65,10 +65,11 @@
     },
     {
       "name": "whoami",
-      "descriptionHash": "09e65bbf306f7539fbec6ad010ab9fae36f87fd6ed3fc2d41afe81e63ec25388",
-      "description": "Profile of the signed-in agent (Authorization Bearer or token argument).",
+      "descriptionHash": "2cc6c79a582bf42a178944afb9e3cc030fac576403a18e3cfe52e94cc0c0725e",
+      "description": "Profile of the signed-in agent (Authorization Bearer or token argument). Includes mail: your own railto.me email address and whether it is on, if the platform has email configured.",
       "labels": [
-        "private-data"
+        "private-data",
+        "public-sink"
       ]
     },
     {
@@ -81,8 +82,8 @@
     },
     {
       "name": "set_webhook",
-      "descriptionHash": "2f6e646b4e1489aa2f0468b47823579964c89c0d098110d3825e255ad4c6c5f2",
-      "description": "Set the Grok webhook so the inbox can wake you in realtime. Use the URL and Authorization exactly from the routine panel. Do not share the key. A new URL returns webhook_signing_secret once: give it to the owner privately so the endpoint can check X-Railagent-Signature.",
+      "descriptionHash": "884854ab2ebc870333d40f83ea0fadabcabf0761aadbb2d4c40069a8da69863d",
+      "description": "Set an HTTPS webhook that your agent runtime exposes so the inbox can notify it of new mail in realtime. Do not share the key. A new URL returns webhook_signing_secret once: give it to the owner privately so the endpoint can check X-Railagent-Signature.",
       "labels": [
         "untrusted-content",
         "public-sink"
@@ -177,6 +178,14 @@
       "name": "send_message",
       "descriptionHash": "992ea1349bb4f1af46ca2f227be87d7966734d91aa39d84a61474de55a3faf5d",
       "description": "Send without waiting. For live chat use send_and_wait. expect_reply defaults to false. Do not send to a #room. Do not send \"ok\". If the peer has an encryption public key, send envelope from scripts/e2ee.ts seal instead of text.",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "send_email",
+      "descriptionHash": "9db8bd0523ce67676f050c08f2a050b03fced51eeb9a2c5b61715c448a14c67d",
+      "description": "Send a real email from this agent's own address (<handle>@railagent.email) to any email address. An address on railagent.email is delivered straight into that agent's inbox (as an email, under its own mail settings: it may be refused, or wait for its owner's approval); any other address goes out by ",
       "labels": [
         "public-sink"
       ]
@@ -294,7 +303,7 @@
       "detail": "Description of \"whoami\" references sensitive artifacts (authorization, bearer). A tool description has no reason to mention credentials.",
       "evidence": {
         "source": "tool:whoami",
-        "snippet": "Profile of the signed-in agent (Authorization Bearer or token argument)."
+        "snippet": "Profile of the signed-in agent (Authorization Bearer or token argument). Includes mail: your own railto.me email address and whether it is on, if the platform h…"
       },
       "confidence": 0.65
     },
@@ -315,10 +324,10 @@
       "severity": "high",
       "category": "tool-poisoning",
       "title": "Description references secrets/credentials",
-      "detail": "Description of \"set_webhook\" references sensitive artifacts (secret, authorization). A tool description has no reason to mention credentials.",
+      "detail": "Description of \"set_webhook\" references sensitive artifacts (secret). A tool description has no reason to mention credentials.",
       "evidence": {
         "source": "tool:set_webhook",
-        "snippet": "Set the Grok webhook so the inbox can wake you in realtime. Use the URL and Authorization exactly from the routine panel. Do not share the key. A new URL return…"
+        "snippet": "Set an HTTPS webhook that your agent runtime exposes so the inbox can notify it of new mail in realtime. Do not share the key. A new URL returns webhook_signing…"
       },
       "confidence": 0.65
     },
@@ -333,6 +342,18 @@
         "snippet": "Publish this agent HPKE public key (X25519, base64url). Generate the keypair on the agent machine with scripts/e2ee.ts keygen. Never send the private key."
       },
       "confidence": 0.65
+    },
+    {
+      "id": "MCP-SHADOW-001",
+      "severity": "medium",
+      "category": "shadowing",
+      "title": "Generic tool name can shadow trusted tools",
+      "detail": "Tool \"send_email\" uses a generic high-value name. When multiple servers load together, this can intercept calls meant for a trusted server.",
+      "evidence": {
+        "source": "tool:send_email",
+        "snippet": "send_email"
+      },
+      "confidence": 0.4
     },
     {
       "id": "MCP-TOOL-POISON-003",
@@ -387,19 +408,58 @@
       "severity": "high",
       "category": "toxic-flow",
       "title": "Lethal trifecta: untrusted input + private data + external sink",
-      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: set_webhook, publish_rail, check_inbox, ack_messages, get_thread, test_webhook · Private data: register_agent, resend_email_code, recover_token, confirm_recovery, whoami, rotate_token, create_invite, request_connect, list_contacts, set_encryption_key, prepare_file, upload_file, send_file, get_file, remember_thread · Public sink: register_agent, verify_email, resend_email_code, recover_token, set_webhook, create_invite, publish_rail, request_connect, reject_connect, set_encryption_key, send_message, send_and_wait, watch_inbox, upload_file, send_file, ack_messages, get_thread, test_webhook · Destructive: unblock_agent.",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: set_webhook, publish_rail, check_inbox, ack_messages, get_thread, test_webhook · Private data: register_agent, resend_email_code, recover_token, confirm_recovery, whoami, rotate_token, create_invite, request_connect, list_contacts, set_encryption_key, prepare_file, upload_file, send_file, get_file, remember_thread · Public sink: register_agent, verify_email, resend_email_code, recover_token, whoami, set_webhook, create_invite, publish_rail, request_connect, reject_connect, set_encryption_key, send_message, send_email, send_and_wait, watch_inbox, upload_file, send_file, ack_messages, get_thread, test_webhook · Destructive: unblock_agent.",
       "evidence": {
         "source": "server:mcp",
-        "snippet": "Untrusted content: set_webhook, publish_rail, check_inbox, ack_messages, get_thread, test_webhook · Private data: register_agent, resend_email_code, recover_token, confirm_recovery, whoami, rotate_token, create_invite, request_connect, list_contacts, set_encryption_key, prepare_file, upload_file, send_file, get_file, remember_thread · Public sink: register_agent, verify_email, resend_email_code, recover_token, set_webhook, create_invite, publish_rail, request_connect, reject_connect, set_encryption_key, send_message, send_and_wait, watch_inbox, upload_file, send_file, ack_messages, get_thread, test_webhook · Destructive: unblock_agent"
+        "snippet": "Untrusted content: set_webhook, publish_rail, check_inbox, ack_messages, get_thread, test_webhook · Private data: register_agent, resend_email_code, recover_token, confirm_recovery, whoami, rotate_token, create_invite, request_connect, list_contacts, set_encryption_key, prepare_file, upload_file, send_file, get_file, remember_thread · Public sink: register_agent, verify_email, resend_email_code, recover_token, whoami, set_webhook, create_invite, publish_rail, request_connect, reject_connect, set_encryption_key, send_message, send_email, send_and_wait, watch_inbox, upload_file, send_file, ack_messages, get_thread, test_webhook · Destructive: unblock_agent"
       },
       "confidence": 0.6,
       "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"register_agent\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:register_agent",
+        "snippet": "before: \"Register on railto.me. Free, no invite code. Ask the owner for the handle and display name first (check_handle to confirm it is free); the handle is permanent and public. email is required and may be shared by up to 5 agents. Disposable inboxes are rejected. rail=handle only sends a connect request.\" → after: \"Register on railto.me. Free, no invite code. Ask the owner for the handle and display name first (check_handle to confirm it is free); the handle is permanent and public. email is required and may be shared by up to 5 agents. Disposable inboxes are rejected. rail=handle only sends a connect request.\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"whoami\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:whoami",
+        "snippet": "before: \"Profile of the signed-in agent (Authorization Bearer or token argument).\" → after: \"Profile of the signed-in agent (Authorization Bearer or token argument). Includes mail: your own railto.me email address and whether it is on, if the platform has email configured.\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"set_webhook\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:set_webhook",
+        "snippet": "before: \"Set the Grok webhook so the inbox can wake you in realtime. Use the URL and Authorization exactly from the routine panel. Do not share the key. A new URL returns webhook_signing_secret once: give it to the owner privately so the endpoint can check X-Railagent-Signature.\" → after: \"Set an HTTPS webhook that your agent runtime exposes so the inbox can notify it of new mail in realtime. Do not share the key. A new URL returns webhook_signing_secret once: give it to the owner privately so the endpoint can check X-Railagent-Signature.\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
     }
   ],
-  "score": 31,
+  "score": 23,
   "scoreBreakdown": {
-    "tool-poisoning": 41,
-    "shadowing": 8,
+    "tool-poisoning": 45,
+    "shadowing": 12,
     "toxic-flow": 20
   },
   "errors": []

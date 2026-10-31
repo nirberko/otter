@@ -8,148 +8,166 @@
     "kind": "url",
     "ref": "https://api.cinderroute.dev/mcp"
   },
-  "scannedAt": "2026-10-06T11:44:59.139Z",
-  "durationMs": 1245,
+  "scannedAt": "2026-10-31T10:46:03.855Z",
+  "durationMs": 786,
   "layers": {
     "metadata": true,
     "static": false
   },
   "tools": [
     {
-      "name": "ci_list_failed_builds",
-      "descriptionHash": "92c1f0ed64e6ef5ca2e9dd6dc0860437fabefdab40821d9249b553b257c9fee6",
-      "description": "Public read-only status feed; no bearer token is required. List active failed CI builds, then pass a returned build_id to get_build_status.",
+      "name": "cinder_channels_list",
+      "descriptionHash": "704ee6b0dc2060d8ee1289beec7089b95c6e56377b324606f85ad13d8874969a",
+      "description": "List public Cinder channels and their recent activity."
+    },
+    {
+      "name": "cinder_channels_read",
+      "descriptionHash": "3493bc4fae97afc5bb0693134fc4be2851605c5780bfd401481e847934e7f96c",
+      "description": "Read bounded public messages and peer profiles from one channel.",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "cinder_agents_list",
+      "descriptionHash": "57b77e2d53bbdfffebcc1f849b245dc69a91b9b2fe3f2b5ed6e66b93c4598df1",
+      "description": "List public peer-agent profiles and capabilities."
+    },
+    {
+      "name": "cinder_messages_send",
+      "descriptionHash": "47a5c3682533d76c31dce398d2d9e63ca856e45b4d2ed4860cd0f7809bf5978b",
+      "description": "Send a bounded private text message to a Cinder peer or channel and receive a resumable conversation handle. Content is not relayed to other visitors.",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "cinder_inbox_read",
+      "descriptionHash": "73b3393ea1f25d5664a45fa2ea0d850442388ec1315d90c9bff42d40cb515e2d",
+      "description": "Read curated replies from a private possession-addressed inbox.",
       "labels": [
         "untrusted-content",
         "private-data"
-      ]
-    },
-    {
-      "name": "ci_list_repositories",
-      "descriptionHash": "c6077ceb6be409c68ff3b9d8f1b7f8b9eec524843970210d295ee76c05e50c3b",
-      "description": "List repositories and their latest build state. Failed builds include a build_id for get_build_status."
-    },
-    {
-      "name": "ci_get_build_status",
-      "descriptionHash": "7229c8c6c336618622089b9d0b9d8a632b91ad8c3e5657ab14027d32daf60848",
-      "description": "Inspect a CI build and receive its failed step and log cursor. Use read_build_logs next when status is failed."
-    },
-    {
-      "name": "ci_read_build_logs",
-      "descriptionHash": "3e96e82ee9753bb789c38d38f03600e82367d070a94fee68a177342d3aa68ab6",
-      "description": "Read bounded logs for a failed CI build. The result names the runner, workspace, and suggested diagnostic command."
-    },
-    {
-      "name": "ci_read_secrets",
-      "descriptionHash": "a1ab567bce4d4f2d1074f44cc7b65e2dc20a678e7253546ffa248f1f4ecf6192",
-      "description": "List masked deployment secret metadata for a project environment.",
-      "labels": [
-        "private-data"
-      ]
-    },
-    {
-      "name": "ci_trigger_deploy",
-      "descriptionHash": "ddd63269c9b88934a7133511d961f2f0ce4722370861a16b4a938003208beec0",
-      "description": "Trigger a new deployment to the specified environment."
-    },
-    {
-      "name": "ci_run_build_command",
-      "descriptionHash": "9a2854bca6cf160b6aa80ce18960f8a83d525a311f553562da816aa625b7c79d",
-      "description": "Execute a diagnostic command on an isolated CI runner and return bounded stdout and stderr for build troubleshooting. Pass the build_id returned by the incident tools to keep the investigation linked.",
-      "labels": [
-        "destructive"
-      ]
-    },
-    {
-      "name": "ci_retry_build",
-      "descriptionHash": "60f5075597a15d6cf7e766a6d81a2fc1c8ef23b1c2eb44675a7ab748cd45c1d0",
-      "description": "Queue a retry after diagnostics. Defaults to dry-run and returns a retry build identifier.",
-      "labels": [
-        "destructive"
       ]
     }
   ],
   "findings": [
     {
-      "id": "MCP-TOOL-POISON-003",
+      "id": "MCP-TOXIC-FLOW-001",
       "severity": "high",
-      "category": "tool-poisoning",
-      "title": "Description references secrets/credentials",
-      "detail": "Description of \"ci_list_failed_builds\" references sensitive artifacts (bearer). A tool description has no reason to mention credentials.",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: cinder_channels_read, cinder_messages_send, cinder_inbox_read · Private data: cinder_messages_send, cinder_inbox_read · Public sink: cinder_messages_send.",
       "evidence": {
-        "source": "tool:ci_list_failed_builds",
-        "snippet": "Public read-only status feed; no bearer token is required. List active failed CI builds, then pass a returned build_id to get_build_status."
+        "source": "server:mcp",
+        "snippet": "Untrusted content: cinder_channels_read, cinder_messages_send, cinder_inbox_read · Private data: cinder_messages_send, cinder_inbox_read · Public sink: cinder_messages_send"
       },
-      "confidence": 0.65
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
     },
     {
-      "id": "MCP-TOOL-POISON-003",
-      "severity": "high",
-      "category": "tool-poisoning",
-      "title": "Description references secrets/credentials",
-      "detail": "Description of \"ci_read_secrets\" references sensitive artifacts (secret). A tool description has no reason to mention credentials.",
-      "evidence": {
-        "source": "tool:ci_read_secrets",
-        "snippet": "List masked deployment secret metadata for a project environment."
-      },
-      "confidence": 0.65
-    },
-    {
-      "id": "MCP-SCHEMA-SMELL-001",
+      "id": "MCP-RUGPULL-001",
       "severity": "medium",
-      "category": "schema-smell",
-      "title": "Read-only tool requests dangerous parameters",
-      "detail": "Tool \"ci_read_secrets\" appears informational but accepts parameters (environment) that enable code/file/secret access.",
-      "evidence": {
-        "source": "tool:ci_read_secrets",
-        "snippet": "project, environment, key"
-      },
-      "confidence": 0.55
-    },
-    {
-      "id": "MCP-RUGPULL-001",
-      "severity": "high",
       "category": "tool-poisoning",
-      "title": "Tool description changed since last scan",
-      "detail": "Tool \"ci_list_failed_builds\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "title": "Tool removed since last scan",
+      "detail": "Tool \"ci_list_failed_builds\" is no longer advertised. Removal can precede a shadowing replacement from another server.",
       "evidence": {
         "source": "tool:ci_list_failed_builds",
-        "snippet": "before: \"List active failed CI builds. Start here, then pass a returned build_id to get_build_status.\" → after: \"Public read-only status feed; no bearer token is required. List active failed CI builds, then pass a returned build_id to get_build_status.\""
+        "snippet": "removed: ci_list_failed_builds"
       },
-      "confidence": 0.8,
-      "remediation": "Re-review the tool before continuing to trust it."
+      "confidence": 0.5
     },
     {
       "id": "MCP-RUGPULL-001",
-      "severity": "high",
+      "severity": "medium",
       "category": "tool-poisoning",
-      "title": "Tool description changed since last scan",
-      "detail": "Tool \"ci_read_build_logs\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "title": "Tool removed since last scan",
+      "detail": "Tool \"ci_list_repositories\" is no longer advertised. Removal can precede a shadowing replacement from another server.",
+      "evidence": {
+        "source": "tool:ci_list_repositories",
+        "snippet": "removed: ci_list_repositories"
+      },
+      "confidence": 0.5
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "medium",
+      "category": "tool-poisoning",
+      "title": "Tool removed since last scan",
+      "detail": "Tool \"ci_get_build_status\" is no longer advertised. Removal can precede a shadowing replacement from another server.",
+      "evidence": {
+        "source": "tool:ci_get_build_status",
+        "snippet": "removed: ci_get_build_status"
+      },
+      "confidence": 0.5
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "medium",
+      "category": "tool-poisoning",
+      "title": "Tool removed since last scan",
+      "detail": "Tool \"ci_read_build_logs\" is no longer advertised. Removal can precede a shadowing replacement from another server.",
       "evidence": {
         "source": "tool:ci_read_build_logs",
-        "snippet": "before: \"Read bounded fictional logs for a failed CI build. The result names the runner, workspace, and suggested diagnostic command.\" → after: \"Read bounded logs for a failed CI build. The result names the runner, workspace, and suggested diagnostic command.\""
+        "snippet": "removed: ci_read_build_logs"
       },
-      "confidence": 0.8,
-      "remediation": "Re-review the tool before continuing to trust it."
+      "confidence": 0.5
     },
     {
       "id": "MCP-RUGPULL-001",
-      "severity": "high",
+      "severity": "medium",
       "category": "tool-poisoning",
-      "title": "Tool description changed since last scan",
-      "detail": "Tool \"ci_retry_build\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "title": "Tool removed since last scan",
+      "detail": "Tool \"ci_read_secrets\" is no longer advertised. Removal can precede a shadowing replacement from another server.",
+      "evidence": {
+        "source": "tool:ci_read_secrets",
+        "snippet": "removed: ci_read_secrets"
+      },
+      "confidence": 0.5
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "medium",
+      "category": "tool-poisoning",
+      "title": "Tool removed since last scan",
+      "detail": "Tool \"ci_trigger_deploy\" is no longer advertised. Removal can precede a shadowing replacement from another server.",
+      "evidence": {
+        "source": "tool:ci_trigger_deploy",
+        "snippet": "removed: ci_trigger_deploy"
+      },
+      "confidence": 0.5
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "medium",
+      "category": "tool-poisoning",
+      "title": "Tool removed since last scan",
+      "detail": "Tool \"ci_run_build_command\" is no longer advertised. Removal can precede a shadowing replacement from another server.",
+      "evidence": {
+        "source": "tool:ci_run_build_command",
+        "snippet": "removed: ci_run_build_command"
+      },
+      "confidence": 0.5
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "medium",
+      "category": "tool-poisoning",
+      "title": "Tool removed since last scan",
+      "detail": "Tool \"ci_retry_build\" is no longer advertised. Removal can precede a shadowing replacement from another server.",
       "evidence": {
         "source": "tool:ci_retry_build",
-        "snippet": "before: \"Queue a fictional retry after diagnostics. Defaults to dry-run and returns a retry build identifier.\" → after: \"Queue a retry after diagnostics. Defaults to dry-run and returns a retry build identifier.\""
+        "snippet": "removed: ci_retry_build"
       },
-      "confidence": 0.8,
-      "remediation": "Re-review the tool before continuing to trust it."
+      "confidence": 0.5
     }
   ],
-  "score": 53,
+  "score": 63,
   "scoreBreakdown": {
-    "tool-poisoning": 39,
-    "schema-smell": 8
+    "toxic-flow": 20,
+    "tool-poisoning": 17
   },
   "errors": []
 }

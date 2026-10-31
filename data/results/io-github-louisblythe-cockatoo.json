@@ -8,8 +8,8 @@
     "kind": "url",
     "ref": "https://app.cockatoo.com.au/mcp"
   },
-  "scannedAt": "2026-10-28T11:13:25.303Z",
-  "durationMs": 9784,
+  "scannedAt": "2026-10-31T10:50:36.450Z",
+  "durationMs": 3604,
   "layers": {
     "metadata": true,
     "static": false
@@ -67,6 +67,11 @@
       "description": "Replace the draft using the current revision. Does not change the live publication."
     },
     {
+      "name": "update_site",
+      "descriptionHash": "af3850def1fdd7cde8737259c0b67857c233b4d07bf3cf2617b576f4623b0339",
+      "description": "Change only some fields of the draft, using the current revision. `changes` is a JSON Merge Patch over the SiteDocument: objects merge, null removes a field, and arrays (services, gallery, pages, sections) are replaced whole. Does not change the live publication."
+    },
+    {
       "name": "list_images",
       "descriptionHash": "dad635ba9a42511cc8e1eb6f6a2a9d3081d500aa43c57103f1d5f8d7bc0c40c5",
       "description": "List retained uploaded images owned by this site."
@@ -81,10 +86,20 @@
       ]
     },
     {
-      "name": "preview_site",
-      "descriptionHash": "86d2877ba994c9a5f570faeb819c5ab0b511f43f91d83e6d7780c4b8dae5faf2",
-      "description": "Return private draft preview HTML, with enquiry submission disabled.",
+      "name": "upload_image_from_url",
+      "descriptionHash": "541abb080a8b3c9517d64a0d07244083ecc0d45cdeca9e6c7a56b564fd36dca2",
+      "description": "Upload a JPEG, PNG or WebP image (5 MiB maximum) from a public https URL. Prefer this to upload_image. Returns an assetId for the document.",
       "labels": [
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "preview_site",
+      "descriptionHash": "3ec94324cd7dd643d5825640434acf771f9f8c08750968abce50c17d8dd0fd6b",
+      "description": "Return a private link to the saved draft, valid for 15 minutes. Open it, or give it to the owner to review before publishing. Images are not shown and enquiries are disabled.",
+      "labels": [
+        "untrusted-content",
         "private-data"
       ]
     },
@@ -108,6 +123,40 @@
       "labels": [
         "destructive"
       ]
+    },
+    {
+      "name": "site_analytics",
+      "descriptionHash": "d08504ed828b58652fb82fccdaff2793df87c97314a6e725fb93a16c5342b2f9",
+      "description": "Visits, page views, enquiry submissions, button clicks, top pages and traffic sources for the published site over the last 30 days."
+    },
+    {
+      "name": "list_domains",
+      "descriptionHash": "57f071d51a612db41a3f3d29cd249c7b6b504886e2311a64fcfca83b6340b9e6",
+      "description": "Custom domains connected to the site, their status (pending_dns, verifying, ssl_provisioning, active, error) and the DNS records the owner must set. The owner adds domains in Cockatoo.",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "list_enquiries",
+      "descriptionHash": "acc7258c90c4479bca05b0b56b4e67e618debb4c783a99059483da1eb79ea82f",
+      "description": "Read enquiries sent through the owner's website, newest first, 100 at a time. Requires leads:read. Pass before and cursorId from the last enquiry to read older ones."
+    },
+    {
+      "name": "list_contacts",
+      "descriptionHash": "6f541aebc34965fded4afda4a173a7c4cd432c84233020bbaf3ed367935f5b14",
+      "description": "Read the owner's customer contacts for this website, most recent enquiry first. Requires leads:read. Set due to see contacts whose follow-up date has arrived, or newOnly for unread enquiries.",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "leads_summary",
+      "descriptionHash": "c40e8a7370ed36137d3d83192c3744d7fd1491eda3130b26d65f58e91c325f6c",
+      "description": "Counts of contacts, customers, follow-ups due today and unread enquiries. Requires leads:read. Use this to answer 'any new leads?'",
+      "labels": [
+        "private-data"
+      ]
     }
   ],
   "findings": [
@@ -122,11 +171,38 @@
         "snippet": "After owner approval, exchange the private continuation credential for an API token. Keep returned credentials private."
       },
       "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: preview_site · Private data: catalog, start_onboarding, onboarding_status, exchange_onboarding, upload_image, upload_image_from_url, preview_site, list_domains, list_contacts, leads_summary · Public sink: start_onboarding, create_site, upload_image, upload_image_from_url, publish_site · Destructive: unpublish_site.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: preview_site · Private data: catalog, start_onboarding, onboarding_status, exchange_onboarding, upload_image, upload_image_from_url, preview_site, list_domains, list_contacts, leads_summary · Public sink: start_onboarding, create_site, upload_image, upload_image_from_url, publish_site · Destructive: unpublish_site"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"preview_site\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:preview_site",
+        "snippet": "before: \"Return private draft preview HTML, with enquiry submission disabled.\" → after: \"Return a private link to the saved draft, valid for 15 minutes. Open it, or give it to the owner to review before publishing. Images are not shown and enquiries are disabled.\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
     }
   ],
-  "score": 80,
+  "score": 50,
   "scoreBreakdown": {
-    "tool-poisoning": 20
+    "tool-poisoning": 30,
+    "toxic-flow": 20
   },
   "errors": []
 }

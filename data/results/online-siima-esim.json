@@ -8,8 +8,8 @@
     "kind": "url",
     "ref": "https://api.siima.online/mcp"
   },
-  "scannedAt": "2026-07-31T07:27:54.232Z",
-  "durationMs": 1389,
+  "scannedAt": "2026-10-31T10:55:14.031Z",
+  "durationMs": 1012,
   "layers": {
     "metadata": true,
     "static": false
@@ -17,32 +17,39 @@
   "tools": [
     {
       "name": "search_esim_plans",
-      "descriptionHash": "1a39ba457c12ac974fb198ecced8cdf1ff57946bd7ccb26e6812e3ecfa6d0ca2",
-      "description": "Search prepaid travel eSIM data plans by destination country (ISO 3166-1 alpha-2, e.g. \"JP\"), region (e.g. \"Europe\"), minimum data in GB, maximum total price, or plan duration in days. Returned price is the final amount the customer pays at checkout (all fees included), in the requested currency. To",
+      "descriptionHash": "30181ae8eebbe67d03eb89add2c271c0bd8e9ecec148efa4e98f9b068cf66acf",
+      "description": "Search prepaid travel eSIM data plans by destination country (ISO 3166-1 alpha-2, e.g. \"JP\"), region (e.g. \"Europe\"), minimum data in GB, maximum total price, or plan duration in days. Plans come in three coverage types: \"country\" (one country), \"regional\" (a named multi-country area such as \"Europe",
       "labels": [
-        "untrusted-content"
+        "untrusted-content",
+        "public-sink"
       ]
     },
     {
       "name": "get_esim_plan",
-      "descriptionHash": "89a2c9a4e1c9d3558a40efd774455b61fe50e12643288eba887b75afea3645b6",
-      "description": "Fetch full details of a single Siima eSIM plan by its id (from search_esim_plans). To buy: call create_checkout_link with the plan id, give the returned URL to the user. After payment the eSIM (QR code + activation link + manual codes) is emailed to them automatically — no account needed.",
+      "descriptionHash": "891cd481b0cf0ba5058495f7d405349962ba4e00d96cdcf1ec0b27a57fb5b431",
+      "description": "Fetch full details of a single Siima eSIM plan by its id (from search_esim_plans). To buy: call create_checkout_link with the plan id, give the returned URL to the user. They confirm their email with a 6-digit code and pay there; nothing is ordered until they do. After payment they are emailed a lin",
       "labels": [
-        "untrusted-content"
+        "untrusted-content",
+        "public-sink"
       ]
     },
     {
       "name": "create_checkout_link",
-      "descriptionHash": "093391b17e0c95a73411d54e8e3e824e4642fb6f3ad9739b5a6328e5a95a9973",
-      "description": "Create a secure payment link on siima.io for a Siima eSIM plan (Stripe-powered, but hosted on our own site — never a redirect to checkout.stripe.com). Give the returned url to the user to complete payment. Optionally pass the buyer's email so the link goes straight to the payment page; otherwise the",
+      "descriptionHash": "1b30876df40fe1086d144911aae8852224721aef7a624c7e453148b8525ab16e",
+      "description": "Create a secure payment link on siima.online for a Siima eSIM plan (Stripe-powered, but hosted on our own site — never a redirect to checkout.stripe.com). Give the returned url to the user to complete payment. Optionally pass the buyer's email to pre-fill the checkout form. The buyer confirms it wit",
       "labels": [
         "public-sink"
       ]
     },
     {
       "name": "list_destinations",
-      "descriptionHash": "6d935b36d7eee42c16d067c1baa03f2be55f56f86ffcb1d1244f8f1aa55cebcf",
-      "description": "List all countries Siima has eSIM plans for, with plan counts and the cheapest total price per country. Country codes are ISO 3166-1 alpha-2."
+      "descriptionHash": "334e747ff62f32a9746d8c3560c08a3aab210a74210aaa7f465cad37c4f8369f",
+      "description": "List all countries Siima sells a single-country eSIM plan for, with plan counts and the cheapest total price per country. Country codes are ISO 3166-1 alpha-2. Counts and prices cover country plans only, so they stay comparable — many more countries are reachable via multi-country plans; call list_r"
+    },
+    {
+      "name": "list_regions",
+      "descriptionHash": "c559882a41d12f225a0c4f90da4eabc9d4fa12383b1ea8f7fecd4b21d8ce67be",
+      "description": "List every multi-country coverage area Siima sells — regional areas such as \"Europe+\", \"South East Asia\" or \"CENAM\", and worldwide plans — with the countries every plan in it covers, how many plans it has, and its cheapest total price. Use this for a trip crossing several countries: pick a coverage "
     }
   ],
   "findings": [
@@ -51,18 +58,71 @@
       "severity": "medium",
       "category": "toxic-flow",
       "title": "Toxic flow: untrusted input can reach an external sink",
-      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: search_esim_plans, get_esim_plan · Public sink: create_checkout_link.",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: search_esim_plans, get_esim_plan · Public sink: search_esim_plans, get_esim_plan, create_checkout_link.",
       "evidence": {
         "source": "server:mcp",
-        "snippet": "Untrusted content: search_esim_plans, get_esim_plan · Public sink: create_checkout_link"
+        "snippet": "Untrusted content: search_esim_plans, get_esim_plan · Public sink: search_esim_plans, get_esim_plan, create_checkout_link"
       },
       "confidence": 0.45,
       "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"search_esim_plans\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:search_esim_plans",
+        "snippet": "before: \"Search prepaid travel eSIM data plans by destination country (ISO 3166-1 alpha-2, e.g. \"JP\"), region (e.g. \"Europe\"), minimum data in GB, maximum total price, or plan duration in days. Returned price is the final amount the customer pays at checkout (all fees included), in the requested currency. To\" → after: \"Search prepaid travel eSIM data plans by destination country (ISO 3166-1 alpha-2, e.g. \"JP\"), region (e.g. \"Europe\"), minimum data in GB, maximum total price, or plan duration in days. Plans come in three coverage types: \"country\" (one country), \"regional\" (a named multi-country area such as \"Europe\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"get_esim_plan\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:get_esim_plan",
+        "snippet": "before: \"Fetch full details of a single Siima eSIM plan by its id (from search_esim_plans). To buy: call create_checkout_link with the plan id, give the returned URL to the user. After payment the eSIM (QR code + activation link + manual codes) is emailed to them automatically — no account needed.\" → after: \"Fetch full details of a single Siima eSIM plan by its id (from search_esim_plans). To buy: call create_checkout_link with the plan id, give the returned URL to the user. They confirm their email with a 6-digit code and pay there; nothing is ordered until they do. After payment they are emailed a lin\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"create_checkout_link\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:create_checkout_link",
+        "snippet": "before: \"Create a secure payment link on siima.io for a Siima eSIM plan (Stripe-powered, but hosted on our own site — never a redirect to checkout.stripe.com). Give the returned url to the user to complete payment. Optionally pass the buyer's email so the link goes straight to the payment page; otherwise the\" → after: \"Create a secure payment link on siima.online for a Siima eSIM plan (Stripe-powered, but hosted on our own site — never a redirect to checkout.stripe.com). Give the returned url to the user to complete payment. Optionally pass the buyer's email to pre-fill the checkout form. The buyer confirms it wit\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"list_destinations\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:list_destinations",
+        "snippet": "before: \"List all countries Siima has eSIM plans for, with plan counts and the cheapest total price per country. Country codes are ISO 3166-1 alpha-2.\" → after: \"List all countries Siima sells a single-country eSIM plan for, with plan counts and the cheapest total price per country. Country codes are ISO 3166-1 alpha-2. Counts and prices cover country plans only, so they stay comparable — many more countries are reachable via multi-country plans; call list_r\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
     }
   ],
-  "score": 92,
+  "score": 55,
   "scoreBreakdown": {
-    "toxic-flow": 8
+    "toxic-flow": 8,
+    "tool-poisoning": 38
   },
   "errors": []
 }

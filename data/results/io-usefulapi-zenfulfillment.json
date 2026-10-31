@@ -1,0 +1,95 @@
+{
+  "schemaVersion": 1,
+  "scanner": {
+    "version": "1.6.0",
+    "rules": "402995650b68"
+  },
+  "target": {
+    "kind": "url",
+    "ref": "https://zenfulfillment.usefulapi.io/mcp"
+  },
+  "scannedAt": "2026-10-31T10:40:24.602Z",
+  "durationMs": 356,
+  "layers": {
+    "metadata": true,
+    "static": false
+  },
+  "tools": [
+    {
+      "name": "zenfulfillment_list_orders",
+      "descriptionHash": "d86f0c35936cd20d6b57564d3bd9d2b87acf30b7cfa17f3d0d746baaa26ee0e6",
+      "description": "List or search the fulfillment orders of this Zenfulfillment account (warehouse pick/pack/ship), with status, order reference, shop order number, totals, shipping and billing address, the products ordered/shipped and shipments (tracking number, carrier). Filter by ONE status, created/updated time or"
+    },
+    {
+      "name": "zenfulfillment_get_order",
+      "descriptionHash": "b2345438ad41662801507fbc081d44b5d76fb3af3c4abca5f9f3a8f6a4c5ccf3",
+      "description": "One order by its EXTERNAL reference, i.e. the order number from the connected shop or from your own import (for example 332-11-5599), with addresses, products with quantities (ordered, shipped, returned, refunded) and shipments with tracking numbers. Not the ZF reference: use zenfulfillment_list_ord"
+    },
+    {
+      "name": "zenfulfillment_list_stock",
+      "descriptionHash": "562081e27c054f245d764b119d3601b4d0082424a8cddb4d9c1e63fe89fbe9b4",
+      "description": "Stock on hand in the Zenfulfillment warehouse per SKU (sku, quantity_on_stock). Filter by SKU text and/or a maximum quantity to find low stock (then sorted lowest first). GET /products/export."
+    },
+    {
+      "name": "zenfulfillment_list_inventory_shipments",
+      "descriptionHash": "7627d839506a523ae6727653439a96e77284c61d4c5123ab875d44cd307a2928",
+      "description": "List inbound inventory shipments (goods you sent to the warehouse) with reference, SKU lines, announced quantity, quantity arrived and note. Filter by ONE status, created/updated time or free text (ZF number, tracking code, type). Rows are grouped per shipment. Paging as in list_orders. GET /invento"
+    },
+    {
+      "name": "zenfulfillment_get_inventory_shipment",
+      "descriptionHash": "d6707ca1a41ce375a06fb6e2b7cea062d66cd5af65ab2c477cf04b2c02bafd86",
+      "description": "One inbound inventory shipment by its ZF reference (for example ZF01123700): SKU lines with announced and arrived quantities and the note. GET /inventory_shipments/export/{reference}/reference."
+    },
+    {
+      "name": "zenfulfillment_list_returns",
+      "descriptionHash": "a58db3453ea39e52bfab8ba7674183d7245eeacf1c3cf11056ae53829f5e2edd",
+      "description": "List returns processed by the warehouse (PROCESSED = received, DONE = marked refunded), with the return's `_id` (needed by zenfulfillment_mark_return_done), ZF reference, note, products with quantity, reason, condition and whether they were actually returned, and the original order. Filter by ONE st"
+    },
+    {
+      "name": "zenfulfillment_import_order",
+      "descriptionHash": "24650756178cec934b6c38d981f6be5e324fac68fdc7a1b8cfbdbc536929e2e8",
+      "description": "WRITE: send ONE order to the Zenfulfillment warehouse for picking, packing and shipping to the given address (fulfillment and shipping fees apply per the contract). The reference is your own order number: a reference that already exists UPDATES that order instead of creating a new one. Each item bec",
+      "labels": [
+        "untrusted-content",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "zenfulfillment_cancel_orders",
+      "descriptionHash": "fc5c0ffe6268b41de03d9d8cef9a5f5a98b830d4589799c552d6fd98d16394ff",
+      "description": "WRITE, cannot be undone: cancel orders by reference (up to 50). Only orders that can still be cancelled (before the warehouse has packed or shipped them) are cancelled; the others come back in `errors`. Confirm the references with the user first. POST /orders/cancel.",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "zenfulfillment_mark_return_done",
+      "descriptionHash": "1cf34056d8e129346491c97c7e26f586a9b0bbef5d60914b0f706322fac07447",
+      "description": "WRITE: set a return's status to DONE (refunded) in Zenfulfillment. Zenfulfillment only records the status; refund the customer in your shop yourself. Use the `_id` from zenfulfillment_list_returns (not the ZF reference). Cannot be set back through the API. POST /returns/{returnId}/done.",
+      "labels": [
+        "private-data",
+        "public-sink"
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: zenfulfillment_import_order · Private data: zenfulfillment_mark_return_done · Public sink: zenfulfillment_import_order, zenfulfillment_cancel_orders, zenfulfillment_mark_return_done.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: zenfulfillment_import_order · Private data: zenfulfillment_mark_return_done · Public sink: zenfulfillment_import_order, zenfulfillment_cancel_orders, zenfulfillment_mark_return_done"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 80,
+  "scoreBreakdown": {
+    "toxic-flow": 20
+  },
+  "errors": []
+}

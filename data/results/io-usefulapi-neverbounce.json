@@ -1,0 +1,112 @@
+{
+  "schemaVersion": 1,
+  "scanner": {
+    "version": "1.6.0",
+    "rules": "402995650b68"
+  },
+  "target": {
+    "kind": "url",
+    "ref": "https://neverbounce.usefulapi.io/mcp"
+  },
+  "scannedAt": "2026-10-31T10:40:21.462Z",
+  "durationMs": 1507,
+  "layers": {
+    "metadata": true,
+    "static": false
+  },
+  "tools": [
+    {
+      "name": "neverbounce_get_account_info",
+      "descriptionHash": "b3c1591229f37cc8df8c3b460388709e09e8544219189b7d9e7e9f86d9abd71c",
+      "description": "Credits left (paid and free), credits used, and how many verification jobs are completed, queued, processing or under review. Free: it spends no credits. POST /account/info.",
+      "labels": [
+        "untrusted-content",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "neverbounce_verify_email",
+      "descriptionHash": "6e2510a7199ebd7f65460cac168dfffeaea36d8591786fe7433808bf5593ea88",
+      "description": "WRITE: SPENDS 1 of your NeverBounce credits per call. Verifies ONE e-mail address and returns result (valid, invalid, disposable, catchall or unknown), flags (e.g. has_dns_mx, role_account, free_email_host), a suggested correction for typos like gmal.com, and optionally the parsed address parts. Nev",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "neverbounce_list_jobs",
+      "descriptionHash": "629c301f38d63a5b748b77ec92d08fe615f1f3cbd9207780e73983b45e3af5b0",
+      "description": "Bulk verification jobs of the account (most recent first as NeverBounce returns them) with id, status, filename, timestamps, totals per result (valid, invalid, catchall, disposable, unknown, duplicates, bad_syntax), bounce estimate and percent complete. Filter by id, exact filename or status. POST /",
+      "labels": [
+        "untrusted-content",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "neverbounce_get_job",
+      "descriptionHash": "92e75543c4da35d876fc7e4c16666311d3cbf04111e03c399037baecc94004c9",
+      "description": "One verification job: status (waiting, parsing, running, complete, failed, under_review...), failure reason, timestamps, totals (records, billable = credits it will use, processed, valid, invalid, catchall, disposable, unknown, duplicates, bad_syntax), bounce estimate and percent complete. Poll this",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "neverbounce_get_job_results",
+      "descriptionHash": "2f654b550bacca7e87ea9f6b3554b350a0a25c36d5abb4395de54b2f945baec6",
+      "description": "Per-address results of a job: the submitted row (data) and its verification (result, flags, suggested_correction, address info). Paged; use neverbounce_download_job_results for a CSV. The job must be complete. POST /jobs/results.",
+      "labels": [
+        "untrusted-content",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "neverbounce_download_job_results",
+      "descriptionHash": "5c447bad034c6d39965a8ba9033eb4cddeb9f887b210a8cf7493a76a39874a31",
+      "description": "The results of a complete job as CSV text (the submitted columns plus email_status), cut at 200000 characters with a note when longer (use neverbounce_get_job_results to page through large jobs). By default every result type is included; set a type to false to leave it out. POST /jobs/download.",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "neverbounce_create_job",
+      "descriptionHash": "fdb179d4a09fb4ce58f73ee26df7fecffbf8424c0ab0f28af70671de72e5afa0",
+      "description": "WRITE: creates a bulk verification job from up to 100 e-mail addresses given in this call, and has NeverBounce parse it. It does NOT start the verification and spends NO credits; run neverbounce_start_job afterwards (that spends 1 credit per billable address). Put ALL the addresses of one list into ",
+      "labels": [
+        "untrusted-content",
+        "public-sink",
+        "destructive"
+      ]
+    },
+    {
+      "name": "neverbounce_start_job",
+      "descriptionHash": "4fca644e1abfa243bad15235319a63806b72687c3d0f5c2e3da87078a3d4fb13",
+      "description": "WRITE: STARTS a created job and SPENDS 1 credit per billable address (shown as total.billable in neverbounce_get_job); it cannot be stopped or undone. Safety: you must pass max_credits, and the job is refused when its billable count is above it or above 1000 (start bigger jobs in the NeverBounce das",
+      "labels": [
+        "public-sink"
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: neverbounce_get_account_info, neverbounce_verify_email, neverbounce_list_jobs, neverbounce_get_job, neverbounce_get_job_results, neverbounce_create_job · Private data: neverbounce_verify_email, neverbounce_get_job · Public sink: neverbounce_get_account_info, neverbounce_verify_email, neverbounce_list_jobs, neverbounce_get_job, neverbounce_get_job_results, neverbounce_download_job_results, neverbounce_create_job, neverbounce_start_job · Destructive: neverbounce_create_job.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: neverbounce_get_account_info, neverbounce_verify_email, neverbounce_list_jobs, neverbounce_get_job, neverbounce_get_job_results, neverbounce_create_job · Private data: neverbounce_verify_email, neverbounce_get_job · Public sink: neverbounce_get_account_info, neverbounce_verify_email, neverbounce_list_jobs, neverbounce_get_job, neverbounce_get_job_results, neverbounce_download_job_results, neverbounce_create_job, neverbounce_start_job · Destructive: neverbounce_create_job"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 80,
+  "scoreBreakdown": {
+    "toxic-flow": 20
+  },
+  "errors": []
+}

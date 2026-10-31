@@ -8,8 +8,8 @@
     "kind": "url",
     "ref": "https://mcp.smartpress.com/mcp"
   },
-  "scannedAt": "2026-10-24T09:16:55.689Z",
-  "durationMs": 610,
+  "scannedAt": "2026-10-31T10:45:17.142Z",
+  "durationMs": 409,
   "layers": {
     "metadata": true,
     "static": false
@@ -66,8 +66,8 @@
     },
     {
       "name": "create_file_session",
-      "descriptionHash": "4ab649bfa1eb7dc62345e5afc37e361a18b399b81ed92a859f69cb0dc05b41a1",
-      "description": "Create a file session for uploading proof/artwork files. Returns a **fileSessionId** that is durably joined to your configuration session so add_to_cart can attach the files without you threading the ID.\n\n**Two workflows:**\n- **File-first** (no product chosen yet): call with no arguments. A placehol",
+      "descriptionHash": "768137e649fd3f0b3cec5aa36982c663b81a1d3bc453847f2b1d4c7f5274ba9b",
+      "description": "Create a file session for uploading proof/artwork files. Returns a **fileSessionId**. Once it is joined to a configuration session, add_to_cart attaches its files without you passing the ID.\n\n**Two workflows:**\n- **File-first** (no product chosen yet): call with no arguments. A placeholder product i",
       "labels": [
         "private-data"
       ]
@@ -109,7 +109,7 @@
     },
     {
       "name": "add_to_cart",
-      "descriptionHash": "c830919e8ccb9e33f19c346df3e5f14d9e63f2d0ca35385a88edddb495115717",
+      "descriptionHash": "2492407803f5c58b1a199d6294021451e6b257959b24462557ae0e44367b47d5",
       "description": "Add the current session configuration to the cart. Calls the add-to-cart endpoint which translates the session's selections into the format required by the external cart service.\n\nOn success, returns a **clientKey** (anonymous cart identifier) and a **cartLink** (shareable URL to view the cart). The",
       "labels": [
         "untrusted-content",
@@ -186,6 +186,16 @@
       "labels": [
         "private-data"
       ]
+    },
+    {
+      "name": "send_feedback",
+      "descriptionHash": "d77eba71948cd70e8ac48b91124cb25f676e3310f05834c07c7b3ac8fd97ef12",
+      "description": "Send the user's feedback to the Smartpress team: a problem they ran into, a suggestion, or praise.\n\nRules:\n- Call this ONLY when the user asks to send feedback, report a problem, or pass on praise. Never call it on your own after an error; you may offer it.\n- Before calling, show the user what you'l",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink"
+      ]
     }
   ],
   "findings": [
@@ -243,7 +253,7 @@
       "severity": "low",
       "category": "tool-poisoning",
       "title": "Anomalously long tool description",
-      "detail": "Description of \"update_config_session\" is 5026 chars, far longer than this server's median (870). Overlong descriptions are a common place to bury instructions.",
+      "detail": "Description of \"update_config_session\" is 5026 chars, far longer than this server's median (879). Overlong descriptions are a common place to bury instructions.",
       "evidence": {
         "source": "tool:update_config_session",
         "snippet": "Update a configuration session with new selections. Saves the updated selections and returns the full ProductConfiguration response. **IMPORTANT — selections st…"
@@ -300,63 +310,47 @@
       "confidence": 0.3
     },
     {
+      "id": "MCP-TOOL-POISON-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description issues instructions to the model",
+      "detail": "Description of \"send_feedback\" contains imperative instructions directed at the AI assistant rather than describing the tool. This is the core tool-poisoning technique.",
+      "evidence": {
+        "source": "tool:send_feedback",
+        "snippet": "Send the user's feedback to the Smartpress team: a problem they ran into, a suggestion, or praise. Rules: - Call this ONLY when the user asks to send feedback, …"
+      },
+      "confidence": 0.7,
+      "remediation": "Treat the server as untrusted; the model may obey embedded instructions."
+    },
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"send_feedback\" references sensitive artifacts (password). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:send_feedback",
+        "snippet": "Send the user's feedback to the Smartpress team: a problem they ran into, a suggestion, or praise. Rules: - Call this ONLY when the user asks to send feedback, …"
+      },
+      "confidence": 0.65
+    },
+    {
       "id": "MCP-TOXIC-FLOW-001",
       "severity": "high",
       "category": "toxic-flow",
       "title": "Lethal trifecta: untrusted input + private data + external sink",
-      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: get_product_config, get_product_templates, create_config_session, update_config_session, get_session_latest, get_file_upload_url, add_to_cart, analyze_file, get_file_session_proofs, create_proof · Private data: get_product_templates, create_file_session, link_file_session, clone_file_session, list_session_files, get_file_upload_url, add_to_cart, analyze_file, get_file_analysis, get_file_session_analysis, recommend_products, get_file_session_proofs, create_proof, create_file_check, set_proof_approval · Public sink: update_config_session, list_session_files, get_file_upload_url, analyze_file · Destructive: get_product_templates, update_config_session, add_to_cart, get_file_session_proofs, create_file_check.",
-      "evidence": {
-        "source": "server:mcp",
-        "snippet": "Untrusted content: get_product_config, get_product_templates, create_config_session, update_config_session, get_session_latest, get_file_upload_url, add_to_cart, analyze_file, get_file_session_proofs, create_proof · Private data: get_product_templates, create_file_session, link_file_session, clone_file_session, list_session_files, get_file_upload_url, add_to_cart, analyze_file, get_file_analysis, get_file_session_analysis, recommend_products, get_file_session_proofs, create_proof, create_file_check, set_proof_approval · Public sink: update_config_session, list_session_files, get_file_upload_url, analyze_file · Destructive: get_product_templates, update_config_session, add_to_cart, get_file_session_proofs, create_file_check"
-      },
-      "confidence": 0.6,
-      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
-    }
-  ],
-  "score": 42,
-  "scoreBreakdown": {
-    "tool-poisoning": 38,
-    "toxic-flow": 20
-  },
-  "errors": []
-} that together enable an exfiltration flow. Untrusted content: get_product_config, get_product_templates, create_config_session, update_config_session, get_session_latest, get_file_upload_url, add_to_cart, analyze_file, get_file_session_proofs, create_proof, send_feedback · Private data: get_product_templates, create_file_session, link_file_session, clone_file_session, list_session_files, get_file_upload_url, add_to_cart, analyze_file, get_file_analysis, get_file_session_analysis, recommend_products, get_file_session_proofs, create_proof, create_file_check, set_proof_approval, send_feedback · Public sink: update_config_session, list_session_files, get_file_upload_url, analyze_file, send_feedback · Destructive: get_product_templates, update_config_session, add_to_cart, get_file_session_proofs, create_file_check.",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: get_product_config, get_product_templates, create_config_session, update_config_session, get_session_latest, get_file_upload_url, add_to_cart, analyze_file, get_file_session_proofs, create_proof, send_feedback · Private data: get_product_templates, create_file_session, link_file_session, clone_file_session, list_session_files, get_file_upload_url, add_to_cart, analyze_file, get_file_analysis, get_file_session_analysis, recommend_products, get_file_session_proofs, create_proof, create_file_check, set_proof_approval, send_feedback · Public sink: update_config_session, list_session_files, get_file_upload_url, analyze_file, send_feedback · Destructive: get_product_templates, update_config_session, add_to_cart, get_file_session_proofs, create_file_check.",
       "evidence": {
         "source": "server:mcp",
         "snippet": "Untrusted content: get_product_config, get_product_templates, create_config_session, update_config_session, get_session_latest, get_file_upload_url, add_to_cart, analyze_file, get_file_session_proofs, create_proof, send_feedback · Private data: get_product_templates, create_file_session, link_file_session, clone_file_session, list_session_files, get_file_upload_url, add_to_cart, analyze_file, get_file_analysis, get_file_session_analysis, recommend_products, get_file_session_proofs, create_proof, create_file_check, set_proof_approval, send_feedback · Public sink: update_config_session, list_session_files, get_file_upload_url, analyze_file, send_feedback · Destructive: get_product_templates, update_config_session, add_to_cart, get_file_session_proofs, create_file_check"
       },
       "confidence": 0.6,
       "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
-    },
-    {
-      "id": "MCP-RUGPULL-001",
-      "severity": "high",
-      "category": "tool-poisoning",
-      "title": "Tool description changed since last scan",
-      "detail": "Tool \"create_file_session\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
-      "evidence": {
-        "source": "tool:create_file_session",
-        "snippet": "before: \"Create a file session for uploading proof/artwork files. Returns a **fileSessionId** that is durably joined to your configuration session so add_to_cart can attach the files without you threading the ID.\n\n**Two workflows:**\n- **File-first** (no product chosen yet): call with no arguments. A placehol\" → after: \"Create a file session for uploading proof/artwork files. Returns a **fileSessionId**. Once it is joined to a configuration session, add_to_cart attaches its files without you passing the ID.\n\n**Two workflows:**\n- **File-first** (no product chosen yet): call with no arguments. A placeholder product i\""
-      },
-      "confidence": 0.8,
-      "remediation": "Re-review the tool before continuing to trust it."
-    },
-    {
-      "id": "MCP-RUGPULL-001",
-      "severity": "high",
-      "category": "tool-poisoning",
-      "title": "Tool description changed since last scan",
-      "detail": "Tool \"add_to_cart\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
-      "evidence": {
-        "source": "tool:add_to_cart",
-        "snippet": "before: \"Add the current session configuration to the cart. Calls the add-to-cart endpoint which translates the session's selections into the format required by the external cart service.\n\nOn success, returns a **clientKey** (anonymous cart identifier) and a **cartLink** (shareable URL to view the cart). The\" → after: \"Add the current session configuration to the cart. Calls the add-to-cart endpoint which translates the session's selections into the format required by the external cart service.\n\nOn success, returns a **clientKey** (anonymous cart identifier) and a **cartLink** (shareable URL to view the cart). The\""
-      },
-      "confidence": 0.8,
-      "remediation": "Re-review the tool before continuing to trust it."
     }
   ],
-  "score": 37,
+  "score": 39,
   "scoreBreakdown": {
-    "tool-poisoning": 43,
+    "tool-poisoning": 41,
     "toxic-flow": 20
   },
   "errors": []

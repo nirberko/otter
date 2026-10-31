@@ -8,8 +8,8 @@
     "kind": "url",
     "ref": "https://getagentdepot.com/api/mcp"
   },
-  "scannedAt": "2026-10-29T11:20:57.323Z",
-  "durationMs": 703,
+  "scannedAt": "2026-10-31T10:49:02.754Z",
+  "durationMs": 333,
   "layers": {
     "metadata": true,
     "static": false
@@ -17,26 +17,35 @@
   "tools": [
     {
       "name": "session_brief",
-      "descriptionHash": "c03fbd507f0c08e7021cb833610f835a3b2596c7bbc53f1e4fa244b671252b78",
-      "description": "Call first each session. Send the provider, model and package ids you use (never a manifest) and the cursor from your last brief. Returns status clear|changed|attention, at most 3 ordered actions (each with source, confidence and falsifier) and a new cursor to store.",
+      "descriptionHash": "f7d89ad463c15257d470ebf398b1daa275f1f5ab284ceddc21027a593de4636b",
+      "description": "What changed for the stack you run since your last call: retired models, price changes, deprecated packages, pick changes. Use at session start if your code calls third-party APIs. Send provider, model and package ids (never a manifest) and your last cursor. Returns clear|changed|attention, at most ",
       "labels": [
-        "public-sink"
+        "public-sink",
+        "destructive"
       ]
     },
     {
       "name": "rescue",
-      "descriptionHash": "dd899cbc7e35f4668ccfd91e7b78c18ec2f11bf4615101465bcf1c580c2f1074",
-      "description": "At a failure: error text, HTTP status, or a retired model or package id. Returns an immediate fix and a fallback route (under 2 KB)."
+      "descriptionHash": "562e30c66932f3ca461dcca98afa1fdf366e4341ed7770599859e230fa1fa48b",
+      "description": "Diagnose a failing third-party API call before you retry or swap: paste the exact error (429, 402, 529 overloaded, insufficient_quota, model_not_found, deprecated SDK) and provider id. Returns the cause, an immediate fix and a fallback route, or no match plus checks to run. Not for picking a provide",
+      "labels": [
+        "destructive"
+      ]
     },
     {
       "name": "decide",
-      "descriptionHash": "767afee2fa7c8e11f70601590d0b43aa87bacd49fef147f73a6a11bded34eb25",
-      "description": "One decision. task (words) returns a compact answer per job: pick, runner-up, sourced price, autoActOk, next call. jtbd (id) returns the decision card with its skip rule. full=true for the long form."
+      "descriptionHash": "67f3623f25ab4d5e252aa17a82599d0e357e364b3c802665740475c90ceaeb35",
+      "description": "Choose a provider before writing integration code: LLM API, code sandbox, vector DB, web search, email, Postgres, auth, browser, observability. Send task in words or a jtbd id. Returns the dated editorial Depot Pick, a runner-up, the pick's price with source URL and date, and when not to take it. Fo",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink"
+      ]
     },
     {
       "name": "depot",
-      "descriptionHash": "0ece2d9df1ddd27a4a5d725ce97c76d515f1efcb52aac8206c993d8e7d12914b",
-      "description": "Everything else, one op per call with args: estimate(jtbd, workload), quote(jtbd), search(q), stack(task), bundle(jtbds), kit(class), compare(providers), free(jtbd), check(providers), audit_repo(packages, models), stack_delta(providers, since), changes(since), answer(task), failures, coverage, fresh"
+      "descriptionHash": "b2c931c5833968702c98a0c87803b374db21cb78597d65036630fa2e8a9b6c76",
+      "description": "Lookups beyond one pick; one op per call, args as an object: quote(jtbd) sourced SKU prices; estimate(jtbd, workload) monthly cost; compare(providers); free(jtbd) $0/OSS rows; check(providers) deprecated/retired flags; audit_repo(packages, models); stack(task), bundle(jtbds); search(q); kit(class); "
     }
   ],
   "findings": [
@@ -48,14 +57,80 @@
       "detail": "Description of \"session_brief\" stacks urgency/override words (never, attention). Legitimate tool descriptions rarely pressure the model to act or ignore prior guidance.",
       "evidence": {
         "source": "tool:session_brief",
-        "snippet": "Call first each session. Send the provider, model and package ids you use (never a manifest) and the cursor from your last brief. Returns status clear|changed|a…"
+        "snippet": "What changed for the stack you run since your last call: retired models, price changes, deprecated packages, pick changes. Use at session start if your code cal…"
       },
       "confidence": 0.3
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: decide · Private data: decide · Public sink: session_brief, decide · Destructive: session_brief, rescue.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: decide · Private data: decide · Public sink: session_brief, decide · Destructive: session_brief, rescue"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"session_brief\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:session_brief",
+        "snippet": "before: \"Call first each session. Send the provider, model and package ids you use (never a manifest) and the cursor from your last brief. Returns status clear|changed|attention, at most 3 ordered actions (each with source, confidence and falsifier) and a new cursor to store.\" → after: \"What changed for the stack you run since your last call: retired models, price changes, deprecated packages, pick changes. Use at session start if your code calls third-party APIs. Send provider, model and package ids (never a manifest) and your last cursor. Returns clear|changed|attention, at most \""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"rescue\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:rescue",
+        "snippet": "before: \"At a failure: error text, HTTP status, or a retired model or package id. Returns an immediate fix and a fallback route (under 2 KB).\" → after: \"Diagnose a failing third-party API call before you retry or swap: paste the exact error (429, 402, 529 overloaded, insufficient_quota, model_not_found, deprecated SDK) and provider id. Returns the cause, an immediate fix and a fallback route, or no match plus checks to run. Not for picking a provide\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"decide\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:decide",
+        "snippet": "before: \"One decision. task (words) returns a compact answer per job: pick, runner-up, sourced price, autoActOk, next call. jtbd (id) returns the decision card with its skip rule. full=true for the long form.\" → after: \"Choose a provider before writing integration code: LLM API, code sandbox, vector DB, web search, email, Postgres, auth, browser, observability. Send task in words or a jtbd id. Returns the dated editorial Depot Pick, a runner-up, the pick's price with source URL and date, and when not to take it. Fo\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"depot\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:depot",
+        "snippet": "before: \"Everything else, one op per call with args: estimate(jtbd, workload), quote(jtbd), search(q), stack(task), bundle(jtbds), kit(class), compare(providers), free(jtbd), check(providers), audit_repo(packages, models), stack_delta(providers, since), changes(since), answer(task), failures, coverage, fresh\" → after: \"Lookups beyond one pick; one op per call, args as an object: quote(jtbd) sourced SKU prices; estimate(jtbd, workload) monthly cost; compare(providers); free(jtbd) $0/OSS rows; check(providers) deprecated/retired flags; audit_repo(packages, models); stack(task), bundle(jtbds); search(q); kit(class); \""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
     }
   ],
-  "score": 97,
+  "score": 42,
   "scoreBreakdown": {
-    "tool-poisoning": 3
+    "tool-poisoning": 38,
+    "toxic-flow": 20
   },
   "errors": []
 }
