@@ -8,8 +8,8 @@
     "kind": "url",
     "ref": "https://mcp.ghostswap.io/mcp"
   },
-  "scannedAt": "2026-10-26T10:37:13.118Z",
-  "durationMs": 1470,
+  "scannedAt": "2026-11-01T11:27:22.433Z",
+  "durationMs": 910,
   "layers": {
     "metadata": true,
     "static": false
@@ -17,8 +17,8 @@
   "tools": [
     {
       "name": "list_currencies",
-      "descriptionHash": "b3e6af7ee00b2c1f236dfde2671fe6aba59b04a56481678ee372ac1dce6ac675",
-      "description": "List all coins GhostSwap supports for swapping (1,600+ assets). Use lite=true for just an array of tickers (e.g. [\"btc\",\"eth\",\"ltc\"])."
+      "descriptionHash": "87d2874578d276505a84eeaf206775fb273b7fed04c793612f498743463eee72",
+      "description": "List all coins GhostSwap supports for swapping (700+ assets). Use lite=true for just an array of tickers (e.g. [\"btc\",\"eth\",\"ltc\"]). Full metadata includes requiresExtraId + extraIdName: when the TO coin has requiresExtraId=true (XRP, XLM, ATOM, HBAR, TON…), collect the memo / destination tag before"
     },
     {
       "name": "get_pair",
@@ -36,13 +36,18 @@
     },
     {
       "name": "get_quote",
-      "descriptionHash": "16870a0de372535a0dc0b2482f1c2cb92b92cc0b3dcacceef23d91f58e5b4e79",
-      "description": "Get a live swap quote — rate, amountUserReceives, network fee, min/max. Always display amountUserReceives (not amountTo). mode=\"fixed\" locks the rate and returns a short-lived rateId."
+      "descriptionHash": "82892483d6ee5ce635fee4bbcdc2b5a9483e7682df3ed80da1b01e2bd1f26995",
+      "description": "Get a live swap quote — rate, amountUserReceives, network fee, min/max. Always display amountUserReceives (not amountTo). mode=\"fixed\" locks the rate and returns a short-lived rateId. The result includes swapUrl, a ghostswap.io link with this pair and amount filled in that the user can open to swap "
+    },
+    {
+      "name": "get_swap_link",
+      "descriptionHash": "85af4b14d6f3d7ef3391456db6c064696c7280ce1a0cd4c4d684ec7737c00a0d",
+      "description": "Get a ghostswap.io link that opens the swap with the coins (and optionally the amount) already filled in. Give it to the user when they want to do the swap themselves in the browser, or when create_swap isn't available. The link creates nothing and never carries an address: the user enters their own"
     },
     {
       "name": "create_swap",
-      "descriptionHash": "138850c98dfe7009ae9bd2dc349a75bc575b00fd8eca41532c70f846309e5dd3",
-      "description": "Create a new swap. Returns payinAddress where the end-user must send funds. REQUIRES refundAddress (the user's own wallet on the FROM chain). IDEMPOTENT — pass a stable idempotencyKey (UUID v4) per logical \"Confirm\" and reuse it on retries; never create the same swap twice. If a result has stop:true",
+      "descriptionHash": "a2864f05d46b0e12a6780242d8401b48f0e5dbeba975e687ce6aeedb705aedbc",
+      "description": "Create a new swap. Returns payinAddress where the end-user must send funds. REQUIRES refundAddress (the user's own wallet on the FROM chain). If the TO coin needs a memo / destination tag (requiresExtraId on list_currencies), pass it as extraId — without it the API returns missing_extra_id; only if ",
       "labels": [
         "private-data",
         "public-sink"
@@ -50,30 +55,95 @@
     },
     {
       "name": "get_swap",
-      "descriptionHash": "2460a28f8704cad4aeb4249675557a9f59cdac8e0c1c04caa7ac7da309bd9c32",
-      "description": "Get the current status of a swap by id. Poll every 10–30s after create_swap until terminal: finished | failed | refunded | overdue | expired. `hold` = AML/KYC review (slow polling; direct end-user to support@ghostswap.io).",
+      "descriptionHash": "561ddc9e4714b7b2248293a0ab90c41f438412f5ccda95ddc98de19eb37c367a",
+      "description": "Get the current status of a swap by id. Poll every 10–30s after create_swap until terminal: finished | failed | refunded | overdue | expired. `hold` = the swap is paused (poll slowly; tell the user to contact support@ghostswap.io with the swap id).",
       "labels": [
-        "untrusted-content"
+        "private-data"
       ]
     }
   ],
   "findings": [
     {
+      "id": "MCP-TOOL-POISON-007",
+      "severity": "low",
+      "category": "tool-poisoning",
+      "title": "Description uses pressure/override language",
+      "detail": "Description of \"get_swap_link\" stacks urgency/override words (never, warning). Legitimate tool descriptions rarely pressure the model to act or ignore prior guidance.",
+      "evidence": {
+        "source": "tool:get_swap_link",
+        "snippet": "Get a ghostswap.io link that opens the swap with the coins (and optionally the amount) already filled in. Give it to the user when they want to do the swap them…"
+      },
+      "confidence": 0.3
+    },
+    {
       "id": "MCP-TOXIC-FLOW-001",
       "severity": "high",
       "category": "toxic-flow",
       "title": "Lethal trifecta: untrusted input + private data + external sink",
-      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: validate_address, get_swap · Private data: validate_address, create_swap · Public sink: create_swap.",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: validate_address · Private data: validate_address, create_swap, get_swap · Public sink: create_swap.",
       "evidence": {
         "source": "server:mcp",
-        "snippet": "Untrusted content: validate_address, get_swap · Private data: validate_address, create_swap · Public sink: create_swap"
+        "snippet": "Untrusted content: validate_address · Private data: validate_address, create_swap, get_swap · Public sink: create_swap"
       },
       "confidence": 0.6,
       "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"list_currencies\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:list_currencies",
+        "snippet": "before: \"List all coins GhostSwap supports for swapping (1,600+ assets). Use lite=true for just an array of tickers (e.g. [\"btc\",\"eth\",\"ltc\"]).\" → after: \"List all coins GhostSwap supports for swapping (700+ assets). Use lite=true for just an array of tickers (e.g. [\"btc\",\"eth\",\"ltc\"]). Full metadata includes requiresExtraId + extraIdName: when the TO coin has requiresExtraId=true (XRP, XLM, ATOM, HBAR, TON…), collect the memo / destination tag before\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"get_quote\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:get_quote",
+        "snippet": "before: \"Get a live swap quote — rate, amountUserReceives, network fee, min/max. Always display amountUserReceives (not amountTo). mode=\"fixed\" locks the rate and returns a short-lived rateId.\" → after: \"Get a live swap quote — rate, amountUserReceives, network fee, min/max. Always display amountUserReceives (not amountTo). mode=\"fixed\" locks the rate and returns a short-lived rateId. The result includes swapUrl, a ghostswap.io link with this pair and amount filled in that the user can open to swap \""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"create_swap\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:create_swap",
+        "snippet": "before: \"Create a new swap. Returns payinAddress where the end-user must send funds. REQUIRES refundAddress (the user's own wallet on the FROM chain). IDEMPOTENT — pass a stable idempotencyKey (UUID v4) per logical \"Confirm\" and reuse it on retries; never create the same swap twice. If a result has stop:true\" → after: \"Create a new swap. Returns payinAddress where the end-user must send funds. REQUIRES refundAddress (the user's own wallet on the FROM chain). If the TO coin needs a memo / destination tag (requiresExtraId on list_currencies), pass it as extraId — without it the API returns missing_extra_id; only if \""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"get_swap\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:get_swap",
+        "snippet": "before: \"Get the current status of a swap by id. Poll every 10–30s after create_swap until terminal: finished | failed | refunded | overdue | expired. `hold` = AML/KYC review (slow polling; direct end-user to support@ghostswap.io).\" → after: \"Get the current status of a swap by id. Poll every 10–30s after create_swap until terminal: finished | failed | refunded | overdue | expired. `hold` = the swap is paused (poll slowly; tell the user to contact support@ghostswap.io with the swap id).\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
     }
   ],
-  "score": 80,
+  "score": 42,
   "scoreBreakdown": {
+    "tool-poisoning": 38,
     "toxic-flow": 20
   },
   "errors": []

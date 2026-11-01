@@ -8,8 +8,8 @@
     "kind": "url",
     "ref": "https://mcp.securelend.ai/v1/lender/mcp"
   },
-  "scannedAt": "2026-10-28T10:39:52.634Z",
-  "durationMs": 1289,
+  "scannedAt": "2026-11-01T11:21:00.539Z",
+  "durationMs": 1012,
   "layers": {
     "metadata": true,
     "static": false
@@ -35,10 +35,12 @@
     },
     {
       "name": "read_case",
-      "descriptionHash": "3af605f7c06e737f2cd1b8c6a154005f49d278e81d5ce88090f13ddbae9f936c",
-      "description": "Read one case: status, facts, evidence ids, gaps, recommendation, document file names and types, pending jobs, and memo id plus status. No storage keys.",
+      "descriptionHash": "1dff91f5a689e10974443dd4b9660e205b20fb8e1c7f5671a9919cd6ac631c24",
+      "description": "Read one case: status, loan id, facts, evidence ids, gaps, recommendation, document file names and types, pending jobs, memo id plus status, provenance, discrepancies, intake re-walk, auditor confirmation, debtor verification status, funding-batch summary with breaks and findings, and covenant revie",
       "labels": [
-        "private-data"
+        "untrusted-content",
+        "private-data",
+        "public-sink"
       ]
     },
     {
@@ -76,8 +78,8 @@
     },
     {
       "name": "draft_memo_from_file",
-      "descriptionHash": "28e84a346a0c201699827e72993a60c9dddc63e4c71d00d91301c67dba5cf23a",
-      "description": "Draft a credit memo from the case file. Same CaseSchema.id as Draft from file. Uses the tenant model when one is saved, otherwise the file template.",
+      "descriptionHash": "498555ac1744bc482ec3ea6f184a162c68b38e27fff87d7b2c6f8bbcf7d853e3",
+      "description": "Draft a credit memo from the case file. Same CaseSchema.id as Draft from file. Uses SECURELEND_MODEL when it is not template, then a saved tenant model, otherwise the file template.",
       "labels": [
         "private-data"
       ]
@@ -95,6 +97,31 @@
         "untrusted-content",
         "private-data",
         "public-sink",
+        "destructive"
+      ]
+    },
+    {
+      "name": "register_financed_invoice",
+      "descriptionHash": "2c7c9a6685dc5d4030a81dce4c14b3f900b2b330a9951fe248d2f9ea2dfe9879",
+      "description": "Register a financed invoice on the blind anti-fraud registry. Stores only a keyed HMAC token and registrar hash, never supplier, debtor, invoice number, or amount. Returns conflict when another lender already registered it.",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "check_invoice_financed",
+      "descriptionHash": "66ce14e44c62238f2ba5d71ea9f7d197936832bed813b9e7fad81091b66f786e",
+      "description": "Check whether an invoice has already been financed on the blind registry. Pass supplier, debtor, invoiceNumber, amount, and currency, or a token. Returns only financed (true or false), matchKind, ownRegistration, and token. Never returns lender identity or invoice details.",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "release_financed_invoice",
+      "descriptionHash": "e475251d045b309a1295fac3a3bc3a3ae94040ebdcd2f032a0bed7f82ed8420b",
+      "description": "Delete a financed invoice registration from the blind anti-fraud registry when the invoice is paid off or withdrawn. Only the registering workspace can delete its token.",
+      "labels": [
+        "private-data",
         "destructive"
       ]
     }
@@ -117,18 +144,44 @@
       "severity": "high",
       "category": "toxic-flow",
       "title": "Lethal trifecta: untrusted input + private data + external sink",
-      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: read_package · Private data: open_case, read_case, walk_credit_file, score_case_against_pack, chase_missing_documents, screen_sanctions, draft_memo_from_file, read_package · Public sink: chase_missing_documents, read_package · Destructive: read_package.",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: read_case, read_package · Private data: open_case, read_case, walk_credit_file, score_case_against_pack, chase_missing_documents, screen_sanctions, draft_memo_from_file, read_package, register_financed_invoice, check_invoice_financed, release_financed_invoice · Public sink: read_case, chase_missing_documents, read_package · Destructive: read_package, release_financed_invoice.",
       "evidence": {
         "source": "server:mcp",
-        "snippet": "Untrusted content: read_package · Private data: open_case, read_case, walk_credit_file, score_case_against_pack, chase_missing_documents, screen_sanctions, draft_memo_from_file, read_package · Public sink: chase_missing_documents, read_package · Destructive: read_package"
+        "snippet": "Untrusted content: read_case, read_package · Private data: open_case, read_case, walk_credit_file, score_case_against_pack, chase_missing_documents, screen_sanctions, draft_memo_from_file, read_package, register_financed_invoice, check_invoice_financed, release_financed_invoice · Public sink: read_case, chase_missing_documents, read_package · Destructive: read_package, release_financed_invoice"
       },
       "confidence": 0.6,
       "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"read_case\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:read_case",
+        "snippet": "before: \"Read one case: status, facts, evidence ids, gaps, recommendation, document file names and types, pending jobs, and memo id plus status. No storage keys.\" → after: \"Read one case: status, loan id, facts, evidence ids, gaps, recommendation, document file names and types, pending jobs, memo id plus status, provenance, discrepancies, intake re-walk, auditor confirmation, debtor verification status, funding-batch summary with breaks and findings, and covenant revie\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"draft_memo_from_file\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:draft_memo_from_file",
+        "snippet": "before: \"Draft a credit memo from the case file. Same CaseSchema.id as Draft from file. Uses the tenant model when one is saved, otherwise the file template.\" → after: \"Draft a credit memo from the case file. Same CaseSchema.id as Draft from file. Uses SECURELEND_MODEL when it is not template, then a saved tenant model, otherwise the file template.\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
     }
   ],
-  "score": 60,
+  "score": 45,
   "scoreBreakdown": {
-    "tool-poisoning": 20,
+    "tool-poisoning": 35,
     "toxic-flow": 20
   },
   "errors": []

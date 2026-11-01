@@ -1,0 +1,102 @@
+{
+  "schemaVersion": 1,
+  "scanner": {
+    "version": "1.6.0",
+    "rules": "402995650b68"
+  },
+  "target": {
+    "kind": "url",
+    "ref": "https://konverter-pro.de/api/v1/mcp"
+  },
+  "scannedAt": "2026-11-01T11:24:50.329Z",
+  "durationMs": 1177,
+  "layers": {
+    "metadata": true,
+    "static": false
+  },
+  "tools": [
+    {
+      "name": "upload_statements",
+      "descriptionHash": "de208d07f5368c396a733742d15c7a80ec74352190a39131d024b9b86bf4d144",
+      "description": "Start a conversion job (or add files to one with job_token): German bank statements (PDF, CSV, MT940, camt.053/052 XML, photos) or payment-provider reports (PayPal, SumUp, Stripe, Amazon, Shopify ...) to DATEV (default), Lexware or MT940. Pass each file as content_base64 or a public https url. Retur",
+      "labels": [
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "get_job_status",
+      "descriptionHash": "7485b1ccaa3a6f5e092eecdab52a3182880830843486ad2cbfbffced7689f860",
+      "description": "Per file: processing state, KP's verification (pages and bookings read, balance check, all records read), readiness for the target format with blockers, open questions and the next step. Poll every few seconds until every file is read.",
+      "labels": [
+        "private-data",
+        "destructive"
+      ]
+    },
+    {
+      "name": "list_open_questions",
+      "descriptionHash": "a9af9f395d55db6aa9a065c9ccb6040fa953b90785f804363cf795356c031950",
+      "description": "Bookings KP could not assign to an account with certainty, grouped like KP's review (by booking type, counterparty or single booking), each with KP's proposal, count, total and examples. Answer them with answer_questions.",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "answer_questions",
+      "descriptionHash": "4fa062c0482cc0eefa6a1cec869da3e0d2138d54efed0dba3f7a1a0c76f5eada",
+      "description": "Assign an account (4-8 digits, the user's chart) to whole question groups. For a booking type the answer is remembered for future files of the same client unless remember=false.",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "get_preview",
+      "descriptionHash": "f90a8abac9e4574619da461b076c73378e08a1cc21136b2c26de72c139e22f4d",
+      "description": "A free preview of the output (for unpaid jobs the first pages, marked as a draft so it is not imported by mistake). Returns a download link valid for 1 hour."
+    },
+    {
+      "name": "get_price_quote",
+      "descriptionHash": "6dc5f7cdfd606cddcf68e1cd29a7b0611f9dfe366e592439566955f1f47d677e",
+      "description": "The price of the job's ready, unpaid files: units (1 page with bookings, or 25 bookings) x unit price, with a minimum per job, net plus VAT. With a KP API key the customer's plan pays instead.",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "create_payment_link",
+      "descriptionHash": "42437dfdcdce190a0a52065a555e20e9014ba33d6b6f67c4b474cba18c172960",
+      "description": "A Stripe payment page for the quoted files (card and other methods, invoice with VAT). Show the link to your user; once paid, download_result releases the final files. A new link replaces the previous one.",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "download_result",
+      "descriptionHash": "ccd1f384d747080e868f28a37618997ad5d167e00d55c78f4caafaff0de3c738",
+      "description": "The final, verified file (DATEV Buchungsstapel, Lexware CSV or MT940) once it is ready and paid (or covered by the API key's plan). Returns download links valid for 1 hour and the verification. DATEV needs datev.berater_nummer and datev.mandanten_nummer for anonymous jobs; MT940 needs account_iban.",
+      "labels": [
+        "private-data"
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: list_open_questions · Private data: upload_statements, get_job_status, answer_questions, get_price_quote, create_payment_link, download_result · Public sink: upload_statements · Destructive: get_job_status.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: list_open_questions · Private data: upload_statements, get_job_status, answer_questions, get_price_quote, create_payment_link, download_result · Public sink: upload_statements · Destructive: get_job_status"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 80,
+  "scoreBreakdown": {
+    "toxic-flow": 20
+  },
+  "errors": []
+}

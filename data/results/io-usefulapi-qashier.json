@@ -1,0 +1,78 @@
+{
+  "schemaVersion": 1,
+  "scanner": {
+    "version": "1.6.0",
+    "rules": "402995650b68"
+  },
+  "target": {
+    "kind": "url",
+    "ref": "https://qashier.usefulapi.io/mcp"
+  },
+  "scannedAt": "2026-11-01T11:33:03.964Z",
+  "durationMs": 514,
+  "layers": {
+    "metadata": true,
+    "static": false
+  },
+  "tools": [
+    {
+      "name": "qashier_list_checkout_sessions",
+      "descriptionHash": "2f7b1f67b76506025ae2ce95eced1400364857ee5c701c4db540889906fdb607",
+      "description": "List online payment Checkout Sessions, newest first, with status (open/complete/expired), payment status, amount in cents, refunds and receipt number. Cursor pagination: pass starting_after with the last id. GET /checkout/sessions."
+    },
+    {
+      "name": "qashier_get_checkout_session",
+      "descriptionHash": "76ee8016f47360c56fc963a7248f77409c6a3b099c1a926248acb0102478c488",
+      "description": "Get one Checkout Session by id: status, payment status, payment method, amount in cents, checkout url and refunds. GET /checkout/sessions/{id}.",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "qashier_create_checkout_session",
+      "descriptionHash": "edeb96b8bad6e0d52089f0129657b6935644173b6d68dca908545c1871e54f0a",
+      "description": "WRITE: create a payment Checkout Session for ONE item and return its payment url. It charges nothing until the customer pays at that url. Amount is in cents (SGD 12.50 = 1250). POST /checkout/sessions.",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "qashier_expire_checkout_session",
+      "descriptionHash": "82f581e03c1f0f396e61479716b9c8c491c82afa5277e9e0be9b1334c7bc9ac6",
+      "description": "WRITE: expire an OPEN Checkout Session so the customer can no longer pay it. It fails if the session is not open. POST /checkout/sessions/{id}/expire.",
+      "labels": [
+        "untrusted-content",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "qashier_refund_payment",
+      "descriptionHash": "1f364964c01d0727b11c9f7f0fbcf091b3e3856c62c149b0224c0c6fcb99de81",
+      "description": "WRITE, MONEY: refund a paid Checkout Session to the customer's original payment method. Omit amount for a full refund; amount is in cents. The refund runs asynchronously (status pending). This call has no idempotency key, so do NOT retry it: check qashier_get_checkout_session first. POST /refund.",
+      "labels": [
+        "untrusted-content",
+        "public-sink"
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "medium",
+      "category": "toxic-flow",
+      "title": "Toxic flow: untrusted input can reach an external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: qashier_get_checkout_session, qashier_expire_checkout_session, qashier_refund_payment · Public sink: qashier_create_checkout_session, qashier_expire_checkout_session, qashier_refund_payment.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: qashier_get_checkout_session, qashier_expire_checkout_session, qashier_refund_payment · Public sink: qashier_create_checkout_session, qashier_expire_checkout_session, qashier_refund_payment"
+      },
+      "confidence": 0.45,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 92,
+  "scoreBreakdown": {
+    "toxic-flow": 8
+  },
+  "errors": []
+}

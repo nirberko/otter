@@ -1,0 +1,95 @@
+{
+  "schemaVersion": 1,
+  "scanner": {
+    "version": "1.6.0",
+    "rules": "402995650b68"
+  },
+  "target": {
+    "kind": "url",
+    "ref": "https://membersuite.usefulapi.io/mcp"
+  },
+  "scannedAt": "2026-11-01T11:33:03.075Z",
+  "durationMs": 380,
+  "layers": {
+    "metadata": true,
+    "static": false
+  },
+  "tools": [
+    {
+      "name": "membersuite_whoami",
+      "descriptionHash": "66dd2b7ce5630a497a93ed75dc0ff4a41fcf41993efd883c9e4f308197c8d0c0",
+      "description": "Return the API user and tenant that this connection uses, including ReceivesMemberBenefits status fields. Good first call. REST: GET /platform/v2/whoami."
+    },
+    {
+      "name": "membersuite_search_individuals",
+      "descriptionHash": "298fe74996c842a12669a5c94a228efd801ddcf498869a8572eba1276ff0a308",
+      "description": "Search individual contacts (people) with an MSQL statement, for example SELECT LocalID, FirstName, LastName, EmailAddress FROM Individual WHERE (LastName = 'Smith'). Use the ID column to update a person later. REST: GET /crm/v1/individuals/{tenantId}?msql=.",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "membersuite_search_memberships",
+      "descriptionHash": "663581b038a4205bb7bbb3581b54bd32a30fe56494c67f1797ed934e46d76f32",
+      "description": "Search membership records with an MSQL statement, for example SELECT Owner.Name, Type.Name, JoinDate, ExpirationDate, ReceivesMemberBenefits FROM Membership. ReceivesMemberBenefits = true means an active member. REST: GET /membership/v1/memberships/{tenantId}?msql=.",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "membersuite_run_msql",
+      "descriptionHash": "9ccbc4daaf13a49fd9107fc64d01534815225660df0c8a28a2d006b2681be719",
+      "description": "Run any MSQL statement across modules, including joins. Use it for event registrations, for example SELECT LocalID, Individual.FirstName, Individual.LastName FROM EventRegistration('{eventGuid}') WHERE (CancellationDate IS NULL AND OnWaitList = 0). Pages with startPosition (row offset). REST: POST /",
+      "labels": [
+        "public-sink",
+        "destructive"
+      ]
+    },
+    {
+      "name": "membersuite_list_saved_searches",
+      "descriptionHash": "d2cdf1eca4cc8d0596f6d46f24ab0edd058d64bc4fbf928759388b0d5e62f2e6",
+      "description": "List the public saved searches in the Console, with their IDs. Filter by part of the name (letters, digits, spaces, _ . -). Use an ID with membersuite_run_saved_search. REST: POST /platform/v2/dataSuite/executeSearch with SavedSearch MSQL.",
+      "labels": [
+        "untrusted-content",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "membersuite_run_saved_search",
+      "descriptionHash": "d3ae165147f664a8ed6d6dfa08025e95832299de0ea90a242019f596747f7b96",
+      "description": "Run one public saved search by its ID and return its records. The ID comes from membersuite_list_saved_searches. REST: GET /platform/v2/dataSuite/executeSavedSearch/{savedSearchId}.",
+      "labels": [
+        "private-data",
+        "destructive"
+      ]
+    },
+    {
+      "name": "membersuite_update_individual",
+      "descriptionHash": "878c7178f39255fcd6ab7414b718dbdb2273af9ed6cda01ba252b04bada9dfc6",
+      "description": "Change the listed fields of one individual (contact). Only the fields you pass change. Pass standard fields in fields (for example FirstName, EmailAddress, Work_PhoneNumber) and custom fields (names ending __c) in custom_fields. Idempotent: the same call twice leaves the same data. Test in a MemberS",
+      "labels": [
+        "private-data"
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: membersuite_list_saved_searches · Private data: membersuite_search_individuals, membersuite_search_memberships, membersuite_run_saved_search, membersuite_update_individual · Public sink: membersuite_run_msql, membersuite_list_saved_searches · Destructive: membersuite_run_msql, membersuite_run_saved_search.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: membersuite_list_saved_searches · Private data: membersuite_search_individuals, membersuite_search_memberships, membersuite_run_saved_search, membersuite_update_individual · Public sink: membersuite_run_msql, membersuite_list_saved_searches · Destructive: membersuite_run_msql, membersuite_run_saved_search"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 80,
+  "scoreBreakdown": {
+    "toxic-flow": 20
+  },
+  "errors": []
+}

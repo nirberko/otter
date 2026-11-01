@@ -8,19 +8,95 @@
     "kind": "url",
     "ref": "https://api.lovedone.app/mcp/vendor/v1"
   },
-  "scannedAt": "2026-10-27T09:53:26.751Z",
-  "durationMs": 343,
+  "scannedAt": "2026-11-01T11:21:16.253Z",
+  "durationMs": 614,
   "layers": {
-    "metadata": false,
+    "metadata": true,
     "static": false
   },
-  "findings": [],
-  "score": 100,
-  "scoreBreakdown": {},
-  "errors": [
+  "tools": [
     {
-      "scanner": "metadata",
-      "message": "Streamable HTTP error: Error POSTing to endpoint: {\"jsonrpc\":\"2.0\",\"id\":null,\"error\":{\"code\":-32001,\"message\":\"No __sandwich_session cookie or Bearer API key present\",\"data\":{\"authCode\":\"NO_AUTH\"}}}"
+      "name": "ping",
+      "descriptionHash": "6d9fdc6381404b60c3737f82d6e51cda315c8bdd610438e0cc9f0865f2005ade",
+      "description": "Smoke-test tool. Returns pong plus the authenticated caller's uid, tenant, and auth method. No PHI. No side effects."
+    },
+    {
+      "name": "get_agency_profile",
+      "descriptionHash": "53e6f7703d6fd19ea99739f1207d346e32a4a39a5a25910953a59a875a77fe2e",
+      "description": "Returns the authenticated provider's agency: id, name, slug, plan, and the caller's role. Use this first when building a vendor dashboard."
+    },
+    {
+      "name": "list_clients",
+      "descriptionHash": "9142db80af9177f0e32b3fba5de619574794e3b7759a7eb2dfe6e296925e9a67",
+      "description": "Lists this LovedOne Soft agency's clients (agency-context loved ones). Includes whether each client is linked to a LovedOne family inbox. Does not return other agencies' clients or family-member emails.",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "get_client",
+      "descriptionHash": "8586e0a8010c7f7383b0e8994de06bf4a4dd5e5496b54f3089c678943e538c52",
+      "description": "Returns one client owned by this agency, plus recent visits/notes. Rejected if the client belongs to another agency."
+    },
+    {
+      "name": "list_visits",
+      "descriptionHash": "0a66b5864630c80b6b8429e7e3b742d9104ea0fb38be75f38080628bdef51b3b",
+      "description": "Lists LovedOne Soft visit/note events for this agency, optionally for one client. Notes may contain health information logged by staff."
+    },
+    {
+      "name": "add_visit_note",
+      "descriptionHash": "6b550e7766f5f7f62f8b953c9f002905f56358929ef257010ab1fd7326b00316",
+      "description": "Logs a note on an agency client. If the client is linked to a LovedOne family inbox, a copy is posted there so siblings see it. This is a write. Notes may be health-related — only record what the family has asked you to share.",
+      "labels": [
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "schedule_visit",
+      "descriptionHash": "2289b68b1c0fcb9e6b1c5d9663017de94acbdd6cdf03625b3a76db8d14dd6874",
+      "description": "Creates a scheduled visit for an agency client (agency_events type scheduled, status scheduled). Pass scheduledFor as an ISO-8601 datetime or Unix milliseconds. The visit appears in list_visits. This is a write. Notes may be health-related."
+    },
+    {
+      "name": "list_invoices",
+      "descriptionHash": "75ec9d23b50edaeea2e93e7e0b262299193a808734dd6ac29ef9a039659678fb",
+      "description": "Lists invoices this agency issued to families (amounts, status, assignment). LovedOne does not move money — these are ledger records. Payment handles on the invoice are contact pointers, not credentials.",
+      "labels": [
+        "private-data"
+      ]
     }
-  ]
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"list_invoices\" references sensitive artifacts (credentials). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:list_invoices",
+        "snippet": "Lists invoices this agency issued to families (amounts, status, assignment). LovedOne does not move money — these are ledger records. Payment handles on the inv…"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"v1\" exposes tools that together enable an exfiltration flow. Untrusted content: list_clients · Private data: add_visit_note, list_invoices · Public sink: add_visit_note.",
+      "evidence": {
+        "source": "server:v1",
+        "snippet": "Untrusted content: list_clients · Private data: add_visit_note, list_invoices · Public sink: add_visit_note"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 60,
+  "scoreBreakdown": {
+    "tool-poisoning": 20,
+    "toxic-flow": 20
+  },
+  "errors": []
 }

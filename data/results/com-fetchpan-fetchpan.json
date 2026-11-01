@@ -8,8 +8,8 @@
     "kind": "url",
     "ref": "https://fetchpan.com/mcp"
   },
-  "scannedAt": "2026-10-26T10:32:30.923Z",
-  "durationMs": 1263,
+  "scannedAt": "2026-11-01T11:22:56.667Z",
+  "durationMs": 1558,
   "layers": {
     "metadata": true,
     "static": false
@@ -29,11 +29,22 @@
       "description": "Is this link from a site FetchPan supports, and is that site working right now?\n\n        Does not use any quota. Call it before `download` when you are not sure."
     },
     {
-      "name": "start_download",
-      "descriptionHash": "2bb38eea58bbfa2763dd96001df9b84fa2efbb552a8821b80fba1f228d75d95e",
-      "description": "Start fetching a link. Returns a job id; poll it with `get_job`. Uses no free file yet.",
+      "name": "list_files",
+      "descriptionHash": "2cf734ab1be6f8c1d5fca0e71e31d2dd624fe374a309da18f98b969f787107e8",
+      "description": "What is inside a Quark or PikPak share: its folders and files, with sizes. Lists only: downloads\n        nothing and uses no free file.\n\n        `download` of a share with folders or several files answers \"pick_required\" with a `share_id` and the top\n        of the share. Open a folder with that `sh",
       "labels": [
-        "private-data"
+        "untrusted-content",
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "start_download",
+      "descriptionHash": "fdbc99cc1ee56200ae889a59dec7304945ca4a16171ec96f48a84555aa6b4df4",
+      "description": "Start fetching a link (or one file of a share, with `share_id` and `file_id`). Returns a job id; poll it\n        with `get_job`. Uses no free file yet. A Quark or PikPak share with folders or several files starts no\n        job: it answers status \"pick_required\" with its files, as `download` does.",
+      "labels": [
+        "private-data",
+        "public-sink"
       ]
     },
     {
@@ -52,11 +63,12 @@
     },
     {
       "name": "download",
-      "descriptionHash": "6f20da1593cb8c2a42a850dd835c91a50c39ecc5c6ced1d83cfce8291901afe4",
-      "description": "Fetch a link and return a download URL, in one call.\n\n        Waits up to `wait_seconds` for the file to be ready. If it is not ready yet, the result has\n        status \"running\" and a `job_id`: call `get_job`, then `get_download_link`.",
+      "descriptionHash": "2ad2b55c88543d82c7fca23d9eb73624d8615d1440b896ae6b955e77a0bb0f98",
+      "description": "Fetch a link and return a download URL, in one call. A Quark or PikPak share with folders or several\n        files answers status \"pick_required\" with a `share_id` and its files: call again with `share_id` and the\n        `file_id` of one file (open folders with `list_files`).\n\n        Waits up to `",
       "labels": [
         "untrusted-content",
-        "private-data"
+        "private-data",
+        "public-sink"
       ]
     },
     {
@@ -82,25 +94,10 @@
   ],
   "findings": [
     {
-      "id": "MCP-TOXIC-FLOW-001",
-      "severity": "high",
-      "category": "toxic-flow",
-      "title": "Lethal trifecta: untrusted input + private data + external sink",
-      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: get_download_link, download, get_account · Private data: list_supported_sites, start_download, get_download_link, download, get_account · Public sink: get_account.",
-      "evidence": {
-        "source": "server:mcp",
-        "snippet": "Untrusted content: get_download_link, download, get_account · Private data: list_supported_sites, start_download, get_download_link, download, get_account · Public sink: get_account"
-      },
-      "confidence": 0.6,
-      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
-    }
-  ],
-  "score": 80,
-  "scoreBreakdown": {
-    "toxic-flow": 20
-  },
-  "errors": []
-}"Generic tool name can shadow trusted tools",
+      "id": "MCP-SHADOW-001",
+      "severity": "medium",
+      "category": "shadowing",
+      "title": "Generic tool name can shadow trusted tools",
       "detail": "Tool \"list_files\" uses a generic high-value name. When multiple servers load together, this can intercept calls meant for a trusted server.",
       "evidence": {
         "source": "tool:list_files",
@@ -120,39 +117,12 @@
       },
       "confidence": 0.6,
       "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
-    },
-    {
-      "id": "MCP-RUGPULL-001",
-      "severity": "high",
-      "category": "tool-poisoning",
-      "title": "Tool description changed since last scan",
-      "detail": "Tool \"start_download\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
-      "evidence": {
-        "source": "tool:start_download",
-        "snippet": "before: \"Start fetching a link. Returns a job id; poll it with `get_job`. Uses no free file yet.\" → after: \"Start fetching a link (or one file of a share, with `share_id` and `file_id`). Returns a job id; poll it\n        with `get_job`. Uses no free file yet. A Quark or PikPak share with folders or several files starts no\n        job: it answers status \"pick_required\" with its files, as `download` does.\""
-      },
-      "confidence": 0.8,
-      "remediation": "Re-review the tool before continuing to trust it."
-    },
-    {
-      "id": "MCP-RUGPULL-001",
-      "severity": "high",
-      "category": "tool-poisoning",
-      "title": "Tool description changed since last scan",
-      "detail": "Tool \"download\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
-      "evidence": {
-        "source": "tool:download",
-        "snippet": "before: \"Fetch a link and return a download URL, in one call.\n\n        Waits up to `wait_seconds` for the file to be ready. If it is not ready yet, the result has\n        status \"running\" and a `job_id`: call `get_job`, then `get_download_link`.\" → after: \"Fetch a link and return a download URL, in one call. A Quark or PikPak share with folders or several\n        files answers status \"pick_required\" with a `share_id` and its files: call again with `share_id` and the\n        `file_id` of one file (open folders with `list_files`).\n\n        Waits up to `\""
-      },
-      "confidence": 0.8,
-      "remediation": "Re-review the tool before continuing to trust it."
     }
   ],
-  "score": 42,
+  "score": 72,
   "scoreBreakdown": {
     "shadowing": 8,
-    "toxic-flow": 20,
-    "tool-poisoning": 30
+    "toxic-flow": 20
   },
   "errors": []
 }

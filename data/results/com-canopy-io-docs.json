@@ -1,0 +1,88 @@
+{
+  "schemaVersion": 1,
+  "scanner": {
+    "version": "1.6.0",
+    "rules": "402995650b68"
+  },
+  "target": {
+    "kind": "url",
+    "ref": "https://canopy-io.com/mcp"
+  },
+  "scannedAt": "2026-11-01T11:22:25.953Z",
+  "durationMs": 204,
+  "layers": {
+    "metadata": true,
+    "static": false
+  },
+  "tools": [
+    {
+      "name": "list_surfaces",
+      "descriptionHash": "0fdad3804393d94f8f92777aca791cc48a937638a90ab3eb0cfce20bb1451e15",
+      "description": "Every left-nav page of both signed-in applications: the application, the menu path in the labels on screen, the capability that opens it, what must be selected first, and the guide that walks through it. The same data as /ai/ui-map.json."
+    },
+    {
+      "name": "find_surface",
+      "descriptionHash": "0df309ee2671791112d8088488d21ad62c7c0f36f35212005928e1987dc2c434",
+      "description": "Given what someone wants to do (\"rotate a webhook secret\", \"invite an administrator\", \"why can't I see Hierarchy\"), return the pages where it happens, ranked, each with its menu path, the capability that opens it, and its guide.",
+      "labels": [
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "get_guide",
+      "descriptionHash": "346c8db824d3a564c46efb7437e06ee418aa8dba98077def451f7ffa5bb640f2",
+      "description": "A docs page as markdown: for a dashboard guide, the menu path, the exact controls to click in order, and the reasons a control may be missing. Pass the guide URL or path from find_surface or list_surfaces, or a surface id such as console.roles.",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "explain_capability",
+      "descriptionHash": "9be601acd292bebeb15ecd019d130f0f2dd4036b2c4c1923b0370a607ee30094",
+      "description": "What a capability such as env_roles.manage or billing.manage lets someone do, and which pages it opens. The answer to \"why can't I see this button\": a page shows only for someone holding one of its listed capabilities, and its write actions only for the matching manage capability."
+    },
+    {
+      "name": "search_api",
+      "descriptionHash": "09de2107af41c60a3b0ec6d214efbe407ee7f94dc08d4b5f3ee3dbafe79ca851",
+      "description": "Search the published OpenAPI documents by words from the task or the resource. Returns method, path, operation id, and the reference page for each match. Reference pages live at /docs/api-reference/{operationId}; never guess those URLs.",
+      "labels": [
+        "untrusted-content",
+        "private-data"
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"find_surface\" references sensitive artifacts (secret). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:find_surface",
+        "snippet": "Given what someone wants to do (\"rotate a webhook secret\", \"invite an administrator\", \"why can't I see Hierarchy\"), return the pages where it happens, ranked, e…"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: get_guide, search_api · Private data: find_surface, search_api · Public sink: find_surface.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: get_guide, search_api · Private data: find_surface, search_api · Public sink: find_surface"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 60,
+  "scoreBreakdown": {
+    "tool-poisoning": 20,
+    "toxic-flow": 20
+  },
+  "errors": []
+}
