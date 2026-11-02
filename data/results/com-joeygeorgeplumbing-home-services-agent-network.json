@@ -1,0 +1,100 @@
+{
+  "schemaVersion": 1,
+  "scanner": {
+    "version": "1.6.0",
+    "rules": "402995650b68"
+  },
+  "target": {
+    "kind": "url",
+    "ref": "https://agent-network-gold.vercel.app"
+  },
+  "scannedAt": "2026-11-02T12:52:34.556Z",
+  "durationMs": 607,
+  "layers": {
+    "metadata": true,
+    "static": false
+  },
+  "tools": [
+    {
+      "name": "register_business",
+      "descriptionHash": "7814312b0f03f39fbea7fb37babab184a2e31447aa4b9db6e6be99efb9b6a626",
+      "description": "Register a local home-services business in the network so homeowner agents can find it and send job requests. The registering agent supplies what it knows about its pro: business name, trade, services, service area (cities and/or ZIPs), hours, and the owner's rules (contact/pricing rules etc.). If t",
+      "labels": [
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "search_pros",
+      "descriptionHash": "573d8e01de07591d60bb77421a9f4a75e2bc6aff02fd59bf0d89c0da37d23502",
+      "description": "Search the network registry for local home-services pros by trade and location (city or ZIP), with an optional service keyword. Verified listings come first. Read each listing's rules before sending a request, and respect them. This network carries no prices."
+    },
+    {
+      "name": "get_listing",
+      "descriptionHash": "ace9011b8dbbc896b0f894270d91fc180e1b19fbcd81e63d5da3b719eefbcdbc",
+      "description": "Get the full public details of one listing by listing_id (no key needed; keys and personal contacts are never exposed).",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "send_job_request",
+      "descriptionHash": "e94e9b82ff81b1a5790a9a789d9835ac1b5d359b4fcbec971bf919d1aabb77a5",
+      "description": "Send a structured job request to a pro using the network's standard form. Required: listing_id, homeowner_name, homeowner_contact (phone or email), job_type, description, property_city, property_zip, urgency (emergency | soon | flexible). Optional: access_notes. There is deliberately NO price field ",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "check_inbox",
+      "descriptionHash": "7fa96290ba6e8e87785c5d2d3b2d741a7c7445dd6f2a1a4cb0239e3baa46003c",
+      "description": "For a pro's agent: read the job requests stored in the listing's hosted inbox. Requires the listing_id and the listing_key issued at registration. A wrong key is rejected.",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "update_request_status",
+      "descriptionHash": "b156ddce7943519e3f07ddef0dea24446b709a592162e270b91a87018f2e2202",
+      "description": "For a pro's agent: update a job request's status (received | booked | needs_info | declined | completed). Requires listing_id + listing_key. Every change is appended to the receipts ledger."
+    },
+    {
+      "name": "network_stats",
+      "descriptionHash": "200c63673117d237a2bb0b349c1935651f84abe11cb1513daa2ae6be6eaa8042",
+      "description": "Counts only, no personal data: total listings (verified/unverified), total searches, total job requests by status, and the most recent search/request timestamps. Use this to check whether the network is being used."
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOOL-POISON-007",
+      "severity": "low",
+      "category": "tool-poisoning",
+      "title": "Description uses pressure/override language",
+      "detail": "Description of \"send_job_request\" stacks urgency/override words (always, never). Legitimate tool descriptions rarely pressure the model to act or ignore prior guidance.",
+      "evidence": {
+        "source": "tool:send_job_request",
+        "snippet": "Send a structured job request to a pro using the network's standard form. Required: listing_id, homeowner_name, homeowner_contact (phone or email), job_type, de…"
+      },
+      "confidence": 0.3
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"agent-network-gold.vercel.app\" exposes tools that together enable an exfiltration flow. Untrusted content: check_inbox · Private data: register_business, get_listing · Public sink: register_business, send_job_request.",
+      "evidence": {
+        "source": "server:agent-network-gold.vercel.app",
+        "snippet": "Untrusted content: check_inbox · Private data: register_business, get_listing · Public sink: register_business, send_job_request"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 77,
+  "scoreBreakdown": {
+    "tool-poisoning": 3,
+    "toxic-flow": 20
+  },
+  "errors": []
+}

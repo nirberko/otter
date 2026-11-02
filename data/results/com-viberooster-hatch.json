@@ -8,8 +8,8 @@
     "kind": "url",
     "ref": "https://mcp.theroost.dev/mcp"
   },
-  "scannedAt": "2026-10-09T11:28:19.116Z",
-  "durationMs": 473,
+  "scannedAt": "2026-11-02T12:37:48.798Z",
+  "durationMs": 340,
   "layers": {
     "metadata": true,
     "static": false
@@ -72,8 +72,8 @@
     },
     {
       "name": "list_templates",
-      "descriptionHash": "8537b619b3e394a08f1b6fe703bfe707a4caeffd8638d04e54c2cad2e6c5196f",
-      "description": "List HTML templates and explorable archetypes from the public template catalog (https://github.com/VibeRooster/hatch-mcp/tree/main/templates). Returns `{ repo, browse, templates: [{ name, title, description, url }] }`. Descriptions come from each file's frontmatter. Open `url` for the HTML and hatch",
+      "descriptionHash": "fe91cd1f342050ed5c87880c768aebc62489660d1212e81a40f37d4031900778",
+      "description": "List HTML templates and explorable archetypes from the public template catalog (https://github.com/VibeRooster/hatch-mcp/tree/main/templates). Returns `{ repo, browse, templates: [{ name, title, description, url, prompt, referenceUrl? }] }`. `prompt` is the suggested text for the user. `referenceUrl",
       "labels": [
         "untrusted-content",
         "private-data"
@@ -171,6 +171,24 @@
       "name": "poll_approval",
       "descriptionHash": "c165610bee7afd63732310ce23365bdc99ec59af3e4c4822684d1834f4ce90f0",
       "description": "Poll a pending Tier-2 phone approval. Returns the result once the owner approves or denies on their phone."
+    },
+    {
+      "name": "alarm",
+      "descriptionHash": "f7f5dede174050e9e682d606de33908a04e2f7844e505ae24a78bf0764c33811",
+      "description": "Sound a loud alarm on the phones paired to this roost. Pass `hatchId` and a short `message` — the phone shows that message and repeats the alarm until the person acknowledges it. Recipients are only phones paired to this roost or its workspace. There is no phone-number argument. Do not pass one, and"
+    },
+    {
+      "name": "squawk_request_access",
+      "descriptionHash": "cd5c1d7ba4a21cb4da9f0a80393e9f663edd36d062bd39c0a80872e2540b1870",
+      "description": "Ask the roost owner to admit this agent to Squawk. Uses the caller's Hatch pairing session (Authorization: Roost, the bound connector session, or sessionToken from poll_pairing). Returns `{ requestId, status: \"pending\", expiresAt }`. The request expires 10 minutes after it is opened. Does not create"
+    },
+    {
+      "name": "squawk_poll_access",
+      "descriptionHash": "932476d6847f5d2733e00a5b7629240e3f1a5faa21b103d2270ab57286638529",
+      "description": "Poll an admit request opened by squawk_request_access. Uses the same Hatch pairing session. While pending, returns `{ status: \"pending\", expiresAt }`. After the owner approves, returns the member, the rin_ token once, roostId, and mcpServers.squawk. Install the returned mcpServers.squawk block into ",
+      "labels": [
+        "private-data"
+      ]
     },
     {
       "name": "deploy",
@@ -281,14 +299,63 @@
       "confidence": 0.75
     },
     {
+      "id": "MCP-TOOL-POISON-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description issues instructions to the model",
+      "detail": "Description of \"alarm\" contains imperative instructions directed at the AI assistant rather than describing the tool. This is the core tool-poisoning technique.",
+      "evidence": {
+        "source": "tool:alarm",
+        "snippet": "Sound a loud alarm on the phones paired to this roost. Pass `hatchId` and a short `message` — the phone shows that message and repeats the alarm until the perso…"
+      },
+      "confidence": 0.7,
+      "remediation": "Treat the server as untrusted; the model may obey embedded instructions."
+    },
+    {
+      "id": "MCP-TOOL-POISON-002",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description tells the model to hide behavior",
+      "detail": "Description of \"alarm\" instructs the model to conceal actions from the user.",
+      "evidence": {
+        "source": "tool:alarm",
+        "snippet": "Sound a loud alarm on the phones paired to this roost. Pass `hatchId` and a short `message` — the phone shows that message and repeats the alarm until the perso…"
+      },
+      "confidence": 0.75
+    },
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"squawk_request_access\" references sensitive artifacts (authorization). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:squawk_request_access",
+        "snippet": "Ask the roost owner to admit this agent to Squawk. Uses the caller's Hatch pairing session (Authorization: Roost, the bound connector session, or sessionToken f…"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"squawk_poll_access\" references sensitive artifacts (authorization). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:squawk_poll_access",
+        "snippet": "Poll an admit request opened by squawk_request_access. Uses the same Hatch pairing session. While pending, returns `{ status: \"pending\", expiresAt }`. After the…"
+      },
+      "confidence": 0.65
+    },
+    {
       "id": "MCP-TOXIC-FLOW-001",
       "severity": "high",
       "category": "toxic-flow",
       "title": "Lethal trifecta: untrusted input + private data + external sink",
-      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: hatch, lookup, list, list_templates, checkout, share, poll_decision, get_pairing_code · Private data: hatch, upload, lookup, convert, list_templates, checkout, auth, share, poll_pairing, refresh_session, deploy · Public sink: hatch, upload, convert, checkout, poll_checkout, share, await_decision, deploy · Destructive: auth, share.",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: hatch, lookup, list, list_templates, checkout, share, poll_decision, get_pairing_code · Private data: hatch, upload, lookup, convert, list_templates, checkout, auth, share, poll_pairing, refresh_session, squawk_poll_access, deploy · Public sink: hatch, upload, convert, checkout, poll_checkout, share, await_decision, deploy · Destructive: auth, share.",
       "evidence": {
         "source": "server:mcp",
-        "snippet": "Untrusted content: hatch, lookup, list, list_templates, checkout, share, poll_decision, get_pairing_code · Private data: hatch, upload, lookup, convert, list_templates, checkout, auth, share, poll_pairing, refresh_session, deploy · Public sink: hatch, upload, convert, checkout, poll_checkout, share, await_decision, deploy · Destructive: auth, share"
+        "snippet": "Untrusted content: hatch, lookup, list, list_templates, checkout, share, poll_decision, get_pairing_code · Private data: hatch, upload, lookup, convert, list_templates, checkout, auth, share, poll_pairing, refresh_session, squawk_poll_access, deploy · Public sink: hatch, upload, convert, checkout, poll_checkout, share, await_decision, deploy · Destructive: auth, share"
       },
       "confidence": 0.6,
       "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
@@ -298,62 +365,10 @@
       "severity": "high",
       "category": "tool-poisoning",
       "title": "Tool description changed since last scan",
-      "detail": "Tool \"hatch\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "detail": "Tool \"list_templates\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
       "evidence": {
-        "source": "tool:hatch",
-        "snippet": "before: \"Create a NEW site (a 'roost') and return its public URL in one call. Returns `{ hatchId, slug, url, apex, uploads? }` — show `url` to the user and remember `hatchId`. NEVER call hatch twice for the same site — use `convert` to rename or change tier, and `upload`/`deploy` for content updates.\n\nPick `\" → after: \"Create a NEW site (a 'roost') and return its public URL in one call. Returns `{ hatchId, slug, url, apex, promo, uploads? }` — show `url` to the user and remember `hatchId`. NEVER call hatch twice for the same site — use `convert` to rename, change tier, or set Promo, and `upload`/`deploy` for conte\""
-      },
-      "confidence": 0.8,
-      "remediation": "Re-review the tool before continuing to trust it."
-    },
-    {
-      "id": "MCP-RUGPULL-001",
-      "severity": "high",
-      "category": "tool-poisoning",
-      "title": "Tool description changed since last scan",
-      "detail": "Tool \"lookup\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
-      "evidence": {
-        "source": "tool:lookup",
-        "snippet": "before: \"Resolve a roost by `slug` or `hatchId`. Returns a compact view `{ hatchId, slug, url, apex, tier, state, expiresAt, customDomain, galleryListed, pageviews24h, visitors24h, topPaths, topCountries, topReferrers }`. Use this to recover state across turns when the user mentions their site without giving\" → after: \"Resolve a roost by `slug` or `hatchId`. Returns a compact view `{ hatchId, slug, url, apex, tier, state, expiresAt, customDomain, galleryListed, promo, pageviews24h, visitors24h, topPaths, topCountries, topReferrers }`. `promo` is true when the hatch is marked Promo (listed on the public carousel ev\""
-      },
-      "confidence": 0.8,
-      "remediation": "Re-review the tool before continuing to trust it."
-    },
-    {
-      "id": "MCP-RUGPULL-001",
-      "severity": "high",
-      "category": "tool-poisoning",
-      "title": "Tool description changed since last scan",
-      "detail": "Tool \"list\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
-      "evidence": {
-        "source": "tool:list",
-        "snippet": "before: \"List every hatch in a workspace. Returns `{ workspaceId, name, count, hatches: [{ hatchId, slug, url, apex, kind, tier, state, expiresAt, createdAt, pageviews24h, visitors24h }] }`. Use this when you lost hatchIds, before hatching (so you do not create a duplicate), or when the user asks what is liv\" → after: \"List every hatch in a workspace. Returns `{ workspaceId, name, count, hatches: [{ hatchId, slug, url, apex, kind, tier, state, expiresAt, createdAt, promo, pageviews24h, visitors24h }] }`. `promo` is true when that hatch is marked Promo. Use this when you lost hatchIds, before hatching (so you do no\""
-      },
-      "confidence": 0.8,
-      "remediation": "Re-review the tool before continuing to trust it."
-    },
-    {
-      "id": "MCP-RUGPULL-001",
-      "severity": "high",
-      "category": "tool-poisoning",
-      "title": "Tool description changed since last scan",
-      "detail": "Tool \"convert\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
-      "evidence": {
-        "source": "tool:convert",
-        "snippet": "before: \"Atomically rename a roost's URL, change gallery listing, or bind a custom domain (Roost / Roost Audit after checkout grant custom_domain). Pass `hatchId` plus at least one of `newPreferredSlug`, `galleryListed`, or `customDomain`. Do NOT call `hatch` again to rename — that creates a second site.\n\nRo\" → after: \"Atomically rename a roost's URL, change gallery listing, mark or unmark Promo, or bind a custom domain (Roost / Roost Audit after checkout grant custom_domain). Pass `hatchId` plus at least one of `newPreferredSlug`, `galleryListed`, `promo`, or `customDomain`. Do NOT call `hatch` again to rename or\""
-      },
-      "confidence": 0.8,
-      "remediation": "Re-review the tool before continuing to trust it."
-    },
-    {
-      "id": "MCP-RUGPULL-001",
-      "severity": "high",
-      "category": "tool-poisoning",
-      "title": "Tool description changed since last scan",
-      "detail": "Tool \"get_pairing_code\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
-      "evidence": {
-        "source": "tool:get_pairing_code",
-        "snippet": "before: \"Issue a pairing code + URL (TTL 10 minutes) for claiming a hatch (`hatchId`) or authorizing an agent session in a workspace (workspaceId). Reuses the active pending code for this connector session unless `forceNew: true`. Render pairingUrl as a QR for the Vibe Rooster app — do not call again until p\" → after: \"Issue a pairing code + URL (TTL 10 minutes) for claiming a hatch (`hatchId`) or authorizing an agent session in a workspace (workspaceId). Reuses the active pending code for this connector session unless `forceNew: true`. For workspace pairing, show `pairingUrl` (https://mcp.theroost.dev/open/worksp\""
+        "source": "tool:list_templates",
+        "snippet": "before: \"List HTML templates and explorable archetypes from the public template catalog (https://github.com/VibeRooster/hatch-mcp/tree/main/templates). Returns `{ repo, browse, templates: [{ name, title, description, url }] }`. Descriptions come from each file's frontmatter. Open `url` for the HTML and hatch\" → after: \"List HTML templates and explorable archetypes from the public template catalog (https://github.com/VibeRooster/hatch-mcp/tree/main/templates). Returns `{ repo, browse, templates: [{ name, title, description, url, prompt, referenceUrl? }] }`. `prompt` is the suggested text for the user. `referenceUrl\""
       },
       "confidence": 0.8,
       "remediation": "Re-review the tool before continuing to trust it."

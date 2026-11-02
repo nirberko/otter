@@ -1,0 +1,95 @@
+{
+  "schemaVersion": 1,
+  "scanner": {
+    "version": "1.6.0",
+    "rules": "402995650b68"
+  },
+  "target": {
+    "kind": "url",
+    "ref": "https://demio.usefulapi.io/mcp"
+  },
+  "scannedAt": "2026-11-02T13:03:24.717Z",
+  "durationMs": 711,
+  "layers": {
+    "metadata": true,
+    "static": false
+  },
+  "tools": [
+    {
+      "name": "demio_check_connection",
+      "descriptionHash": "f5b317e1359aac920d82fa101637899b1247c0501861ae80d1362754f1fbe2f4",
+      "description": "Check that the API key and secret are valid. Returns pong=true and whether the key pair is a sandbox pair. Demio API: GET /ping.",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "demio_list_events",
+      "descriptionHash": "bcc9c6622a37a69df00a5110a654b00340e23e9906dfcb0138dace8aafb36e08",
+      "description": "List active (not canceled) webinar events with their next session, status, time and registration URL. Use type=upcoming for future sessions, past for finished ones, or automated for evergreen events. Demio API: GET /events.",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "demio_get_event",
+      "descriptionHash": "e464c299413d30a909adc5ea87eb6d4fde3491b06d92dc8580ab15c70f15848b",
+      "description": "Get one event with its registration URL, next session ID and every session (date) in its series, with status and time. Demio API: GET /event/{id}.",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "demio_get_event_session",
+      "descriptionHash": "27bfbef3026c000f0bc5bd868b42ae495c3682f0b3da892dec17ee2b4f71b00a",
+      "description": "Get one session (event date) with its status, Unix timestamp and time zone. Demio API: GET /event/{id}/date/{date_id}."
+    },
+    {
+      "name": "demio_list_participants",
+      "descriptionHash": "35a70355c47ee3d0e250b4cad39f10be581d7b6891dc094ddc2efecb04973f24",
+      "description": "List the participants of one session with their name, email, custom field values, attendance flag and status. Use status to filter (attended, did not attend, completed, left early, banned). Demio API: GET /report/{date_id}/participants.",
+      "labels": [
+        "untrusted-content",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "demio_register_attendee",
+      "descriptionHash": "c3320cff47ceb29a6b03dc69e8371b7c29086ce6bd5c1799c24e51ea4865fec6",
+      "description": "WRITE: register one person for a webinar and return their personal join link. Give event_id or ref_url. Without date_id, Demio uses the nearest active session. A repeat call can create a second registrant. Demio API: PUT /event/register."
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"demio_check_connection\" references sensitive artifacts (secret). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:demio_check_connection",
+        "snippet": "Check that the API key and secret are valid. Returns pong=true and whether the key pair is a sandbox pair. Demio API: GET /ping."
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: demio_list_events, demio_get_event, demio_list_participants · Private data: demio_check_connection · Public sink: demio_list_participants.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: demio_list_events, demio_get_event, demio_list_participants · Private data: demio_check_connection · Public sink: demio_list_participants"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 60,
+  "scoreBreakdown": {
+    "tool-poisoning": 20,
+    "toxic-flow": 20
+  },
+  "errors": []
+}

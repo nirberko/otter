@@ -8,8 +8,8 @@
     "kind": "url",
     "ref": "https://www.beachvalencia.com/api/mcp"
   },
-  "scannedAt": "2026-10-24T09:00:23.101Z",
-  "durationMs": 753,
+  "scannedAt": "2026-11-02T12:34:40.193Z",
+  "durationMs": 1285,
   "layers": {
     "metadata": true,
     "static": false
@@ -17,13 +17,16 @@
   "tools": [
     {
       "name": "search_availability",
-      "descriptionHash": "5bd6abd3e3b200ea6ba476429bfdd61330d7b0c7407a78eaec88b8e4c225e65e",
-      "description": "Search availability across every apartment category for a given date range and party size. Returns one match per available category with total EUR price (public rate, no discount code), photos and a booking_url that opens beachvalencia.com with dates and guests pre-filled. Use it whenever the travel"
+      "descriptionHash": "5b3768962692d1c44356921dfbe4242972fd1b03a7c11e0305d98312d768f51d",
+      "description": "WHEN: use it whenever the traveller asks \"what do you have from X to Y for N people\" or shows date flexibility. WHAT IT RETURNS: `matches[]` with one entry per available category (G1..G6, G4B) ordered by total price, including name, zone (beach/city), bedrooms, m², highlights, location summary, phot",
+      "labels": [
+        "untrusted-content"
+      ]
     },
     {
       "name": "get_property_details",
-      "descriptionHash": "b1cfe58eb52b470a5c77b8bcd6449694994de5425406bf55926e8cc0cbc89a5d",
-      "description": "Return description, capacity, amenities and photos for one property category (G1..G6 or G4B). Use it after search_availability when the traveller wants to compare or see more detail about a specific option. The exact apartment address and access instructions are shared by email only after the reserv",
+      "descriptionHash": "1d715dc30c2979f1021fc33d4f7069d32236a7a4fa830ee0d6ce2c27b244ca05",
+      "description": "WHEN: use it after `search_availability` when the traveller wants to compare or see more detail about one specific category, or asks \"tell me more about G4\". WHAT IT RETURNS: description, max_guests, bedrooms (text + count), size_sqm, zone, generic location (\"La Patacona, Alboraya — 30 m from the se",
       "labels": [
         "untrusted-content",
         "public-sink"
@@ -31,37 +34,110 @@
     },
     {
       "name": "get_quote",
-      "descriptionHash": "e292bc7c341ade28bbefc806044e0c94acf741e2dc634793be765ec600807a28",
-      "description": "Return the exact total EUR price for one property category and date range. The price matches what checkout charges a non-member with no discount code — if the traveller has a code, they enter it themselves on beachvalencia.com. Includes deposit and cancellation summary. If the dates are not availabl"
+      "descriptionHash": "9a871ce1db2a0d37feb09b12ab91f492f1a7321d9a9792f288bca70ad25bcdce",
+      "description": "WHEN: use it when the traveller fixes ONE category and wants the exact total for a given date range (\"how much is G4 from 8 to 15 June for 6?\"). WHAT IT RETURNS: `available` boolean, `total_price_eur`, `nightly_avg_eur`, `nights`, `guests`, `deposit`, `cancellation` summary, `cancellation_details_ur"
     },
     {
       "name": "get_policies",
-      "descriptionHash": "1d904690ff6803e3f3a238eac9f4ebd137b961503e4444bb0ca4356523208be8",
-      "description": "Return the official policies of the property: check-in / check-out times, cancellation summary, refundable deposit rules, the mandatory Spanish traveller registration (SES.Hospedajes) and the contact email. Use it whenever the traveller asks about \"cancellation\", \"deposit\", \"check-in time\", \"how doe",
+      "descriptionHash": "dc04c0cbace7eccd9da4527b97f2ab2499f1da832bdfe10c3949c59276bb100f",
+      "description": "WHEN: use it whenever the traveller asks about cancellation, deposit, check-in/out times, or Spanish traveller registration (\"what time can I arrive?\", \"is there a deposit?\", \"what if I cancel 10 days before?\"). WHAT IT RETURNS: `check_in` (from 16:00 Europe/Madrid), `check_out` (by 11:00), `cancell",
       "labels": [
         "untrusted-content",
         "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "create_booking_request",
+      "descriptionHash": "8c555add533e73ba92cdf6eced1326e738587e3f833368149b6b06623a19f11c",
+      "description": "WHEN: use it only after the traveller has (1) picked ONE category and dates, (2) given name, email and phone, and (3) EXPLICITLY accepted the cancellation policy — never set `accepted_terms: true` on your own. WHAT IT RETURNS: `booking_id`, `checkout_url` (a page on beachvalencia.com that shows the ",
+      "labels": [
         "public-sink"
       ]
     }
   ],
   "findings": [
     {
+      "id": "MCP-TOOL-POISON-007",
+      "severity": "low",
+      "category": "tool-poisoning",
+      "title": "Description uses pressure/override language",
+      "detail": "Description of \"create_booking_request\" stacks urgency/override words (always, never). Legitimate tool descriptions rarely pressure the model to act or ignore prior guidance.",
+      "evidence": {
+        "source": "tool:create_booking_request",
+        "snippet": "WHEN: use it only after the traveller has (1) picked ONE category and dates, (2) given name, email and phone, and (3) EXPLICITLY accepted the cancellation polic…"
+      },
+      "confidence": 0.3
+    },
+    {
       "id": "MCP-TOXIC-FLOW-001",
       "severity": "high",
       "category": "toxic-flow",
       "title": "Lethal trifecta: untrusted input + private data + external sink",
-      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: get_property_details, get_policies · Private data: get_policies · Public sink: get_property_details, get_policies.",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: search_availability, get_property_details, get_policies · Private data: get_policies · Public sink: get_property_details, get_policies, create_booking_request.",
       "evidence": {
         "source": "server:mcp",
-        "snippet": "Untrusted content: get_property_details, get_policies · Private data: get_policies · Public sink: get_property_details, get_policies"
+        "snippet": "Untrusted content: search_availability, get_property_details, get_policies · Private data: get_policies · Public sink: get_property_details, get_policies, create_booking_request"
       },
       "confidence": 0.6,
       "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"search_availability\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:search_availability",
+        "snippet": "before: \"Search availability across every apartment category for a given date range and party size. Returns one match per available category with total EUR price (public rate, no discount code), photos and a booking_url that opens beachvalencia.com with dates and guests pre-filled. Use it whenever the travel\" → after: \"WHEN: use it whenever the traveller asks \"what do you have from X to Y for N people\" or shows date flexibility. WHAT IT RETURNS: `matches[]` with one entry per available category (G1..G6, G4B) ordered by total price, including name, zone (beach/city), bedrooms, m², highlights, location summary, phot\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"get_property_details\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:get_property_details",
+        "snippet": "before: \"Return description, capacity, amenities and photos for one property category (G1..G6 or G4B). Use it after search_availability when the traveller wants to compare or see more detail about a specific option. The exact apartment address and access instructions are shared by email only after the reserv\" → after: \"WHEN: use it after `search_availability` when the traveller wants to compare or see more detail about one specific category, or asks \"tell me more about G4\". WHAT IT RETURNS: description, max_guests, bedrooms (text + count), size_sqm, zone, generic location (\"La Patacona, Alboraya — 30 m from the se\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"get_quote\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:get_quote",
+        "snippet": "before: \"Return the exact total EUR price for one property category and date range. The price matches what checkout charges a non-member with no discount code — if the traveller has a code, they enter it themselves on beachvalencia.com. Includes deposit and cancellation summary. If the dates are not availabl\" → after: \"WHEN: use it when the traveller fixes ONE category and wants the exact total for a given date range (\"how much is G4 from 8 to 15 June for 6?\"). WHAT IT RETURNS: `available` boolean, `total_price_eur`, `nightly_avg_eur`, `nights`, `guests`, `deposit`, `cancellation` summary, `cancellation_details_ur\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"get_policies\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:get_policies",
+        "snippet": "before: \"Return the official policies of the property: check-in / check-out times, cancellation summary, refundable deposit rules, the mandatory Spanish traveller registration (SES.Hospedajes) and the contact email. Use it whenever the traveller asks about \"cancellation\", \"deposit\", \"check-in time\", \"how doe\" → after: \"WHEN: use it whenever the traveller asks about cancellation, deposit, check-in/out times, or Spanish traveller registration (\"what time can I arrive?\", \"is there a deposit?\", \"what if I cancel 10 days before?\"). WHAT IT RETURNS: `check_in` (from 16:00 Europe/Madrid), `check_out` (by 11:00), `cancell\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
     }
   ],
-  "score": 80,
+  "score": 42,
   "scoreBreakdown": {
+    "tool-poisoning": 38,
     "toxic-flow": 20
   },
   "errors": []

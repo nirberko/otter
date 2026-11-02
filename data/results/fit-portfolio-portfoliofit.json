@@ -8,13 +8,39 @@
     "kind": "url",
     "ref": "https://portfolio.fit/mcp"
   },
-  "scannedAt": "2026-10-09T11:28:55.133Z",
-  "durationMs": 1803,
+  "scannedAt": "2026-11-02T12:39:03.833Z",
+  "durationMs": 2664,
   "layers": {
     "metadata": true,
     "static": false
   },
   "tools": [
+    {
+      "name": "list_analysis_portfolios",
+      "descriptionHash": "bb96391eed26a94adc5e5dfeab3e00c109575cab0ecaa6829d3fd4b14f73c053",
+      "description": "List owner-scoped portfolios, analytics datasets, and profile readiness."
+    },
+    {
+      "name": "list_portfolio_series",
+      "descriptionHash": "57611fb5546bde6a16558fff796f86c82e1da8dd5fc4386988393e46bfb3fb69",
+      "description": "Discover owner-scoped immutable series profiles and their exact dataset versions. This returns metadata and coverage only, never dataset rows."
+    },
+    {
+      "name": "list_analyses",
+      "descriptionHash": "c32d2cb8aff9b8ee5f35c2d55b68a126c173913d9488a95417c6b6a2983768e9",
+      "description": "Read private calculation groups and independent operations. Filter by kind, portfolio, dates, ready/running/attention status or legacy open/finished status.",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "get_analysis",
+      "descriptionHash": "04fa4d509f5852aefb3639cb7ba489251a0218f8451032cbf0cd2e7d62550006",
+      "description": "Read retained normalized inputs, operations, results and owner-scoped dataset references. This is not an external agent transcript.",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
     {
       "name": "evaluate_portfolio_alignment",
       "descriptionHash": "70604ad0723747976dac366e8e9c646f34e42055637c8bdffdb993ceae3964b4",
@@ -28,6 +54,34 @@
       "name": "calculate_portfolio_constraints",
       "descriptionHash": "fc84ee33e0a983ffba8d5a39007f11b8abc5c733fb44595e91f9fedfae0b2ed9",
       "description": "Calculate explicit portfolio constraints deterministically from normalized holdings. Use this for arithmetic checks, not for interpreting natural-language mandates."
+    },
+    {
+      "name": "upload_portfolio_series_rows",
+      "descriptionHash": "67844a28b36f8ae705ce5cfca807661aead0ca0e9b265ad3313abb487085f57c",
+      "description": "Upload normalized series_key/date/value/distribution rows and commit a dataset version. For up to 5,000 rows, omit chunk_index and total_chunks to complete in one call. For larger inputs, declare total_chunks on every call, send chunks in order, and reuse upload_id and idempotency_key. The final chu",
+      "labels": [
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "cancel_portfolio_series_upload",
+      "descriptionHash": "6b8d3e866bbe119ac2cd3eae7dbac882a18da8a5a7d7e69a2ac6058c77b436a4",
+      "description": "Cancel a pending upload and permanently remove its staging chunks.",
+      "labels": [
+        "public-sink",
+        "destructive"
+      ]
+    },
+    {
+      "name": "review_portfolio_series_profile",
+      "descriptionHash": "9d3aef1c4f3864b72e510fc528536fc8b80574c909ed70f8f9b70abcf5dfe2b8",
+      "description": "Create an immutable profile revision using revise, or explicitly confirm a warning-free proposal with confirmation=true."
+    },
+    {
+      "name": "calculate_portfolio_statistics",
+      "descriptionHash": "12cc8f2327fd6c946d61680129fd0b96bb22be6801ae5a198fab125eead16b86",
+      "description": "Calculate historical return, volatility, drawdown, risk-adjusted and benchmark-relative statistics from a confirmed portfolio series profile. The metrics parameter describes all available calculations and their required inputs. Use daily, weekly or monthly complete periods; results include coverage,"
     }
   ],
   "findings": [
@@ -43,11 +97,38 @@
       },
       "confidence": 0.7,
       "remediation": "Treat the server as untrusted; the model may obey embedded instructions."
+    },
+    {
+      "id": "MCP-TOOL-POISON-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description issues instructions to the model",
+      "detail": "Description of \"upload_portfolio_series_rows\" contains imperative instructions directed at the AI assistant rather than describing the tool. This is the core tool-poisoning technique.",
+      "evidence": {
+        "source": "tool:upload_portfolio_series_rows",
+        "snippet": "Upload normalized series_key/date/value/distribution rows and commit a dataset version. For up to 5,000 rows, omit chunk_index and total_chunks to complete in o…"
+      },
+      "confidence": 0.7,
+      "remediation": "Treat the server as untrusted; the model may obey embedded instructions."
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: get_analysis · Private data: list_analyses, evaluate_portfolio_alignment, upload_portfolio_series_rows · Public sink: evaluate_portfolio_alignment, upload_portfolio_series_rows, cancel_portfolio_series_upload · Destructive: cancel_portfolio_series_upload.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: get_analysis · Private data: list_analyses, evaluate_portfolio_alignment, upload_portfolio_series_rows · Public sink: evaluate_portfolio_alignment, upload_portfolio_series_rows, cancel_portfolio_series_upload · Destructive: cancel_portfolio_series_upload"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
     }
   ],
-  "score": 80,
+  "score": 50,
   "scoreBreakdown": {
-    "tool-poisoning": 20
+    "tool-poisoning": 30,
+    "toxic-flow": 20
   },
   "errors": []
 }

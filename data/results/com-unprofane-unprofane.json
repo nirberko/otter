@@ -8,8 +8,8 @@
     "kind": "url",
     "ref": "https://api.unprofane.com/mcp"
   },
-  "scannedAt": "2026-10-13T12:00:20.342Z",
-  "durationMs": 2731,
+  "scannedAt": "2026-11-02T12:37:44.404Z",
+  "durationMs": 1322,
   "layers": {
     "metadata": true,
     "static": false
@@ -17,25 +17,119 @@
   "tools": [
     {
       "name": "check_text",
-      "descriptionHash": "9ca08ca8a204818a5b0de02a3cbac3bd8232a611fed00c8b8e4b93c48f11a55b",
-      "description": "Decide whether a text should be allowed: profanity, slurs, threats and sexual language, including disguised spellings. Returns the action (allow, review, block), the evidence, a one-sentence reason and a censored version. Use context \"username\" for names shown publicly.",
+      "descriptionHash": "6cecbcd590645d18d96dbe832893b9206df19a49959ed0bac34a55e11eedd334",
+      "description": "Decide whether one text should be allowed: profanity, slurs, insults, threats and sexual language, disguised spellings included (sh1t, f.u.c.k, leetspeak, homoglyphs). Returns the action (allow, review, block), the matches with their categories and the tricks used, a one-sentence reason and a censor",
       "labels": [
         "untrusted-content"
       ]
     },
     {
       "name": "check_batch",
-      "descriptionHash": "ad25ece576262ae221feff8bd96f061025a37f9cf5d56ff6750b1451132a9ed1",
-      "description": "Check up to 100 texts at once. Each item has an id and a text; results come back in order."
+      "descriptionHash": "11d95a1c50a3b75a7a733a24c374b36a53ede9b999d7a0341321ad209d7d8f39",
+      "description": "Check up to 100 texts in one call, 30,000 characters in all, with the same settings. Each item has your id and a text; results come back in order, each with its id and either a result (as check_text returns) or an error. Read-only; counts one check per item."
+    },
+    {
+      "name": "report_result",
+      "descriptionHash": "652f85792d85a661db58c216c1f700fcf0d46d30bcc8a993bff0950e555d1bd3",
+      "description": "Tell Unprofane a check got it wrong (or right): the result's id, the verdict and, if you know it, the action it should have taken. A person reads every report and corrections ship in a later engine. Writes a report; it changes no result and counts no check."
+    },
+    {
+      "name": "get_usage",
+      "descriptionHash": "095894579265a3900ad82a9920d28966cf974769237ca953782675439492e5cd",
+      "description": "The checks this key's account has used in the current billing period, how many its plan includes and any overage, with the share answered by the rules alone, the model or the cache. Counts up to the last full hour. Read-only and free.",
+      "labels": [
+        "public-sink"
+      ]
     },
     {
       "name": "get_integration_snippet",
-      "descriptionHash": "a8ee4129519b55d5e21d62d7d9a7332c226d35971d38a8e855bca66de93d3b8e",
-      "description": "A complete, runnable recipe for adding Unprofane to a platform (supabase, clerk, firebase, auth0, better-auth, unity, godot, or plain http) in a language."
+      "descriptionHash": "6141ddfb68749dbd89abfdeba43c433377ede5d65ba12805c2eee6f4a1abb9c2",
+      "description": "A complete, runnable recipe for adding Unprofane to a platform in a language: code to paste. Use it when asked to add a profanity or username filter to an app. Read-only and free: it checks no text."
     }
   ],
-  "findings": [],
-  "score": 100,
-  "scoreBreakdown": {},
+  "findings": [
+    {
+      "id": "MCP-SCHEMA-SMELL-001",
+      "severity": "medium",
+      "category": "schema-smell",
+      "title": "Read-only tool requests dangerous parameters",
+      "detail": "Tool \"check_text\" appears informational but accepts parameters (context) that enable code/file/secret access.",
+      "evidence": {
+        "source": "tool:check_text",
+        "snippet": "text, context, policy, mode, language, country, mask"
+      },
+      "confidence": 0.55
+    },
+    {
+      "id": "MCP-SCHEMA-SMELL-001",
+      "severity": "medium",
+      "category": "schema-smell",
+      "title": "Read-only tool requests dangerous parameters",
+      "detail": "Tool \"check_batch\" appears informational but accepts parameters (context) that enable code/file/secret access.",
+      "evidence": {
+        "source": "tool:check_batch",
+        "snippet": "items, context, policy, mode, language, country, mask"
+      },
+      "confidence": 0.55
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "medium",
+      "category": "toxic-flow",
+      "title": "Toxic flow: untrusted input can reach an external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: check_text · Public sink: get_usage.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: check_text · Public sink: get_usage"
+      },
+      "confidence": 0.45,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"check_text\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:check_text",
+        "snippet": "before: \"Decide whether a text should be allowed: profanity, slurs, threats and sexual language, including disguised spellings. Returns the action (allow, review, block), the evidence, a one-sentence reason and a censored version. Use context \"username\" for names shown publicly.\" → after: \"Decide whether one text should be allowed: profanity, slurs, insults, threats and sexual language, disguised spellings included (sh1t, f.u.c.k, leetspeak, homoglyphs). Returns the action (allow, review, block), the matches with their categories and the tricks used, a one-sentence reason and a censor\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"check_batch\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:check_batch",
+        "snippet": "before: \"Check up to 100 texts at once. Each item has an id and a text; results come back in order.\" → after: \"Check up to 100 texts in one call, 30,000 characters in all, with the same settings. Each item has your id and a text; results come back in order, each with its id and either a result (as check_text returns) or an error. Read-only; counts one check per item.\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"get_integration_snippet\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:get_integration_snippet",
+        "snippet": "before: \"A complete, runnable recipe for adding Unprofane to a platform (supabase, clerk, firebase, auth0, better-auth, unity, godot, or plain http) in a language.\" → after: \"A complete, runnable recipe for adding Unprofane to a platform in a language: code to paste. Use it when asked to add a profanity or username filter to an app. Read-only and free: it checks no text.\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    }
+  ],
+  "score": 45,
+  "scoreBreakdown": {
+    "schema-smell": 12,
+    "toxic-flow": 8,
+    "tool-poisoning": 35
+  },
   "errors": []
 }

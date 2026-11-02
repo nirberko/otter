@@ -1,0 +1,114 @@
+{
+  "schemaVersion": 1,
+  "scanner": {
+    "version": "1.6.0",
+    "rules": "402995650b68"
+  },
+  "target": {
+    "kind": "url",
+    "ref": "https://leconfidant.ai/api/mcp"
+  },
+  "scannedAt": "2026-11-02T12:33:08.781Z",
+  "durationMs": 779,
+  "layers": {
+    "metadata": true,
+    "static": false
+  },
+  "tools": [
+    {
+      "name": "generate_whatsapp_link",
+      "descriptionHash": "93ddb08cc2bdc312cbd7242e1653548ffc2127eb1e119c19d882ebb02ccc59a9",
+      "description": "Create a wa.me URL with an optional prefilled message for copying or sharing. Requires a valid phone number; does not verify WhatsApp registration. Inputs are processed by this server to return the result; this tool does not store or log phone numbers or text. It does not access an account or send m",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "format_whatsapp_text",
+      "descriptionHash": "d3ee2254eb1afc66edcde708003fa4d8e77f31a08cfaf8b82b861c6c9d0897dd",
+      "description": "Convert the user's Markdown source to text ready to paste into WhatsApp. Before calling, copy the supplied source unchanged into text: do not Markdown-escape it or pre-convert it. Example: source **Meeting tomorrow** must be passed as **Meeting tomorrow**; the tool returns *Meeting tomorrow*. Preser",
+      "labels": [
+        "public-sink",
+        "destructive"
+      ]
+    },
+    {
+      "name": "normalize_whatsapp_numbers",
+      "descriptionHash": "d8f66d40432c5798c62b15edbb45e5c63793e4f2e238d4b72a680b990c9598b2",
+      "description": "Validate up to 100 phone numbers and return E.164 numbers and wa.me links with per-row status and duplicate positions. National numbers require defaultCountry. Never guess a country from language. Does not check WhatsApp registration or contact people. Inputs are processed by this server to return t",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "demo_whatsapp_wrapped",
+      "descriptionHash": "ff2d62235add5cc6d186dae81e0fc50c1c41e7ddd04d07dcef900a7eb81d796e",
+      "description": "Show a synthetic WhatsApp recap without an account, upload or private conversation access. Use only for a demo or example, never to answer questions about the user's real conversation. All numbers are fictional and fixed; no relationship diagnosis. Returns a text and structured recap, without image ",
+      "labels": [
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "style_whatsapp_text",
+      "descriptionHash": "28fd5bc4a8d1839dbed67f2b068f2acf856a6e7b174db680ae56348e929c0fb1",
+      "description": "Rewrite the user's text in one decorative Unicode style to paste into WhatsApp. Styles: bold, italic, monospace, bubble, gothic, double (double-struck), strikethrough, upside-down. Call it once the user has picked a style from this list. These are lookalike characters, not real fonts: accented lette",
+      "labels": [
+        "untrusted-content",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "get_conversation_snapshot",
+      "descriptionHash": "07e4a1dd0b4fa2f6b45777b1a80d5b07bb0f8a7ed395b2754a381e676989a3cd",
+      "description": "Use only to retrieve or explain WHOLE-SESSION numerical statistics from the user's explicitly authorized WhatsApp export analysis. DO NOT call for date-window, month-to-month, trend or period-comparison requests, even to check available data. For example, 'Compare September and November in my own co",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "disconnect_conversation",
+      "descriptionHash": "91cb71ba71dd23580aa361be8c13b86c7c32fe166662c996f0cdfa52ddf4b20c",
+      "description": "Use only when the user explicitly asks to disconnect or revoke this connection. Permanently revoke its current OAuth grant immediately; the revoked credential cannot be restored. Fresh explicit consent creates a new grant while the original session is eligible. Stops future reads without deleting th",
+      "labels": [
+        "private-data"
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOOL-POISON-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description issues instructions to the model",
+      "detail": "Description of \"format_whatsapp_text\" contains imperative instructions directed at the AI assistant rather than describing the tool. This is the core tool-poisoning technique.",
+      "evidence": {
+        "source": "tool:format_whatsapp_text",
+        "snippet": "Convert the user's Markdown source to text ready to paste into WhatsApp. Before calling, copy the supplied source unchanged into text: do not Markdown-escape it…"
+      },
+      "confidence": 0.7,
+      "remediation": "Treat the server as untrusted; the model may obey embedded instructions."
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: normalize_whatsapp_numbers, style_whatsapp_text, get_conversation_snapshot · Private data: normalize_whatsapp_numbers, demo_whatsapp_wrapped, disconnect_conversation · Public sink: generate_whatsapp_link, format_whatsapp_text, normalize_whatsapp_numbers, demo_whatsapp_wrapped, style_whatsapp_text · Destructive: format_whatsapp_text.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: normalize_whatsapp_numbers, style_whatsapp_text, get_conversation_snapshot · Private data: normalize_whatsapp_numbers, demo_whatsapp_wrapped, disconnect_conversation · Public sink: generate_whatsapp_link, format_whatsapp_text, normalize_whatsapp_numbers, demo_whatsapp_wrapped, style_whatsapp_text · Destructive: format_whatsapp_text"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 60,
+  "scoreBreakdown": {
+    "tool-poisoning": 20,
+    "toxic-flow": 20
+  },
+  "errors": []
+}

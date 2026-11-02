@@ -1,0 +1,96 @@
+{
+  "schemaVersion": 1,
+  "scanner": {
+    "version": "1.6.0",
+    "rules": "402995650b68"
+  },
+  "target": {
+    "kind": "url",
+    "ref": "https://payperwork.app/drop/mcp"
+  },
+  "scannedAt": "2026-11-02T12:50:21.484Z",
+  "durationMs": 903,
+  "layers": {
+    "metadata": true,
+    "static": false
+  },
+  "tools": [
+    {
+      "name": "put",
+      "descriptionHash": "412cfdc37a2bd8c686b0c8d3c2283d3f86cb17efb2b5dd16a5756548f14028f0",
+      "description": "Store a value under a key. Costs $0.002, charged only if the payment settles; a failed payment stores nothing. Values up to 64 KB, stored unencrypted, kept for ttl_seconds (default 3600, max 604800) then deleted. Overwrites an existing key and bumps its seq. The write becomes visible once the paymen",
+      "labels": [
+        "private-data",
+        "public-sink",
+        "destructive"
+      ]
+    },
+    {
+      "name": "wait",
+      "descriptionHash": "fd94e02b57a822b64a8722a6ef482c649a0cccc22257557723e71335dca2a009",
+      "description": "Block until a key changes, then return it. Costs $0.001 per call whether or not anything arrives (it is a long-poll, not a subscription). Returns immediately if the key's seq is already greater than since; otherwise waits up to timeout_seconds (max 25) and returns value null with timed_out true. Pas",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink",
+        "destructive"
+      ]
+    },
+    {
+      "name": "get",
+      "descriptionHash": "b71c729fe73904d301953d0036d69ad366f7b00dae7f8419d5e98ab27174ca33",
+      "description": "Read a key. Free, no payment or identity needed, rate limited per address. Needs the box: a box_... id from put, or a channel name. Returns value null with found false if absent or expired. A box is a namespace of keys. Omit it on a paid call to use your own wallet's box (the call returns its id). P",
+      "labels": [
+        "private-data",
+        "public-sink",
+        "destructive"
+      ]
+    },
+    {
+      "name": "list",
+      "descriptionHash": "c8028cc700b695f3595b617bc7f0f7c619422c7d0173d305bd2f3b001948bbe4",
+      "description": "List the keys in a box with their seq, size and expiry, newest first, without values. Free, rate limited per address. Anyone holding the box id can do this."
+    },
+    {
+      "name": "delete",
+      "descriptionHash": "86fc522056350bb84a9c2c8dc386f0e7fab6aec56a72aabb42358b96662ca4f8",
+      "description": "Delete a key from a box immediately. Free, rate limited per address. Anyone holding the box id can do this; there is no undo.",
+      "labels": [
+        "destructive"
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-SHADOW-001",
+      "severity": "medium",
+      "category": "shadowing",
+      "title": "Generic tool name can shadow trusted tools",
+      "detail": "Tool \"delete\" uses a generic high-value name. When multiple servers load together, this can intercept calls meant for a trusted server.",
+      "evidence": {
+        "source": "tool:delete",
+        "snippet": "delete"
+      },
+      "confidence": 0.4
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: wait · Private data: put, wait, get · Public sink: put, wait, get · Destructive: put, wait, get, delete.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: wait · Private data: put, wait, get · Public sink: put, wait, get · Destructive: put, wait, get, delete"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 72,
+  "scoreBreakdown": {
+    "shadowing": 8,
+    "toxic-flow": 20
+  },
+  "errors": []
+}

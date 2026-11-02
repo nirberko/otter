@@ -8,19 +8,156 @@
     "kind": "url",
     "ref": "https://api.lovedone.app/mcp/v1"
   },
-  "scannedAt": "2026-10-14T09:51:59.811Z",
-  "durationMs": 267,
+  "scannedAt": "2026-11-02T12:33:40.632Z",
+  "durationMs": 1596,
   "layers": {
-    "metadata": false,
+    "metadata": true,
     "static": false
   },
-  "findings": [],
-  "score": 100,
-  "scoreBreakdown": {},
-  "errors": [
+  "tools": [
     {
-      "scanner": "metadata",
-      "message": "Streamable HTTP error: Error POSTing to endpoint: {\"jsonrpc\":\"2.0\",\"id\":null,\"error\":{\"code\":-32001,\"message\":\"No __sandwich_session cookie or Bearer API key present\",\"data\":{\"authCode\":\"NO_AUTH\"}}}"
+      "name": "ping",
+      "descriptionHash": "6d9fdc6381404b60c3737f82d6e51cda315c8bdd610438e0cc9f0865f2005ade",
+      "description": "Smoke-test tool. Returns pong plus the authenticated caller's uid, tenant, and auth method. No PHI. No side effects."
+    },
+    {
+      "name": "get_user_profile",
+      "descriptionHash": "b3137ce81dfe8882eee0aaf89ffda009d10ca55f7add78933b1bdb8497bad078",
+      "description": "Returns the signed-in user's LovedOne profile: uid, email, tenant type, and any linked family workspace.",
+      "labels": [
+        "untrusted-content",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "list_loved_ones",
+      "descriptionHash": "5ba724e40a4b5203026e80a8ac59a0553e14ef7da1e13cce81ffca1507847922",
+      "description": "Lists loved ones in the caller's family workspace: id, name, and Family Inbox address. Does not return date of birth or medications.",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "list_family_members",
+      "descriptionHash": "936dda07061139614ed3b2bb5bfb2e9710106042e7cf437d39575a0c0cbf3317",
+      "description": "Lists people on the caller's family workspace (role, relationship, invite status). Emails are PII — do not log them in third-party agent traces if you can avoid it.",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "list_inbox_messages",
+      "descriptionHash": "52411f818b570f1ea6ca8b0f751e784e50f7fa86148474e1493723add2a3235e",
+      "description": "Lists recent messages in one loved one's Family Inbox (subject, sender, category, preview). Does not return HTML bodies. Scope: the caller's family workspace only. PHI may be present in subjects and previews.",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "get_inbox_message",
+      "descriptionHash": "a28093c0d4018b232f47c321f0b94e7be51fff5386a0ad07e3749d8a420b724c",
+      "description": "Returns one Family Inbox message as plaintext (no HTML). Requires messageId from list_inbox_messages. Rejected if the message is not in the caller's workspace. Treat bodyText as potentially PHI.",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "list_care_events",
+      "descriptionHash": "66e161f7a1434286f38d198bc1e982baeb9e99807bc5f552dcf532ac5bc5eae4",
+      "description": "Returns recent care events for the caller's family workspace. Optionally scope to a single lovedOneId; otherwise aggregates across all loved ones on the workspace. Limit is 1-50 and is applied per loved one when aggregating."
+    },
+    {
+      "name": "invite_family_member",
+      "descriptionHash": "2d6a6c72390b8300a6547a3f57c9f13f6d0660c9585ba01a23aeba9891a5af4b",
+      "description": "Invites a sibling or other family member to this household by email, with role coordinator or viewer. Sends the same LovedOne invite email as the web app. Owner or coordinator only — viewers are rejected. This is a write.",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "create_provider_code",
+      "descriptionHash": "0e8906314877bca6e3b3e452cec3e2b35ba7c68091fb3fe65b3060abb4bc3747",
+      "description": "Mints a short-lived, single-use provider/vendor link code for one loved one in this household. Hand the code to a LovedOne Soft agency so they can link that person as a client. Owner or coordinator only — viewers are rejected. This is a write."
+    },
+    {
+      "name": "reply_to_inbox_message",
+      "descriptionHash": "22141040b0880c02a3198f93010614c31ce5950b2f78a25d458cd5a8a6e5974a",
+      "description": "Sends a plaintext reply to a Family Inbox message using the same from address (family-inbox@m.lovedone.app) and reply-to (the loved one's @lovedone.app inbox) as the LovedOne web app. Owner or coordinator only — viewers are rejected. This is a write. The body may contain health-related content."
+    },
+    {
+      "name": "onboard_loved_one",
+      "descriptionHash": "cc31e70c05e607ee41f6fd33b3d5c1bccbc0dba651e37e13e7fece0de1d994b3",
+      "description": "Sets up a loved one on LovedOne from conversation: creates the caller's family workspace on first use (or adds to it), allocates their private @lovedone.app care-inbox address, and records the caller's authorization attestation. Idempotent — calling again for the same person returns the existing rec",
+      "labels": [
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "get_onboarding_status",
+      "descriptionHash": "556927c66fba88b40562ff79e8012b38a785d2fc60be85f46f14280e779fe0db",
+      "description": "Returns the caller's LovedOne setup state: whether a family workspace exists, which loved ones and @lovedone.app inbox addresses are set up, member counts, and ordered nextSteps. Call this first whenever a user wants to set up, resume, or check on LovedOne. Read-only.",
+      "labels": [
+        "untrusted-content"
+      ]
     }
-  ]
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOOL-POISON-002",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description tells the model to hide behavior",
+      "detail": "Description of \"list_family_members\" instructs the model to conceal actions from the user.",
+      "evidence": {
+        "source": "tool:list_family_members",
+        "snippet": "Lists people on the caller's family workspace (role, relationship, invite status). Emails are PII — do not log them in third-party agent traces if you can avoid…"
+      },
+      "confidence": 0.75
+    },
+    {
+      "id": "MCP-TOOL-POISON-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description issues instructions to the model",
+      "detail": "Description of \"onboard_loved_one\" contains imperative instructions directed at the AI assistant rather than describing the tool. This is the core tool-poisoning technique.",
+      "evidence": {
+        "source": "tool:onboard_loved_one",
+        "snippet": "Sets up a loved one on LovedOne from conversation: creates the caller's family workspace on first use (or adds to it), allocates their private @lovedone.app car…"
+      },
+      "confidence": 0.7,
+      "remediation": "Treat the server as untrusted; the model may obey embedded instructions."
+    },
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"onboard_loved_one\" references sensitive artifacts (authorization). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:onboard_loved_one",
+        "snippet": "Sets up a loved one on LovedOne from conversation: creates the caller's family workspace on first use (or adds to it), allocates their private @lovedone.app car…"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"v1\" exposes tools that together enable an exfiltration flow. Untrusted content: get_user_profile, list_loved_ones, list_family_members, list_inbox_messages, get_inbox_message, get_onboarding_status · Private data: onboard_loved_one · Public sink: get_user_profile, invite_family_member, onboard_loved_one.",
+      "evidence": {
+        "source": "server:v1",
+        "snippet": "Untrusted content: get_user_profile, list_loved_ones, list_family_members, list_inbox_messages, get_inbox_message, get_onboarding_status · Private data: onboard_loved_one · Public sink: get_user_profile, invite_family_member, onboard_loved_one"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 45,
+  "scoreBreakdown": {
+    "tool-poisoning": 35,
+    "toxic-flow": 20
+  },
+  "errors": []
 }

@@ -1,0 +1,78 @@
+{
+  "schemaVersion": 1,
+  "scanner": {
+    "version": "1.6.0",
+    "rules": "402995650b68"
+  },
+  "target": {
+    "kind": "url",
+    "ref": "https://receivemail.dev/mcp"
+  },
+  "scannedAt": "2026-11-02T12:38:02.612Z",
+  "durationMs": 493,
+  "layers": {
+    "metadata": true,
+    "static": false
+  },
+  "tools": [
+    {
+      "name": "create_mailbox",
+      "descriptionHash": "11a4a2a61519c3e4b6f38eeb4bc401fc3d816f1b6c36cbb8c1bb9e52f89070d8",
+      "description": "Create a disposable receivemail.dev email address that receives real mail. Returns address, expiresAt and secret; keep the secret to read the mailbox. Free without a key (up to 60 minutes); with a paid key on the MCP connection, up to 1440 minutes and an extracted otp field on messages.",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "wait_for_email",
+      "descriptionHash": "102d265ba0a3869e77e1ad097a84b0646484cd040e168f8744af7a8d6a1a0dd8",
+      "description": "Wait up to 25 seconds for an email to a mailbox made with create_mailbox. Returns {timed_out:false, message:{from_address, subject, body_text, received_at}} or {timed_out:true}; call again on timeout. Pass `since` (ISO 8601) to ignore mail you've already seen.",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "list_messages",
+      "descriptionHash": "e689a0b86263d51be3602bd041d98bda8bc9e83d81566bdd0148416595839d1c",
+      "description": "List the last 50 emails received by a mailbox made with create_mailbox, newest first.",
+      "labels": [
+        "untrusted-content"
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"create_mailbox\" references sensitive artifacts (secret). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:create_mailbox",
+        "snippet": "Create a disposable receivemail.dev email address that receives real mail. Returns address, expiresAt and secret; keep the secret to read the mailbox. Free with…"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: create_mailbox, list_messages · Private data: create_mailbox · Public sink: create_mailbox, wait_for_email.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: create_mailbox, list_messages · Private data: create_mailbox · Public sink: create_mailbox, wait_for_email"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 60,
+  "scoreBreakdown": {
+    "tool-poisoning": 20,
+    "toxic-flow": 20
+  },
+  "errors": []
+}

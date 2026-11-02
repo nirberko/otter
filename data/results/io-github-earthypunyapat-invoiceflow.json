@@ -1,0 +1,87 @@
+{
+  "schemaVersion": 1,
+  "scanner": {
+    "version": "1.6.0",
+    "rules": "402995650b68"
+  },
+  "target": {
+    "kind": "url",
+    "ref": "https://invoiceflow-ten-azure.vercel.app/api/mcp"
+  },
+  "scannedAt": "2026-11-02T12:41:05.054Z",
+  "durationMs": 821,
+  "layers": {
+    "metadata": true,
+    "static": false
+  },
+  "tools": [
+    {
+      "name": "invoiceflow_whoami",
+      "descriptionHash": "cb771d584df2446d587b4b9251458e553727df0392412fd26b204cf33891d09e",
+      "description": "Check which InvoiceFlow account this key belongs to and that the key works. Call this first; it is the cheapest way to fail early."
+    },
+    {
+      "name": "invoiceflow_create_client",
+      "descriptionHash": "7ed9df071cb797d5e1564687db4fc823d4b1711cf0c712d41bf3356c93b55de3",
+      "description": "Create a customer record. A client is required before an invoice can be created. Returns the new client id.",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "invoiceflow_list_clients",
+      "descriptionHash": "6a52a104e91da7bbbcdf8b6fad499462b2fb58d4a6f04c2c0244f950ff488eb3",
+      "description": "List existing clients. Use this before create_client to avoid making duplicate customer records.",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "invoiceflow_create_invoice",
+      "descriptionHash": "332b3e6d6198e4d2ebb58cc611eda9abe102b803f331d9ba86f71a55c5b1f699",
+      "description": "Create a DRAFT invoice for an existing client. Amounts are INTEGER CENTS: unitPrice 25000 means $250.00, not $25,000. Do not send totals - the server derives subtotal and total from the line items. Does not email anyone.",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "invoiceflow_list_invoices",
+      "descriptionHash": "6ad925d753369bbaf357173f1750181c738a301774b6a533114c9d14ebfd63de",
+      "description": "List invoices with their status and totals. Invoices belonging to other accounts are not visible and return as absent, not as errors."
+    },
+    {
+      "name": "invoiceflow_get_invoice",
+      "descriptionHash": "84c939ed4f10cc8affd0a9db0b416a518409dc8ecf4c6f5d44835aa6d79ccd40",
+      "description": "Fetch one invoice by id, including line items and derived totals."
+    },
+    {
+      "name": "invoiceflow_share_invoice",
+      "descriptionHash": "0128dea7eebc3fcc82082cd1a587fe17d238d419d56674b074e835f689783a5a",
+      "description": "Get the payable Stripe Checkout link for an invoice. This is what you give a human so they can actually pay. Does not email anyone.",
+      "labels": [
+        "untrusted-content",
+        "public-sink"
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: invoiceflow_share_invoice · Private data: invoiceflow_create_client, invoiceflow_list_clients · Public sink: invoiceflow_create_invoice, invoiceflow_share_invoice.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: invoiceflow_share_invoice · Private data: invoiceflow_create_client, invoiceflow_list_clients · Public sink: invoiceflow_create_invoice, invoiceflow_share_invoice"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 80,
+  "scoreBreakdown": {
+    "toxic-flow": 20
+  },
+  "errors": []
+}

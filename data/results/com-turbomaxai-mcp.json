@@ -1,0 +1,130 @@
+{
+  "schemaVersion": 1,
+  "scanner": {
+    "version": "1.6.0",
+    "rules": "402995650b68"
+  },
+  "target": {
+    "kind": "url",
+    "ref": "https://turbomaxai.com/mcp"
+  },
+  "scannedAt": "2026-11-02T12:37:28.818Z",
+  "durationMs": 1703,
+  "layers": {
+    "metadata": true,
+    "static": false
+  },
+  "tools": [
+    {
+      "name": "list_models",
+      "descriptionHash": "7671f4afd1530e7f2758689f32f1cef183ef5ed2b7a6650e7b027bd82010c310",
+      "description": "List the image, video and audio models with what each accepts (tasks, aspect ratios, resolutions, duration range, modes) and its price in credits. Call this before generate_media; use the exact ids and values it returns."
+    },
+    {
+      "name": "get_model",
+      "descriptionHash": "fba484cd23fb3e5b9083652b291678bcb4173f8c24f7ea1db35f1d5c50e76329",
+      "description": "Full parameter details and pricing for one media model."
+    },
+    {
+      "name": "estimate_cost",
+      "descriptionHash": "8dbaa128af6f1e6850bf8bfba007f0d2d55700f759ce547f8672b6c517c734d7",
+      "description": "Approximate credits for a media generation from the live price list. The exact amount is held when you call generate_media; pass maxCredits there to make it a hard ceiling."
+    },
+    {
+      "name": "generate_media",
+      "descriptionHash": "4d06b61f6306616f91b7f62a07a9c89114b1824be256bca9ed0e5ed2647e2fd5",
+      "description": "Start a generation. SPENDS CREDITS from the wallet (held now, settled to the actual cost when the job ends; refunded if it fails). Returns a taskId immediately - follow it with get_task (waitSeconds) until completed. Use only the user's own prompt text. For image-to-video etc. upload the source firs",
+      "labels": [
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "get_task",
+      "descriptionHash": "7f0a01b4a9a1d46a66daa7b72fedf1815a45adb50872fd8c2720195bc8d763d6",
+      "description": "Status, progress and result of a job started with generate_media. With waitSeconds it waits for completion. resultUrl is a time-limited link - download or use it promptly. Polling also settles the wallet when the job ends.",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "cancel_task",
+      "descriptionHash": "9af62ad1a2e35e356b5cc19bdf48a3a28b4db25279f7cd3d2e01fdabcb9c47b6",
+      "description": "Stop a job that is still processing and refund its hold. Requires a \"generate\" key."
+    },
+    {
+      "name": "retry_task",
+      "descriptionHash": "e277bc1ef09e2e50d1051b25c23e28dc256c829dafa77fed4e02ba37e581d8e4",
+      "description": "Re-run a failed or cancelled job as a new job. SPENDS CREDITS again (a fresh hold). Requires a \"generate\" key.",
+      "labels": [
+        "destructive"
+      ]
+    },
+    {
+      "name": "upload_source_media",
+      "descriptionHash": "40afd9a63dc30b68ba219d419460eb479b63f359c3a923f9b5cf523bdd9e1e4d",
+      "description": "Upload an image, video or audio file (PNG, JPEG, WebP, GIF, MP4, WebM, MOV, MP3, WAV) to use as sourceImageUrl in generate_media. Send the bytes as base64 (or a local filePath when this server runs locally). Requires a \"generate\" key.",
+      "labels": [
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "list_chat_models",
+      "descriptionHash": "bb6df8b63be4a97a9a0b63c0814fa1a6ad8fdcda68e3e749454da485dbfc7d4f",
+      "description": "The text/chat models available to chat, with the default and whether each is currently available.",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "chat",
+      "descriptionHash": "be318ae027dff89f294a3b00f2022be70194451ff79bc36932ade0d248840f6e",
+      "description": "Send one chat turn to a TurboMax text model and return its reply. SPENDS CREDITS (held, then settled to actual usage). Stateless: send the whole conversation in messages, or just message for a single question. Requires a \"generate\" key.",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "get_wallet",
+      "descriptionHash": "479f1ee8bf3b49070a74412a40dd06c2c0dd8e7689f3d3e4a5793a03f92a4c7b",
+      "description": "Credit balance, credits-per-dollar, today's usage against the account limits, and recent ledger entries.",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "list_generations",
+      "descriptionHash": "248e02b95046ff75114d9642456b4329b1bbba67e8f8c7bd059d33fb3014b5ee",
+      "description": "The account's generation history, newest first, with status, cost and result links."
+    },
+    {
+      "name": "browse_gallery",
+      "descriptionHash": "5aeee8fac5f6f73760d58ab29f1cbf237332d5c79978e9432e6e0d69a46e97d6",
+      "description": "Work other users chose to publish, with the prompt and model used. Public; anonymous.",
+      "labels": [
+        "public-sink"
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: list_chat_models · Private data: generate_media, get_task, upload_source_media, get_wallet · Public sink: generate_media, upload_source_media, chat, browse_gallery · Destructive: retry_task.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: list_chat_models · Private data: generate_media, get_task, upload_source_media, get_wallet · Public sink: generate_media, upload_source_media, chat, browse_gallery · Destructive: retry_task"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 80,
+  "scoreBreakdown": {
+    "toxic-flow": 20
+  },
+  "errors": []
+}
