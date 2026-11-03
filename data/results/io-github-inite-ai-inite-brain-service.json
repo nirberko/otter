@@ -8,8 +8,8 @@
     "kind": "url",
     "ref": "https://brain.inite.ai/mcp"
   },
-  "scannedAt": "2026-10-30T11:02:12.335Z",
-  "durationMs": 1511,
+  "scannedAt": "2026-11-03T12:07:31.798Z",
+  "durationMs": 1594,
   "layers": {
     "metadata": true,
     "static": false
@@ -27,13 +27,13 @@
     },
     {
       "name": "search_knowledge",
-      "descriptionHash": "c90077fa5a06b84a7dace78510b74f2c96e300e45c998fad69eb5163dcf1fe29",
-      "description": "Semantic search over the company knowledge graph. Returns entities with their top facts and external references back to the originating verticals. Apply asOf for historical \"what was true on X\" queries (valid time: a fact brain learned after X still shows). Embedding model on this tenant: set per wo"
+      "descriptionHash": "dcd407aac75ece62f9008f5a6ca51703ef05a4a1ad130336f51f8a0ab007140a",
+      "description": "Semantic search over the company knowledge graph: the facts the query is about, the links between their entities and what was left out. Apply asOf for historical \"what was true on X\" queries. Embedding model on this tenant: set per workspace."
     },
     {
       "name": "search_multi_hop",
-      "descriptionHash": "863b0188b6c981c6c19ce3c93e3c0c8510a64adae266f96f02732c6e43348fb4",
-      "description": "Planner-LLM decomposes the query into ≤ maxHops anchored sub-queries; later hops are anchored to the running entity set so the engine never spends compute on candidates already disqualified. Built for questions that combine evidence across turns / sessions, or that require reasoning over multiple en"
+      "descriptionHash": "290d4682886eb9e60e683705908ae576db1dad325d183c12769d533581eecd01",
+      "description": "Planner-LLM decomposes the query into ≤ maxHops anchored sub-queries; later hops are anchored to the running entity set. Built for questions that combine evidence across turns / sessions, or that require reasoning over multiple entities (\"tenants who complained in April AND upgraded after\"). Set syn"
     },
     {
       "name": "graph_retrieve",
@@ -55,8 +55,11 @@
     },
     {
       "name": "get_entity_profile",
-      "descriptionHash": "376999eba7142a998e3e6729df0fffbd03f8b07b676576cff68c35ea915ab87d",
-      "description": "Full profile of one entity: canonical name, type, externalRefs (cross-vertical ids), and active facts. externalRefs point back to the originating vertical, where fresh state can be rehydrated via @inite/api-kit."
+      "descriptionHash": "0b15d13c4d2e53bd16a60a8d0cc65fca5bbb772dd0494a7a6835044e7c41be5d",
+      "description": "One entity: canonical name, type and what brain holds about it now; detail \"full\" adds externalRefs, the ids of its records in the originating vertical.",
+      "labels": [
+        "private-data"
+      ]
     },
     {
       "name": "get_entity_timeline",
@@ -162,8 +165,8 @@
     },
     {
       "name": "record_fact",
-      "descriptionHash": "707150669913ce13ca2110abc1d6718889a45d45c348c7402bf7b1cf7f7e3c99",
-      "description": "Insert a fact about an entity. Triggers brain conflict resolution (INSERTED / SUPERSEDED / COMPETING / REJECTED). Most facts come from event ingestion; this records one directly.",
+      "descriptionHash": "03443425d9091ebd8a4968a65f18e2d43e468b2c10d87414bf156da2ded88890",
+      "description": "Records one fact about an entity directly; the memory settles it against the facts it holds (INSERTED / SUPERSEDED / COMPETING). Most facts arrive through ingestion.",
       "labels": [
         "private-data"
       ]
@@ -213,18 +216,71 @@
       "severity": "high",
       "category": "toxic-flow",
       "title": "Lethal trifecta: untrusted input + private data + external sink",
-      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: synthesize, get_competing_facts, list_procedures · Private data: detect_contradiction, get_fact, why, workspace_status, record_fact, record_procedure, record_decision · Public sink: record_procedure · Destructive: detect_contradiction, search_communities, retract_fact, retire_procedure.",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: synthesize, get_competing_facts, list_procedures · Private data: get_entity_profile, detect_contradiction, get_fact, why, workspace_status, record_fact, record_procedure, record_decision · Public sink: record_procedure · Destructive: detect_contradiction, search_communities, retract_fact, retire_procedure.",
       "evidence": {
         "source": "server:mcp",
-        "snippet": "Untrusted content: synthesize, get_competing_facts, list_procedures · Private data: detect_contradiction, get_fact, why, workspace_status, record_fact, record_procedure, record_decision · Public sink: record_procedure · Destructive: detect_contradiction, search_communities, retract_fact, retire_procedure"
+        "snippet": "Untrusted content: synthesize, get_competing_facts, list_procedures · Private data: get_entity_profile, detect_contradiction, get_fact, why, workspace_status, record_fact, record_procedure, record_decision · Public sink: record_procedure · Destructive: detect_contradiction, search_communities, retract_fact, retire_procedure"
       },
       "confidence": 0.6,
       "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"search_knowledge\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:search_knowledge",
+        "snippet": "before: \"Semantic search over the company knowledge graph. Returns entities with their top facts and external references back to the originating verticals. Apply asOf for historical \"what was true on X\" queries (valid time: a fact brain learned after X still shows). Embedding model on this tenant: set per wo\" → after: \"Semantic search over the company knowledge graph: the facts the query is about, the links between their entities and what was left out. Apply asOf for historical \"what was true on X\" queries. Embedding model on this tenant: set per workspace.\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"search_multi_hop\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:search_multi_hop",
+        "snippet": "before: \"Planner-LLM decomposes the query into ≤ maxHops anchored sub-queries; later hops are anchored to the running entity set so the engine never spends compute on candidates already disqualified. Built for questions that combine evidence across turns / sessions, or that require reasoning over multiple en\" → after: \"Planner-LLM decomposes the query into ≤ maxHops anchored sub-queries; later hops are anchored to the running entity set. Built for questions that combine evidence across turns / sessions, or that require reasoning over multiple entities (\"tenants who complained in April AND upgraded after\"). Set syn\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"get_entity_profile\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:get_entity_profile",
+        "snippet": "before: \"Full profile of one entity: canonical name, type, externalRefs (cross-vertical ids), and active facts. externalRefs point back to the originating vertical, where fresh state can be rehydrated via @inite/api-kit.\" → after: \"One entity: canonical name, type and what brain holds about it now; detail \"full\" adds externalRefs, the ids of its records in the originating vertical.\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"record_fact\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:record_fact",
+        "snippet": "before: \"Insert a fact about an entity. Triggers brain conflict resolution (INSERTED / SUPERSEDED / COMPETING / REJECTED). Most facts come from event ingestion; this records one directly.\" → after: \"Records one fact about an entity directly; the memory settles it against the facts it holds (INSERTED / SUPERSEDED / COMPETING). Most facts arrive through ingestion.\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
     }
   ],
-  "score": 80,
+  "score": 43,
   "scoreBreakdown": {
-    "toxic-flow": 20
+    "toxic-flow": 20,
+    "tool-poisoning": 38
   },
   "errors": []
 }

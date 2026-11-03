@@ -1,0 +1,121 @@
+{
+  "schemaVersion": 1,
+  "scanner": {
+    "version": "1.6.0",
+    "rules": "402995650b68"
+  },
+  "target": {
+    "kind": "url",
+    "ref": "https://zenamu.usefulapi.io/mcp"
+  },
+  "scannedAt": "2026-11-03T12:30:57.842Z",
+  "durationMs": 522,
+  "layers": {
+    "metadata": true,
+    "static": false
+  },
+  "tools": [
+    {
+      "name": "zenamu_list_classes",
+      "descriptionHash": "96fd06bb7c24c1df0518d412ee4f03b523ebecd09dec5643b63fa298514a8932",
+      "description": "List the published schedule of the studio for a date range (YYYY-MM-DD, studio time zone, max 366 days). Returns classes and course sessions (read eventType), with times, lecturerIds, locationId, pricing options and seat capacity when requested. Canceled events are included with isCanceled=true. Zen"
+    },
+    {
+      "name": "zenamu_list_workshops",
+      "descriptionHash": "2113b097a1b0d7ad93c4ee8a39269752ff515b8d562d69da0c1e56963577c516",
+      "description": "List the studio's public workshops (standalone events such as retreats and intensives) for a date range (YYYY-MM-DD, max 366 days). Each workshop has its own address and pricing. Canceled workshops are excluded. Zenamu API: GET /v1/workshops."
+    },
+    {
+      "name": "zenamu_list_lecturers",
+      "descriptionHash": "eb534e6107e84ba7cdebb35d0da5d8134e6c05c25ea6bae2ffa7d7b991d66f4f",
+      "description": "List the studio's lecturers with name, photo and bio. Use it to turn the lecturerIds from classes and workshops into names. Contact details are never returned. Zenamu API: GET /v1/lecturers.",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "zenamu_list_places",
+      "descriptionHash": "6e1af181c2487b014407f15fb28ac572b8d648b008bf56b1123647dd42111386",
+      "description": "List the studio's physical locations with name and address. Use it to turn the locationId from classes into an address. Archived places are excluded. Zenamu API: GET /v1/places."
+    },
+    {
+      "name": "zenamu_list_clients",
+      "descriptionHash": "460f191b38032b2816a93c188dde044e9400965d36dbed1a2bbabbf2b7127b22",
+      "description": "List every active client of the studio with contact details, credit and entry-pass balances, pass balances per pass group, make-up sessions and booking totals. Returns personal data. Needs the secret key and the Ultimate plan. Archived and blocked clients are excluded. Zenamu API: GET /v1/clients.",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "zenamu_list_pass_groups",
+      "descriptionHash": "794d82569b4791c2c541ca6780d0bd3c42d1a9de64aea60a5f9467dc7d619910",
+      "description": "List the studio's entry-pass groups (active and archived) with their id, name and state. Use an id as passGroupId when granting passes. Needs the secret key and the Ultimate plan. Zenamu API: GET /v1/pass-groups.",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "zenamu_grant_credits",
+      "descriptionHash": "1d126ef4b3db3089ccaa4dcb6ee300bc65cc5cab92977282fb7c45103d098b9e",
+      "description": "WRITE: adds credits to one client's account and returns the new balance. Changes what the client owes or holds. Not idempotent: a retry after an unclear failure can grant twice, so check the balance first with zenamu_list_clients. sendEmail=true emails the client. Zenamu API: POST /v1/clients/{clien",
+      "labels": [
+        "untrusted-content",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "zenamu_grant_passes",
+      "descriptionHash": "b5bc0ffb0009c511249d690855a14db8103d8b0f4dc3b4b22878e7557999f34d",
+      "description": "WRITE: adds entry passes to one client's account in a pass group and returns the new balance in that group. Changes what the client holds. Not idempotent: a retry after an unclear failure can grant twice, so check the balance first with zenamu_list_clients. Omit passGroupId for the studio's default ",
+      "labels": [
+        "untrusted-content",
+        "public-sink"
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"zenamu_list_clients\" references sensitive artifacts (secret). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:zenamu_list_clients",
+        "snippet": "List every active client of the studio with contact details, credit and entry-pass balances, pass balances per pass group, make-up sessions and booking totals. …"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"zenamu_list_pass_groups\" references sensitive artifacts (secret). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:zenamu_list_pass_groups",
+        "snippet": "List the studio's entry-pass groups (active and archived) with their id, name and state. Use an id as passGroupId when granting passes. Needs the secret key and…"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: zenamu_grant_credits, zenamu_grant_passes · Private data: zenamu_list_lecturers, zenamu_list_clients, zenamu_list_pass_groups · Public sink: zenamu_grant_credits, zenamu_grant_passes.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: zenamu_grant_credits, zenamu_grant_passes · Private data: zenamu_list_lecturers, zenamu_list_clients, zenamu_list_pass_groups · Public sink: zenamu_grant_credits, zenamu_grant_passes"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 50,
+  "scoreBreakdown": {
+    "tool-poisoning": 30,
+    "toxic-flow": 20
+  },
+  "errors": []
+}

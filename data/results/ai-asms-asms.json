@@ -23,4 +23,105 @@
       "message": "fetch failed"
     }
   ]
+}iption": "Get the current wallet balance for the authenticated account.",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "get_pricing",
+      "descriptionHash": "5f3b1c591c47d18bb86c66919cef41ee156ec0f415b6adc3d7ebb7b3261faba2",
+      "description": "Get the retail price per OTP activation for a service in a country. Omit `service` to list prices for every available service."
+    },
+    {
+      "name": "get_inventory",
+      "descriptionHash": "5d5da33274f646c59b0a2c203965f81e9be0002063da80c1faabf7009ea0c3c4",
+      "description": "Get how many numbers are in stock for a service in a country. Omit `service` to list stock for every available service."
+    },
+    {
+      "name": "create_otp_order",
+      "descriptionHash": "3e75053012d8315c863553036e0fa1e649ce2a1ab6e855c1934af3e8abb9be4d",
+      "description": "Buy a number to receive an OTP: allocates a number, debits the wallet, and returns an orderId + phoneNumber. Then poll with poll_sms. If no code arrives, do NOT cancel to retry: simply call create_otp_order again for a fresh number and keep polling that one. Unfilled orders auto-refund within 10 min",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "poll_sms",
+      "descriptionHash": "6ac90b035958f42cd7458c662a99d9948de093879a16d9cce14a47c337a7df9a",
+      "description": "Check for the SMS / OTP code on an order. Returns the code once it has arrived, otherwise an empty result: poll again after a few seconds. If nothing lands after a minute or two, the fastest path is to order a fresh number with create_otp_order (prefer the \"us1\" Non-VoIP pool) and leave the original",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "list_active_orders",
+      "descriptionHash": "8539523a0cf6980f226405b6e0afd75855eafd519409f99366435852365fb670",
+      "description": "List recent OTP orders for the account (awaiting a code or already received)."
+    },
+    {
+      "name": "cancel_order",
+      "descriptionHash": "bc91ddd6dfdd2550ad0d2aa22199e6db5459ca9710d470c0bdd28ac8e7c30229",
+      "description": "Rarely needed. To retry a verification do NOT cancel: just call create_otp_order again, because every unfilled order auto-refunds within 10 minutes on its own, and cancel is blocked for the first 10 minutes anyway. Only use this to release an order you are certain you no longer need once its 10-minu"
+    },
+    {
+      "name": "get_rental_offers",
+      "descriptionHash": "2f8b5a13929c8b5105cdb4ccd4df799d3953ec2009affc6a92b87d50d2ab5b8d",
+      "description": "List the rental periods and prices for a country (1 day to 12 months). A rented number is yours for the whole period and receives every SMS sent to it, unlike an OTP order, which is for one code. Omit `country` to list the countries numbers can be rented in.",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "rent_number",
+      "descriptionHash": "0ff10030d0b8e7af98ebeabd835a73717aec46ac785e488bdff049bce99cd3bc",
+      "description": "Rent a phone number in a country for a period (get the periods and prices from get_rental_offers first). Debits the wallet and returns the number and when the rental ends. Read its SMS with read_rental_sms. WARNING: this spends real wallet balance; confirm the country, period and price with the user",
+      "labels": [
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "list_rentals",
+      "descriptionHash": "14cc42823bc1de58de0f205c695b7ef6b6e7edc241075fb830c8d459ecdc098e",
+      "description": "List the account's rented numbers with their country, period and end date. Ended rentals are left out unless `includeEnded` is true."
+    },
+    {
+      "name": "read_rental_sms",
+      "descriptionHash": "3513760477558a11e4b798a7ec5486d70c0c59911eac3c28f28ba3d21af0a2dd",
+      "description": "Read the SMS a rented number has received during this rental, newest first. Poll again every few seconds while waiting for a message.",
+      "labels": [
+        "untrusted-content",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "cancel_rental",
+      "descriptionHash": "baa921f05c29e672a2403fc1aff4944555a19936d0feed02b47abd0a0d5e9211",
+      "description": "Cancel a rented number and refund it. Only possible between 5 and 120 minutes after renting, and only if the number has received no SMS; after that the rental runs to its end date.",
+      "labels": [
+        "public-sink"
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: read_rental_sms · Private data: get_balance, create_otp_order, rent_number · Public sink: poll_sms, get_rental_offers, rent_number, read_rental_sms, cancel_rental.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: read_rental_sms · Private data: get_balance, create_otp_order, rent_number · Public sink: poll_sms, get_rental_offers, rent_number, read_rental_sms, cancel_rental"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 80,
+  "scoreBreakdown": {
+    "toxic-flow": 20
+  },
+  "errors": []
 }

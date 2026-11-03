@@ -8,8 +8,8 @@
     "kind": "url",
     "ref": "https://api.howtoromania.io/mcp"
   },
-  "scannedAt": "2026-11-01T11:32:48.011Z",
-  "durationMs": 652,
+  "scannedAt": "2026-11-03T12:13:52.491Z",
+  "durationMs": 718,
   "layers": {
     "metadata": true,
     "static": false
@@ -44,6 +44,23 @@
       "name": "get_company_representatives",
       "descriptionHash": "83c16f43d90c891d7840414575010d0cf889602fed3bd74c5c1e03caa44272d1",
       "description": "Trade-register data for a Romanian company (by CUI) from the ONRC monthly open-data snapshot: registration number, EUID, legal form, registry status (decoded), authorized CAEN codes and legal representatives (names and roles, e.g. administrator, lichidator). Costs 5 credits; not billed if the CUI is"
+    },
+    {
+      "name": "validate_extracted_company_data",
+      "descriptionHash": "07aaffaf7b18018a3aa090ba996d0a7c52db7e4de155fdf8ae36696db133e71c",
+      "description": "Checks company data an AI extracted from an invoice, contract or form against Romanian public sources (ANAF, ONRC) and checksums. Returns a verdict and the registered value per field (CUI, name, registration number, VAT status, company status, address, IBAN, legal representative), optional invoice a",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "check_identifier_format",
+      "descriptionHash": "6bf402c4f11cb6d17905197bd2cd99cf6dbd9c7712908ee9400425fa4b1a5590",
+      "description": "Free, local-only checks with no registry lookup: CUI checksum, IBAN checksum (and Romanian bank from the code), trade register number format (old and new), company name normalization, and invoice arithmetic (total = net + VAT, Romanian VAT rates, date not in the future). Does not check that the comp",
+      "labels": [
+        "private-data",
+        "destructive"
+      ]
     },
     {
       "name": "validate_efactura",
@@ -98,30 +115,52 @@
     },
     {
       "name": "get_bnr_exchange_rate",
-      "descriptionHash": "27d640a1a018bbc7eb02a9abe885bf551939a7f05f6ed0b966ddd5673e036364",
-      "description": "BNR reference exchange rates in RON from 2005-01-03: one date (latest fixing on/before the date; all currencies or one), or a daily series for one currency with from/to (max 366 days). Free (0 credits). Source: Banca Națională a României (bnr.ro); informational, values unchanged from BNR source."
+      "descriptionHash": "0cdb2ef029fffcd9ca78a141a67d08e1ce8d5e38b5fc8ab99996ee716eab867b",
+      "description": "BNR reference exchange rates in RON from 2005-01-03: one date (latest fixing on/before the date; all currencies or one), or a daily series for one currency with from/to (max 366 days). Free (0 credits); works without an API key (keyless calls are rate-limited per IP). Source: Banca Națională a Român",
+      "labels": [
+        "private-data"
+      ]
     },
     {
       "name": "get_robor",
-      "descriptionHash": "25030488f0642057c64af7ab1e86b3d9fb706dafb72134c06711c52628dec64c",
-      "description": "ROBOR (offered) and ROBID (bid) fixings, % p.a., tenors ON, 1W, 1M, 3M, 6M, 12M, from 1995-08-01: one date (latest fixing on/before) or a series for one tenor with from/to (max 366 days). Free (0 credits). Source: Banca Națională a României (bnr.ro); informational, values unchanged from BNR source."
+      "descriptionHash": "5a12d705a3b930e2043284c1f1749b7bf6aef46d8e9c2b36d65cc78d89cec84c",
+      "description": "ROBOR (offered) and ROBID (bid) fixings, % p.a., tenors ON, 1W, 1M, 3M, 6M, 12M, from 1995-08-01: one date (latest fixing on/before) or a series for one tenor with from/to (max 366 days). Free (0 credits); works without an API key (keyless calls are rate-limited per IP). Source: Banca Națională a Ro",
+      "labels": [
+        "private-data"
+      ]
     },
     {
       "name": "get_ircc",
-      "descriptionHash": "5f00774f733b2c63183582705c5da672a81fce4df337b7fc54a028247d55f36f",
-      "description": "IRCC (indicele de referință pentru creditele consumatorilor), % p.a.: the quarterly value applicable on a date (plus the next quarter's if published) and the latest daily value; or history (type daily with from/to, or quarterly). Free (0 credits). Source: Banca Națională a României (bnr.ro); informa"
+      "descriptionHash": "65c521c8109ea166ba30ebd299f48ec010e83d54c73fc1b4b75970ff2d9b70fe",
+      "description": "IRCC (indicele de referință pentru creditele consumatorilor), % p.a.: the quarterly value applicable on a date (plus the next quarter's if published) and the latest daily value; or history (type daily with from/to, or quarterly). Free (0 credits); works without an API key (keyless calls are rate-lim",
+      "labels": [
+        "private-data"
+      ]
     }
   ],
   "findings": [
     {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: validate_extracted_company_data · Private data: check_identifier_format, parse_efactura, get_bnr_exchange_rate, get_robor, get_ircc · Public sink: generate_efactura · Destructive: check_identifier_format.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: validate_extracted_company_data · Private data: check_identifier_format, parse_efactura, get_bnr_exchange_rate, get_robor, get_ircc · Public sink: generate_efactura · Destructive: check_identifier_format"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    },
+    {
       "id": "MCP-RUGPULL-001",
       "severity": "high",
       "category": "tool-poisoning",
       "title": "Tool description changed since last scan",
-      "detail": "Tool \"get_company_risk_report\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "detail": "Tool \"get_bnr_exchange_rate\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
       "evidence": {
-        "source": "tool:get_company_risk_report",
-        "snippet": "before: \"One-call due-diligence report for a Romanian company (by CUI): ANAF status (active/inactive, VAT, e-Factura), last 3 years of financials, court-case summary (portal.just.ro) and ONRC registry data when available, with a transparent rule-based score 0-100 (higher = fewer risk signals) and explained f\" → after: \"One-call due-diligence report for a Romanian company (by CUI): ANAF status (active/inactive, VAT, e-Factura), last 3 years of financials, court-case summary (portal.just.ro) and ONRC registry data when available, with a transparent rule-based score 0-100 (higher = fewer risk signals) and explained f\""
+        "source": "tool:get_bnr_exchange_rate",
+        "snippet": "before: \"BNR reference exchange rates in RON from 2005-01-03: one date (latest fixing on/before the date; all currencies or one), or a daily series for one currency with from/to (max 366 days). Free (0 credits). Source: Banca Națională a României (bnr.ro); informational, values unchanged from BNR source.\" → after: \"BNR reference exchange rates in RON from 2005-01-03: one date (latest fixing on/before the date; all currencies or one), or a daily series for one currency with from/to (max 366 days). Free (0 credits); works without an API key (keyless calls are rate-limited per IP). Source: Banca Națională a Român\""
       },
       "confidence": 0.8,
       "remediation": "Re-review the tool before continuing to trust it."
@@ -131,18 +170,32 @@
       "severity": "high",
       "category": "tool-poisoning",
       "title": "Tool description changed since last scan",
-      "detail": "Tool \"generate_efactura\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "detail": "Tool \"get_robor\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
       "evidence": {
-        "source": "tool:generate_efactura",
-        "snippet": "before: \"Builds a valid RO e-Factura (CIUS-RO 1.0.1, UBL 2.1) invoice XML from simple JSON: seller/buyer (just the CUI is enough: name, address, county code and VAT status are auto-filled from ANAF), lines with quantity, unit price and VAT rate (default 21%; categories S, Z, E, AE reverse charge, K, G, O not\" → after: \"Builds a valid RO e-Factura (CIUS-RO 1.0.1, UBL 2.1) invoice XML from simple JSON: seller/buyer (just the CUI is enough: name, address, county code and VAT status are auto-filled from ANAF), lines with quantity, unit price and VAT rate (default 21%; categories S, Z, E, AE reverse charge, K, G, O not\""
+        "source": "tool:get_robor",
+        "snippet": "before: \"ROBOR (offered) and ROBID (bid) fixings, % p.a., tenors ON, 1W, 1M, 3M, 6M, 12M, from 1995-08-01: one date (latest fixing on/before) or a series for one tenor with from/to (max 366 days). Free (0 credits). Source: Banca Națională a României (bnr.ro); informational, values unchanged from BNR source.\" → after: \"ROBOR (offered) and ROBID (bid) fixings, % p.a., tenors ON, 1W, 1M, 3M, 6M, 12M, from 1995-08-01: one date (latest fixing on/before) or a series for one tenor with from/to (max 366 days). Free (0 credits); works without an API key (keyless calls are rate-limited per IP). Source: Banca Națională a Ro\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"get_ircc\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:get_ircc",
+        "snippet": "before: \"IRCC (indicele de referință pentru creditele consumatorilor), % p.a.: the quarterly value applicable on a date (plus the next quarter's if published) and the latest daily value; or history (type daily with from/to, or quarterly). Free (0 credits). Source: Banca Națională a României (bnr.ro); informa\" → after: \"IRCC (indicele de referință pentru creditele consumatorilor), % p.a.: the quarterly value applicable on a date (plus the next quarter's if published) and the latest daily value; or history (type daily with from/to, or quarterly). Free (0 credits); works without an API key (keyless calls are rate-lim\""
       },
       "confidence": 0.8,
       "remediation": "Re-review the tool before continuing to trust it."
     }
   ],
-  "score": 70,
+  "score": 45,
   "scoreBreakdown": {
-    "tool-poisoning": 30
+    "toxic-flow": 20,
+    "tool-poisoning": 35
   },
   "errors": []
 }

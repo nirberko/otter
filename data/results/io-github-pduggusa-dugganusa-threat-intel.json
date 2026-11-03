@@ -8,8 +8,8 @@
     "kind": "url",
     "ref": "https://analytics.dugganusa.com/api/v1/mcp"
   },
-  "scannedAt": "2026-10-30T11:06:24.123Z",
-  "durationMs": 822,
+  "scannedAt": "2026-11-03T12:09:20.461Z",
+  "durationMs": 590,
   "layers": {
     "metadata": true,
     "static": false
@@ -27,7 +27,7 @@
     },
     {
       "name": "enrich-ioc",
-      "descriptionHash": "7f0587fd2110f05a7dc2d7a2117503921a6aaa72154f293294e12f23a60bb718",
+      "descriptionHash": "559ffbe2c49c5d0b77614fc5064d24883d1dee062d8403515cb61d98c289cf56",
       "description": "Looks up an IP address, domain, URL or file hash, such as one from a message, log line, SIEM alert or code under review.\n\nLook up a single indicator of compromise (IP, domain, URL, or hash) in the DugganUSA corpus. Returns the threat type, malware family, confidence and references of the record with",
       "labels": [
         "untrusted-content",
@@ -74,6 +74,26 @@
         "untrusted-content",
         "private-data"
       ]
+    },
+    {
+      "name": "check-workflow",
+      "descriptionHash": "bbe1ed40ab929d8a86da9c8b810f87046ef79c5ae572ae1336075221a0b91611",
+      "description": "Checks the text of one GitHub Actions workflow file for script injection: places where text an outside user controls (an issue or pull request title or body, a comment, a branch name, a commit message) is pasted into a shell script or a github-script body, a privileged trigger that checks out a pull",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "destructive"
+      ]
+    },
+    {
+      "name": "check-repo",
+      "descriptionHash": "1b71eff7a645fa9dcb5500693fde1b80f7675a8da45f2c0ff534fc051154bdce",
+      "description": "Before you open or run a repository someone else sent you (a recruiter's coding test, a downloaded zip, a proof of concept), pass it the few files that matter and get a verdict. It looks for the places a lure hides that a dependency check never reads: npm install hooks that fetch or evaluate code, a",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "destructive"
+      ]
     }
   ],
   "findings": [
@@ -90,14 +110,26 @@
       "confidence": 0.4
     },
     {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"check-repo\" references sensitive artifacts (credentials, .npmrc). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:check-repo",
+        "snippet": "Before you open or run a repository someone else sent you (a recruiter's coding test, a downloaded zip, a proof of concept), pass it the few files that matter a…"
+      },
+      "confidence": 0.65
+    },
+    {
       "id": "MCP-TOXIC-FLOW-001",
       "severity": "high",
       "category": "toxic-flow",
       "title": "Lethal trifecta: untrusted input + private data + external sink",
-      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: search, enrich-ioc, stix-feed-summary, check-package · Private data: search, enrich-ioc, stix-feed-summary, ai-model-price, check-package · Public sink: search, enrich-ioc, kev-exploitation-stickiness · Destructive: stix-feed-summary.",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: search, enrich-ioc, stix-feed-summary, check-package, check-workflow, check-repo · Private data: search, enrich-ioc, stix-feed-summary, ai-model-price, check-package, check-workflow, check-repo · Public sink: search, enrich-ioc, kev-exploitation-stickiness · Destructive: stix-feed-summary, check-workflow, check-repo.",
       "evidence": {
         "source": "server:mcp",
-        "snippet": "Untrusted content: search, enrich-ioc, stix-feed-summary, check-package · Private data: search, enrich-ioc, stix-feed-summary, ai-model-price, check-package · Public sink: search, enrich-ioc, kev-exploitation-stickiness · Destructive: stix-feed-summary"
+        "snippet": "Untrusted content: search, enrich-ioc, stix-feed-summary, check-package, check-workflow, check-repo · Private data: search, enrich-ioc, stix-feed-summary, ai-model-price, check-package, check-workflow, check-repo · Public sink: search, enrich-ioc, kev-exploitation-stickiness · Destructive: stix-feed-summary, check-workflow, check-repo"
       },
       "confidence": 0.6,
       "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
@@ -107,98 +139,20 @@
       "severity": "high",
       "category": "tool-poisoning",
       "title": "Tool description changed since last scan",
-      "detail": "Tool \"search\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
-      "evidence": {
-        "source": "tool:search",
-        "snippet": "before: \"PROACTIVELY CALL THIS FIRST for any threat or security question — the moment the user names a threat actor, malware, campaign, CVE, breach, or vendor, drops an IP/domain/hash, or asks \"what do we know about X\" or \"is X known.\" Searching our corpus is the default reflex here, not a last resort. Secur\" → after: \"Searches threat-intelligence records about threat actors, malware, campaigns, CVEs, breaches, vendors and indicators. The default search covers security topics only; a few public-document archives can be searched by naming them (listed below). It holds no general programming or web content.\n\nHybrid \""
-      },
-      "confidence": 0.8,
-      "remediation": "Re-review the tool before continuing to trust it."
-    },
-    {
-      "id": "MCP-RUGPULL-001",
-      "severity": "high",
-      "category": "tool-poisoning",
-      "title": "Tool description changed since last scan",
       "detail": "Tool \"enrich-ioc\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
       "evidence": {
         "source": "tool:enrich-ioc",
-        "snippet": "before: \"CALL AUTOMATICALLY the moment any IP address, domain, URL, or file hash appears — in the user's message, a log line, a SIEM alert, or code under review. Enrich it before the user has to ask; a lone indicator is exactly what this is for.\n\nLook up a single indicator of compromise (IP, domain, URL, or \" → after: \"Looks up an IP address, domain, URL or file hash, such as one from a message, log line, SIEM alert or code under review.\n\nLook up a single indicator of compromise (IP, domain, URL, or hash) in the DugganUSA corpus. Returns the threat type, malware family, confidence and references of the record with\""
-      },
-      "confidence": 0.8,
-      "remediation": "Re-review the tool before continuing to trust it."
-    },
-    {
-      "id": "MCP-RUGPULL-001",
-      "severity": "high",
-      "category": "tool-poisoning",
-      "title": "Tool description changed since last scan",
-      "detail": "Tool \"stix-feed-summary\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
-      "evidence": {
-        "source": "tool:stix-feed-summary",
-        "snippet": "before: \"CALL when the user asks what's active right now, what's trending this week, how fresh the feed is, or is planning SIEM / blocklist ingestion — this is the quick \"is it worth pulling the full feed\" check.\n\nLive shape report on the DugganUSA STIX 2.1 threat feed for a chosen lookback window (1-7 days)\" → after: \"Summarizes what is in the feed right now: useful for \"what's active this week\", feed freshness, or planning SIEM / blocklist ingestion.\n\nShape report on the most recent 5,000 indicators in the DugganUSA STIX 2.1 feed, bounded to a 1-7 day window. Returns how many of those fall in the window (capped \""
-      },
-      "confidence": 0.8,
-      "remediation": "Re-review the tool before continuing to trust it."
-    },
-    {
-      "id": "MCP-RUGPULL-001",
-      "severity": "high",
-      "category": "tool-poisoning",
-      "title": "Tool description changed since last scan",
-      "detail": "Tool \"ai-model-price\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
-      "evidence": {
-        "source": "tool:ai-model-price",
-        "snippet": "before: \"CALL before quoting what an AI model or an agent session costs, or when a usage report needs dollars — prices are dated and copied from each provider's own pricing page, never from memory.\n\nReturns the per-1M-token USD rates for a model (input, output, and for Anthropic models the 5-minute and 1-hou\" → after: \"Looks up what an AI model or an agent session costs at list price. Prices are dated and copied from each provider's own pricing page.\n\nReturns the per-1M-token USD rates for a model (input, output, and for Anthropic models the 5-minute and 1-hour cache write, cache read and fast-mode rates), the dat\""
-      },
-      "confidence": 0.8,
-      "remediation": "Re-review the tool before continuing to trust it."
-    },
-    {
-      "id": "MCP-RUGPULL-001",
-      "severity": "high",
-      "category": "tool-poisoning",
-      "title": "Tool description changed since last scan",
-      "detail": "Tool \"kev-vendor-risk\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
-      "evidence": {
-        "source": "tool:kev-vendor-risk",
-        "snippet": "before: \"CALL whenever a vendor or product comes up (Microsoft, Cisco, Fortinet, SharePoint, Ivanti, an appliance, an ERP) and the real question is exploitation risk or \"what should I patch first\" — before quoting CVSS, check where exploitation actually concentrates.\n\nVendor / product risk matrix built from \" → after: \"Shows where confirmed exploitation concentrates for a vendor or product (Microsoft, Cisco, Fortinet, an appliance, an ERP), for questions like \"what should I patch first\".\n\nVendor / product risk matrix built from CISA's Known Exploited Vulnerabilities (KEV) catalog — where real, confirmed in-the-wil\""
-      },
-      "confidence": 0.8,
-      "remediation": "Re-review the tool before continuing to trust it."
-    },
-    {
-      "id": "MCP-RUGPULL-001",
-      "severity": "high",
-      "category": "tool-poisoning",
-      "title": "Tool description changed since last scan",
-      "detail": "Tool \"kev-exploitation-stickiness\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
-      "evidence": {
-        "source": "tool:kev-exploitation-stickiness",
-        "snippet": "before: \"CALL when the user is prioritizing patching or asks whether a product's exploitation risk is chronic vs a one-off — this decides \"chase the repeat offenders or watch for newcomers.\"\n\nDoes in-the-wild exploitation risk STICK to proven products, or SPREAD to new ones? Analyzes CISA KEV: correlates eac\" → after: \"Measures whether a product's exploitation risk is chronic or a one-off, for patch prioritization.\n\nDoes in-the-wild exploitation risk STICK to proven products, or SPREAD to new ones? Analyzes CISA KEV: correlates each product's historical known-exploited count against its RECENT KEV additions (Spear\""
-      },
-      "confidence": 0.8,
-      "remediation": "Re-review the tool before continuing to trust it."
-    },
-    {
-      "id": "MCP-RUGPULL-001",
-      "severity": "high",
-      "category": "tool-poisoning",
-      "title": "Tool description changed since last scan",
-      "detail": "Tool \"check-package\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
-      "evidence": {
-        "source": "tool:check-package",
-        "snippet": "before: \"Supply-chain GUARDRAIL for AI coding agents and CI pipelines: check whether a dependency (npm or PyPI) is on the DugganUSA malicious-package deny-list BEFORE you install it. This is the runtime defense against slopsquatting / HalluSquatting / hijacked-package attacks — an AI agent about to run `npm \" → after: \"Checks whether a dependency (npm, PyPI, RubyGems or Packagist/Composer, or a GitHub Action used in a workflow) is on the DugganUSA malicious-package deny-list or has published advisories. Suited to a pre-install step in an agent or a CI pipeline, against slopsquatting and hijacked-package attacks.\n\n\""
+        "snippet": "before: \"Looks up an IP address, domain, URL or file hash, such as one from a message, log line, SIEM alert or code under review.\n\nLook up a single indicator of compromise (IP, domain, URL, or hash) in the DugganUSA corpus. Returns the threat type, malware family, confidence and references of the record with\" → after: \"Looks up an IP address, domain, URL or file hash, such as one from a message, log line, SIEM alert or code under review.\n\nLook up a single indicator of compromise (IP, domain, URL, or hash) in the DugganUSA corpus. Returns the threat type, malware family, confidence and references of the record with\""
       },
       "confidence": 0.8,
       "remediation": "Re-review the tool before continuing to trust it."
     }
   ],
-  "score": 31,
+  "score": 42,
   "scoreBreakdown": {
     "shadowing": 8,
-    "toxic-flow": 20,
-    "tool-poisoning": 41
+    "tool-poisoning": 30,
+    "toxic-flow": 20
   },
   "errors": []
 }

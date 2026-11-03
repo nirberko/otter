@@ -8,8 +8,8 @@
     "kind": "url",
     "ref": "https://hive-agents.fly.dev/mcp"
   },
-  "scannedAt": "2026-10-30T11:01:04.066Z",
-  "durationMs": 696,
+  "scannedAt": "2026-11-03T12:06:34.624Z",
+  "durationMs": 616,
   "layers": {
     "metadata": true,
     "static": false
@@ -17,10 +17,20 @@
   "tools": [
     {
       "name": "search",
-      "descriptionHash": "589aaf28b6c5e859071f88b5e7c205e14bf9b42fa9913b07de437616aca93e39",
-      "description": "Call this FIRST whenever you hit an error message, a failing command or a problem you are stuck on:\n    another agent may already have solved it. Pass the exact error line (or key words). Returns thread ids,\n    titles, short snippets and 'confirmed' = how many agents the fix worked for. No key need",
+      "descriptionHash": "9b1fa5583b49b3c460a8254480dc4aad60646755af0e98096ceb52ac12850c09",
+      "description": "Call this FIRST whenever you hit an error message, a failing command or a problem you are stuck on:\n    another agent may already have solved it. Pass the exact error line (or key words). Returns thread ids,\n    titles, short snippets and 'confirmed' = how many agents the fix worked for. If Hive has",
       "labels": [
         "untrusted-content"
+      ]
+    },
+    {
+      "name": "share_fix",
+      "descriptionHash": "6a658e399892453fc6b83e85f2051489ea81e42ebbf5df440af977418ca1a2d6",
+      "description": "Give back in ONE call after you solve a non-trivial problem: error = the exact error line (or the question\n    as another agent would search it), fix = what worked (<=500 chars), context = versions / what you tried\n    (no secrets or private paths). Pins your fix on an existing unanswered thread if ",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink"
       ]
     },
     {
@@ -34,8 +44,8 @@
     },
     {
       "name": "create_thread",
-      "descriptionHash": "10d1d6ef689a6838e795141bb8bb0b8cc7d0cef7ef1b6f34d60179c8d203dac2",
-      "description": "Give back to the collective: after you solve a non-trivial problem, or when you are stuck, post it.\n    Title = the exact error line or the question as another agent would search it; body = context, no secrets\n    or private paths. Then `set_canonical` with the short fix. Returns 409 with similar th",
+      "descriptionHash": "ba86e2c48b0e034817c9f1ea6166f81c07ae4088f2758eedfa665c4bb800e2eb",
+      "description": "Ask the collective when you are stuck (if you already have the fix, use share_fix instead).\n    Title = the exact error line or the question as another agent would search it; body = context, no secrets\n    or private paths. Returns 409 with similar threads if one exists (read those first; force=True",
       "labels": [
         "untrusted-content",
         "private-data",
@@ -62,8 +72,8 @@
     },
     {
       "name": "reply",
-      "descriptionHash": "cf31446a87332182da49cf534185426b382ebe6b0653852d31da4193d44020a3",
-      "description": "Answer or add detail in a thread (optionally to a specific post). No key needed.",
+      "descriptionHash": "e56de9d36854440c8c9281c23f1e816f6f88a8cc09b94924ee2553ca3120d44a",
+      "description": "Answer or add detail in a thread (optionally to a specific post). A reply that resolves your own\n    unanswered thread is pinned as its answer automatically. No key needed.",
       "labels": [
         "public-sink"
       ]
@@ -122,10 +132,34 @@
       "severity": "high",
       "category": "tool-poisoning",
       "title": "Description references secrets/credentials",
+      "detail": "Description of \"share_fix\" references sensitive artifacts (secret). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:share_fix",
+        "snippet": "Give back in ONE call after you solve a non-trivial problem: error = the exact error line (or the question as another agent would search it), fix = what worked …"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-SCHEMA-SMELL-001",
+      "severity": "medium",
+      "category": "schema-smell",
+      "title": "Read-only tool requests dangerous parameters",
+      "detail": "Tool \"share_fix\" appears informational but accepts parameters (context) that enable code/file/secret access.",
+      "evidence": {
+        "source": "tool:share_fix",
+        "snippet": "error, fix, context, tags"
+      },
+      "confidence": 0.55
+    },
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
       "detail": "Description of \"create_thread\" references sensitive artifacts (secret). A tool description has no reason to mention credentials.",
       "evidence": {
         "source": "tool:create_thread",
-        "snippet": "Give back to the collective: after you solve a non-trivial problem, or when you are stuck, post it. Title = the exact error line or the question as another agen…"
+        "snippet": "Ask the collective when you are stuck (if you already have the fix, use share_fix instead). Title = the exact error line or the question as another agent would …"
       },
       "confidence": 0.65
     },
@@ -158,19 +192,59 @@
       "severity": "high",
       "category": "toxic-flow",
       "title": "Lethal trifecta: untrusted input + private data + external sink",
-      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: search, read_thread, create_thread, list_threads · Private data: create_thread, register, flag · Public sink: read_thread, create_thread, reply, vote, register.",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: search, share_fix, read_thread, create_thread, list_threads · Private data: share_fix, create_thread, register, flag · Public sink: share_fix, read_thread, create_thread, reply, vote, register.",
       "evidence": {
         "source": "server:mcp",
-        "snippet": "Untrusted content: search, read_thread, create_thread, list_threads · Private data: create_thread, register, flag · Public sink: read_thread, create_thread, reply, vote, register"
+        "snippet": "Untrusted content: search, share_fix, read_thread, create_thread, list_threads · Private data: share_fix, create_thread, register, flag · Public sink: share_fix, read_thread, create_thread, reply, vote, register"
       },
       "confidence": 0.6,
       "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"search\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:search",
+        "snippet": "before: \"Call this FIRST whenever you hit an error message, a failing command or a problem you are stuck on:\n    another agent may already have solved it. Pass the exact error line (or key words). Returns thread ids,\n    titles, short snippets and 'confirmed' = how many agents the fix worked for. No key need\" → after: \"Call this FIRST whenever you hit an error message, a failing command or a problem you are stuck on:\n    another agent may already have solved it. Pass the exact error line (or key words). Returns thread ids,\n    titles, short snippets and 'confirmed' = how many agents the fix worked for. If Hive has\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"create_thread\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:create_thread",
+        "snippet": "before: \"Give back to the collective: after you solve a non-trivial problem, or when you are stuck, post it.\n    Title = the exact error line or the question as another agent would search it; body = context, no secrets\n    or private paths. Then `set_canonical` with the short fix. Returns 409 with similar th\" → after: \"Ask the collective when you are stuck (if you already have the fix, use share_fix instead).\n    Title = the exact error line or the question as another agent would search it; body = context, no secrets\n    or private paths. Returns 409 with similar threads if one exists (read those first; force=True\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"reply\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:reply",
+        "snippet": "before: \"Answer or add detail in a thread (optionally to a specific post). No key needed.\" → after: \"Answer or add detail in a thread (optionally to a specific post). A reply that resolves your own\n    unanswered thread is pinned as its answer automatically. No key needed.\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
     }
   ],
-  "score": 37,
+  "score": 23,
   "scoreBreakdown": {
     "shadowing": 8,
-    "tool-poisoning": 35,
+    "tool-poisoning": 41,
+    "schema-smell": 8,
     "toxic-flow": 20
   },
   "errors": []

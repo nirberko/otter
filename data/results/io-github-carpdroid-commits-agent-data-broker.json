@@ -6,10 +6,10 @@
   },
   "target": {
     "kind": "url",
-    "ref": "https://agent-data-broker.agent-data-broker.workers.dev/mcp"
+    "ref": "https://api.pennyquery.com/mcp"
   },
-  "scannedAt": "2026-10-26T10:35:47.853Z",
-  "durationMs": 707,
+  "scannedAt": "2026-11-03T12:05:52.535Z",
+  "durationMs": 754,
   "layers": {
     "metadata": true,
     "static": false
@@ -17,18 +17,17 @@
   "tools": [
     {
       "name": "get_company_enrichment",
-      "descriptionHash": "673ba2ee249db299ac8c94b286a340b16b3fdc6adc07e76c59b2400aa17e6d3f",
+      "descriptionHash": "44762da661f6e925d1f04f197f38e69dda8ef926dec202f92edcce923aa640f1",
       "description": "Return the enrichment record for one company: name, domain, industry, employee_count, description, last_updated (ISO 8601 UTC) and source. Call this when you already know the company's website domain or exact name and need firmographic details. Pass exactly one of `domain` (preferred; URLs like \"htt",
       "labels": [
         "untrusted-content",
-        "private-data",
-        "public-sink"
+        "private-data"
       ]
     },
     {
       "name": "search_companies",
-      "descriptionHash": "66ba6d6c7cde2eff427a28d11332409d10c528a4afdcdb789c8ed988eaf80600",
-      "description": "Free preview. Find companies whose name, domain, industry or description contains the query (case-insensitive substring, not semantic). Use this to discover companies or resolve a partial name to a domain, then call get_company_enrichment (paid) for the full record. Returns { count, companies: [{ na",
+      "descriptionHash": "e266e3359a708a72bee1666dbac2b6cb7649bd54de4d77b9ed30fd71f7411bca",
+      "description": "Find companies whose name, domain, industry or description contains the query (case-insensitive substring, not semantic). Use this to discover companies or resolve a partial name to a domain, then call get_company_enrichment for the full record. Returns { count, companies: [{ name, domain, industry ",
       "labels": [
         "private-data"
       ]
@@ -40,17 +39,23 @@
     },
     {
       "name": "get_sec_filings",
-      "descriptionHash": "f89f2730f36a1add87e7fec7c03d95e51f643435350d2329bced3caa92709e5d",
+      "descriptionHash": "fd198dc14b837f9c94c5137093a604454773a0d5b8050085a3cb231d40743d2a",
       "description": "List a public company's recent SEC EDGAR filings, newest first, with company metadata (name, tickers, exchanges, SIC industry code, state of incorporation, fiscal year end). Pass exactly one of `ticker` or `cik` (call sec_lookup_company first if you only have a name). Optional `form` filters to one ",
       "labels": [
         "untrusted-content",
-        "private-data"
+        "private-data",
+        "public-sink"
       ]
     },
     {
       "name": "get_sec_financials",
-      "descriptionHash": "12150e95ec2d7c6f0422987fd57b502bf51fbf07219afc68006f28484819de79",
+      "descriptionHash": "92cc65bfc996f06b4faccf4533ba9c4a18933acd2a6e1eed6999694e0002e66f",
       "description": "Headline annual financials for a public company from its latest 10-K/20-F/40-F XBRL data on SEC EDGAR: revenue, net_income, operating_income, eps_diluted, total_assets, total_liabilities, stockholders_equity and cash. Each metric gives value, unit, the us-gaap concept used, period_start, period_end,"
+    },
+    {
+      "name": "get_sec_insider_trades",
+      "descriptionHash": "f93a0c2a3296db2c45a3d1c4fac78f24c88e54831c9a4d714f6d7b6fa2a18933",
+      "description": "Insider transactions for a public company from its recent SEC Form 4 and 4/A filings (officers, directors and 10% owners), newest first. Pass exactly one of `ticker` or `cik`. Each filing lists the insiders (name, CIK, director/officer/10% owner, officer title), the Rule 10b5-1 plan checkbox (aff_10"
     }
   ],
   "findings": [
@@ -59,18 +64,71 @@
       "severity": "high",
       "category": "toxic-flow",
       "title": "Lethal trifecta: untrusted input + private data + external sink",
-      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: get_company_enrichment, get_sec_filings · Private data: get_company_enrichment, search_companies, get_sec_filings · Public sink: get_company_enrichment.",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: get_company_enrichment, get_sec_filings · Private data: get_company_enrichment, search_companies, get_sec_filings · Public sink: get_sec_filings.",
       "evidence": {
         "source": "server:mcp",
-        "snippet": "Untrusted content: get_company_enrichment, get_sec_filings · Private data: get_company_enrichment, search_companies, get_sec_filings · Public sink: get_company_enrichment"
+        "snippet": "Untrusted content: get_company_enrichment, get_sec_filings · Private data: get_company_enrichment, search_companies, get_sec_filings · Public sink: get_sec_filings"
       },
       "confidence": 0.6,
       "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"get_company_enrichment\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:get_company_enrichment",
+        "snippet": "before: \"Return the enrichment record for one company: name, domain, industry, employee_count, description, last_updated (ISO 8601 UTC) and source. Call this when you already know the company's website domain or exact name and need firmographic details. Pass exactly one of `domain` (preferred; URLs like \"htt\" → after: \"Return the enrichment record for one company: name, domain, industry, employee_count, description, last_updated (ISO 8601 UTC) and source. Call this when you already know the company's website domain or exact name and need firmographic details. Pass exactly one of `domain` (preferred; URLs like \"htt\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"search_companies\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:search_companies",
+        "snippet": "before: \"Free preview. Find companies whose name, domain, industry or description contains the query (case-insensitive substring, not semantic). Use this to discover companies or resolve a partial name to a domain, then call get_company_enrichment (paid) for the full record. Returns { count, companies: [{ na\" → after: \"Find companies whose name, domain, industry or description contains the query (case-insensitive substring, not semantic). Use this to discover companies or resolve a partial name to a domain, then call get_company_enrichment for the full record. Returns { count, companies: [{ name, domain, industry \""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"get_sec_filings\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:get_sec_filings",
+        "snippet": "before: \"List a public company's recent SEC EDGAR filings, newest first, with company metadata (name, tickers, exchanges, SIC industry code, state of incorporation, fiscal year end). Pass exactly one of `ticker` or `cik` (call sec_lookup_company first if you only have a name). Optional `form` filters to one \" → after: \"List a public company's recent SEC EDGAR filings, newest first, with company metadata (name, tickers, exchanges, SIC industry code, state of incorporation, fiscal year end). Pass exactly one of `ticker` or `cik` (call sec_lookup_company first if you only have a name). Optional `form` filters to one \""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"get_sec_financials\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:get_sec_financials",
+        "snippet": "before: \"Headline annual financials for a public company from its latest 10-K/20-F/40-F XBRL data on SEC EDGAR: revenue, net_income, operating_income, eps_diluted, total_assets, total_liabilities, stockholders_equity and cash. Each metric gives value, unit, the us-gaap concept used, period_start, period_end,\" → after: \"Headline annual financials for a public company from its latest 10-K/20-F/40-F XBRL data on SEC EDGAR: revenue, net_income, operating_income, eps_diluted, total_assets, total_liabilities, stockholders_equity and cash. Each metric gives value, unit, the us-gaap concept used, period_start, period_end,\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
     }
   ],
-  "score": 80,
+  "score": 43,
   "scoreBreakdown": {
-    "toxic-flow": 20
+    "toxic-flow": 20,
+    "tool-poisoning": 38
   },
   "errors": []
 }

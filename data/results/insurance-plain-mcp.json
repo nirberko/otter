@@ -1,0 +1,126 @@
+{
+  "schemaVersion": 1,
+  "scanner": {
+    "version": "1.6.0",
+    "rules": "402995650b68"
+  },
+  "target": {
+    "kind": "url",
+    "ref": "https://app.plain.insurance/api/mcp"
+  },
+  "scannedAt": "2026-11-03T12:06:11.014Z",
+  "durationMs": 3673,
+  "layers": {
+    "metadata": true,
+    "static": false
+  },
+  "tools": [
+    {
+      "name": "list_onboarding_catalog",
+      "descriptionHash": "7680a917a7626c41b78ea8447c3589b41b89d28692fc2a8b81cdb52c2f3ed3d0",
+      "description": "Lists the insurance products a Danish company can be offered and the questions to answer before quoting. Pass the company's CVR to resolve industry-specific questions and options. Use product slugs in `products` and question names as keys in `answers`. Employee FTE questions are listed as two whole-",
+      "labels": [
+        "untrusted-content",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "quote_onboarding_products",
+      "descriptionHash": "0a9935767d7d4427170b7ce2ee4117a3a7563cf7187da3ae959bf0e71c8846c6",
+      "description": "Calculates indicative prices for up to twenty products for the company with this CVR, from one flat `answers` object. A plain key answers a question for the company and for every selected product that asks it; `<product>.<name>` answers one product's question. Stored answers and company discounts ar",
+      "labels": [
+        "untrusted-content",
+        "private-data"
+      ]
+    },
+    {
+      "name": "create_onboarding",
+      "descriptionHash": "e3563b7a44c8d80f83d849bbb54561cc55ed4694b3bd45f8a5f6ac9bb3d0d18e",
+      "description": "Recalculates an approved quote and creates offered, unsigned policies, ready for the customer to review and sign on Plain. Send the exact quote request again with its quoteId before expiresAt; offers are created for the products with status.value quoted only. Active insurance is rechecked before cre",
+      "labels": [
+        "untrusted-content",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "verify_onboarding_email",
+      "descriptionHash": "17fdf3f6afef57a5344e3cd8ba3e21571b618c165049736de72a77db9c004136",
+      "description": "Confirms the signup email with the eight-digit code the person received. Codes expire after 15 minutes and allow five attempts. Keep the returned capability and continuationToken private. Does not activate insurance.",
+      "labels": [
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "get_onboarding_payment_link",
+      "descriptionHash": "5312bae582281153275931c97c818b3f966af46a12b54911d43f46a3353e9736",
+      "description": "Returns a one-time link, valid for five minutes, where the person reviews the offers and sets up payment on Plain. The person must open and confirm it. Setting up payment does not accept the offers or charge money. Use the same authorized connection that created the offers and keep the target compan",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "list_companies",
+      "descriptionHash": "99fb962e748e29e5a8ec6299cfffa7f8f7c29c33c575f1ae1b50bf9c8913f7cc",
+      "description": "Requires signing in to Plain; calling it prompts sign-in when needed. Lists companies explicitly approved for this Plain connection that you still have access to, and marks the active company. Reports granted scopes and whether the connection can create unsigned offers. Check this before quoting for"
+    },
+    {
+      "name": "set_company_context",
+      "descriptionHash": "0a5cdf93a872c83328a13afd8af5c9c9e3d9950f4fa15f5bde7a4d6ce0fbd65b",
+      "description": "Requires signing in to Plain. Changes the active Plain company for subsequent tool calls on this connection. Use an exact companyId from list_companies. All chats sharing this authorization share the selection. Already-running requests may finish for the previous company.",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "list_active_policies",
+      "descriptionHash": "620f73f11e8282c1b151f46887b0bd59db879299ae511d9423d1807007110028",
+      "description": "Requires signing in to Plain; calling it prompts sign-in when needed. Lists the active insurance policies for the currently selected Plain company on this connection, including product, carrier, dates, price and billing details. Amounts are in major currency units (e.g. DKK). totalPrice is the total"
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOOL-POISON-007",
+      "severity": "low",
+      "category": "tool-poisoning",
+      "title": "Description uses pressure/override language",
+      "detail": "Description of \"quote_onboarding_products\" stacks urgency/override words (always, never). Legitimate tool descriptions rarely pressure the model to act or ignore prior guidance.",
+      "evidence": {
+        "source": "tool:quote_onboarding_products",
+        "snippet": "Calculates indicative prices for up to twenty products for the company with this CVR, from one flat `answers` object. A plain key answers a question for the com…"
+      },
+      "confidence": 0.3
+    },
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"set_company_context\" references sensitive artifacts (authorization). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:set_company_context",
+        "snippet": "Requires signing in to Plain. Changes the active Plain company for subsequent tool calls on this connection. Use an exact companyId from list_companies. All cha…"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: list_onboarding_catalog, quote_onboarding_products, create_onboarding, get_onboarding_payment_link · Private data: quote_onboarding_products, verify_onboarding_email · Public sink: list_onboarding_catalog, create_onboarding, verify_onboarding_email, set_company_context.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: list_onboarding_catalog, quote_onboarding_products, create_onboarding, get_onboarding_payment_link · Private data: quote_onboarding_products, verify_onboarding_email · Public sink: list_onboarding_catalog, create_onboarding, verify_onboarding_email, set_company_context"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 59,
+  "scoreBreakdown": {
+    "tool-poisoning": 22,
+    "toxic-flow": 20
+  },
+  "errors": []
+}

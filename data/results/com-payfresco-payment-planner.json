@@ -1,0 +1,129 @@
+{
+  "schemaVersion": 1,
+  "scanner": {
+    "version": "1.6.0",
+    "rules": "402995650b68"
+  },
+  "target": {
+    "kind": "url",
+    "ref": "https://chatgpt.payfresco.com/mcp"
+  },
+  "scannedAt": "2026-11-03T12:03:59.661Z",
+  "durationMs": 1377,
+  "layers": {
+    "metadata": true,
+    "static": false
+  },
+  "tools": [
+    {
+      "name": "assess_payment_setup",
+      "descriptionHash": "05f914091181493357bbb288207154ecd130512550697b95f05bd5e0a7bdbac5",
+      "description": "Compare a registration country, target markets, business category, billing model, presentment currencies, settlement currencies, and payment methods with the PayFresco capability catalog. Returns documented, conditional, unsupported, and unknown requirements. Does not approve a merchant, quote a fee",
+      "labels": [
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "build_readiness_checklist",
+      "descriptionHash": "1746df044ed151d1db4452ca0fe5154ae32c710aa16996b614cc608bba15c73c",
+      "description": "Build an operational preparation checklist for website policies, refunds, fulfillment, billing disclosures, currency handling, UK and EEA authentication questions, reconciliation, and provider questions. Does not collect documents and does not mean legal compliance, underwriting approval, or product",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "plan_currency_settlement",
+      "descriptionHash": "ed7ae876111588e61acbc6fb6aad6914398922c2fcdb40ed7a954a5590a4b0b1",
+      "description": "Build a route table from customer payment currencies to desired settlement currencies. Says whether conversion is required and whether a route is documented. Uses only caller-supplied amounts and exchange-rate assumptions. Does not invent rates or fees. States PayFresco's approved reserve (10%, 90-d"
+    },
+    {
+      "name": "check_eligibility",
+      "descriptionHash": "3b78c6e2c13c6839241aedee9bd624c1a4d1645c5e102eb377c51ad6fe4e61a4",
+      "description": "Quick qualitative screen of whether a business can apply to PayFresco, from registration country, customer markets, business category, monthly volume band, and processing history. Uses the capability catalog, including sanctioned-jurisdiction and app-prohibited category rules. Returns no_blocker_fou",
+      "labels": [
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "estimate_payout_schedule",
+      "descriptionHash": "315a01887c847a7588e55c3f539ab7385443e576dc3e936437941caa78f87f14",
+      "description": "Illustrate PayFresco's 10% reserve on a 90-day rolling basis and its T+2 Monday, Wednesday, and Friday payout cadence using a monthly volume the user supplies, with an optional fee percentage the user supplies. Shows reserve held, released, and balance by month, and an example payout week. Set show_"
+    },
+    {
+      "name": "application_handoff",
+      "descriptionHash": "ed571e2e55b011e36e3f708d5d1e3d9e6d1837589fae2d66970f6b27624b6b6b",
+      "description": "Turn business facts already discussed into answers the user can copy into PayFresco's application form, list what to enter only on PayFresco's own site, and give the apply link. Runs the same eligibility screen first. Does not fill in, submit, or send an application, does not contact anyone, and nev",
+      "labels": [
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "application_readiness",
+      "descriptionHash": "e8cdd87bced4879033325b8ae5149ec80a01db6a926a2ecfa4781555667cb816",
+      "description": "Self-check of what a business has prepared before applying to PayFresco: registration documents, a live website with products and prices, a published refund policy, a product description, a volume estimate, processing statements, and, if relevant, an explanation of a previous account closure. Return",
+      "labels": [
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "start_application",
+      "descriptionHash": "2908f31362eb4901d66ecc7012d54de259195414cad32550352b9420fff137a2",
+      "description": "Send the merchant's application request to the PayFresco team so they can follow up. This is the only tool that sends data. Before calling it you MUST: (1) ask whether the merchant wants PayFresco to contact them about an application; (2) collect only name, business name, email, an optional Telegram",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink"
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOOL-POISON-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description issues instructions to the model",
+      "detail": "Description of \"start_application\" contains imperative instructions directed at the AI assistant rather than describing the tool. This is the core tool-poisoning technique.",
+      "evidence": {
+        "source": "tool:start_application",
+        "snippet": "Send the merchant's application request to the PayFresco team so they can follow up. This is the only tool that sends data. Before calling it you MUST: (1) ask …"
+      },
+      "confidence": 0.7,
+      "remediation": "Treat the server as untrusted; the model may obey embedded instructions."
+    },
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"start_application\" references sensitive artifacts (password). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:start_application",
+        "snippet": "Send the merchant's application request to the PayFresco team so they can follow up. This is the only tool that sends data. Before calling it you MUST: (1) ask …"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: start_application · Private data: assess_payment_setup, build_readiness_checklist, check_eligibility, application_handoff, application_readiness, start_application · Public sink: assess_payment_setup, check_eligibility, application_handoff, application_readiness, start_application.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: start_application · Private data: assess_payment_setup, build_readiness_checklist, check_eligibility, application_handoff, application_readiness, start_application · Public sink: assess_payment_setup, check_eligibility, application_handoff, application_readiness, start_application"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 50,
+  "scoreBreakdown": {
+    "tool-poisoning": 30,
+    "toxic-flow": 20
+  },
+  "errors": []
+}

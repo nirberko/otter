@@ -1,0 +1,106 @@
+{
+  "schemaVersion": 1,
+  "scanner": {
+    "version": "1.6.0",
+    "rules": "402995650b68"
+  },
+  "target": {
+    "kind": "url",
+    "ref": "https://ripey.app/mcp"
+  },
+  "scannedAt": "2026-11-03T12:01:17.202Z",
+  "durationMs": 314,
+  "layers": {
+    "metadata": true,
+    "static": false
+  },
+  "tools": [
+    {
+      "name": "open_store",
+      "descriptionHash": "375bc3b4f073d31353d3ff8f3b9aaaa7e2c88d84cfc42b2410f6832c6a2ac86d",
+      "description": "Open a new Ripey store for the user. Ask for the store name and the user's email first. Optionally takes the user's Solana wallet address (public address only, never a secret key); in test mode a demo address is used if omitted. Returns the store URL, a private dashboard link, and an agent_key: pass",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "list_products",
+      "descriptionHash": "b1c451011e2558a90faa053c5050d8da57b4924c3f0bface375538b0882c5300",
+      "description": "List the store's products with their id, price and status (draft or published). Pass the store's agent_key (returned by open_store)."
+    },
+    {
+      "name": "create_product",
+      "descriptionHash": "5588ca0fbaed3d455c4202273662aacb830a5ac1524e0f4b25daa115530b5abd",
+      "description": "Create a DRAFT product in the store. Nothing goes live: show the user the draft (name, description, price) and ask them to approve before calling publish. Pass the store's agent_key (returned by open_store).",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "publish",
+      "descriptionHash": "18db604aff7a3e33fdc961622c484a22519af485990eceb0fdbcf99fb161c291",
+      "description": "Put an approved draft on the store so buyers can purchase it. Only call this after the user approves the draft. Pass the store's agent_key (returned by open_store).",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "checkout_link",
+      "descriptionHash": "64cf10ac049610dc5e065bfddd414eddf82b6579b5d2d4a4176146b2c93477d5",
+      "description": "Return a link where a buyer can purchase a published product (opens the store with the product selected). Pass the store's agent_key (returned by open_store)."
+    },
+    {
+      "name": "sales_summary",
+      "descriptionHash": "c9a4a7a7e8cc3ff6d36a734c236ae694f3ecd993be41027725a0b1ac4acceec0",
+      "description": "Summarize the store's sales over the last N days (default 7): revenue, orders, customers and top products. Pass the store's agent_key (returned by open_store)."
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"open_store\" references sensitive artifacts (secret). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:open_store",
+        "snippet": "Open a new Ripey store for the user. Ask for the store name and the user's email first. Optionally takes the user's Solana wallet address (public address only, …"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOOL-POISON-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description issues instructions to the model",
+      "detail": "Description of \"create_product\" contains imperative instructions directed at the AI assistant rather than describing the tool. This is the core tool-poisoning technique.",
+      "evidence": {
+        "source": "tool:create_product",
+        "snippet": "Create a DRAFT product in the store. Nothing goes live: show the user the draft (name, description, price) and ask them to approve before calling publish. Pass …"
+      },
+      "confidence": 0.7,
+      "remediation": "Treat the server as untrusted; the model may obey embedded instructions."
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: open_store · Private data: open_store · Public sink: open_store, create_product, publish.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: open_store · Private data: open_store · Public sink: open_store, create_product, publish"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 50,
+  "scoreBreakdown": {
+    "tool-poisoning": 30,
+    "toxic-flow": 20
+  },
+  "errors": []
+}

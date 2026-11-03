@@ -8,8 +8,8 @@
     "kind": "url",
     "ref": "https://mcp.fiskmas.dev/mcp"
   },
-  "scannedAt": "2026-10-14T09:54:23.820Z",
-  "durationMs": 1528,
+  "scannedAt": "2026-11-03T12:04:26.445Z",
+  "durationMs": 1301,
   "layers": {
     "metadata": true,
     "static": false
@@ -85,8 +85,8 @@
     },
     {
       "name": "set_env",
-      "descriptionHash": "4bcbd627b2e1b78b24bd8de7a5eac2d60148a7923a8f0c3b5fc5fa3fec88f28c",
-      "description": "Set environment variables on a project. They take effect on the next deploy_project: a restart does NOT re-apply env.",
+      "descriptionHash": "70c186d967d9fab7143eb6473076e1fee7859e100410f3759cd8517b6e8080ce",
+      "description": "Merge environment variables into a project (existing keys are kept). They take effect on the next deploy_project: a restart does NOT re-apply env. The platform-injected DATABASE_URL/MYSQL_* are protected: set_env rejects overriding them and never drops them.",
       "labels": [
         "private-data"
       ]
@@ -145,6 +145,19 @@
       "description": "Account-wide or per-project stats for debugging: live CPU/mem vs the plan caps (Free: 256 MB / 0.2 CPU, Plus: 512 MB / 1 CPU) and deploy history. Omit `project` for all of the caller's projects; pass a project id or slug NaNalso returns `resources.history` — per-project CPU/mem time series over the "
     },
     {
+      "name": "database_dump",
+      "descriptionHash": "f6f9d26be968db67af41ae1abbc744600c4c72d6e84b32c8b09ece2ae5a89f23",
+      "description": "Export the project's platform-provisioned database: starts a cluster-side dump Job in your own tenant namespace (mariadb-dump --single-transaction, zstd-compressed; gzip fallback) writing a compressed artifact to your tenant artifact store. Small dumps finish inline and return metadata + a presigned",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "dump_status",
+      "descriptionHash": "c62e9502230de144751ebf441936e4270bd2901a9b2d84d102395938dfc41612",
+      "description": "Report one database_dump job: status pending|running|done|failed. When done, includes the artifact size/compression and the presigned download URL (expires ~24 h after the dump started; null once expired — request a new dump). When failed, includes the error reason. Poll this after database_dump ret"
+    },
+    {
       "name": "send_feedback",
       "descriptionHash": "f67a6eac9ece9cb4db406deeec0b70f34674f78f57a87a9748c6f4dcbe895c25",
       "description": "Report a problem with the Fiskmås toolset so it can be fixed. Use it when a tool errored or misbehaved, you got stuck and can't proceed, or the instructions/skill were unclear. Do NOT use it for praise. kind=bug means it broke, kind=suggestion means it was unclear or could be better, kind=other is a",
@@ -184,7 +197,7 @@
       "detail": "Description of \"set_env\" references sensitive artifacts (environment variable). A tool description has no reason to mention credentials.",
       "evidence": {
         "source": "tool:set_env",
-        "snippet": "Set environment variables on a project. They take effect on the next deploy_project: a restart does NOT re-apply env."
+        "snippet": "Merge environment variables into a project (existing keys are kept). They take effect on the next deploy_project: a restart does NOT re-apply env. The platform-…"
       },
       "confidence": 0.65
     },
@@ -205,18 +218,31 @@
       "severity": "high",
       "category": "toxic-flow",
       "title": "Lethal trifecta: untrusted input + private data + external sink",
-      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: list_projects, get_status · Private data: whoami, create_account, reissue_token, set_env, list_env, restart_project · Public sink: create_account, account_status, reissue_token, send_feedback · Destructive: delete_account, delete_project, deploy_project, restart_project.",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: list_projects, get_status · Private data: whoami, create_account, reissue_token, set_env, list_env, restart_project, database_dump · Public sink: create_account, account_status, reissue_token, send_feedback · Destructive: delete_account, delete_project, deploy_project, restart_project.",
       "evidence": {
         "source": "server:mcp",
-        "snippet": "Untrusted content: list_projects, get_status · Private data: whoami, create_account, reissue_token, set_env, list_env, restart_project · Public sink: create_account, account_status, reissue_token, send_feedback · Destructive: delete_account, delete_project, deploy_project, restart_project"
+        "snippet": "Untrusted content: list_projects, get_status · Private data: whoami, create_account, reissue_token, set_env, list_env, restart_project, database_dump · Public sink: create_account, account_status, reissue_token, send_feedback · Destructive: delete_account, delete_project, deploy_project, restart_project"
       },
       "confidence": 0.6,
       "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"set_env\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:set_env",
+        "snippet": "before: \"Set environment variables on a project. They take effect on the next deploy_project: a restart does NOT re-apply env.\" → after: \"Merge environment variables into a project (existing keys are kept). They take effect on the next deploy_project: a restart does NOT re-apply env. The platform-injected DATABASE_URL/MYSQL_* are protected: set_env rejects overriding them and never drops them.\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
     }
   ],
-  "score": 45,
+  "score": 43,
   "scoreBreakdown": {
-    "tool-poisoning": 35,
+    "tool-poisoning": 38,
     "toxic-flow": 20
   },
   "errors": []

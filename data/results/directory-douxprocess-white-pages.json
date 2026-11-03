@@ -8,8 +8,8 @@
     "kind": "url",
     "ref": "https://douxprocess.directory/mcp"
   },
-  "scannedAt": "2026-10-24T09:03:45.616Z",
-  "durationMs": 510,
+  "scannedAt": "2026-11-03T12:04:44.072Z",
+  "durationMs": 2218,
   "layers": {
     "metadata": true,
     "static": false
@@ -56,6 +56,55 @@
       "name": "request_service",
       "descriptionHash": "1a36466efd1746c61f7c82721901f98650650cc0bbddb89cf389a725a1413df7",
       "description": "Open the request form for one business the person chose (ChatGPT local services Get Quote). The form shows the consent sentence and sends only when the person ticks it. For a business that does not take requests it shows the business's own phone and website."
+    },
+    {
+      "name": "license_history",
+      "descriptionHash": "3ad29840819e47d7e7c80038d927c25438b6b4d131d849ab28d676f8e6231426",
+      "description": "A California contractor license's record in the CSLB's public file, and every change since the directory began reading it daily: status and suspensions, workers' comp type and dates, bond amounts and dates, classes, expiry. Give a CSLB license number or a listing link. It never includes an insurer, ",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "watch_licenses",
+      "descriptionHash": "cb5778e3519c2e22270ced6a4b64cfca84b2f905327c76073e60cd07c955214b",
+      "description": "Emails the person a link to watch these CSLB licenses: once they open it, they get one short email on any day something changes on one (status, workers' comp, bonds, classes, expiry). Nothing is watched until the person opens the link. Use the person's own email, only when they asked. Free watches 2",
+      "labels": [
+        "untrusted-content",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "verify_business",
+      "descriptionHash": "49414e510d647afa62708508b9155b3dd360edcfa12de1e74bb03633bb20c49e",
+      "description": "Is this business licensed, bonded and insured today, from the government record. Give a listing slug, a license number, or a business name with its two-letter state. Returns licensed, bonded and insured as true, false or null (the record does not say), each with its source, checked_at day and record",
+      "labels": [
+        "untrusted-content",
+        "private-data"
+      ]
+    },
+    {
+      "name": "watch_business",
+      "descriptionHash": "9aa44698fe0980f355c2b5c3f0ddb4607062dfb942ea72986cebef2a5cee7e8d",
+      "description": "Emails the person a link to watch up to 25 listings free: once they open it, they get one short email on any day the board's record changes (status, workers' comp, bonds, classes, expiry). CSLB contractors only. Use the person's own email, only when they asked. Before calling, show them this and get",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "request_quotes",
+      "descriptionHash": "7a6078545c49aa2e0f2e82ddda46481594d709388d9a960ff66ad892460d06b9",
+      "description": "Sends the person's request to up to 3 licensed contractors near them who use Luma (the contractor app DouxProcess Inc. builds), Luma Pro members first, and returns the other matches with their own contact details. Call it once without consent to get consent_text and the disclosure, show both to the ",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "book_estimate",
+      "descriptionHash": "c2173b4cc387891aa672f89e883f83fd3b0f1d9d1aa39b137bc7d1870abcb7c1",
+      "description": "Books an estimate visit with ONE contractor the person chose whose listing shows luma.books_online. The contractor calls the person to confirm the time. Call it once without consent to get consent_text, show it, and call again with consent=true only if they agree."
     }
   ],
   "findings": [
@@ -83,11 +132,50 @@
         "snippet": "Sends the person's request to the ONE business they chose, so it can reply to them. Only claimed listings take requests, and health businesses never do. Before …"
       },
       "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOOL-POISON-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description issues instructions to the model",
+      "detail": "Description of \"watch_business\" contains imperative instructions directed at the AI assistant rather than describing the tool. This is the core tool-poisoning technique.",
+      "evidence": {
+        "source": "tool:watch_business",
+        "snippet": "Emails the person a link to watch up to 25 listings free: once they open it, they get one short email on any day the board's record changes (status, workers' co…"
+      },
+      "confidence": 0.7,
+      "remediation": "Treat the server as untrusted; the model may obey embedded instructions."
+    },
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"request_quotes\" references sensitive artifacts (password). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:request_quotes",
+        "snippet": "Sends the person's request to up to 3 licensed contractors near them who use Luma (the contractor app DouxProcess Inc. builds), Luma Pro members first, and retu…"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: watch_licenses, verify_business, watch_business · Private data: get_business, request_contact, license_history, verify_business, watch_business, request_quotes · Public sink: get_business, watch_licenses, watch_business.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: watch_licenses, verify_business, watch_business · Private data: get_business, request_contact, license_history, verify_business, watch_business, request_quotes · Public sink: get_business, watch_licenses, watch_business"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
     }
   ],
-  "score": 70,
+  "score": 43,
   "scoreBreakdown": {
-    "tool-poisoning": 30
+    "tool-poisoning": 38,
+    "toxic-flow": 20
   },
   "errors": []
 }
