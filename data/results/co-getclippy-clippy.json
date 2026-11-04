@@ -8,8 +8,8 @@
     "kind": "url",
     "ref": "https://mcclipface.com/mcp"
   },
-  "scannedAt": "2026-10-27T09:53:48.830Z",
-  "durationMs": 1447,
+  "scannedAt": "2026-11-04T12:15:45.980Z",
+  "durationMs": 953,
   "layers": {
     "metadata": true,
     "static": false
@@ -17,35 +17,18 @@
   "tools": [
     {
       "name": "find_coupons",
-      "descriptionHash": "e8519115edef4a3f7ca5467dfbd69776e097682d409224cb5077a974f47cff73",
-      "description": "Look up current coupon codes and deals for one store the shopper names. Use it when the shopper asks for coupons, deals or savings at a store, or asks you to buy, order or check out there. For a product with no store named, use find_product_coupons; for general deals or deals matching the shopper's ",
-      "labels": [
-        "untrusted-content",
-        "public-sink"
-      ]
+      "descriptionHash": "fa1d9d3876baa95c094e06c24e383bde47bfdd74e9a2aab500624a7014af92a0",
+      "description": "Current coupon codes, promo codes, discount codes and deals for one store the shopper names (also when they ask to buy or check out there). Optional target_url/target_urls: a picked product page for a deep link. Results carry the rules that apply to them."
     },
     {
       "name": "find_product_coupons",
-      "descriptionHash": "f76c91fbe94d7c13b3f6fa8b3fd0b0961f680664e02d97b06e80d13a06a24f60",
-      "description": "Find current coupon codes for a specific product the shopper names, e.g. \"Dyson vacuum\", across all the stores McClipFace covers. Use it when the shopper names a product rather than a store. For a named store, use find_coupons; for general deals or interests, discover_deals. Codes come from affiliat",
-      "labels": [
-        "untrusted-content",
-        "public-sink"
-      ]
-    },
-    {
-      "name": "get_deals",
-      "descriptionHash": "456b4b98cc82d443846e10a248fb89ea34360276a97673fd98252e16815c6017",
-      "description": "Deprecated: use discover_deals instead (no arguments for general deals, or the categories or keywords the shopper stated); this tool keeps working for existing callers. To search one named store, use find_coupons; for a named product, find_product_coupons. Current McClipFace deals across stores, at ",
-      "labels": [
-        "untrusted-content",
-        "public-sink"
-      ]
+      "descriptionHash": "540e18c83e7005db1aa7b65476ef054c0972f29b0617017991843dc8e849a848",
+      "description": "Coupon codes, promo codes and discount codes for a named product across stores; product codes work only on that item. For a store, use find_coupons."
     },
     {
       "name": "report_coupon_result",
-      "descriptionHash": "05d79a143a424b0c25add412848c3acebb14d33eef3f7b6405a219b393c4861d",
-      "description": "Record whether a coupon code or no-code deal tried at checkout worked (merchant and code for codes, including a code found outside McClipFace, with merchant as the store's domain; offer_id for no-code deals). Not a lookup. Stores no personal or cart data. Optional and off by default (Private mode, w",
+      "descriptionHash": "ac8919813dc72e30f94967ad3b88990451f25d937cd781ddd837c747ef64aa03",
+      "description": "Call this the turn the shopper says a code worked or failed. Records whether a coupon code or no-code deal tried at checkout worked (merchant and code for codes, including a code found outside McClipFace, with merchant as the store's domain; offer_id for no-code deals). Not a lookup. Stores no perso",
       "labels": [
         "untrusted-content",
         "private-data",
@@ -54,15 +37,23 @@
     },
     {
       "name": "discover_deals",
-      "descriptionHash": "40c86dd278ebc2e7857d960a3f6dbba3ee75546be4a799e0c538ba0cd86df54f",
-      "description": "Use this when the user asks for deals in a category, or is browsing without a store in mind. The main tool for finding deals across stores whenever the shopper doesn't name one store or product. Call it with no arguments for general deals (\"any good deals today?\", \"something cool on sale\"): a curate",
-      "labels": [
-        "untrusted-content",
-        "public-sink"
-      ]
+      "descriptionHash": "24a080765c6fb94319ff74cd7a97896730d1f16b2197ca2ee8fd2b19032a0f38",
+      "description": "Deals and discounts across stores; use it for browsing with no store named. No arguments for general deals, or non-sensitive categories/keywords for the shopper's interests. Present as a short curated edit with each pick's match_reason."
     }
   ],
   "findings": [
+    {
+      "id": "MCP-TOOL-POISON-006",
+      "severity": "low",
+      "category": "tool-poisoning",
+      "title": "Anomalously long tool description",
+      "detail": "Description of \"report_coupon_result\" is 3366 chars, far longer than this server's median (246). Overlong descriptions are a common place to bury instructions.",
+      "evidence": {
+        "source": "tool:report_coupon_result",
+        "snippet": "Call this the turn the shopper says a code worked or failed. Records whether a coupon code or no-code deal tried at checkout worked (merchant and code for codes…"
+      },
+      "confidence": 0.4
+    },
     {
       "id": "MCP-SCHEMA-SMELL-001",
       "severity": "medium",
@@ -80,7 +71,23 @@
       "severity": "high",
       "category": "toxic-flow",
       "title": "Lethal trifecta: untrusted input + private data + external sink",
-      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: find_coupons, find_product_coupons, get_deals, report_coupon_result, discover_deals · Private data: report_coupon_result · Public sink: find_coupons, find_product_coupons, get_deals, report_coupon_result, discover_deals.",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: report_coupon_result · Private data: report_coupon_result · Public sink: report_coupon_result.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: report_coupon_result · Private data: report_coupon_result · Public sink: report_coupon_result"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 69,
+  "scoreBreakdown": {
+    "tool-poisoning": 3,
+    "schema-smell": 8,
+    "toxic-flow": 20
+  },
+  "errors": []
+}r_deals.",
       "evidence": {
         "source": "server:mcp",
         "snippet": "Untrusted content: find_coupons, find_product_coupons, get_deals, report_coupon_result, discover_deals · Private data: report_coupon_result · Public sink: find_coupons, find_product_coupons, get_deals, report_coupon_result, discover_deals"

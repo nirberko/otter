@@ -8,8 +8,8 @@
     "kind": "url",
     "ref": "https://company-enrich-72343955726.us-central1.run.app/mcp/company-enrich"
   },
-  "scannedAt": "2026-10-13T12:05:56.061Z",
-  "durationMs": 243,
+  "scannedAt": "2026-11-04T12:27:10.741Z",
+  "durationMs": 248,
   "layers": {
     "metadata": true,
     "static": false
@@ -17,23 +17,68 @@
   "tools": [
     {
       "name": "enrich_company_domain",
-      "descriptionHash": "462c009cd37bb2803bf18b5d07d4947ebf9c1dc2bd5f3d68cb3117566746a657",
-      "description": "B2B Company, Tech Stack & Contact Lead Enrichment (0.02 USDC via x402): Extracts verified emails, social links, 40+ tech stack signals, pricing tiers, and company summary.",
+      "descriptionHash": "dff89c9dd2f14a381bc06df0590574a836c8edb0fba1051c71b7c19428eb6fa9",
+      "description": "Extracts verified emails, social links, 40+ tech stack signals, pricing tiers, and company summary for GTM & research agents. WHEN TO USE: Call `enrich_company_domain` when your task requires deterministic `company-enrich` analysis for `domain`; use `get_agent_wallet_status` to check your remaining ",
       "labels": [
-        "private-data"
+        "untrusted-content"
       ]
     },
     {
       "name": "get_agent_wallet_status",
-      "descriptionHash": "80ec610e59e6305031c21c8b7b856c59cf4752e69316f5570a7fa98afe815881",
-      "description": "Returns the calling agent's remaining free quota, USD balance, and total tokens saved.",
+      "descriptionHash": "2ba154caf98dd04808495e56e49c0db94a0d248d084666e40ff2b82f912fcae4",
+      "description": "Inspect an agent's account ledger: remaining free trial calls (out of 5), prepaid USD balance, cumulative spend, total API calls, and total LLM tokens saved. WHEN TO USE: Call before a batch of paid tool executions or after completing a Stripe or USDC top-up to confirm your balance. WHEN NOT TO USE:",
       "labels": [
-        "private-data"
+        "private-data",
+        "public-sink",
+        "destructive"
       ]
     }
   ],
-  "findings": [],
-  "score": 100,
-  "scoreBreakdown": {},
+  "findings": [
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"company-enrich\" exposes tools that together enable an exfiltration flow. Untrusted content: enrich_company_domain · Private data: get_agent_wallet_status · Public sink: get_agent_wallet_status · Destructive: get_agent_wallet_status.",
+      "evidence": {
+        "source": "server:company-enrich",
+        "snippet": "Untrusted content: enrich_company_domain · Private data: get_agent_wallet_status · Public sink: get_agent_wallet_status · Destructive: get_agent_wallet_status"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"enrich_company_domain\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:enrich_company_domain",
+        "snippet": "before: \"B2B Company, Tech Stack & Contact Lead Enrichment (0.02 USDC via x402): Extracts verified emails, social links, 40+ tech stack signals, pricing tiers, and company summary.\" → after: \"Extracts verified emails, social links, 40+ tech stack signals, pricing tiers, and company summary for GTM & research agents. WHEN TO USE: Call `enrich_company_domain` when your task requires deterministic `company-enrich` analysis for `domain`; use `get_agent_wallet_status` to check your remaining \""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"get_agent_wallet_status\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:get_agent_wallet_status",
+        "snippet": "before: \"Returns the calling agent's remaining free quota, USD balance, and total tokens saved.\" → after: \"Inspect an agent's account ledger: remaining free trial calls (out of 5), prepaid USD balance, cumulative spend, total API calls, and total LLM tokens saved. WHEN TO USE: Call before a batch of paid tool executions or after completing a Stripe or USDC top-up to confirm your balance. WHEN NOT TO USE:\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    }
+  ],
+  "score": 50,
+  "scoreBreakdown": {
+    "toxic-flow": 20,
+    "tool-poisoning": 30
+  },
   "errors": []
 }

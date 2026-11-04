@@ -8,8 +8,8 @@
     "kind": "url",
     "ref": "https://finestructure.ai/api/mcp"
   },
-  "scannedAt": "2026-10-09T11:25:00.220Z",
-  "durationMs": 660,
+  "scannedAt": "2026-11-04T12:14:46.435Z",
+  "durationMs": 303,
   "layers": {
     "metadata": true,
     "static": false
@@ -183,8 +183,11 @@
     },
     {
       "name": "list_apps",
-      "descriptionHash": "eba32f36d0f6f8664b84846ea7145a2c22e2e6ac9c17250f78d80d9103862808",
-      "description": "List applications owned by the authenticated user, newest activity first. Returns up to `limit` apps per call plus the total count; page with `offset` when the account has more."
+      "descriptionHash": "980d1a879d3070a048d49ff7b226fc076dde0aeb7d1661c858b830b791e9a6f8",
+      "description": "List owned and accepted Studio-shared applications, newest activity first. Returns up to `limit` apps per call plus the total count; page with `offset` when the account has more. Accepted editors can edit shared source; viewers can read it. Publishing, records, domains and security administration re",
+      "labels": [
+        "private-data"
+      ]
     },
     {
       "name": "get_app_files",
@@ -630,6 +633,23 @@
       ]
     },
     {
+      "name": "preview_saved_version",
+      "descriptionHash": "ca9cf5d11d1f0ea356a55fd910aeb6ad42d766a4dfd5a935a0eabe724461079f",
+      "description": "Prepare an isolated read-only Saved Version preview, if enabled by the deployment. Returns compiled files for an offline sandbox, never restores files or reads live records. Never execute the returned program with host credentials. Requires app access and versions:read.",
+      "labels": [
+        "private-data",
+        "destructive"
+      ]
+    },
+    {
+      "name": "set_agent_owner_relay",
+      "descriptionHash": "58da5428e16d88621c37419dba6d1222a5f06b0b000d75f4b0404a596e8c7c46",
+      "description": "Set the owner's consent for one owned agent to relay reports from another owned agent (or all sources with '*'). Uses the same preference as the agent screen. Does not send a message or grant access to customer conversations.",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
       "name": "create_agent",
       "descriptionHash": "71dddfb55281a8240bc17a52ba3595037db0c3e56f6e3c9cf4e15ed2e9df4e91",
       "description": "Create an autonomous AI agent on the user's Fine Structure account: a standing worker, not a chat session. It gets the platform's default safe tool policy and its own email address, it can read and write the app database, and once the owner phone is verified (see get_agent_whatsapp) it can message i",
@@ -646,8 +666,11 @@
     },
     {
       "name": "schedule_agent_task",
-      "descriptionHash": "e725257c812dc32a1a755b20001c4f13c9acce207ebed1ba87857ce82daec729",
-      "description": "Create a scheduled task for one of the user's agents. Supported schedule types: once (run_at ISO local time + timezone), interval (interval_minutes 5-1440), hourly, daily (time HH:MM + timezone), weekly (time + timezone + days_of_week 0=Sunday..6), cron (5-field expression + timezone), manual (only "
+      "descriptionHash": "2b25f554a1d3f4268890ba18cfde7ae3e999024fa29b668d11e6462c0a1add7f",
+      "description": "Create a scheduled task for one of the user's agents. Supported schedule types: once (run_at ISO local time + timezone), interval (interval_minutes 5-1440), hourly, daily (time HH:MM + timezone), weekly (time + timezone + days_of_week 0=Sunday..6), cron (5-field expression + timezone), manual (only ",
+      "labels": [
+        "private-data"
+      ]
     },
     {
       "name": "list_agent_tasks",
@@ -681,6 +704,36 @@
       "name": "detach_agent_whatsapp",
       "descriptionHash": "76a85c35aa5c6ec739b881052d9f56c7926fbf24999311cbae9415f3255edb74",
       "description": "Disconnect the owner's WhatsApp route from a platform number. Removes only this account's route; other accounts sharing the number keep theirs."
+    },
+    {
+      "name": "list_agent_conversations",
+      "descriptionHash": "ddcc03c52437e705b4f95b8be22050293f4a1726fb70a91ba3d60d95edfc3947",
+      "description": "List recent visible conversations belonging to one of your agents. Use get_agent_conversation to read replies and results."
+    },
+    {
+      "name": "send_agent_message",
+      "descriptionHash": "ca30706b58b8e46840c001a0906360af60a7e37bbbbbda7a5f244ceaf2fc7815",
+      "description": "Talk to an existing agent or assign it work using its normal tools, memory, permissions and team. Omit conversation_id to start a new owner conversation; supply it to continue one. Returns acceptance and a durable task_id immediately, NOT a completed answer. Poll get_agent_task and read get_agent_co",
+      "labels": [
+        "untrusted-content",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "get_agent_conversation",
+      "descriptionHash": "795f22cf99448b72cf846bae026e4f758a3942d66c42885492e961609d8ab3db",
+      "description": "Read visible messages, answers and result links in an owned agent's conversation. Returns the newest page in chronological order. For older history, pass next_before_id as before_id. For new replies, omit before_id.",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "get_agent_task",
+      "descriptionHash": "880167c4bae08d2fc712723aab9eb072e7fa689c6461b51e35a58b77ba499bb2",
+      "description": "Check a durable task returned by send_agent_message or list_agent_tasks. Includes the latest execution status and pending approvals, including before a run starts. Task scheduling state is separate from run outcome. Read the conversation for the actual answer; accepted/queued is not completed. Appro",
+      "labels": [
+        "destructive"
+      ]
     }
   ],
   "findings": [
@@ -842,50 +895,32 @@
       "confidence": 0.65
     },
     {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"preview_saved_version\" references sensitive artifacts (credentials). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:preview_saved_version",
+        "snippet": "Prepare an isolated read-only Saved Version preview, if enabled by the deployment. Returns compiled files for an offline sandbox, never restores files or reads …"
+      },
+      "confidence": 0.65
+    },
+    {
       "id": "MCP-TOXIC-FLOW-001",
       "severity": "high",
       "category": "toxic-flow",
       "title": "Lethal trifecta: untrusted input + private data + external sink",
-      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: publish_app, get_app_status, get_errors, get_preview_url, get_app_security_context, create_platform_request, invite_app_member, get_app_metadata, set_app_metadata, create_agent · Private data: agency_create_client, agency_list_clients, agency_get_claim_status, publish_app, get_platform_guide, get_recommended_workflow, get_app_status, add_custom_domain, get_domain_verification, get_domain_ssl_status, get_app_files, read_app_file, read_app_files, write_app_file, patch_app_file, rename_app_file, get_app_detail, get_entities, query_entity, seed_entity, create_entity_records, update_entity_record, update_entity_records, delete_entity_records, get_pages, create_change_set, add_file_change, validate_change_set, discard_change_set, get_app_security_context, set_function_policy, invoke_function, create_platform_request, invite_app_member, compare_saved_versions, compare_current_to_version, restore_file_from_version, create_entity_schema, update_entity_schema, update_entity_metadata, list_secret_keys, set_secret, delete_secret, list_integrations, configure_integration, set_app_metadata, create_agent · Public sink: agency_create_client_app, agency_create_claim_link, publish_app, get_app_links, list_app_domains, get_app_security_context, set_function_policy, set_app_metadata, create_agent, start_owner_phone_verification · Destructive: set_app_subdomain, remove_custom_domain, patch_app_file, rename_app_file, delete_entity_records, add_file_change, validate_app, invoke_function, create_platform_request, set_entity_policy, remove_app_member, delete_secret, delete_ab_test.",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: publish_app, get_app_status, get_errors, get_preview_url, get_app_security_context, create_platform_request, invite_app_member, get_app_metadata, set_app_metadata, create_agent, send_agent_message, get_agent_conversation · Private data: agency_create_client, agency_list_clients, agency_get_claim_status, publish_app, get_platform_guide, get_recommended_workflow, get_app_status, add_custom_domain, get_domain_verification, get_domain_ssl_status, list_apps, get_app_files, read_app_file, read_app_files, write_app_file, patch_app_file, rename_app_file, get_app_detail, get_entities, query_entity, seed_entity, create_entity_records, update_entity_record, update_entity_records, delete_entity_records, get_pages, create_change_set, add_file_change, validate_change_set, discard_change_set, get_app_security_context, set_function_policy, invoke_function, create_platform_request, invite_app_member, compare_saved_versions, compare_current_to_version, restore_file_from_version, create_entity_schema, update_entity_schema, update_entity_metadata, list_secret_keys, set_secret, delete_secret, list_integrations, configure_integration, set_app_metadata, preview_saved_version, create_agent, schedule_agent_task · Public sink: agency_create_client_app, agency_create_claim_link, publish_app, get_app_links, list_app_domains, get_app_security_context, set_function_policy, set_app_metadata, set_agent_owner_relay, create_agent, start_owner_phone_verification, send_agent_message · Destructive: set_app_subdomain, remove_custom_domain, patch_app_file, rename_app_file, delete_entity_records, add_file_change, validate_app, invoke_function, create_platform_request, set_entity_policy, remove_app_member, delete_secret, delete_ab_test, preview_saved_version, get_agent_task.",
       "evidence": {
         "source": "server:mcp",
-        "snippet": "Untrusted content: publish_app, get_app_status, get_errors, get_preview_url, get_app_security_context, create_platform_request, invite_app_member, get_app_metadata, set_app_metadata, create_agent · Private data: agency_create_client, agency_list_clients, agency_get_claim_status, publish_app, get_platform_guide, get_recommended_workflow, get_app_status, add_custom_domain, get_domain_verification, get_domain_ssl_status, get_app_files, read_app_file, read_app_files, write_app_file, patch_app_file, rename_app_file, get_app_detail, get_entities, query_entity, seed_entity, create_entity_records, update_entity_record, update_entity_records, delete_entity_records, get_pages, create_change_set, add_file_change, validate_change_set, discard_change_set, get_app_security_context, set_function_policy, invoke_function, create_platform_request, invite_app_member, compare_saved_versions, compare_current_to_version, restore_file_from_version, create_entity_schema, update_entity_schema, update_entity_metadata, list_secret_keys, set_secret, delete_secret, list_integrations, configure_integration, set_app_metadata, create_agent · Public sink: agency_create_client_app, agency_create_claim_link, publish_app, get_app_links, list_app_domains, get_app_security_context, set_function_policy, set_app_metadata, create_agent, start_owner_phone_verification · Destructive: set_app_subdomain, remove_custom_domain, patch_app_file, rename_app_file, delete_entity_records, add_file_change, validate_app, invoke_function, create_platform_request, set_entity_policy, remove_app_member, delete_secret, delete_ab_test"
-      },
-      "confidence": 0.6,
-      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
-    }
-  ],
-  "score": 31,
-  "scoreBreakdown": {
-    "tool-poisoning": 49,
-    "toxic-flow": 20
-  },
-  "errors": []
-}errors, get_preview_url, get_app_security_context, create_platform_request, invite_app_member, get_app_metadata, set_app_metadata, create_agent, send_agent_message, get_agent_conversation · Private data: agency_create_client, agency_list_clients, agency_get_claim_status, publish_app, get_platform_guide, get_recommended_workflow, get_app_status, add_custom_domain, get_domain_verification, get_domain_ssl_status, get_app_files, read_app_file, read_app_files, write_app_file, patch_app_file, rename_app_file, get_app_detail, get_entities, query_entity, seed_entity, create_entity_records, update_entity_record, update_entity_records, delete_entity_records, get_pages, create_change_set, add_file_change, validate_change_set, discard_change_set, get_app_security_context, set_function_policy, invoke_function, create_platform_request, invite_app_member, compare_saved_versions, compare_current_to_version, restore_file_from_version, create_entity_schema, update_entity_schema, update_entity_metadata, list_secret_keys, set_secret, delete_secret, list_integrations, configure_integration, set_app_metadata, create_agent · Public sink: agency_create_client_app, agency_create_claim_link, publish_app, get_app_links, list_app_domains, get_app_security_context, set_function_policy, set_app_metadata, create_agent, start_owner_phone_verification, send_agent_message · Destructive: set_app_subdomain, remove_custom_domain, patch_app_file, rename_app_file, delete_entity_records, add_file_change, validate_app, invoke_function, create_platform_request, set_entity_policy, remove_app_member, delete_secret, delete_ab_test, get_agent_task"
-      },
-      "confidence": 0.6,
-      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
-    }
-  ],
-  "score": 31,
-  "scoreBreakdown": {
-    "tool-poisoning": 49,
-    "toxic-flow": 20
-  },
-  "errors": []
-}p_metadata, create_agent, send_agent_message, get_agent_conversation · Private data: agency_create_client, agency_list_clients, agency_get_claim_status, publish_app, get_platform_guide, get_recommended_workflow, get_app_status, add_custom_domain, get_domain_verification, get_domain_ssl_status, list_apps, get_app_files, read_app_file, read_app_files, write_app_file, patch_app_file, rename_app_file, get_app_detail, get_entities, query_entity, seed_entity, create_entity_records, update_entity_record, update_entity_records, delete_entity_records, get_pages, create_change_set, add_file_change, validate_change_set, discard_change_set, get_app_security_context, set_function_policy, invoke_function, create_platform_request, invite_app_member, compare_saved_versions, compare_current_to_version, restore_file_from_version, create_entity_schema, update_entity_schema, update_entity_metadata, list_secret_keys, set_secret, delete_secret, list_integrations, configure_integration, set_app_metadata, preview_saved_version, create_agent · Public sink: agency_create_client_app, agency_create_claim_link, publish_app, get_app_links, list_app_domains, get_app_security_context, set_function_policy, set_app_metadata, set_agent_owner_relay, create_agent, start_owner_phone_verification, send_agent_message · Destructive: set_app_subdomain, remove_custom_domain, patch_app_file, rename_app_file, delete_entity_records, add_file_change, validate_app, invoke_function, create_platform_request, set_entity_policy, remove_app_member, delete_secret, delete_ab_test, preview_saved_version, get_agent_task"
+        "snippet": "Untrusted content: publish_app, get_app_status, get_errors, get_preview_url, get_app_security_context, create_platform_request, invite_app_member, get_app_metadata, set_app_metadata, create_agent, send_agent_message, get_agent_conversation · Private data: agency_create_client, agency_list_clients, agency_get_claim_status, publish_app, get_platform_guide, get_recommended_workflow, get_app_status, add_custom_domain, get_domain_verification, get_domain_ssl_status, list_apps, get_app_files, read_app_file, read_app_files, write_app_file, patch_app_file, rename_app_file, get_app_detail, get_entities, query_entity, seed_entity, create_entity_records, update_entity_record, update_entity_records, delete_entity_records, get_pages, create_change_set, add_file_change, validate_change_set, discard_change_set, get_app_security_context, set_function_policy, invoke_function, create_platform_request, invite_app_member, compare_saved_versions, compare_current_to_version, restore_file_from_version, create_entity_schema, update_entity_schema, update_entity_metadata, list_secret_keys, set_secret, delete_secret, list_integrations, configure_integration, set_app_metadata, preview_saved_version, create_agent, schedule_agent_task · Public sink: agency_create_client_app, agency_create_claim_link, publish_app, get_app_links, list_app_domains, get_app_security_context, set_function_policy, set_app_metadata, set_agent_owner_relay, create_agent, start_owner_phone_verification, send_agent_message · Destructive: set_app_subdomain, remove_custom_domain, patch_app_file, rename_app_file, delete_entity_records, add_file_change, validate_app, invoke_function, create_platform_request, set_entity_policy, remove_app_member, delete_secret, delete_ab_test, preview_saved_version, get_agent_task"
       },
       "confidence": 0.6,
       "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
     }
   ],
   "score": 30,
-  "scoreBreakdown": {
-    "tool-poisoning": 50,
-    "toxic-flow": 20
-  },
-  "errors": []
-}
   "scoreBreakdown": {
     "tool-poisoning": 50,
     "toxic-flow": 20

@@ -8,8 +8,8 @@
     "kind": "url",
     "ref": "https://yield.trdefi.com/mcp"
   },
-  "scannedAt": "2026-10-09T11:34:52.101Z",
-  "durationMs": 2070,
+  "scannedAt": "2026-11-04T12:28:13.765Z",
+  "durationMs": 502,
   "layers": {
     "metadata": true,
     "static": false
@@ -30,8 +30,8 @@
     },
     {
       "name": "trdefi_positions",
-      "descriptionHash": "ec7f087384ad174b9d5aaddbe204afd85a4b8d8e06be5a061c49dc4603c86089",
-      "description": "Live non-custodial stablecoin liquidity, as positions an agent can actually trade against. Earn-worthy USDC/USDT maker positions: each row carries the strategy hash, network, pair, tokens and settled volume. Use this before a stablecoin swap to find a real on-chain counterparty, or to survey where s",
+      "descriptionHash": "f1f630e90c4a33295d9b25d3e8539e0adb2d166954f162a6b3a1c7d7c7360482",
+      "description": "Live non-custodial liquidity, as positions an agent can actually trade against. Each row carries the strategy hash, network, pair, tokens, settled volume and a `quote_eligible` flag, meaning the position is router-attached and its network has a quote route. It does NOT mean the position will quote: ",
       "labels": [
         "private-data"
       ]
@@ -42,11 +42,40 @@
       "description": "One position in full, by its 32-byte strategy hash."
     },
     {
-      "name": "trdefi_quote",
-      "descriptionHash": "fa4f410bc746fe3b97b5248b4908a0c962011f735d742a8daf9894a850d52c8d",
-      "description": "Price a stablecoin swap against one position, on-chain, at the current block — no custody, nothing signed, nothing moved. Use this to check USDC/USDT liquidity and get the output amount before preparing a swap. Note that a maker may gate a position on the caller holding an access licence token, and ",
+      "name": "trdefi_position_inventory",
+      "descriptionHash": "d726c993a24b3eb81762b25e2cb7d0dfc856aa3e1f892e5425e9afba38ca613d",
+      "description": "Whether one position can actually be filled right now: the balance sitting in the strategy, the maker wallet balance behind it, and the remaining allowance, read from the chain. An Aqua virtual balance is a bookkeeping ceiling, not a reserve, so a position can answer a quote while the wallet behind ",
       "labels": [
         "private-data"
+      ]
+    },
+    {
+      "name": "trdefi_quote",
+      "descriptionHash": "8d904fffb96c71789ef07500ba48dbe4aeab1aabd8a57b992079a53971619334",
+      "description": "Price a swap against one position, on-chain, at the current block — no custody, nothing signed, nothing moved. Works on any pair the position trades, not only stablecoins. Use this to check liquidity and get the output amount before preparing a swap. If a position answers \"Strategy is gated\", the ma",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "trdefi_fusion_quote",
+      "descriptionHash": "467beccee0df8cbb9296b5cac62cf3f3a79701d711308d66059bbc547fe2d212",
+      "description": "A 1inch Fusion quote for a token pair. Use this when a position answers \"Strategy is gated\": the user/agent does not need an Aqua NFT, because a 1inch resolver with the credential fills the order. Returns the expected output, the Fusion resolver fee and a quote id. Free, read-only, nothing signed or",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "trdefi_fusion_prepare",
+      "descriptionHash": "48b92a9e66507e9c77f150047f880d1f3e76c66a71e6f19816415a5b41ad6d94",
+      "description": "Quote and build an EIP-712 Fusion order. Returns `typedData` (sign with eth_signTypedData_v4), the `order` object, `extension`, `quoteId` and `orderHash`. Nothing is signed or submitted. After signing, call trdefi_fusion_submit with the same order, the signature, extension and quote id. This is the "
+    },
+    {
+      "name": "trdefi_fusion_submit",
+      "descriptionHash": "064e091583a748aa05acf96142793a3ba74b0692fef182ef4e3851c591522e76",
+      "description": "Forward an already-signed Fusion order to 1inch's relayer. The signature is the user's authorization; this server never signs and never holds a key. Pass the `order`, `signature`, `extension` and `quoteId` returned by trdefi_fusion_prepare. A resolver fills the order later; submission does not guara",
+      "labels": [
+        "public-sink"
       ]
     },
     {
@@ -55,8 +84,49 @@
       "description": "A shields.io endpoint payload for the catalogue metrics, so a README can show live figures. Metrics: volume30, volume7, volume1, strategies, makers, pairs, chains."
     }
   ],
-  "findings": [],
-  "score": 100,
-  "scoreBreakdown": {},
+  "findings": [
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"trdefi_fusion_submit\" references sensitive artifacts (authorization). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:trdefi_fusion_submit",
+        "snippet": "Forward an already-signed Fusion order to 1inch's relayer. The signature is the user's authorization; this server never signs and never holds a key. Pass the `o…"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"trdefi_positions\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:trdefi_positions",
+        "snippet": "before: \"Live non-custodial stablecoin liquidity, as positions an agent can actually trade against. Earn-worthy USDC/USDT maker positions: each row carries the strategy hash, network, pair, tokens and settled volume. Use this before a stablecoin swap to find a real on-chain counterparty, or to survey where s\" → after: \"Live non-custodial liquidity, as positions an agent can actually trade against. Each row carries the strategy hash, network, pair, tokens, settled volume and a `quote_eligible` flag, meaning the position is router-attached and its network has a quote route. It does NOT mean the position will quote: \""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"trdefi_quote\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:trdefi_quote",
+        "snippet": "before: \"Price a stablecoin swap against one position, on-chain, at the current block — no custody, nothing signed, nothing moved. Use this to check USDC/USDT liquidity and get the output amount before preparing a swap. Note that a maker may gate a position on the caller holding an access licence token, and \" → after: \"Price a swap against one position, on-chain, at the current block — no custody, nothing signed, nothing moved. Works on any pair the position trades, not only stablecoins. Use this to check liquidity and get the output amount before preparing a swap. If a position answers \"Strategy is gated\", the ma\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    }
+  ],
+  "score": 65,
+  "scoreBreakdown": {
+    "tool-poisoning": 35
+  },
   "errors": []
 }

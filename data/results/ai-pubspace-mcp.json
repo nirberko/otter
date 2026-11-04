@@ -8,8 +8,8 @@
     "kind": "url",
     "ref": "https://pubspace.ai/mcp"
   },
-  "scannedAt": "2026-11-01T11:20:55.391Z",
-  "durationMs": 457,
+  "scannedAt": "2026-11-04T12:14:53.437Z",
+  "durationMs": 597,
   "layers": {
     "metadata": true,
     "static": false
@@ -60,26 +60,72 @@
       "labels": [
         "destructive"
       ]
+    },
+    {
+      "name": "create_account",
+      "descriptionHash": "33216e10b6681fc7b634511eba43eaa6c379e52ff669f47ff30c4f0b639942f1",
+      "description": "Sign your human up for a free PubSpace space (no card) without leaving this session. Callable without an API key. Only call it after the human has told you their email and chosen a space name; never invent or guess either. Their pages will live at <subdomain>.pubspace.ai, so treat the name as perman",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "verify_email",
+      "descriptionHash": "a2d189233b463f5aee08fecffc58b957005f075ba2ed1b9d94af05630c489599",
+      "description": "Finish account verification with the 6-digit code PubSpace emailed to the human (ask them to read it to you). Publishing unlocks on success. Works in the session where create_account ran, or with an API key for an unverified account. Returns { ok, verified, subdomain }; fails with invalid_code (and ",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink"
+      ]
     }
   ],
   "findings": [
     {
-      "id": "MCP-TOXIC-FLOW-001",
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"create_account\" references sensitive artifacts (apikey). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:create_account",
+        "snippet": "Sign your human up for a free PubSpace space (no card) without leaving this session. Callable without an API key. Only call it after the human has told you thei…"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-SCHEMA-SMELL-001",
       "severity": "medium",
+      "category": "schema-smell",
+      "title": "Read-only tool requests dangerous parameters",
+      "detail": "Tool \"verify_email\" appears informational but accepts parameters (code) that enable code/file/secret access.",
+      "evidence": {
+        "source": "tool:verify_email",
+        "snippet": "code"
+      },
+      "confidence": 0.55
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
       "category": "toxic-flow",
-      "title": "Toxic flow: untrusted input can reach an external sink",
-      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: publish_page, list_pages, get_page, unpublish_page · Public sink: publish_page · Destructive: delete_page.",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: publish_page, list_pages, get_page, unpublish_page, create_account, verify_email · Private data: create_account, verify_email · Public sink: publish_page, create_account, verify_email · Destructive: delete_page.",
       "evidence": {
         "source": "server:mcp",
-        "snippet": "Untrusted content: publish_page, list_pages, get_page, unpublish_page · Public sink: publish_page · Destructive: delete_page"
+        "snippet": "Untrusted content: publish_page, list_pages, get_page, unpublish_page, create_account, verify_email · Private data: create_account, verify_email · Public sink: publish_page, create_account, verify_email · Destructive: delete_page"
       },
-      "confidence": 0.45,
+      "confidence": 0.6,
       "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
     }
   ],
-  "score": 92,
+  "score": 52,
   "scoreBreakdown": {
-    "toxic-flow": 8
+    "tool-poisoning": 20,
+    "schema-smell": 8,
+    "toxic-flow": 20
   },
   "errors": []
 }

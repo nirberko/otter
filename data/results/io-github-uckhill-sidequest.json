@@ -1,0 +1,108 @@
+{
+  "schemaVersion": 1,
+  "scanner": {
+    "version": "1.6.0",
+    "rules": "402995650b68"
+  },
+  "target": {
+    "kind": "url",
+    "ref": "https://sidequestpays.com/mcp"
+  },
+  "scannedAt": "2026-11-04T12:28:17.374Z",
+  "durationMs": 297,
+  "layers": {
+    "metadata": true,
+    "static": false
+  },
+  "tools": [
+    {
+      "name": "list_templates",
+      "descriptionHash": "9f635c9337348dd467a04c02968530f960dcd2ede1e449c061c5808ea5744f6b",
+      "description": "List the quest types a person can do for you. In person (needs lat/lng): verify_location, photo_proof, pickup_dropoff, inspect_item. Remote (anyone, anywhere, optionally limited to a country): phone_call, translation, check_ai_output. Call this first to pick the right template."
+    },
+    {
+      "name": "create_quest",
+      "descriptionHash": "ba22776e4af524f6f1cb96c20f1ebf2fbdb2b328ece755dd2765d358bbac142f",
+      "description": "Post a paid real-world quest for a verified human quester near a location. If your prepaid balance covers the reward plus the 20% fee, it is paid instantly and opens to nearby questers right away. Otherwise it returns a checkout_url a person must pay first (use funding: 'balance' to fail instead). U",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "get_balance",
+      "descriptionHash": "942c6bc0156001900a23c24fde77382c80b6027f809800896c7acd4ada0e89b0",
+      "description": "Check your prepaid balance, this key's spend caps, and how much it has spent in the last 24 hours. Call before posting quests to know whether they will be paid instantly."
+    },
+    {
+      "name": "get_quest",
+      "descriptionHash": "abda8ea5461a586cd2edf4e2592e3592bc9cc28a20bce1000eb0aee706208aea",
+      "description": "Get one of your quests by id, including status and, once submitted, the quester's proof (photo URLs, GPS, timestamp, notes). Photo URLs need the same API key.",
+      "labels": [
+        "untrusted-content",
+        "private-data"
+      ]
+    },
+    {
+      "name": "list_quests",
+      "descriptionHash": "b75bf555635c6745e68e3de5152093b707360fc716fdef074902c8d48ffea8ba",
+      "description": "List your quests, newest first. Optionally filter by status: draft, open, claimed, submitted, approved, disputed, paid, cancelled, refunded."
+    },
+    {
+      "name": "approve_quest",
+      "descriptionHash": "aa67043f8f4107bdd2320c3a6b9307414ab4acb571c5e520f90b095cdc8868f1",
+      "description": "Approve a submitted quest after checking its proof. This releases the secured reward to the quester. Optionally rate the quester 1 to 5. Submitted quests not approved or disputed within 72 hours are approved automatically."
+    },
+    {
+      "name": "dispute_quest",
+      "descriptionHash": "9332512ecb8904fd2f21a206d15e53a1eac9318e56d59b7bb3691b6a2a09efab",
+      "description": "Dispute a submitted quest whose proof does not meet the instructions. Funds stay held while a SideQuest reviewer decides. Give a specific reason."
+    },
+    {
+      "name": "set_webhook",
+      "descriptionHash": "34ea3b9c747a890050288b5a3d2d41b902e761c5b71eb78479f00d3bbe88f88d",
+      "description": "Receive signed HTTPS callbacks when your quests change status (quest.opened, quest.claimed, quest.submitted, quest.paid, quest.disputed, quest.released, quest.refunded, quest.cancelled) instead of polling get_quest. Returns a signing secret once.",
+      "labels": [
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "cancel_quest",
+      "descriptionHash": "1ea4624edc5d0e31b25a52d4bf3d68cca44ebfe4c6ab9322496f47cbdebf4195",
+      "description": "Cancel a quest before a quester claims it. Paid quests are refunded in full. Claimed quests cannot be cancelled."
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"set_webhook\" references sensitive artifacts (secret). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:set_webhook",
+        "snippet": "Receive signed HTTPS callbacks when your quests change status (quest.opened, quest.claimed, quest.submitted, quest.paid, quest.disputed, quest.released, quest.r…"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: get_quest · Private data: get_quest, set_webhook · Public sink: create_quest, set_webhook.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: get_quest · Private data: get_quest, set_webhook · Public sink: create_quest, set_webhook"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 60,
+  "scoreBreakdown": {
+    "tool-poisoning": 20,
+    "toxic-flow": 20
+  },
+  "errors": []
+}

@@ -1,0 +1,114 @@
+{
+  "schemaVersion": 1,
+  "scanner": {
+    "version": "1.6.0",
+    "rules": "402995650b68"
+  },
+  "target": {
+    "kind": "url",
+    "ref": "https://app.contactz.app/api/v1/mcp"
+  },
+  "scannedAt": "2026-11-04T12:15:17.458Z",
+  "durationMs": 1828,
+  "layers": {
+    "metadata": true,
+    "static": false
+  },
+  "tools": [
+    {
+      "name": "api_key_check",
+      "descriptionHash": "921658bb65ae0400109ac1a4605315b75bb7ea295c257a236791a03405d97333",
+      "description": "Returns the user the key acts for, the user's plan and the key's scopes. Any live key can call it, so call it to test a key.",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "contact_find",
+      "descriptionHash": "558b5cb683b72aaf3af4ff2433cd4b0af389ea388e6e0e77c028e06a53cf4c0b",
+      "description": "Finds the user's contacts by email address, phone number or text. Give at most one of `email`, `phone` and `query`:\n\n- `email` finds the contacts with that address. Case does not matter.\n- `phone` finds the contacts with that number, however it is formatted.\n- `query` searches the way the Contacts s",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "contact_create",
+      "descriptionHash": "254dae2f45734b2c060d6b0c47c682f3c3be468ad6f148e0864c8431a6911b92",
+      "description": "Adds a contact. If the user already has this person, the values may go to that contact instead:\n\n- If the user's Auto-Merge level covers the match, the values are added to the existing contact: 200, `merged`.\n- Otherwise a new contact is created: 201, `created`. If it may be a duplicate, it also wai",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "contact_read",
+      "descriptionHash": "d0c83ed324e346b27160c1e8de77fb509d8c0c265b1e290d60253b7e41ac5a32",
+      "description": "Returns one contact. `id` is the contact's `id` or its `publicId`, such as `CS-0042`. A deleted or merged contact is a 404, and so is another user's contact.",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "contact_change",
+      "descriptionHash": "9b4bcc6ec9ae2725ba219bdfe2c081619fa702105f1a49fa99db31c1bb2a8f80",
+      "description": "Changes a contact, as editing it in ContactZapp does. Only the fields you send change. A field you leave out keeps its value.\n\nThe change goes to every two-way account the contact is in, never to a read-only one. History records it as the user's change and names the API key.\n\nA contact waiting in Re",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "sync_start",
+      "descriptionHash": "cf73400061b12d2ed7aa2e7ec92f8c8d42a38cf8e71664937a987190858a90b8",
+      "description": "Starts a sync, the same as Sync now in ContactZapp. History shows it as a manual run. The answer is 202 with the sync's state, `queued` or `running`. If a sync is already going, you get that one back and no second one starts.",
+      "labels": [
+        "destructive"
+      ]
+    },
+    {
+      "name": "event_list",
+      "descriptionHash": "0fc4f008dcda5af766de26cf5454838f3f1ba9559cd0b68d987f26ba2f789b35",
+      "description": "Lists the events of one type, newest first. Zapier, Make and n8n poll this to start an automation.\n\nEach item's `id` never changes. Poll again and the items you already have come back with the same ids, with new ones on top. Skip the ids you have seen.\n\n- `contact.created`, `contact.updated`, `conta",
+      "labels": [
+        "private-data"
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOOL-POISON-007",
+      "severity": "low",
+      "category": "tool-poisoning",
+      "title": "Description uses pressure/override language",
+      "detail": "Description of \"event_list\" stacks urgency/override words (never, attention). Legitimate tool descriptions rarely pressure the model to act or ignore prior guidance.",
+      "evidence": {
+        "source": "tool:event_list",
+        "snippet": "Lists the events of one type, newest first. Zapier, Make and n8n poll this to start an automation. Each item's `id` never changes. Poll again and the items you …"
+      },
+      "confidence": 0.3
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: contact_find, contact_create, contact_change · Private data: api_key_check, contact_find, contact_create, contact_read, contact_change, event_list · Public sink: contact_find, contact_create, contact_change · Destructive: sync_start.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: contact_find, contact_create, contact_change · Private data: api_key_check, contact_find, contact_create, contact_read, contact_change, event_list · Public sink: contact_find, contact_create, contact_change · Destructive: sync_start"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 77,
+  "scoreBreakdown": {
+    "tool-poisoning": 3,
+    "toxic-flow": 20
+  },
+  "errors": []
+}

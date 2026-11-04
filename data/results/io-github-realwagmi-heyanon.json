@@ -8,8 +8,8 @@
     "kind": "url",
     "ref": "https://api.heyanon.ai/mcp"
   },
-  "scannedAt": "2026-10-13T12:05:52.881Z",
-  "durationMs": 1383,
+  "scannedAt": "2026-11-04T12:27:05.368Z",
+  "durationMs": 1353,
   "layers": {
     "metadata": true,
     "static": false
@@ -24,11 +24,28 @@
       ]
     },
     {
-      "name": "get_api_key_setup_url",
-      "descriptionHash": "ae7602013b7f65ec1579e843de1527822b3f23862bd86fe77fba51819ff36ae1",
-      "description": "Get the URL of the Hey Anon page where the user logs in and creates an API key, plus the MCP config snippet where the key goes (X-API-Key header). Call this when a tool fails with \"API key not set\" or the user has no key yet. The key is never passed through the chat. No API key required.",
+      "name": "login",
+      "descriptionHash": "61a7d1480fde7f5b2ca8d6ec1b211d39979b880d7c28a67558233f9e638fdc32",
+      "description": "Sign in to Hey Anon (or create an account) without an API key, through Privy in the browser. Returns a link and a short code. Open the link yourself in a browser you control: if the user is signed in to Hey Anon there, check that the code matches and press Approve; if not, sign in for the user with ",
       "labels": [
         "untrusted-content",
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "login_status",
+      "descriptionHash": "a21ff1af79965ac622e303cc6780f4466872a44c38c1c7173a053e129bf06e2e",
+      "description": "Finish a login started with the login tool: waits up to 25 seconds for the approval, then answers. While it is pending, keep calling it on your own (do not ask the user whether to continue) until it completes or expires. \"pending\": the user has not approved yet, call again. \"completed\": returns a ne",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "whoami",
+      "descriptionHash": "2c5640eada6f2fe2d0cf65a7f2be5e8bace5318966d469e13c3231347f44ce86",
+      "description": "Check which Hey Anon account the API key of this connection belongs to: account id, account type (e.g. privy), Privy user id, creation date, and the number of wallets per type. Use it to verify a login (an authenticated call; ping alone does not prove the key works). Read-only.",
+      "labels": [
         "private-data"
       ]
     },
@@ -42,8 +59,8 @@
     },
     {
       "name": "ask_anon",
-      "descriptionHash": "e04b3e05be3a8c7bc2569b55791d01f1eae5af0929a3dcb74ef7fab5896f1780",
-      "description": "Send a message to Anon, the Hey Anon on-chain AI agent (balances, swaps, bridging, lending, staking, CEX, scheduled automations, research). Asynchronous: the output is only a confirmation with the background task ID; poll background_task with that ID until status is no longer \"pending\" (\"completed\":",
+      "descriptionHash": "955ddccc5cf381ee4b67bd2bfcbb0da4542d073bd0b73a3363120e97cfb9b368",
+      "description": "Send the user's request to Anon, the Hey Anon on-chain AI agent (balances, swaps, bridging, lending, staking, CEX, scheduled automations, research). It can execute transactions and returns a Message ID. Anon plans and executes the operation; you only pass the request on: use the user's own words and",
       "labels": [
         "untrusted-content",
         "private-data",
@@ -69,8 +86,8 @@
     },
     {
       "name": "abort",
-      "descriptionHash": "640e5047e6691f7bc7eea314bf588d9f0348919ef46425e100c4660e50c89eb3",
-      "description": "Force-stop Anon processing of the current ask_anon request. Use only when isProcessing stays true for too long or the request is stuck; otherwise wait for the background task to complete."
+      "descriptionHash": "88cab3c416d5784596a9dd39d2f8263ce7ff6787b8a39c76bd43850f903bad9d",
+      "description": "Force-stop Anon processing of the current ask_anon request. Use only when isProcessing stays true for too long or the request is stuck; otherwise keep polling anon_message until the message is done."
     },
     {
       "name": "projects",
@@ -131,23 +148,11 @@
       ]
     },
     {
-      "name": "background_task_list",
-      "descriptionHash": "e17dcb591117805ab88fc9d516ca822bd8c1ae43e7094c54e4cbf6cd32965114",
-      "description": "List the user Anon background tasks (one per ask_anon message): id, prompt, status, result (Anon reply when completed), logs, createdAt, updatedAt. Use it to find earlier answers or check what is still pending. Also returned as structuredContent { tasks }.",
+      "name": "anon_message",
+      "descriptionHash": "f9e04e6a5514e51efffdf4864061461ff808f41157b597c42614cea4ecba4b3c",
+      "description": "Get the state of a message sent with ask_anon, by its Message ID. Poll it until status is \"done\" (or \"failed\" / \"aborted\"): then reply holds the Anon answer. While status is \"running\", activity shows what Anon is doing right now (each step has a human text and a technical trace), so you can tell at ",
       "labels": [
-        "untrusted-content"
-      ]
-    },
-    {
-      "name": "background_task",
-      "descriptionHash": "372e0c54e014e0990b497428e05d882182c32d4e8e8b194828efa16bcaa58b7d",
-      "description": "Get one Anon background task by id. Each ask_anon call creates a task; poll this tool until status is no longer \"pending\": \"completed\" means the Anon reply is in result; any other status (e.g. \"failed\") means the request did not finish, check logs. Returns id, prompt, status, result (\"—\" while absen"
-    },
-    {
-      "name": "background_task_delete",
-      "descriptionHash": "dcc350e622fb47c15e121aa403ec13730d4c3d55e1b727bcb65f616c88d7f1d2",
-      "description": "Delete a background task record by id.",
-      "labels": [
+        "untrusted-content",
         "private-data",
         "destructive"
       ]
@@ -181,6 +186,18 @@
   ],
   "findings": [
     {
+      "id": "MCP-TOOL-POISON-006",
+      "severity": "low",
+      "category": "tool-poisoning",
+      "title": "Anomalously long tool description",
+      "detail": "Description of \"ask_anon\" is 1699 chars, far longer than this server's median (278). Overlong descriptions are a common place to bury instructions.",
+      "evidence": {
+        "source": "tool:ask_anon",
+        "snippet": "Send the user's request to Anon, the Hey Anon on-chain AI agent (balances, swaps, bridging, lending, staking, CEX, scheduled automations, research). It can exec…"
+      },
+      "confidence": 0.4
+    },
+    {
       "id": "MCP-TOOL-POISON-001",
       "severity": "high",
       "category": "tool-poisoning",
@@ -198,18 +215,92 @@
       "severity": "high",
       "category": "toxic-flow",
       "title": "Lethal trifecta: untrusted input + private data + external sink",
-      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: get_api_key_setup_url, ask_anon, isProcessing, background_task_list · Private data: ping, get_api_key_setup_url, wallet_list, ask_anon, ask_gemma, portfolio_tokens, portfolio_transactions, portfolio_defi, portfolio_cex, background_task_delete, transfer_native, transfer_asset · Public sink: ask_anon, transfer_native, transfer_asset, address_book_list · Destructive: ask_anon, scheduled_task_list, scheduled_task_delete, background_task_delete.",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: login, ask_anon, isProcessing, anon_message · Private data: ping, login, login_status, whoami, wallet_list, ask_anon, ask_gemma, portfolio_tokens, portfolio_transactions, portfolio_defi, portfolio_cex, anon_message, transfer_native, transfer_asset · Public sink: login, ask_anon, transfer_native, transfer_asset, address_book_list · Destructive: ask_anon, scheduled_task_list, scheduled_task_delete, anon_message.",
       "evidence": {
         "source": "server:mcp",
-        "snippet": "Untrusted content: get_api_key_setup_url, ask_anon, isProcessing, background_task_list · Private data: ping, get_api_key_setup_url, wallet_list, ask_anon, ask_gemma, portfolio_tokens, portfolio_transactions, portfolio_defi, portfolio_cex, background_task_delete, transfer_native, transfer_asset · Public sink: ask_anon, transfer_native, transfer_asset, address_book_list · Destructive: ask_anon, scheduled_task_list, scheduled_task_delete, background_task_delete"
+        "snippet": "Untrusted content: login, ask_anon, isProcessing, anon_message · Private data: ping, login, login_status, whoami, wallet_list, ask_anon, ask_gemma, portfolio_tokens, portfolio_transactions, portfolio_defi, portfolio_cex, anon_message, transfer_native, transfer_asset · Public sink: login, ask_anon, transfer_native, transfer_asset, address_book_list · Destructive: ask_anon, scheduled_task_list, scheduled_task_delete, anon_message"
       },
       "confidence": 0.6,
       "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "medium",
+      "category": "tool-poisoning",
+      "title": "Tool removed since last scan",
+      "detail": "Tool \"get_api_key_setup_url\" is no longer advertised. Removal can precede a shadowing replacement from another server.",
+      "evidence": {
+        "source": "tool:get_api_key_setup_url",
+        "snippet": "removed: get_api_key_setup_url"
+      },
+      "confidence": 0.5
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"ask_anon\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:ask_anon",
+        "snippet": "before: \"Send a message to Anon, the Hey Anon on-chain AI agent (balances, swaps, bridging, lending, staking, CEX, scheduled automations, research). Asynchronous: the output is only a confirmation with the background task ID; poll background_task with that ID until status is no longer \"pending\" (\"completed\":\" → after: \"Send the user's request to Anon, the Hey Anon on-chain AI agent (balances, swaps, bridging, lending, staking, CEX, scheduled automations, research). It can execute transactions and returns a Message ID. Anon plans and executes the operation; you only pass the request on: use the user's own words and\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"abort\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:abort",
+        "snippet": "before: \"Force-stop Anon processing of the current ask_anon request. Use only when isProcessing stays true for too long or the request is stuck; otherwise wait for the background task to complete.\" → after: \"Force-stop Anon processing of the current ask_anon request. Use only when isProcessing stays true for too long or the request is stuck; otherwise keep polling anon_message until the message is done.\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "medium",
+      "category": "tool-poisoning",
+      "title": "Tool removed since last scan",
+      "detail": "Tool \"background_task_list\" is no longer advertised. Removal can precede a shadowing replacement from another server.",
+      "evidence": {
+        "source": "tool:background_task_list",
+        "snippet": "removed: background_task_list"
+      },
+      "confidence": 0.5
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "medium",
+      "category": "tool-poisoning",
+      "title": "Tool removed since last scan",
+      "detail": "Tool \"background_task\" is no longer advertised. Removal can precede a shadowing replacement from another server.",
+      "evidence": {
+        "source": "tool:background_task",
+        "snippet": "removed: background_task"
+      },
+      "confidence": 0.5
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "medium",
+      "category": "tool-poisoning",
+      "title": "Tool removed since last scan",
+      "detail": "Tool \"background_task_delete\" is no longer advertised. Removal can precede a shadowing replacement from another server.",
+      "evidence": {
+        "source": "tool:background_task_delete",
+        "snippet": "removed: background_task_delete"
+      },
+      "confidence": 0.5
     }
   ],
-  "score": 60,
+  "score": 42,
   "scoreBreakdown": {
-    "tool-poisoning": 20,
+    "tool-poisoning": 38,
     "toxic-flow": 20
   },
   "errors": []

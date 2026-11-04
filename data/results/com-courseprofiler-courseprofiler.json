@@ -153,7 +153,7 @@
     },
     {
       "name": "analyze_activity",
-      "descriptionHash": "9ab44c65ff726402004794c7ce79ffe7937646bb846c5519f5067317116ea2cb",
+      "descriptionHash": "631f8f2dd928016f04c963ff3dff25213b81867fdcf0fd6dd64c52eb30486740",
       "description": "Analyze supplied GPX/FIT directly with the browser's canonical pipeline; no catalog search or runner profile is needed. Accept inline course_file, URL, or artifact source. Existing CRSProf is preserved and summarized. Returns job plus a bounded structured summary, units, missing-data warnings and co",
       "labels": [
         "untrusted-content",
@@ -206,6 +206,23 @@
         "private-data",
         "public-sink"
       ]
+    },
+    {
+      "name": "get_storage_readiness",
+      "descriptionHash": "9b281ce960f06361b50b8c8ab05bfd2ed613d757b41f134d89456d5acac0a6b5",
+      "description": "Read-only non-secret storage diagnostic. Default checks configuration only. check_bucket=true performs HeadBucket; never writes test objects. Bucket access does not verify job/artifact reads or writes.",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "get_activity_submission",
+      "descriptionHash": "73a0e65435c373471b8bc11f32f72a640434e581831fdcec97b1aabf44fefe18",
+      "description": "Read-only lookup of an opt-in analyze_activity submission using the same caller/key. No URL fetches, writes or reanalysis. outcome_unknown is not absence and never authorizes a fresh execution. Requires durable idempotency enabled; private caller_token required for anonymous callers.",
+      "labels": [
+        "untrusted-content",
+        "private-data"
+      ]
     }
   ],
   "findings": [
@@ -239,7 +256,7 @@
       "severity": "low",
       "category": "tool-poisoning",
       "title": "Anomalously long tool description",
-      "detail": "Description of \"create_race_plan\" is 3887 chars, far longer than this server's median (616). Overlong descriptions are a common place to bury instructions.",
+      "detail": "Description of \"create_race_plan\" is 3887 chars, far longer than this server's median (512). Overlong descriptions are a common place to bury instructions.",
       "evidence": {
         "source": "tool:create_race_plan",
         "snippet": "Primary CourseProfiler tool for creating a personalized race plan and optional PDF. Use this after obtaining both a course input and runner input. Course input …"
@@ -288,7 +305,7 @@
       "severity": "low",
       "category": "tool-poisoning",
       "title": "Anomalously long tool description",
-      "detail": "Description of \"submit_course\" is 3152 chars, far longer than this server's median (616). Overlong descriptions are a common place to bury instructions.",
+      "detail": "Description of \"submit_course\" is 3152 chars, far longer than this server's median (512). Overlong descriptions are a common place to bury instructions.",
       "evidence": {
         "source": "tool:submit_course",
         "snippet": "Submit an official/trusted course for CourseProfiler catalog review. This is the only MCP tool that creates a catalog-review submission; import_course, enrich_c…"
@@ -318,6 +335,18 @@
         "snippet": "Build a USRProf from Strava activities selected for a target course or distance. Ask the user for the target course or distance and, when an existing profile is…"
       },
       "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOOL-POISON-007",
+      "severity": "low",
+      "category": "tool-poisoning",
+      "title": "Description uses pressure/override language",
+      "detail": "Description of \"analyze_activity\" stacks urgency/override words (never, bypass). Legitimate tool descriptions rarely pressure the model to act or ignore prior guidance.",
+      "evidence": {
+        "source": "tool:analyze_activity",
+        "snippet": "Analyze supplied GPX/FIT directly with the browser's canonical pipeline; no catalog search or runner profile is needed. Accept inline course_file, URL, or artif…"
+      },
+      "confidence": 0.3
     },
     {
       "id": "MCP-TOOL-POISON-007",
@@ -356,26 +385,22 @@
       "confidence": 0.75
     },
     {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"get_storage_readiness\" references sensitive artifacts (secret). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:get_storage_readiness",
+        "snippet": "Read-only non-secret storage diagnostic. Default checks configuration only. check_bucket=true performs HeadBucket; never writes test objects. Bucket access does…"
+      },
+      "confidence": 0.65
+    },
+    {
       "id": "MCP-TOXIC-FLOW-001",
       "severity": "high",
       "category": "toxic-flow",
       "title": "Lethal trifecta: untrusted input + private data + external sink",
-      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: create_race_plan, search_race_catalog, import_course, submit_course, get_artifact, analyze_activity, inspect_runner_profile · Private data: create_race_plan, import_course, generate_runner_profile, submit_course, get_runner_profile_requirements, get_artifact, export_race_plan_pdf, build_runner_profile_from_strava, analyze_activity, inspect_runner_profile, assess_finish_time_goal, compare_pacing_strategies, import_profile_attachment · Public sink: create_race_plan, import_course, generate_course_segments, generate_runner_profile, submit_course, get_course_submission_requirements, get_runner_profile_requirements, get_artifact_upload_requirements, get_artifact, validate_course_profile, analyze_activity, inspect_runner_profile, import_profile_attachment · Destructive: submit_course, export_race_plan_pdf, inspect_runner_profile.",
-      "evidence": {
-        "source": "server:mcp",
-        "snippet": "Untrusted content: create_race_plan, search_race_catalog, import_course, submit_course, get_artifact, analyze_activity, inspect_runner_profile · Private data: create_race_plan, import_course, generate_runner_profile, submit_course, get_runner_profile_requirements, get_artifact, export_race_plan_pdf, build_runner_profile_from_strava, analyze_activity, inspect_runner_profile, assess_finish_time_goal, compare_pacing_strategies, import_profile_attachment · Public sink: create_race_plan, import_course, generate_course_segments, generate_runner_profile, submit_course, get_course_submission_requirements, get_runner_profile_requirements, get_artifact_upload_requirements, get_artifact, validate_course_profile, analyze_activity, inspect_runner_profile, import_profile_attachment · Destructive: submit_course, export_race_plan_pdf, inspect_runner_profile"
-      },
-      "confidence": 0.6,
-      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
-    }
-  ],
-  "score": 36,
-  "scoreBreakdown": {
-    "tool-poisoning": 44,
-    "toxic-flow": 20
-  },
-  "errors": []
-}+ external sink",
       "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: create_race_plan, search_race_catalog, import_course, submit_course, get_artifact, analyze_activity, inspect_runner_profile, get_activity_submission · Private data: create_race_plan, import_course, generate_runner_profile, submit_course, get_runner_profile_requirements, get_artifact, export_race_plan_pdf, build_runner_profile_from_strava, analyze_activity, inspect_runner_profile, assess_finish_time_goal, compare_pacing_strategies, import_profile_attachment, get_storage_readiness, get_activity_submission · Public sink: create_race_plan, import_course, generate_course_segments, generate_runner_profile, submit_course, get_course_submission_requirements, get_runner_profile_requirements, get_artifact_upload_requirements, get_artifact, validate_course_profile, analyze_activity, inspect_runner_profile, import_profile_attachment · Destructive: submit_course, export_race_plan_pdf, inspect_runner_profile.",
       "evidence": {
         "source": "server:mcp",
@@ -383,12 +408,15 @@
       },
       "confidence": 0.6,
       "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
-    },
-    {
-      "id": "MCP-RUGPULL-001",
-      "severity": "high",
-      "category": "tool-poisoning",
-      "title": "Tool description changed since last scan",
+    }
+  ],
+  "score": 34,
+  "scoreBreakdown": {
+    "tool-poisoning": 46,
+    "toxic-flow": 20
+  },
+  "errors": []
+}le": "Tool description changed since last scan",
       "detail": "Tool \"analyze_activity\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
       "evidence": {
         "source": "tool:analyze_activity",
