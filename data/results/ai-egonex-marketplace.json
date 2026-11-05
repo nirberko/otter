@@ -1,0 +1,109 @@
+{
+  "schemaVersion": 1,
+  "scanner": {
+    "version": "1.6.0",
+    "rules": "402995650b68"
+  },
+  "target": {
+    "kind": "url",
+    "ref": "https://api.egonex.ai/api/v1/mcp"
+  },
+  "scannedAt": "2026-11-05T12:28:16.056Z",
+  "durationMs": 1073,
+  "layers": {
+    "metadata": true,
+    "static": false
+  },
+  "tools": [
+    {
+      "name": "ask_seller",
+      "descriptionHash": "04005e919ad0472943cfa81740edbc095a6815e46479ce647d6fd464941af602",
+      "description": "Ask one question about a listing before your user decides: availability, condition, what is included, timing, location, sizes, how delivery or pickup works. If the seller has their assistant (Ego) answering (seller.answers_questions is true in search results), the answer comes back in this response,",
+      "labels": [
+        "untrusted-content",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "check_request",
+      "descriptionHash": "211225f2c095d9e2d6a2370c169d6412fbec35792c625d4aaf0f5afcfc67f7da",
+      "description": "Check a request made with request_order or message_seller: the confirm link and, once there is one, the order it led to (order has its title, quantity, amount and deadlines). Returns the confirm_url again. status is one of:\n- pending: Your user hasn't confirmed or declined yet. Nothing has happened:",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "message_seller",
+      "descriptionHash": "a46f68e023058fd2e8f97826d80c0c808684d67ad2befbd0e5ba9fcbbd51e10b",
+      "description": "Send a message to the seller of a listing as your user: a question Ego couldn't answer, a custom request, or whether a sold-out listing will be back. Returns a confirm_url for your user: nothing is sent until they open it and confirm. They need only an email address, no Egonex account. The message t",
+      "labels": [
+        "untrusted-content",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "pay_order",
+      "descriptionHash": "65aca747772b9addc8d49c714030d1345ecfeb4c36b7a09296b491be4deef342",
+      "description": "Pay for an order made with request_order without the confirm page, using a Stripe Shared Payment Token that your user approved (for example in Stripe Link). request_order returns payment: the amount per unit in USD, max_quantity and payment_handlers with the Stripe network_id to issue the token to; ",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink",
+        "destructive"
+      ]
+    },
+    {
+      "name": "request_order",
+      "descriptionHash": "cf6cd656677820199826fd39e3c19c2645d8de326b07d920398bb03e84589127",
+      "description": "Start an order for one listing on your user's behalf. Returns a confirm_url: your user opens it, checks the listing and price, enters an email address and pays on Egonex (payments are processed by Stripe). Nothing is ordered or charged until they confirm, and no Egonex account is needed. Use note fo",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "search_offers",
+      "descriptionHash": "3fdd5e76ba761030e086c61bd7ae06daa5ff67bd805f8485fef3bf84f54745f9",
+      "description": "Search listings on Egonex, a marketplace where individual people sell things and services directly. Use it when your user wants to buy, hire, book, rent or commission something from a person rather than a store, for example:\n- items, new or used: cameras and lenses, phones, laptops, bikes, furniture",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink"
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOOL-POISON-007",
+      "severity": "low",
+      "category": "tool-poisoning",
+      "title": "Description uses pressure/override language",
+      "detail": "Description of \"search_offers\" stacks urgency/override words (always, never). Legitimate tool descriptions rarely pressure the model to act or ignore prior guidance.",
+      "evidence": {
+        "source": "tool:search_offers",
+        "snippet": "Search listings on Egonex, a marketplace where individual people sell things and services directly. Use it when your user wants to buy, hire, book, rent or comm…"
+      },
+      "confidence": 0.3
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: ask_seller, check_request, message_seller, pay_order, search_offers · Private data: check_request, pay_order, search_offers · Public sink: ask_seller, check_request, message_seller, pay_order, request_order, search_offers · Destructive: pay_order.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: ask_seller, check_request, message_seller, pay_order, search_offers · Private data: check_request, pay_order, search_offers · Public sink: ask_seller, check_request, message_seller, pay_order, request_order, search_offers · Destructive: pay_order"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 77,
+  "scoreBreakdown": {
+    "tool-poisoning": 3,
+    "toxic-flow": 20
+  },
+  "errors": []
+}

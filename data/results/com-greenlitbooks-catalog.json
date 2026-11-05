@@ -8,13 +8,29 @@
     "kind": "url",
     "ref": "https://greenlitbooks.com/api/mcp"
   },
-  "scannedAt": "2026-09-27T10:05:05.728Z",
-  "durationMs": 1083,
+  "scannedAt": "2026-11-05T12:30:43.051Z",
+  "durationMs": 929,
   "layers": {
     "metadata": true,
     "static": false
   },
   "tools": [
+    {
+      "name": "search",
+      "descriptionHash": "12361773e7847097134f69a3c8a44cf76d857d0ff9cdedc39cb5a75e3cd7c5bd",
+      "description": "Use this when someone asks whether an AI agent, MCP server, coding tool or AI product is safe to use or how to set it up safely, or wants a reading on a subject these pages cover. Searches everything on greenlitbooks.com: safety verdicts on AI agents, MCP servers and coding tools (\"is X safe\"), fiel",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "fetch",
+      "descriptionHash": "4b52fdf926f771cff8b20c1116b31b3213e9e81d50c07fc48537e060fdf8b3e7",
+      "description": "Use this when a search result looks right and you need what the page actually says before answering. Returns the page as markdown with its canonical URL to cite and its dates. Do not use it without an id from search.",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
     {
       "name": "search_greenlit_books",
       "descriptionHash": "d70f0b3f61f1d3910d3c8333cda60eb8c3bb0a716e7975e3388bd06ccfae3ef1",
@@ -48,8 +64,8 @@
     },
     {
       "name": "get_free_chapter",
-      "descriptionHash": "c8536ce9eb47bd841238e6497eaa90eb05da6313ac8ebf27002ea36d895c5b86",
-      "description": "The complete text of chapter one of any Greenlit book, free to read and free to quote. Returns the chapter as prose, not a summary and not a sales page, along with what the chapter covers, how long it runs, the book's full chapter list, and where to get the rest. Use it to answer a reader's question"
+      "descriptionHash": "abb9260b01d39c81caa8161f1f9a761d116e580d26852e28da40278b932bca13",
+      "description": "The text of chapter one of any Greenlit book, free to read and free to quote. Returns the chapter as prose, not a summary and not a sales page, along with what the chapter covers, how long it runs, the book's full chapter list, and where to get the rest. A few samples are only the opening portion of"
     },
     {
       "name": "cite_source",
@@ -76,25 +92,85 @@
         "untrusted-content",
         "destructive"
       ]
+    },
+    {
+      "name": "find_answer_in_books",
+      "descriptionHash": "0c0114c7a8c6178be321e98af56d2738e3a9fae4bb9297c5e3bfe894ee4a511e",
+      "description": "Find what the Greenlit books say about a question. Searches the free chapter one of every book, each book's named concept and its FAQ, the glossary, the claim ledger and the guides, by words and by meaning, and returns the passages that bear on the question, best first, each with the url to quote an",
+      "labels": [
+        "untrusted-content"
+      ]
     }
   ],
   "findings": [
+    {
+      "id": "MCP-SHADOW-001",
+      "severity": "medium",
+      "category": "shadowing",
+      "title": "Generic tool name can shadow trusted tools",
+      "detail": "Tool \"search\" uses a generic high-value name. When multiple servers load together, this can intercept calls meant for a trusted server.",
+      "evidence": {
+        "source": "tool:search",
+        "snippet": "search"
+      },
+      "confidence": 0.4
+    },
+    {
+      "id": "MCP-TOOL-POISON-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description issues instructions to the model",
+      "detail": "Description of \"fetch\" contains imperative instructions directed at the AI assistant rather than describing the tool. This is the core tool-poisoning technique.",
+      "evidence": {
+        "source": "tool:fetch",
+        "snippet": "Use this when a search result looks right and you need what the page actually says before answering. Returns the page as markdown with its canonical URL to cite…"
+      },
+      "confidence": 0.7,
+      "remediation": "Treat the server as untrusted; the model may obey embedded instructions."
+    },
+    {
+      "id": "MCP-SHADOW-001",
+      "severity": "medium",
+      "category": "shadowing",
+      "title": "Generic tool name can shadow trusted tools",
+      "detail": "Tool \"fetch\" uses a generic high-value name. When multiple servers load together, this can intercept calls meant for a trusted server.",
+      "evidence": {
+        "source": "tool:fetch",
+        "snippet": "fetch"
+      },
+      "confidence": 0.4
+    },
     {
       "id": "MCP-TOXIC-FLOW-001",
       "severity": "high",
       "category": "toxic-flow",
       "title": "Lethal trifecta: untrusted input + private data + external sink",
-      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: cite_source, check_claim · Private data: search_greenlit_books, get_book · Public sink: cite_source · Destructive: define_term, check_claim.",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: search, fetch, cite_source, check_claim, find_answer_in_books · Private data: search_greenlit_books, get_book · Public sink: cite_source · Destructive: define_term, check_claim.",
       "evidence": {
         "source": "server:mcp",
-        "snippet": "Untrusted content: cite_source, check_claim · Private data: search_greenlit_books, get_book · Public sink: cite_source · Destructive: define_term, check_claim"
+        "snippet": "Untrusted content: search, fetch, cite_source, check_claim, find_answer_in_books · Private data: search_greenlit_books, get_book · Public sink: cite_source · Destructive: define_term, check_claim"
       },
       "confidence": 0.6,
       "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"get_free_chapter\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:get_free_chapter",
+        "snippet": "before: \"The complete text of chapter one of any Greenlit book, free to read and free to quote. Returns the chapter as prose, not a summary and not a sales page, along with what the chapter covers, how long it runs, the book's full chapter list, and where to get the rest. Use it to answer a reader's question\" → after: \"The text of chapter one of any Greenlit book, free to read and free to quote. Returns the chapter as prose, not a summary and not a sales page, along with what the chapter covers, how long it runs, the book's full chapter list, and where to get the rest. A few samples are only the opening portion of\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
     }
   ],
-  "score": 80,
+  "score": 38,
   "scoreBreakdown": {
+    "shadowing": 12,
+    "tool-poisoning": 30,
     "toxic-flow": 20
   },
   "errors": []

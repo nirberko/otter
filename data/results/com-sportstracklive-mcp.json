@@ -8,8 +8,8 @@
     "kind": "url",
     "ref": "https://mcp.sportstracklive.com/mcp"
   },
-  "scannedAt": "2026-09-27T10:05:42.671Z",
-  "durationMs": 1288,
+  "scannedAt": "2026-11-05T12:32:23.959Z",
+  "durationMs": 1691,
   "layers": {
     "metadata": true,
     "static": false
@@ -17,7 +17,7 @@
   "tools": [
     {
       "name": "analyze_activity_file",
-      "descriptionHash": "569f327fb569e40e2e7429178f4f43211d681d5e757bb8e03466b116341ffb8e",
+      "descriptionHash": "519c7d9b7c6df0c19ab263f6859459c38440e48d2d41d5c3118cf51e8fa498a2",
       "description": "Analyze a GPS activity trace file (GPX, TCX, IGC, SBP or FIT, max 8 MiB) and return sport-specific metrics computed by the SportsTrackLive engine: distance, speeds, altitudes, and — depending on the sport — thermal detection with climb statistics, flight phases (glide/float/search) with glide polar ",
       "labels": [
         "untrusted-content",
@@ -28,10 +28,23 @@
     },
     {
       "name": "create_ephemeral_replay",
-      "descriptionHash": "d530f1d72e9b85167b3b6c69f6314b4ddfd8784eff0d52f3411ca35625cdc82f",
+      "descriptionHash": "a94f5ed913309148cd06a7b41c039c797eeacd2a4f704ea39473648d16a44585",
       "description": "Create an interactive 3D replay of the USER'S OWN trace file (GPX, TCX, IGC, SBP or FIT, max 8 MiB) on SportsTrackLive and return its link. The flight becomes a PRIVATE track owned by a temporary guest account — it appears in no listing or search — and the link stays valid 7 days, after which everyt",
       "labels": [
-        "private-data"
+        "private-data",
+        "public-sink",
+        "destructive"
+      ]
+    },
+    {
+      "name": "create_upload_link",
+      "descriptionHash": "877f0aba2b5fd91992aeb0abbf0dce36bf73a9be87ab23de2a0996d5de8ca8f1",
+      "description": "Get a one-time web link the USER opens in their browser to send their trace file (GPX, TCX, IGC, SBP or FIT, max 8 MiB) to SportsTrackLive, plus the `upload_id` that analyze_activity_file, create_ephemeral_replay and import_activity then accept. Use it whenever you cannot transmit the file yourself:",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink",
+        "destructive"
       ]
     },
     {
@@ -60,10 +73,12 @@
     },
     {
       "name": "import_activity",
-      "descriptionHash": "761a7e9db1dddecb8c2f419320b3b356735a2f58b7f07c68faafcfdcef839531",
+      "descriptionHash": "ae03ddd95d807b027ea2b9f42a06d94735cba04f3e388b41afccd076aaec4884",
       "description": "Import the user's trace file (GPX, TCX, IGC, SBP or FIT, max 8 MiB) into THEIR SportsTrackLive account permanently — full analysis, 3D replay, appears in their profile with their default privacy setting. REQUIRES the user to be connected via OAuth (this MCP server supports it; the client starts the ",
       "labels": [
-        "private-data"
+        "private-data",
+        "public-sink",
+        "destructive"
       ]
     },
     {
@@ -85,21 +100,73 @@
   ],
   "findings": [
     {
+      "id": "MCP-TOOL-POISON-007",
+      "severity": "low",
+      "category": "tool-poisoning",
+      "title": "Description uses pressure/override language",
+      "detail": "Description of \"analyze_activity_file\" stacks urgency/override words (always, never). Legitimate tool descriptions rarely pressure the model to act or ignore prior guidance.",
+      "evidence": {
+        "source": "tool:analyze_activity_file",
+        "snippet": "Analyze a GPS activity trace file (GPX, TCX, IGC, SBP or FIT, max 8 MiB) and return sport-specific metrics computed by the SportsTrackLive engine: distance, spe…"
+      },
+      "confidence": 0.3
+    },
+    {
       "id": "MCP-TOXIC-FLOW-001",
       "severity": "high",
       "category": "toxic-flow",
       "title": "Lethal trifecta: untrusted input + private data + external sink",
-      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: analyze_activity_file, get_track_replay_3d, get_track_stats, search_athletes, search_tracks · Private data: analyze_activity_file, create_ephemeral_replay, get_track_replay_3d, get_track_stats, import_activity · Public sink: analyze_activity_file, get_track_replay_3d · Destructive: analyze_activity_file.",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: analyze_activity_file, create_upload_link, get_track_replay_3d, get_track_stats, search_athletes, search_tracks · Private data: analyze_activity_file, create_ephemeral_replay, create_upload_link, get_track_replay_3d, get_track_stats, import_activity · Public sink: analyze_activity_file, create_ephemeral_replay, create_upload_link, get_track_replay_3d, import_activity · Destructive: analyze_activity_file, create_ephemeral_replay, create_upload_link, import_activity.",
       "evidence": {
         "source": "server:mcp",
-        "snippet": "Untrusted content: analyze_activity_file, get_track_replay_3d, get_track_stats, search_athletes, search_tracks · Private data: analyze_activity_file, create_ephemeral_replay, get_track_replay_3d, get_track_stats, import_activity · Public sink: analyze_activity_file, get_track_replay_3d · Destructive: analyze_activity_file"
+        "snippet": "Untrusted content: analyze_activity_file, create_upload_link, get_track_replay_3d, get_track_stats, search_athletes, search_tracks · Private data: analyze_activity_file, create_ephemeral_replay, create_upload_link, get_track_replay_3d, get_track_stats, import_activity · Public sink: analyze_activity_file, create_ephemeral_replay, create_upload_link, get_track_replay_3d, import_activity · Destructive: analyze_activity_file, create_ephemeral_replay, create_upload_link, import_activity"
       },
       "confidence": 0.6,
       "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"analyze_activity_file\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:analyze_activity_file",
+        "snippet": "before: \"Analyze a GPS activity trace file (GPX, TCX, IGC, SBP or FIT, max 8 MiB) and return sport-specific metrics computed by the SportsTrackLive engine: distance, speeds, altitudes, and — depending on the sport — thermal detection with climb statistics, flight phases (glide/float/search) with glide polar \" → after: \"Analyze a GPS activity trace file (GPX, TCX, IGC, SBP or FIT, max 8 MiB) and return sport-specific metrics computed by the SportsTrackLive engine: distance, speeds, altitudes, and — depending on the sport — thermal detection with climb statistics, flight phases (glide/float/search) with glide polar \""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"create_ephemeral_replay\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:create_ephemeral_replay",
+        "snippet": "before: \"Create an interactive 3D replay of the USER'S OWN trace file (GPX, TCX, IGC, SBP or FIT, max 8 MiB) on SportsTrackLive and return its link. The flight becomes a PRIVATE track owned by a temporary guest account — it appears in no listing or search — and the link stays valid 7 days, after which everyt\" → after: \"Create an interactive 3D replay of the USER'S OWN trace file (GPX, TCX, IGC, SBP or FIT, max 8 MiB) on SportsTrackLive and return its link. The flight becomes a PRIVATE track owned by a temporary guest account — it appears in no listing or search — and the link stays valid 7 days, after which everyt\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"import_activity\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:import_activity",
+        "snippet": "before: \"Import the user's trace file (GPX, TCX, IGC, SBP or FIT, max 8 MiB) into THEIR SportsTrackLive account permanently — full analysis, 3D replay, appears in their profile with their default privacy setting. REQUIRES the user to be connected via OAuth (this MCP server supports it; the client starts the \" → after: \"Import the user's trace file (GPX, TCX, IGC, SBP or FIT, max 8 MiB) into THEIR SportsTrackLive account permanently — full analysis, 3D replay, appears in their profile with their default privacy setting. REQUIRES the user to be connected via OAuth (this MCP server supports it; the client starts the \""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
     }
   ],
-  "score": 80,
+  "score": 45,
   "scoreBreakdown": {
+    "tool-poisoning": 35,
     "toxic-flow": 20
   },
   "errors": []

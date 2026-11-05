@@ -8,13 +8,31 @@
     "kind": "url",
     "ref": "https://dexsheet.com/mcp"
   },
-  "scannedAt": "2026-10-24T09:00:46.795Z",
-  "durationMs": 478,
+  "scannedAt": "2026-11-05T12:30:12.994Z",
+  "durationMs": 534,
   "layers": {
     "metadata": true,
     "static": false
   },
   "tools": [
+    {
+      "name": "check_token",
+      "descriptionHash": "46bdca568a2964549b4572d8b406a7a81654d80302a3ed7632232d3af54f46ad",
+      "description": "Look up a hot or established token by contract address or symbol/name. Returns the contract address DexSheet tracks, a dated automated rug check scored as SheetScore (score 0–95 or null when unrated, band, confidence, five weighted pillars, every check with pillar, status, detail and source, and whi",
+      "labels": [
+        "untrusted-content",
+        "private-data"
+      ]
+    },
+    {
+      "name": "trending_tokens",
+      "descriptionHash": "ecec265723477734ef8dc60fb01adbf4389dacf1f2da99ab186b78c0d17ff1f4",
+      "description": "List the tokens on DexSheet's hot list (ranked by trading demand), optionally for one chain, each with its SheetScore and band, 24h volume, liquidity, 24h price change and DexSheet page URL. Snapshot data, refreshed about every 15 minutes.",
+      "labels": [
+        "untrusted-content",
+        "private-data"
+      ]
+    },
     {
       "name": "search_venues",
       "descriptionHash": "7b6be8e728cf7c300c1db8acc732b2c37cc6121e0aa5bce55c8af2aa6675b6f2",
@@ -42,13 +60,70 @@
       ]
     },
     {
+      "name": "recommend_venue",
+      "descriptionHash": "9924e68398402df003fb0fbbb3d92102ad336f5079781566d178dfe01ea40bff",
+      "description": "Pick ONE venue for a job (trade memecoins, snipe, copy trade, track wallets, best swap price, perps, prediction markets, first buy with a card, wallet, launch a token, scan a token, crypto taxes), optionally on a chain, available in a country (US, UK, EU), by custody and on a phone. Returns the pick",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
       "name": "list_categories",
       "descriptionHash": "9e1cf8d302a18c2aa00a818bc4246db2dfb0639c37b65f2ffe01eec87117f444",
       "description": "List every venue category in the dataset with the number of venues in each."
+    },
+    {
+      "name": "swap_quote",
+      "descriptionHash": "a9c8d216946364479d4366e23722b9f79b81439e37c9452df4aa31ec63754497",
+      "description": "Build an UNSIGNED swap transaction for the caller's own wallet: buy a token with the chain's native coin, or sell it back. DexSheet never holds keys or funds: pass only the public wallet address as `taker`, then sign the returned transaction yourself. Every quote includes a 0.5% DexSheet fee (stated",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "swap_submit",
+      "descriptionHash": "50f62d1e0696d23c969dfe0339454748a384eccb82b81133ccc3a9b9d3905a7d",
+      "description": "Relay a Solana swap that the caller signed with their own wallet: pass request_id and the signed base64 transaction from swap_quote. This broadcasts a real on-chain swap that moves the wallet's funds; the trade includes the 0.5% DexSheet fee disclosed in the quote. Returns the execution status, sign",
+      "labels": [
+        "private-data",
+        "public-sink",
+        "destructive"
+      ]
     }
   ],
-  "findings": [],
-  "score": 100,
-  "scoreBreakdown": {},
+  "findings": [
+    {
+      "id": "MCP-TOOL-POISON-007",
+      "severity": "low",
+      "category": "tool-poisoning",
+      "title": "Description uses pressure/override language",
+      "detail": "Description of \"swap_quote\" stacks urgency/override words (never, warning). Legitimate tool descriptions rarely pressure the model to act or ignore prior guidance.",
+      "evidence": {
+        "source": "tool:swap_quote",
+        "snippet": "Build an UNSIGNED swap transaction for the caller's own wallet: buy a token with the chain's native coin, or sell it back. DexSheet never holds keys or funds: p…"
+      },
+      "confidence": 0.3
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: check_token, trending_tokens, search_venues, get_venue, swap_quote · Private data: check_token, trending_tokens, search_venues, get_venue, compare_fees, recommend_venue, swap_quote, swap_submit · Public sink: swap_quote, swap_submit · Destructive: swap_submit.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: check_token, trending_tokens, search_venues, get_venue, swap_quote · Private data: check_token, trending_tokens, search_venues, get_venue, compare_fees, recommend_venue, swap_quote, swap_submit · Public sink: swap_quote, swap_submit · Destructive: swap_submit"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 77,
+  "scoreBreakdown": {
+    "tool-poisoning": 3,
+    "toxic-flow": 20
+  },
   "errors": []
 }

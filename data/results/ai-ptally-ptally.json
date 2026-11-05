@@ -1,0 +1,140 @@
+{
+  "schemaVersion": 1,
+  "scanner": {
+    "version": "1.6.0",
+    "rules": "402995650b68"
+  },
+  "target": {
+    "kind": "url",
+    "ref": "https://app.ptally.ai/mcp"
+  },
+  "scannedAt": "2026-11-05T12:28:29.663Z",
+  "durationMs": 1495,
+  "layers": {
+    "metadata": true,
+    "static": false
+  },
+  "tools": [
+    {
+      "name": "get_docs",
+      "descriptionHash": "7857a660d603f4c9debf5e950ee16e041dfe8738b4e00d02a17df945e11357fc",
+      "description": "Fetch Ptally documentation by topic. Call BEFORE building or editing a config to load the rules and reference material you need. Topics: \"rules\" = agent rules, constraints, expression syntax, quality gates, and debugging guidance (start here); \"readme\" = full engine reference with step types, query "
+    },
+    {
+      "name": "get_schema",
+      "descriptionHash": "3eeddbaf1735aaeab7b702efcc88f952863be5ada9f152028a3f0926628ad99b",
+      "description": "Fetch the full JSON schema for Ptally project config files. Use to check exact field requirements, allowed step types, and property constraints.",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "validate_project",
+      "descriptionHash": "c228d9f447c7a12744a73edcd46f93e2c43263791cfbf76e5ce40a364a478b2b",
+      "description": "Server-side schema validation of a project config. Returns { valid: true/false, errors: [...] } with the JSON path, keyword, and message for each issue. Prefer local validation against get_schema during authoring; use this as a ground-truth check, including on an amended model before handing it back",
+      "labels": [
+        "untrusted-content",
+        "private-data"
+      ]
+    },
+    {
+      "name": "get_starter",
+      "descriptionHash": "6f4bd962aff4f49323d6c38b618a573f306dbe8c6d223321e9cf8014fe5e945f",
+      "description": "Fetch a worked-example Ptally project for a common line of business. Each example is a small, fully valid project with realistic collection tables, calculations, exclusions and refers, plus an embedded tests[] suite for reference. Use as a template — copy and adapt rather than authoring from scratch"
+    },
+    {
+      "name": "get_projects",
+      "descriptionHash": "2c7bc55f479f951b85781ada1b9db53db2c2bd07f59d36c6381a9a76bae287bf",
+      "description": "List every project stored on this self-host instance. Returns `{ count, projects: [{ project_reference, name, description }] }`. Descriptions are truncated to 100 characters so the response stays compact — call get_project for the full record. Archived projects are excluded.",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "get_project",
+      "descriptionHash": "ec3b174b1af6f36ca65a6e79456bdbb99f18df248c1f1c35ccef929b6af3a22e",
+      "description": "Fetch a project by `project_reference` from the self-host store. Optional `version_reference` pins to a specific version of that project (a version from another project is a tool error); otherwise the latest live (published or approved) version is used, or the latest non-archived version of any stat",
+      "labels": [
+        "private-data",
+        "destructive"
+      ]
+    },
+    {
+      "name": "run_quote",
+      "descriptionHash": "e1862ad708f3baf6a75b8be31a0cd435317d571f9d259ef1b6074c062c531878",
+      "description": "Dry-run a quote against a stored project. Takes `project_reference`, an optional `version_reference` (defaults to the latest live version; there is no fallback to drafts, so pass `version_reference` to price one — it must belong to the project and not be archived, else a tool error), and an `input` ",
+      "labels": [
+        "destructive"
+      ]
+    },
+    {
+      "name": "run_version_tests",
+      "descriptionHash": "724f1603a1ebc7351514ef3e23906cc5f4f6a68ee4d383197505b5c6e688663b",
+      "description": "Price every test in a version's tests[] against that version's stored model and compare each with its expected output. Takes `version_reference` (any status but archived — a draft after patch_version, or a live version for a baseline). Runs against the stored model, so a patch saved a moment ago is ",
+      "labels": [
+        "private-data",
+        "destructive"
+      ]
+    },
+    {
+      "name": "patch_version",
+      "descriptionHash": "c7c16ddb5ea64b12c6a26cfea4a1bba564f94862c64946202255eabbf5030ada",
+      "description": "Change a DRAFT version's stored model with an RFC 6902 JSON Patch, merged on the server. Use it for targeted edits; any change to a clipped collection (__context.patchable: false) goes through download and upload instead (see next_steps in get_project).\n\nBEFORE CALLING\n1. The version must be a draft",
+      "labels": [
+        "public-sink",
+        "destructive"
+      ]
+    },
+    {
+      "name": "get_health",
+      "descriptionHash": "0a1edb2828597d2c324584994abde933d15631345861b13f4e6f68d8d7d4e780",
+      "description": "Diagnostic snapshot of the deployed MCP server plus a live probe of its store (sqlite or Postgres). Returns server name and version, protocol version, root, boot time, advertised tool names and count, a hash of the tool surface, and `store` — `{ ok, latency_ms, counts: { projects, quotes } }` from c"
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOOL-POISON-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description issues instructions to the model",
+      "detail": "Description of \"patch_version\" contains imperative instructions directed at the AI assistant rather than describing the tool. This is the core tool-poisoning technique.",
+      "evidence": {
+        "source": "tool:patch_version",
+        "snippet": "Change a DRAFT version's stored model with an RFC 6902 JSON Patch, merged on the server. Use it for targeted edits; any change to a clipped collection (__contex…"
+      },
+      "confidence": 0.7,
+      "remediation": "Treat the server as untrusted; the model may obey embedded instructions."
+    },
+    {
+      "id": "MCP-TOOL-POISON-006",
+      "severity": "low",
+      "category": "tool-poisoning",
+      "title": "Anomalously long tool description",
+      "detail": "Description of \"patch_version\" is 3762 chars, far longer than this server's median (455). Overlong descriptions are a common place to bury instructions.",
+      "evidence": {
+        "source": "tool:patch_version",
+        "snippet": "Change a DRAFT version's stored model with an RFC 6902 JSON Patch, merged on the server. Use it for targeted edits; any change to a clipped collection (__contex…"
+      },
+      "confidence": 0.4
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: validate_project · Private data: get_schema, validate_project, get_projects, get_project, run_version_tests · Public sink: patch_version · Destructive: get_project, run_quote, run_version_tests, patch_version.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: validate_project · Private data: get_schema, validate_project, get_projects, get_project, run_version_tests · Public sink: patch_version · Destructive: get_project, run_quote, run_version_tests, patch_version"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 59,
+  "scoreBreakdown": {
+    "tool-poisoning": 22,
+    "toxic-flow": 20
+  },
+  "errors": []
+}

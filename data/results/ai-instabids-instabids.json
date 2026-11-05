@@ -8,8 +8,8 @@
     "kind": "url",
     "ref": "https://instabids.ai/api/agent/mcp"
   },
-  "scannedAt": "2026-11-03T12:00:35.251Z",
-  "durationMs": 331,
+  "scannedAt": "2026-11-05T12:28:12.271Z",
+  "durationMs": 2381,
   "layers": {
     "metadata": true,
     "static": false
@@ -27,13 +27,13 @@
     },
     {
       "name": "bid_checklist",
-      "descriptionHash": "7c3997431717cc63ccf4a23ed536f95eda50a4414e80d3488007d1d935495c83",
-      "description": "Get six items to compare in a home-project bid and optional trade-specific preparation."
+      "descriptionHash": "4ff461e096ab1b140fa544c3232fedba76cd9ce58ac4973e780be8b44d0f75e8",
+      "description": "Get six items to compare in a home-project bid and optional trade-specific preparation. Omit trade for the general checklist; the answer's trade is then null. The answer includes sourceUrl."
     },
     {
       "name": "check_service_area",
-      "descriptionHash": "b86fb53e209bc4166b845355fc31e75afd56b4a791feba4678daba872e23eb76",
-      "description": "Check whether InstaBids can take a job at a US ZIP code. Homeowners anywhere in the US can post a job; once you send it, InstaBids finds contractors to bid on it. Get the answer for a five-digit ZIP, and list towns with an InstaBids town page for a five-digit ZIP.",
+      "descriptionHash": "4bd3ab8d42206cb9484a66619239cf1a479cee91fb368630fd8c39a41731176b",
+      "description": "Every US ZIP can post a job. Homeowners anywhere in the US can post a job; once you send it, InstaBids finds contractors to bid on it. Returns guidance and whether the input is a US ZIP, plus nearby town pages. Get the answer for a five-digit ZIP, and list towns with an InstaBids town page for a fiv",
       "labels": [
         "untrusted-content",
         "public-sink"
@@ -50,7 +50,7 @@
     },
     {
       "name": "start_job",
-      "descriptionHash": "756cf3a7e778d4f213e3715b5622c0400fa38c658a1edb12185a7125a3bafb8d",
+      "descriptionHash": "50b3b991fc32b772a54da27c60c2acafe8a4bab47b693e210d83b98ad508ab0d",
       "description": "Use this when a homeowner wants contractor bids on a home repair or improvement job in the US. Creates a private draft from their description and five-digit ZIP and returns a one-hour link for the homeowner to open. Nothing reaches a contractor until the homeowner confirms their email and sends it. ",
       "labels": [
         "untrusted-content",
@@ -62,6 +62,20 @@
       "name": "job_status",
       "descriptionHash": "6394583a41ac879af69a4fd9b6e35429dd65f7d6cb82d86c42db1e244e88ae0b",
       "description": "Use this after start_job returned a statusHandle, to see whether the homeowner has sent the job and how many bids have arrived. Returns only the stage (draft, sent, collecting_bids, picked, closed or expired), the bid count and when it last changed. Never returns bid amounts, contractor names or the"
+    },
+    {
+      "name": "how_contractors_join",
+      "descriptionHash": "8379e6de66de45c74d0ec607bd917157676de4c44470acf1e8b43b37afc18956",
+      "description": "InstaBids is an AI-run marketplace for homeowners and property managers: describe a home job once, by chat or through your own AI assistant, add photos, and get multiple written quotes on the same scope, compared apples to apples, with no phone calls or home visits before you pick. Get the contracto",
+      "labels": [
+        "untrusted-content",
+        "destructive"
+      ]
+    },
+    {
+      "name": "job_guidance",
+      "descriptionHash": "4f0e727b18dbe5b642eea41f541bec33de9de720820fe0d45d575e46bf60d38e",
+      "description": "Get must-have questions and photo asks from the current intake template for any trade. Unknown trades use the generic template. No prices or budget questions."
     }
   ],
   "findings": [
@@ -70,18 +84,58 @@
       "severity": "high",
       "category": "toxic-flow",
       "title": "Lethal trifecta: untrusted input + private data + external sink",
-      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: how_instabids_works, check_service_area, permit_facts, start_job · Private data: how_instabids_works, start_job · Public sink: check_service_area, permit_facts, start_job · Destructive: how_instabids_works.",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: how_instabids_works, check_service_area, permit_facts, start_job, how_contractors_join · Private data: how_instabids_works, start_job · Public sink: check_service_area, permit_facts, start_job · Destructive: how_instabids_works, how_contractors_join.",
       "evidence": {
         "source": "server:mcp",
-        "snippet": "Untrusted content: how_instabids_works, check_service_area, permit_facts, start_job · Private data: how_instabids_works, start_job · Public sink: check_service_area, permit_facts, start_job · Destructive: how_instabids_works"
+        "snippet": "Untrusted content: how_instabids_works, check_service_area, permit_facts, start_job, how_contractors_join · Private data: how_instabids_works, start_job · Public sink: check_service_area, permit_facts, start_job · Destructive: how_instabids_works, how_contractors_join"
       },
       "confidence": 0.6,
       "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"bid_checklist\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:bid_checklist",
+        "snippet": "before: \"Get six items to compare in a home-project bid and optional trade-specific preparation.\" → after: \"Get six items to compare in a home-project bid and optional trade-specific preparation. Omit trade for the general checklist; the answer's trade is then null. The answer includes sourceUrl.\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"check_service_area\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:check_service_area",
+        "snippet": "before: \"Check whether InstaBids can take a job at a US ZIP code. Homeowners anywhere in the US can post a job; once you send it, InstaBids finds contractors to bid on it. Get the answer for a five-digit ZIP, and list towns with an InstaBids town page for a five-digit ZIP.\" → after: \"Every US ZIP can post a job. Homeowners anywhere in the US can post a job; once you send it, InstaBids finds contractors to bid on it. Returns guidance and whether the input is a US ZIP, plus nearby town pages. Get the answer for a five-digit ZIP, and list towns with an InstaBids town page for a fiv\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"start_job\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:start_job",
+        "snippet": "before: \"Use this when a homeowner wants contractor bids on a home repair or improvement job in the US. Creates a private draft from their description and five-digit ZIP and returns a one-hour link for the homeowner to open. Nothing reaches a contractor until the homeowner confirms their email and sends it. \" → after: \"Use this when a homeowner wants contractor bids on a home repair or improvement job in the US. Creates a private draft from their description and five-digit ZIP and returns a one-hour link for the homeowner to open. Nothing reaches a contractor until the homeowner confirms their email and sends it. \""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
     }
   ],
-  "score": 80,
+  "score": 45,
   "scoreBreakdown": {
-    "toxic-flow": 20
+    "toxic-flow": 20,
+    "tool-poisoning": 35
   },
   "errors": []
 }

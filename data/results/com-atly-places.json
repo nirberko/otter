@@ -8,8 +8,8 @@
     "kind": "url",
     "ref": "https://agentic-api.atly.com/mcp"
   },
-  "scannedAt": "2026-10-06T11:30:01.282Z",
-  "durationMs": 773,
+  "scannedAt": "2026-11-05T12:29:46.672Z",
+  "durationMs": 907,
   "layers": {
     "metadata": true,
     "static": false
@@ -25,24 +25,25 @@
     },
     {
       "name": "search_places",
-      "descriptionHash": "930abad5b25539afb2fa8d4dbb1850332bf541d366dfbcd06a406b357d91d81c",
-      "description": "Find places for an intent near a location\n\nThe core call. Give one or more category ids (from `list_categories`; all must match) and a location — either\nan `area_id` from `list_areas` or coordinates with a radius — and get places ranked by Atly's score for those\ncategories, each with quotable reason",
+      "descriptionHash": "c4dd2659e754df3d8a55d12aedb09504dd9d01dd6b57583c959c57d4ed3e88f4",
+      "description": "Find places for an intent near a location\n\nThe core call. Give one or more categories (exact names like \"Coffee\", or ids from `list_categories`; all must\nmatch) and a location — a city name or an `area_id` from `list_areas`, or coordinates with a radius — and get\nplaces ranked by Atly's score for th",
       "labels": [
-        "untrusted-content"
+        "untrusted-content",
+        "private-data"
       ]
     },
     {
       "name": "get_place",
-      "descriptionHash": "62e3c735d772d1b6b79b8a33bbfeca64d6e1bfda0fe43c1de48d30be50dabeb7",
-      "description": "Everything about one place\n\nFull detail for a place id from `search_places`: profile, hours, all category scores, up to eight quotable\nstatements, good-to-know facts, gluten-free identity when known, and the canonical Atly URL to cite.",
+      "descriptionHash": "f91d0ba714045cdaab39d11e27c5834ee6e4922a6b88bedac79440753c4cf590",
+      "description": "Everything about one place\n\nFull detail for a place id from `search_places`: profile, hours, scores for the categories reviewers mention most (up to 40), up to eight quotable\nstatements, good-to-know facts, gluten-free identity when known, and the canonical Atly URL to cite.",
       "labels": [
         "untrusted-content"
       ]
     },
     {
       "name": "submit_feedback",
-      "descriptionHash": "2173fa8d9db5e00408c7c45e0b6f84301dc99e94ec9d3b5083797e3e38905209",
-      "description": "Tell us how a call went\n\nReference the `call_id` of any earlier response and say whether it helped, and optionally why, in a sentence\nabout the result — what was right, missing or wrong. Do not include the user's words, the conversation, or\nanything about the person. One row per caller per call; lig",
+      "descriptionHash": "8d3f18be479655a7ed83233e63c83e55b04f87b7f616abe9ade64dfb27f57040",
+      "description": "Tell us how a call went\n\nReference the `call_id` of any earlier response and say whether it helped, and optionally why, in a sentence\nabout the result — what was right, missing or wrong. Do not include the user's words, the conversation, or\nanything about the person. Nothing is overwritten: sending ",
       "labels": [
         "public-sink"
       ]
@@ -65,21 +66,73 @@
   ],
   "findings": [
     {
+      "id": "MCP-TOOL-POISON-007",
+      "severity": "low",
+      "category": "tool-poisoning",
+      "title": "Description uses pressure/override language",
+      "detail": "Description of \"search_places\" stacks urgency/override words (always, never). Legitimate tool descriptions rarely pressure the model to act or ignore prior guidance.",
+      "evidence": {
+        "source": "tool:search_places",
+        "snippet": "Find places for an intent near a location The core call. Give one or more categories (exact names like \"Coffee\", or ids from `list_categories`; all must match) …"
+      },
+      "confidence": 0.3
+    },
+    {
       "id": "MCP-TOXIC-FLOW-001",
       "severity": "high",
       "category": "toxic-flow",
       "title": "Lethal trifecta: untrusted input + private data + external sink",
-      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: search_places, get_place · Private data: get_api_key · Public sink: submit_feedback.",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: search_places, get_place · Private data: get_api_key, search_places · Public sink: submit_feedback.",
       "evidence": {
         "source": "server:mcp",
-        "snippet": "Untrusted content: search_places, get_place · Private data: get_api_key · Public sink: submit_feedback"
+        "snippet": "Untrusted content: search_places, get_place · Private data: get_api_key, search_places · Public sink: submit_feedback"
       },
       "confidence": 0.6,
       "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"search_places\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:search_places",
+        "snippet": "before: \"Find places for an intent near a location\n\nThe core call. Give one or more category ids (from `list_categories`; all must match) and a location — either\nan `area_id` from `list_areas` or coordinates with a radius — and get places ranked by Atly's score for those\ncategories, each with quotable reason\" → after: \"Find places for an intent near a location\n\nThe core call. Give one or more categories (exact names like \"Coffee\", or ids from `list_categories`; all must\nmatch) and a location — a city name or an `area_id` from `list_areas`, or coordinates with a radius — and get\nplaces ranked by Atly's score for th\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"get_place\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:get_place",
+        "snippet": "before: \"Everything about one place\n\nFull detail for a place id from `search_places`: profile, hours, all category scores, up to eight quotable\nstatements, good-to-know facts, gluten-free identity when known, and the canonical Atly URL to cite.\" → after: \"Everything about one place\n\nFull detail for a place id from `search_places`: profile, hours, scores for the categories reviewers mention most (up to 40), up to eight quotable\nstatements, good-to-know facts, gluten-free identity when known, and the canonical Atly URL to cite.\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"submit_feedback\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:submit_feedback",
+        "snippet": "before: \"Tell us how a call went\n\nReference the `call_id` of any earlier response and say whether it helped, and optionally why, in a sentence\nabout the result — what was right, missing or wrong. Do not include the user's words, the conversation, or\nanything about the person. One row per caller per call; lig\" → after: \"Tell us how a call went\n\nReference the `call_id` of any earlier response and say whether it helped, and optionally why, in a sentence\nabout the result — what was right, missing or wrong. Do not include the user's words, the conversation, or\nanything about the person. Nothing is overwritten: sending \""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
     }
   ],
-  "score": 80,
+  "score": 45,
   "scoreBreakdown": {
+    "tool-poisoning": 35,
     "toxic-flow": 20
   },
   "errors": []

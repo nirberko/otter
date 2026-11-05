@@ -1,0 +1,112 @@
+{
+  "schemaVersion": 1,
+  "scanner": {
+    "version": "1.6.0",
+    "rules": "402995650b68"
+  },
+  "target": {
+    "kind": "url",
+    "ref": "https://isitlegitreviews.com/mcp"
+  },
+  "scannedAt": "2026-11-05T12:30:38.725Z",
+  "durationMs": 2571,
+  "layers": {
+    "metadata": true,
+    "static": false
+  },
+  "tools": [
+    {
+      "name": "describe_review_source",
+      "descriptionHash": "05455ce69bf41e40abe1ba9ff6f3dd6f0b46559504691c25d944c71893a61ca7",
+      "description": "Read this BEFORE scraping. Returns, per platform, the exact submission format: identity fields for the listing, the per-review fields (required vs optional; everything required is visible on the review card), where each lives on the platform's pages, the sort-by-newest and 500-most-recent rules, an ",
+      "labels": [
+        "untrusted-content",
+        "destructive"
+      ]
+    },
+    {
+      "name": "check_place",
+      "descriptionHash": "397bfbd577d129bd7ac124fc2ffa3d13a0903ddc16b49839478600472e08e5bb",
+      "description": "Call first. Resolves a Google Maps link or place_id and reports whether a trust result is cached, how fresh it is, and a recommendation: use the cached result, or collect and submit the reviews (also when a cached single-source result would benefit from your corroboration). Never contacts Google.",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "begin_submission",
+      "descriptionHash": "00d40e3a0ba5da64a449eaed1ec1f140d59d3db9b790a0eb9d98724bf353b22d",
+      "description": "Reserves a submission and returns an upload_url. POST the complete JSON payload (format from describe_review_source) to it from your own environment or the user's browser; the HTTP response is the trust report. The URL is a secret that completes the submission under YOUR identity whoever posts to it",
+      "labels": [
+        "private-data",
+        "public-sink",
+        "destructive"
+      ]
+    },
+    {
+      "name": "submit_reviews",
+      "descriptionHash": "670b9994f9040598708a608617df7703a91c53db17f8fc5c4aa043cc4ab57361",
+      "description": "Submit the review feed inside the tool call. Without submission_id this is a one-shot submission of the whole payload (fine up to about 150 reviews). For more, call begin_submission, then send chunks of up to 150 reviews each with the same submission_id and final=false; send final=true with the last",
+      "labels": [
+        "untrusted-content",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "finalize_submission",
+      "descriptionHash": "d4322c3a95a66019124f661576c4036bde3ad4fab2d0af5495faf3e6a5bd73eb",
+      "description": "For a submission fed by inline chunks: validates, scores, stores and returns the report. For one already uploaded to its upload_url: returns the stored report. Pending with nothing uploaded yet: says so."
+    },
+    {
+      "name": "get_place_trust",
+      "descriptionHash": "5b96f28ecfed294d6b665cb5ddb8dbc5cb00632570eae879ad35ae25170ca04c",
+      "description": "The cached fraud analysis for a place: verdict (looks_legit / not_sure / past_manipulation / inflated / manipulated) with its label and a one-sentence summary, letter grade, 0-100 trust score, the adjusted rating credible reviewers actually give (vs the headline average), reviewer-mix tiers, review-",
+      "labels": [
+        "untrusted-content",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "list_scored_places",
+      "descriptionHash": "05307364f7849cf14b827caad4cf08074499e9d971d5104515c1aae7563a187e",
+      "description": "The ranked directory of places already analyzed for review fraud, best adjusted rating first (what the site's home and city pages show). 25 per page. Optional city or curated-list filter; the response lists the available cities/lists and their counts.",
+      "labels": [
+        "untrusted-content"
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"begin_submission\" references sensitive artifacts (secret). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:begin_submission",
+        "snippet": "Reserves a submission and returns an upload_url. POST the complete JSON payload (format from describe_review_source) to it from your own environment or the user…"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: describe_review_source, check_place, submit_reviews, get_place_trust, list_scored_places · Private data: check_place, begin_submission · Public sink: check_place, begin_submission, submit_reviews, get_place_trust · Destructive: describe_review_source, begin_submission.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: describe_review_source, check_place, submit_reviews, get_place_trust, list_scored_places · Private data: check_place, begin_submission · Public sink: check_place, begin_submission, submit_reviews, get_place_trust · Destructive: describe_review_source, begin_submission"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 60,
+  "scoreBreakdown": {
+    "tool-poisoning": 20,
+    "toxic-flow": 20
+  },
+  "errors": []
+}

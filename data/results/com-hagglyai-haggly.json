@@ -8,8 +8,8 @@
     "kind": "url",
     "ref": "https://hagglyai.com/mcp"
   },
-  "scannedAt": "2026-10-11T10:56:50.782Z",
-  "durationMs": 1097,
+  "scannedAt": "2026-11-05T12:30:44.748Z",
+  "durationMs": 1565,
   "layers": {
     "metadata": true,
     "static": false
@@ -17,30 +17,112 @@
   "tools": [
     {
       "name": "find_best",
-      "descriptionHash": "6e5585f74ddb635a8b6398825bd255bcdede57aa6e52e48ad2ff222054d07942",
-      "description": "Given a plain-language task (e.g. 'web search', 'scrape a page to markdown', 'BTC price'), returns the recommended paid API endpoint and ranked alternatives with price per call, reliability score and real usage. Use before paying for an unfamiliar x402 API."
+      "descriptionHash": "be093e65e17b54ec7ea7bd5534f827a3a97271e61676075254a6646804eec4b4",
+      "description": "Call this when a task needs an outside API or data source and you have not picked one, e.g. \"search the web\", \"scrape this page to markdown\", \"get the BTC price\", \"Instagram comments for a post\", \"flight prices\", \"generate a PDF\", \"solve a captcha\", \"translate this text\". Returns the recommended pay",
+      "labels": [
+        "untrusted-content",
+        "public-sink"
+      ]
     },
     {
       "name": "compare_category",
-      "descriptionHash": "a65dc182b28f669ca882db7b5a7c85dc001693c683c5430cc8e5e5a7af140092",
-      "description": "Full ranked comparison of paid endpoints in one category. Call list_categories for valid ids."
+      "descriptionHash": "df2d3f8f3de1355789988021976b0c1b24823e19d8f88b6c0cc7c85e5d26cd53",
+      "description": "Call this to weigh the options in one area instead of taking find_best's single recommendation, or when the user asks \"which is the cheapest / most reliable X API?\". Returns every tracked API in the category ranked by score, with price per call, reliability, usage and any warnings. Category ids: web"
+    },
+    {
+      "name": "most_popular",
+      "descriptionHash": "825d2c225bc3ccebcd0f36dbb4afbdb09be0d536732a238e1edcf3d8bca6e4d7",
+      "description": "Call this when the user asks what other people use, or wants a safe, proven choice: the 3 APIs in a category with the most paying users in the last 30 days, \"Most popular\" first. APIs with warnings are held back and named. Category ids: web-search, web-extraction, llm-inference, crypto-prices, oncha"
     },
     {
       "name": "check_endpoint",
-      "descriptionHash": "8698e518f6c2bf86441c991051b63e95cafb7d1be3fee640d54089be9af93676",
-      "description": "Score, live probe history, price and usage for one endpoint URL Haggly tracks.",
+      "descriptionHash": "d6075418219d42ce876441a782a8444e3aa5a91d0510c28daca5dd11591aae1d",
+      "description": "Call this before paying a specific API URL you were given or found elsewhere, to see whether it can be trusted: Hagglyai's reliability score and recent check history, its price per call, how many paying users it has, and any warnings (for example a payment wallet that does not match the seller). It ",
       "labels": [
-        "untrusted-content"
+        "untrusted-content",
+        "private-data"
       ]
     },
     {
       "name": "list_categories",
-      "descriptionHash": "079e5d61d96d8d6af26a99d13afa259c49671140d10fa78d350150694ba98ccf",
-      "description": "Categories Haggly compares, with endpoint counts and the cheapest price per call."
+      "descriptionHash": "c3511ab890463c0a32363b502accd91bda5de4358f362cde2af0eebce26d4ef4",
+      "description": "Call this to see whether Hagglyai can help with a need, or to get ids for compare_category and most_popular: every category with how many APIs it tracks, the cheapest price per call, and its platform and task sub-categories (e.g. instagram, comments).",
+      "labels": [
+        "untrusted-content"
+      ]
     }
   ],
-  "findings": [],
-  "score": 100,
-  "scoreBreakdown": {},
+  "findings": [
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: find_best, check_endpoint, list_categories · Private data: check_endpoint · Public sink: find_best.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: find_best, check_endpoint, list_categories · Private data: check_endpoint · Public sink: find_best"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"find_best\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:find_best",
+        "snippet": "before: \"Given a plain-language task (e.g. 'web search', 'scrape a page to markdown', 'BTC price'), returns the recommended paid API endpoint and ranked alternatives with price per call, reliability score and real usage. Use before paying for an unfamiliar x402 API.\" → after: \"Call this when a task needs an outside API or data source and you have not picked one, e.g. \"search the web\", \"scrape this page to markdown\", \"get the BTC price\", \"Instagram comments for a post\", \"flight prices\", \"generate a PDF\", \"solve a captcha\", \"translate this text\". Returns the recommended pay\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"compare_category\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:compare_category",
+        "snippet": "before: \"Full ranked comparison of paid endpoints in one category. Call list_categories for valid ids.\" → after: \"Call this to weigh the options in one area instead of taking find_best's single recommendation, or when the user asks \"which is the cheapest / most reliable X API?\". Returns every tracked API in the category ranked by score, with price per call, reliability, usage and any warnings. Category ids: web\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"check_endpoint\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:check_endpoint",
+        "snippet": "before: \"Score, live probe history, price and usage for one endpoint URL Haggly tracks.\" → after: \"Call this before paying a specific API URL you were given or found elsewhere, to see whether it can be trusted: Hagglyai's reliability score and recent check history, its price per call, how many paying users it has, and any warnings (for example a payment wallet that does not match the seller). It \""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"list_categories\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:list_categories",
+        "snippet": "before: \"Categories Haggly compares, with endpoint counts and the cheapest price per call.\" → after: \"Call this to see whether Hagglyai can help with a need, or to get ids for compare_category and most_popular: every category with how many APIs it tracks, the cheapest price per call, and its platform and task sub-categories (e.g. instagram, comments).\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    }
+  ],
+  "score": 43,
+  "scoreBreakdown": {
+    "toxic-flow": 20,
+    "tool-poisoning": 38
+  },
   "errors": []
 }

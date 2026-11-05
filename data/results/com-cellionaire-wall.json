@@ -1,0 +1,82 @@
+{
+  "schemaVersion": 1,
+  "scanner": {
+    "version": "1.6.0",
+    "rules": "402995650b68"
+  },
+  "target": {
+    "kind": "url",
+    "ref": "https://cellionaire.com/mcp"
+  },
+  "scannedAt": "2026-11-05T12:47:14.195Z",
+  "durationMs": 1189,
+  "layers": {
+    "metadata": true,
+    "static": false
+  },
+  "tools": [
+    {
+      "name": "get_wall_info",
+      "descriptionHash": "3f07505949bca575551d3a9cbd8ab7a21f5c9a66475ea82baad942c168e3e5b3",
+      "description": "Rules, prices, size, minimum order, payment networks, terms version and whether purchases are open. Numbers come from the live settings. No input."
+    },
+    {
+      "name": "wall_overview",
+      "descriptionHash": "e8a1c1006835d8bff1e02f931177b68c2a02922533a78323c74564564a17564d",
+      "description": "Current wall version, the URL of the full-wall PNG (1 pixel = 1 cell; alpha 0 empty, 255 bought, 254 site-owned house art) and how to read regions. Wraps GET /api/wall. No input.",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "read_region",
+      "descriptionHash": "bbb7eed8f74b577b9cedcc5592a95e25ce32456a11cafdd92af1413a66d1bb7c",
+      "description": "Pixels and owners of a rectangle (w*h <= 10000). format \"json\" (default): base64 RGBA pixels plus runs of empty / buyer (with public display name) / house cells. format \"png\": the rectangle as a PNG image. Wraps GET /api/region. Wall coordinates: x 0..999 (left to right), y 0..999 (top to bottom); c",
+      "labels": [
+        "destructive"
+      ]
+    },
+    {
+      "name": "check_cells_available",
+      "descriptionHash": "60c129cb76ce2507e1437ad1d625b0e79b37576e6b6296b9e0c04aff016138af",
+      "description": "Price a selection of cells right now and say whether it can be ordered (meets the minimum, not reserved, not in image review). Nothing is reserved or charged. Wraps POST /api/quote. Wall coordinates: x 0..999 (left to right), y 0..999 (top to bottom); cell index = y*1000 + x.",
+      "labels": [
+        "untrusted-content",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "create_order",
+      "descriptionHash": "950580f579cc97bba2c6d171c4e38acff93b2536327876d41c1bc9f01a0e5c8e",
+      "description": "Create an order for cells and return the USDC payment details (recipient wallet, token, amount_units, Solana reference, pay_by, status URL). This tool does not pay: the caller sends the USDC transfer itself before pay_by. Same validation and limits as the website (minimum cells, at most 16 colours (",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "get_order_status",
+      "descriptionHash": "5acee4c8e4458c8d7416fde51dd2a17f573049c29c7e8ee9d682b95a15af509e",
+      "description": "Status of an order and its USDC payment (state, received, remaining, confirmations, refunds). Wraps GET /api/order/{id}. status: pending, processing, paid, pending_review, expired, cancelled, late_paid, refund_pending, refunded, failed."
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: wall_overview, check_cells_available · Private data: create_order · Public sink: check_cells_available · Destructive: read_region.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: wall_overview, check_cells_available · Private data: create_order · Public sink: check_cells_available · Destructive: read_region"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 80,
+  "scoreBreakdown": {
+    "toxic-flow": 20
+  },
+  "errors": []
+}

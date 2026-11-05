@@ -8,8 +8,8 @@
     "kind": "url",
     "ref": "https://arrakis.goodailabs.com/mcp"
   },
-  "scannedAt": "2026-10-31T10:28:54.058Z",
-  "durationMs": 1042,
+  "scannedAt": "2026-11-05T12:30:41.835Z",
+  "durationMs": 830,
   "layers": {
     "metadata": true,
     "static": false
@@ -58,10 +58,19 @@
     },
     {
       "name": "rent_gpu",
-      "descriptionHash": "a60bdfb8599ec96678f6ccfceb59fdc6d445630b6c086fc685756ab72a07e639",
-      "description": "Rent one machine found by search_gpus. COSTS MONEY: price per GPU-hour x GPUs, paid an hour at a time from when it starts running (booting is free) until terminate_instance or termination_hours, whichever comes first; worst_case_usd in the result is the most it can cost, and balance_covers_hours say",
+      "descriptionHash": "cc36be215c39833a5ac2cdfc6d877aa0da5dfe73d360ef9a645c421312de775e",
+      "description": "Rent one machine found by search_gpus, for work you run yourself over SSH (training, fine-tuning, batch jobs). To serve a model, use plan_deploy then deploy_model instead: one call sets up the machine, the engine and an OpenAI-compatible endpoint. COSTS MONEY: price per GPU-hour x GPUs, paid an hour",
       "labels": [
-        "private-data"
+        "private-data",
+        "destructive"
+      ]
+    },
+    {
+      "name": "plan_deploy",
+      "descriptionHash": "4c10b7f8bb2ec7ebf82aadc827904fb0abbd7691666dc363d880f96734a4a0af",
+      "description": "What serving a Hugging Face model takes, before anything is rented: the GPU memory it needs and the machines it fits on right now, best value first, each with its hourly price and a rough speed. Free; rents and changes nothing. Call it first whenever the person wants a model running (to chat with, c",
+      "labels": [
+        "destructive"
       ]
     },
     {
@@ -111,6 +120,16 @@
       ]
     },
     {
+      "name": "instance_ssh_keys",
+      "descriptionHash": "27a9ea9d8408d90497e2a40231e0687efe9fbe93547da223672e5cee923c4524",
+      "description": "List, add or take off the SSH keys that can log in to a running machine. With only instance_id: the keys on it (fingerprint, comment, the saved key's name). add_ssh_key_ids / add_public_keys: more keys can log in (a teammate's, a new laptop's), at once. remove_fingerprints: those keys can't log in a",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "destructive"
+      ]
+    },
+    {
       "name": "schedule_removal",
       "descriptionHash": "d567aebdada04e4630b1a60afa20443a40da4eefb561cfe861a4411b39caee09",
       "description": "Change when a machine is removed automatically (ISO 8601, UTC). It bills until then, and removal deletes the machine and its disk. Use it to end a rental early when the job will finish sooner, or, with a token that has no spend cap, to extend a long run. A token with a spend cap can only move remova",
@@ -129,7 +148,7 @@
       "detail": "Description of \"rent_gpu\" references sensitive artifacts (ssh_key, ssh key). A tool description has no reason to mention credentials.",
       "evidence": {
         "source": "tool:rent_gpu",
-        "snippet": "Rent one machine found by search_gpus. COSTS MONEY: price per GPU-hour x GPUs, paid an hour at a time from when it starts running (booting is free) until termin…"
+        "snippet": "Rent one machine found by search_gpus, for work you run yourself over SSH (training, fine-tuning, batch jobs). To serve a model, use plan_deploy then deploy_mod…"
       },
       "confidence": 0.65
     },
@@ -146,22 +165,47 @@
       "confidence": 0.65
     },
     {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"instance_ssh_keys\" references sensitive artifacts (ssh_key, ssh key). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:instance_ssh_keys",
+        "snippet": "List, add or take off the SSH keys that can log in to a running machine. With only instance_id: the keys on it (fingerprint, comment, the saved key's name). add…"
+      },
+      "confidence": 0.65
+    },
+    {
       "id": "MCP-TOXIC-FLOW-001",
       "severity": "high",
       "category": "toxic-flow",
       "title": "Lethal trifecta: untrusted input + private data + external sink",
-      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: get_partner_earnings, join_partner_program, deploy_model · Private data: get_market_summary, get_partner_earnings, join_partner_program, get_balance, rent_gpu, deploy_model, list_images, list_instances, get_events, schedule_removal · Public sink: get_partner_earnings, join_partner_program · Destructive: terminate_instance, schedule_removal.",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: get_partner_earnings, join_partner_program, deploy_model, instance_ssh_keys · Private data: get_market_summary, get_partner_earnings, join_partner_program, get_balance, rent_gpu, deploy_model, list_images, list_instances, get_events, instance_ssh_keys, schedule_removal · Public sink: get_partner_earnings, join_partner_program · Destructive: rent_gpu, plan_deploy, terminate_instance, instance_ssh_keys, schedule_removal.",
       "evidence": {
         "source": "server:mcp",
-        "snippet": "Untrusted content: get_partner_earnings, join_partner_program, deploy_model · Private data: get_market_summary, get_partner_earnings, join_partner_program, get_balance, rent_gpu, deploy_model, list_images, list_instances, get_events, schedule_removal · Public sink: get_partner_earnings, join_partner_program · Destructive: terminate_instance, schedule_removal"
+        "snippet": "Untrusted content: get_partner_earnings, join_partner_program, deploy_model, instance_ssh_keys · Private data: get_market_summary, get_partner_earnings, join_partner_program, get_balance, rent_gpu, deploy_model, list_images, list_instances, get_events, instance_ssh_keys, schedule_removal · Public sink: get_partner_earnings, join_partner_program · Destructive: rent_gpu, plan_deploy, terminate_instance, instance_ssh_keys, schedule_removal"
       },
       "confidence": 0.6,
       "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"rent_gpu\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:rent_gpu",
+        "snippet": "before: \"Rent one machine found by search_gpus. COSTS MONEY: price per GPU-hour x GPUs, paid an hour at a time from when it starts running (booting is free) until terminate_instance or termination_hours, whichever comes first; worst_case_usd in the result is the most it can cost, and balance_covers_hours say\" → after: \"Rent one machine found by search_gpus, for work you run yourself over SSH (training, fine-tuning, batch jobs). To serve a model, use plan_deploy then deploy_model instead: one call sets up the machine, the engine and an OpenAI-compatible endpoint. COSTS MONEY: price per GPU-hour x GPUs, paid an hour\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
     }
   ],
-  "score": 50,
+  "score": 43,
   "scoreBreakdown": {
-    "tool-poisoning": 30,
+    "tool-poisoning": 38,
     "toxic-flow": 20
   },
   "errors": []

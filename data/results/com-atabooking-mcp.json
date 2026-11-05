@@ -8,42 +8,50 @@
     "kind": "url",
     "ref": "https://atabooking.com/mcp"
   },
-  "scannedAt": "2026-11-03T12:02:09.167Z",
-  "durationMs": 994,
+  "scannedAt": "2026-11-05T12:29:46.410Z",
+  "durationMs": 1252,
   "layers": {
     "metadata": true,
     "static": false
   },
   "tools": [
     {
-      "name": "search_stays",
-      "descriptionHash": "a4fb62720dc773cf534a47430a01f52f56d8122065d4be879c3ca9421440fde0",
-      "description": "Find hotels with a room free for the dates and guests. Returns each stay's cheapest fitting room with a quote (price, ATA fee 5%, typical 15-20% OTA cut). Demo hotels are marked demo: true. Results come in pages: when more_results is true, call search_stays again with the same arguments plus cursor:"
+      "name": "search_venues",
+      "descriptionHash": "43c23332b49e2094ff72f48d4c22fe9bdcb98930a522df23fe0622bd662d8cc5",
+      "description": "Use this when the guest wants a hotel, restaurant or attraction in a place, e.g. 'a quiet hotel near Chaweng Beach' or 'seafood in Bophut'. Results are sorted by distance when you give `near`. Don't use this when you already have a venue_id: call get_venue. Results come in pages of 10: when more_res"
     },
     {
-      "name": "get_stay",
-      "descriptionHash": "8d225b50fc2c08ef86573c71f33b6de817488517c11ccb7c48d931f22f3bd093",
-      "description": "Rooms, prices, what's included, check-in/out times and cancellation terms for one stay. Demo hotels are marked demo: true."
+      "name": "get_venue",
+      "descriptionHash": "19a540d1c5ff341ddaac3f493a2b3420901622f2207baf186baa2103d79684db",
+      "description": "Use this when the guest is interested in one venue: its rooms, tables or tickets, from-prices, opening times, policies and how it answers requests. Don't use this to find venues: call search_venues.",
+      "labels": [
+        "untrusted-content"
+      ]
     },
     {
       "name": "check_availability",
-      "descriptionHash": "e84fa13d7c3b30b50104a3a7902bb93a972c8de4f45351871dfd0fb53b85906b",
-      "description": "Re-check one room for exact dates and guests right before booking. Returns available yes/no and the live quote. Demo hotels are marked demo: true."
+      "descriptionHash": "668f1dedfe0f062cb44b793f8aaad9967d8e968b590d223c0c807ba356c107d8",
+      "description": "Use this when the guest wants to know whether a room, table or ticket is free before sending a request. Answers available, unavailable or unknown. Unknown means the venue keeps no calendar with ATAbooking: the guest can still send_lead and the venue answers. Don't use this to hold anything: nothing ",
+      "labels": [
+        "untrusted-content"
+      ]
     },
     {
-      "name": "book_direct",
-      "descriptionHash": "1be99f1ebda4da2b12983ff220a1efc37ea15c58dfa562086235693af52cfd4f",
-      "description": "Places a 15-minute HOLD on the room and emails the guest a 6-digit code. Nothing is booked and nothing reaches the hotel until the guest confirms. After calling, tell the guest: check your email (the result shows the masked address), then either read the code back to you (call confirm_booking) or cl",
+      "name": "send_lead",
+      "descriptionHash": "61ce4ec7fc2a05dd4d21ca48bb71fa53819460b500b9caecff9d586ff6a72014",
+      "description": "Use this when the guest has chosen a venue and wants it to get in touch: it forwards their request (dates, party, contact, message) to the venue at once. It is a request, not a booking: nothing is held or paid, and the venue contacts the guest directly. Check the details with the guest before callin",
       "labels": [
         "untrusted-content",
+        "private-data",
         "public-sink"
       ]
     },
     {
-      "name": "confirm_booking",
-      "descriptionHash": "c9d6c25de4a6836e32977fc1b23aeb714683515d7feda4214854764dbf725a58",
-      "description": "Confirm a held booking with the 6-digit code the guest received by email. Only use a code the guest gave you. Five wrong codes cancel the hold. Confirming twice returns the same booking.",
+      "name": "get_lead_status",
+      "descriptionHash": "3e9e9239c12dfee79227fd2a14d55ebbb76a018f33db6a8caf26493d77fb8d6a",
+      "description": "Use this when the guest asks whether the venue has received their request. Shows each channel's delivery state (portal, email, WhatsApp, webhook). It doesn't show whether the venue has accepted: the venue answers the guest directly. Needs the status_token send_lead returned.",
       "labels": [
+        "untrusted-content",
         "public-sink"
       ]
     }
@@ -54,45 +62,93 @@
       "severity": "high",
       "category": "tool-poisoning",
       "title": "Description issues instructions to the model",
-      "detail": "Description of \"book_direct\" contains imperative instructions directed at the AI assistant rather than describing the tool. This is the core tool-poisoning technique.",
+      "detail": "Description of \"send_lead\" contains imperative instructions directed at the AI assistant rather than describing the tool. This is the core tool-poisoning technique.",
       "evidence": {
-        "source": "tool:book_direct",
-        "snippet": "Places a 15-minute HOLD on the room and emails the guest a 6-digit code. Nothing is booked and nothing reaches the hotel until the guest confirms. After calling…"
+        "source": "tool:send_lead",
+        "snippet": "Use this when the guest has chosen a venue and wants it to get in touch: it forwards their request (dates, party, contact, message) to the venue at once. It is …"
       },
       "confidence": 0.7,
       "remediation": "Treat the server as untrusted; the model may obey embedded instructions."
     },
     {
       "id": "MCP-TOXIC-FLOW-001",
-      "severity": "medium",
+      "severity": "high",
       "category": "toxic-flow",
-      "title": "Toxic flow: untrusted input can reach an external sink",
-      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: book_direct · Public sink: book_direct, confirm_booking.",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: get_venue, check_availability, send_lead, get_lead_status · Private data: send_lead · Public sink: send_lead, get_lead_status.",
       "evidence": {
         "source": "server:mcp",
-        "snippet": "Untrusted content: book_direct · Public sink: book_direct, confirm_booking"
+        "snippet": "Untrusted content: get_venue, check_availability, send_lead, get_lead_status · Private data: send_lead · Public sink: send_lead, get_lead_status"
       },
-      "confidence": 0.45,
+      "confidence": 0.6,
       "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "medium",
+      "category": "tool-poisoning",
+      "title": "Tool removed since last scan",
+      "detail": "Tool \"search_stays\" is no longer advertised. Removal can precede a shadowing replacement from another server.",
+      "evidence": {
+        "source": "tool:search_stays",
+        "snippet": "removed: search_stays"
+      },
+      "confidence": 0.5
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "medium",
+      "category": "tool-poisoning",
+      "title": "Tool removed since last scan",
+      "detail": "Tool \"get_stay\" is no longer advertised. Removal can precede a shadowing replacement from another server.",
+      "evidence": {
+        "source": "tool:get_stay",
+        "snippet": "removed: get_stay"
+      },
+      "confidence": 0.5
     },
     {
       "id": "MCP-RUGPULL-001",
       "severity": "high",
       "category": "tool-poisoning",
       "title": "Tool description changed since last scan",
-      "detail": "Tool \"search_stays\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "detail": "Tool \"check_availability\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
       "evidence": {
-        "source": "tool:search_stays",
-        "snippet": "before: \"Find hotels with a room free for the dates and guests. Returns each stay's cheapest fitting room with a quote (price, ATA fee 5%, typical 15-20% OTA cut). Demo hotels are marked demo: true.\" → after: \"Find hotels with a room free for the dates and guests. Returns each stay's cheapest fitting room with a quote (price, ATA fee 5%, typical 15-20% OTA cut). Demo hotels are marked demo: true. Results come in pages: when more_results is true, call search_stays again with the same arguments plus cursor:\""
+        "source": "tool:check_availability",
+        "snippet": "before: \"Re-check one room for exact dates and guests right before booking. Returns available yes/no and the live quote. Demo hotels are marked demo: true.\" → after: \"Use this when the guest wants to know whether a room, table or ticket is free before sending a request. Answers available, unavailable or unknown. Unknown means the venue keeps no calendar with ATAbooking: the guest can still send_lead and the venue answers. Don't use this to hold anything: nothing \""
       },
       "confidence": 0.8,
       "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "medium",
+      "category": "tool-poisoning",
+      "title": "Tool removed since last scan",
+      "detail": "Tool \"book_direct\" is no longer advertised. Removal can precede a shadowing replacement from another server.",
+      "evidence": {
+        "source": "tool:book_direct",
+        "snippet": "removed: book_direct"
+      },
+      "confidence": 0.5
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "medium",
+      "category": "tool-poisoning",
+      "title": "Tool removed since last scan",
+      "detail": "Tool \"confirm_booking\" is no longer advertised. Removal can precede a shadowing replacement from another server.",
+      "evidence": {
+        "source": "tool:confirm_booking",
+        "snippet": "removed: confirm_booking"
+      },
+      "confidence": 0.5
     }
   ],
-  "score": 62,
+  "score": 46,
   "scoreBreakdown": {
-    "tool-poisoning": 30,
-    "toxic-flow": 8
+    "tool-poisoning": 34,
+    "toxic-flow": 20
   },
   "errors": []
 }

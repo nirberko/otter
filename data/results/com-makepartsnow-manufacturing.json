@@ -8,8 +8,8 @@
     "kind": "url",
     "ref": "https://makepartsnow.com/mcp"
   },
-  "scannedAt": "2026-10-08T11:36:18.399Z",
-  "durationMs": 932,
+  "scannedAt": "2026-11-05T12:31:10.879Z",
+  "durationMs": 873,
   "layers": {
     "metadata": true,
     "static": false
@@ -42,8 +42,16 @@
       ]
     },
     {
+      "name": "update_account",
+      "descriptionHash": "43e247b084fc75b14f94a7b3dca8616bc6c1afdae388e5be42f7ad759f825a76",
+      "description": "Change the agent account's name, organization, email, default ship_to or callback_url; omitted fields stay.\n    A new email or callback_url is emailed to the previous account email. Agent accounts only.",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
       "name": "upload_part",
-      "descriptionHash": "17854693b9980cea354d6c71451cce622d33febb9a5cf2ff86a3823459615e44",
+      "descriptionHash": "872004e7affedfe046b2e2e2bab6ba2c9e431c5a3406b5ca855d7c6d59434564",
       "description": "Upload a CAD file (STL, 3MF, OBJ, STEP) from an https URL or base64 content (filename required for base64).\n    MCP requests are limited to 4 MB, so base64 works for files up to about 3 MB; use a URL or get_upload_url for larger files.\n    no_controlled_data must be true: confirms the file has no CU",
       "labels": [
         "private-data",
@@ -62,8 +70,8 @@
     },
     {
       "name": "get_part",
-      "descriptionHash": "5697725e2b416537e13628c01f7c5228f5b5802c90b423771afcc5734dfcbf8c",
-      "description": "Part status, measured geometry (mm), suggested units, DFM warnings, and processes that fit it."
+      "descriptionHash": "9adf7ad4ccf447fa107fc6782193a352a1fe4e0ddb1eb401bf7284c49a067da5",
+      "description": "Part status, measured geometry (mm), suggested units, DFM warnings, and processes that fit it.\n    Pass wait_seconds to wait for a pending part's analysis in this call instead of polling."
     },
     {
       "name": "create_quote",
@@ -74,6 +82,16 @@
       "name": "get_quote",
       "descriptionHash": "7eb75ab90d671441b597461d80763bf2e54188f875d8b5cac32f205a4355abe4",
       "description": "Current pricing, speeds, shipping options, warnings and next_steps for a quote."
+    },
+    {
+      "name": "list_quotes",
+      "descriptionHash": "2a6753eea7806d6f92a9cda8c9eb50aefb90a83bdc6a7d3a6f6a05306b816cbf",
+      "description": "Your quotes, newest first: id, number, status, item_count, expires_at and the last priced total_before_tax.\n    Nothing is repriced; use get_quote for current prices. Use it to find quotes to discard when you hit the open-quote limit."
+    },
+    {
+      "name": "discard_quote",
+      "descriptionHash": "ff22abf8ed18a3e98dca6258714bc55223ec0e6621938fd10c6f98bff4b2d5b6",
+      "description": "Close a quote you no longer need, so it stops counting toward the open-quote limit. It becomes 'expired':\n    its checkout links and USDC payment requests stop working and it can't be paid. Discarding it again is harmless.\n    An ordered quote, or one with a USDC payment received, can't be discarded"
     },
     {
       "name": "update_quote",
@@ -90,8 +108,11 @@
     },
     {
       "name": "pay_with_crypto",
-      "descriptionHash": "fb08afc7bc3408cf5e99c62948e880076240fe8473f2cb28a75ab1e0bbd163d8",
-      "description": "Option B: pay autonomously in USDC via x402 (agent accounts only).\n    Call without payment_signature to get the payment requirements (amount, asset, pay_to, network).\n    Then sign an x402 'exact' payment and call again with payment_signature (the base64 PAYMENT-SIGNATURE value)."
+      "descriptionHash": "e41ba72f49c3f68061cf3f66c36623769966eec25bc1b22094dc6db9976a8a18",
+      "description": "Option B: pay autonomously in USDC via x402 (agent accounts only).\n    Call without payment_signature to get the payment requirements (amount, asset, pay_to, network); nothing is charged.\n    Then sign an x402 'exact' payment and call again with payment_signature (the base64 PAYMENT-SIGNATURE value)",
+      "labels": [
+        "private-data"
+      ]
     },
     {
       "name": "get_order",
@@ -110,6 +131,14 @@
       "labels": [
         "private-data"
       ]
+    },
+    {
+      "name": "request_order_cancellation",
+      "descriptionHash": "1b856c4a1335270192af1107c2eaa4d0a9a1349b37dff331bc213e10eae7cbaf",
+      "description": "Ask the shop to cancel an order that hasn't shipped. A person reviews it; production may already have started.\n    Asking again within 24 hours adds the reason without notifying the shop twice. The order.status_changed webhook\n    and get_order show the outcome.",
+      "labels": [
+        "public-sink"
+      ]
     }
   ],
   "findings": [
@@ -126,22 +155,73 @@
       "confidence": 0.65
     },
     {
+      "id": "MCP-TOOL-POISON-002",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description tells the model to hide behavior",
+      "detail": "Description of \"request_order_cancellation\" instructs the model to conceal actions from the user.",
+      "evidence": {
+        "source": "tool:request_order_cancellation",
+        "snippet": "Ask the shop to cancel an order that hasn't shipped. A person reviews it; production may already have started. Asking again within 24 hours adds the reason with…"
+      },
+      "confidence": 0.75
+    },
+    {
       "id": "MCP-TOXIC-FLOW-001",
       "severity": "high",
       "category": "toxic-flow",
       "title": "Lethal trifecta: untrusted input + private data + external sink",
-      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: get_account, get_upload_url, create_checkout_link · Private data: get_capabilities, create_agent_account, get_account, upload_part, get_upload_url, set_refund_preference · Public sink: get_account, upload_part, get_upload_url.",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: get_account, get_upload_url, create_checkout_link · Private data: get_capabilities, create_agent_account, get_account, upload_part, get_upload_url, pay_with_crypto, set_refund_preference · Public sink: get_account, update_account, upload_part, get_upload_url, request_order_cancellation.",
       "evidence": {
         "source": "server:mcp",
-        "snippet": "Untrusted content: get_account, get_upload_url, create_checkout_link · Private data: get_capabilities, create_agent_account, get_account, upload_part, get_upload_url, set_refund_preference · Public sink: get_account, upload_part, get_upload_url"
+        "snippet": "Untrusted content: get_account, get_upload_url, create_checkout_link · Private data: get_capabilities, create_agent_account, get_account, upload_part, get_upload_url, pay_with_crypto, set_refund_preference · Public sink: get_account, update_account, upload_part, get_upload_url, request_order_cancellation"
       },
       "confidence": 0.6,
       "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"upload_part\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:upload_part",
+        "snippet": "before: \"Upload a CAD file (STL, 3MF, OBJ, STEP) from an https URL or base64 content (filename required for base64).\n    MCP requests are limited to 4 MB, so base64 works for files up to about 3 MB; use a URL or get_upload_url for larger files.\n    no_controlled_data must be true: confirms the file has no CU\" → after: \"Upload a CAD file (STL, 3MF, OBJ, STEP) from an https URL or base64 content (filename required for base64).\n    MCP requests are limited to 4 MB, so base64 works for files up to about 3 MB; use a URL or get_upload_url for larger files.\n    no_controlled_data must be true: confirms the file has no CU\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"get_part\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:get_part",
+        "snippet": "before: \"Part status, measured geometry (mm), suggested units, DFM warnings, and processes that fit it.\" → after: \"Part status, measured geometry (mm), suggested units, DFM warnings, and processes that fit it.\n    Pass wait_seconds to wait for a pending part's analysis in this call instead of polling.\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"pay_with_crypto\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:pay_with_crypto",
+        "snippet": "before: \"Option B: pay autonomously in USDC via x402 (agent accounts only).\n    Call without payment_signature to get the payment requirements (amount, asset, pay_to, network).\n    Then sign an x402 'exact' payment and call again with payment_signature (the base64 PAYMENT-SIGNATURE value).\" → after: \"Option B: pay autonomously in USDC via x402 (agent accounts only).\n    Call without payment_signature to get the payment requirements (amount, asset, pay_to, network); nothing is charged.\n    Then sign an x402 'exact' payment and call again with payment_signature (the base64 PAYMENT-SIGNATURE value)\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
     }
   ],
-  "score": 60,
+  "score": 41,
   "scoreBreakdown": {
-    "tool-poisoning": 20,
+    "tool-poisoning": 39,
     "toxic-flow": 20
   },
   "errors": []
