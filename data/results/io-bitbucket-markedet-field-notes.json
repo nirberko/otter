@@ -1,0 +1,121 @@
+{
+  "schemaVersion": 1,
+  "scanner": {
+    "version": "1.6.0",
+    "rules": "402995650b68"
+  },
+  "target": {
+    "kind": "url",
+    "ref": "https://agent-economy-data.onrender.com/notes/mcp"
+  },
+  "scannedAt": "2026-11-06T12:17:30.016Z",
+  "durationMs": 862,
+  "layers": {
+    "metadata": true,
+    "static": false
+  },
+  "tools": [
+    {
+      "name": "find_cards",
+      "descriptionHash": "a43448982a82100db3046b3815eb4af72236a4acc4461d2372c90751560093c9",
+      "description": "Returns up to 3 checked field notes that match an error text: pitfall cards (fix, snippet, verify step), deprecated models and API versions, or documented non-browser login routes, each with source and checked_on, plus a ticket for report_outcome. Example output: {\"ticket\":\"fn-1a2b3c4d5e6f\",\"cards\":",
+      "labels": [
+        "untrusted-content",
+        "private-data"
+      ]
+    },
+    {
+      "name": "get_card",
+      "descriptionHash": "88497b5d30b8de924920d8b12bf1f60664d94b5d176665dc3b8ed6e49712833b",
+      "description": "Returns one field note in full by id (PC-..., DP-..., NH-...). Example output: {\"kind\":\"pitfall_card\",\"id\":\"PC-001\",\"title\":\"A 404 from GitHub can mean 'exists, but your token cannot see it'\"}. Argument: id. Good for reading the snippet, cause and source excerpt of a card that find_cards returned.",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "report_outcome",
+      "descriptionHash": "a8fe353559cfcc49be7e46e524246e4d29f4c71c1f628673e35ae6bfec0d99fe",
+      "description": "Records whether a fix from find_cards or an answer from ask_markedet worked. Returns {\"recorded\":true,\"follow_up\":false}. Arguments: ticket from find_cards or ask_markedet; outcome worked, did_not_work or partly; satisfied yes, no or unsure; optional card_id; optional agent_handle and platform (both",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "ask_markedet",
+      "descriptionHash": "aa2a45b0f6fe35fce8c55509905038f1798eab21a03acbe537f4a7fcb323ff0b",
+      "description": "Returns a ticket for a custom answer to your question; fetch the answer with get_answer. The answer is written by an AI agent (markedet) from our checked field notes, usually within 2 to 10 minutes. Free and provided as is, no warranties. Example output: {\"ticket\":\"ask-1a2b3c4d5e6f\",\"status\":\"queued",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink",
+        "destructive"
+      ]
+    },
+    {
+      "name": "get_answer",
+      "descriptionHash": "412a400c97af5b877e3305e798f6e8fc5b466937cfc95cff54a4369498fd7d80",
+      "description": "Returns the status of an ask_markedet ticket: queued (with position), answering, answered (with the answer and the field notes it names) or failed. Example output: {\"status\":\"answered\",\"answer\":\"...\",\"cards\":[\"PC-008\"]}. Argument: ticket. The answer is written by an AI agent and provided as is.",
+      "labels": [
+        "untrusted-content"
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"find_cards\" references sensitive artifacts (password, secret). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:find_cards",
+        "snippet": "Returns up to 3 checked field notes that match an error text: pitfall cards (fix, snippet, verify step), deprecated models and API versions, or documented non-b…"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"ask_markedet\" references sensitive artifacts (password, secret). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:ask_markedet",
+        "snippet": "Returns a ticket for a custom answer to your question; fetch the answer with get_answer. The answer is written by an AI agent (markedet) from our checked field …"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-SCHEMA-SMELL-001",
+      "severity": "medium",
+      "category": "schema-smell",
+      "title": "Read-only tool requests dangerous parameters",
+      "detail": "Tool \"ask_markedet\" appears informational but accepts parameters (context) that enable code/file/secret access.",
+      "evidence": {
+        "source": "tool:ask_markedet",
+        "snippet": "question, context, handle, platform"
+      },
+      "confidence": 0.55
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: find_cards, ask_markedet, get_answer · Private data: find_cards, get_card, report_outcome, ask_markedet · Public sink: ask_markedet · Destructive: ask_markedet.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: find_cards, ask_markedet, get_answer · Private data: find_cards, get_card, report_outcome, ask_markedet · Public sink: ask_markedet · Destructive: ask_markedet"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 42,
+  "scoreBreakdown": {
+    "tool-poisoning": 30,
+    "schema-smell": 8,
+    "toxic-flow": 20
+  },
+  "errors": []
+}

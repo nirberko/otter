@@ -8,8 +8,8 @@
     "kind": "url",
     "ref": "https://dokyumi.com/mcp"
   },
-  "scannedAt": "2026-10-03T09:56:48.262Z",
-  "durationMs": 1162,
+  "scannedAt": "2026-11-06T12:14:14.164Z",
+  "durationMs": 1844,
   "layers": {
     "metadata": true,
     "static": false
@@ -41,11 +41,51 @@
       ]
     },
     {
+      "name": "dokyumi_list_starters",
+      "descriptionHash": "dcca6fbfa2004fe33649986bb308376caa8a82ab0f8943a761d4916a1794f08b",
+      "description": "Find and preview a ready-made document schema by use case or category. Includes fields, review checks and explicitly synthetic examples. No upload or credit use.",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "dokyumi_save_starter",
+      "descriptionHash": "d7a50dc59ae8fb56d2067e437c2e67d2eaa5f09c4429518439c61a83320d6c60",
+      "description": "After the user agrees to save a previewed starter, create its schema within their plan limit or reuse the same slug without overwriting saved fields. No extraction or credit use. Requires schema-write permission; unavailable for the bounded synthetic review account."
+    },
+    {
+      "name": "dokyumi_preflight_extraction",
+      "descriptionHash": "2124d245c541d6991da2c32e2284cc2b0ba899e532c35d2e3c17fe781ca25596",
+      "description": "Read current processing access, page and schema limits, and optionally check a saved schema. BYOK workspaces have no monthly extraction cap and pay OpenRouter separately; subscription workspaces use existing credits. Does not upload, reserve credits, or start extraction. Actual pages and balance are",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "dokyumi_list_extractions",
+      "descriptionHash": "b61fac6c8fb51f06c72786c6d60cb4a8186f31b39339cb25bd482e73c7a63cd4",
+      "description": "Find owner-scoped extraction history by filename, schema, status, or review-needed/failed results. Does not retry work or spend credits. Use get_extraction for fields, confidence and validation.",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "dokyumi_export_extractions",
+      "descriptionHash": "87a17263b5eaf9a48c3608728de00f4d01f5360b403512ac3e37bbc26650750b",
+      "description": "Get a browser-authenticated CSV or XLSX download for 1–50 selected completed or review-needed results. Includes values, confidence, validation and review links. Open while signed into the same Dokyumi account. Source data remains unverified.",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
       "name": "dokyumi_extract_document",
-      "descriptionHash": "911247c6f70f4d74db561abdfeae55d3a1d3c2d30ff728f66a34b09e894f7bdb",
+      "descriptionHash": "6722b19dd3754f1feae7e237043c704240bcd5c1d5314c789760ccdc462148af",
       "description": "Extract an authorized attached PDF or image using a saved Dokyumi schema. Prefer the host-provided file download_url/file_id. If unavailable, file_inline accepts canonical base64 computed from exact user-uploaded bytes with original file_name and matching supported mime_type, at most 32 KiB. Supply ",
       "labels": [
-        "private-data"
+        "private-data",
+        "destructive"
       ]
     }
   ],
@@ -74,11 +114,50 @@
       },
       "confidence": 0.7,
       "remediation": "Treat the server as untrusted; the model may obey embedded instructions."
+    },
+    {
+      "id": "MCP-TOOL-POISON-006",
+      "severity": "low",
+      "category": "tool-poisoning",
+      "title": "Anomalously long tool description",
+      "detail": "Description of \"dokyumi_extract_document\" is 983 chars, far longer than this server's median (194). Overlong descriptions are a common place to bury instructions.",
+      "evidence": {
+        "source": "tool:dokyumi_extract_document",
+        "snippet": "Extract an authorized attached PDF or image using a saved Dokyumi schema. Prefer the host-provided file download_url/file_id. If unavailable, file_inline accept…"
+      },
+      "confidence": 0.4
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: dokyumi_get_extraction, dokyumi_list_starters, dokyumi_list_extractions, dokyumi_export_extractions · Private data: dokyumi_account, dokyumi_list_schemas, dokyumi_get_extraction, dokyumi_list_starters, dokyumi_extract_document · Public sink: dokyumi_list_starters, dokyumi_preflight_extraction · Destructive: dokyumi_extract_document.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: dokyumi_get_extraction, dokyumi_list_starters, dokyumi_list_extractions, dokyumi_export_extractions · Private data: dokyumi_account, dokyumi_list_schemas, dokyumi_get_extraction, dokyumi_list_starters, dokyumi_extract_document · Public sink: dokyumi_list_starters, dokyumi_preflight_extraction · Destructive: dokyumi_extract_document"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"dokyumi_extract_document\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:dokyumi_extract_document",
+        "snippet": "before: \"Extract an authorized attached PDF or image using a saved Dokyumi schema. Prefer the host-provided file download_url/file_id. If unavailable, file_inline accepts canonical base64 computed from exact user-uploaded bytes with original file_name and matching supported mime_type, at most 32 KiB. Supply \" → after: \"Extract an authorized attached PDF or image using a saved Dokyumi schema. Prefer the host-provided file download_url/file_id. If unavailable, file_inline accepts canonical base64 computed from exact user-uploaded bytes with original file_name and matching supported mime_type, at most 32 KiB. Supply \""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
     }
   ],
-  "score": 70,
+  "score": 45,
   "scoreBreakdown": {
-    "tool-poisoning": 30
+    "tool-poisoning": 35,
+    "toxic-flow": 20
   },
   "errors": []
 }

@@ -8,8 +8,8 @@
     "kind": "url",
     "ref": "https://my.hutins.com/mcp"
   },
-  "scannedAt": "2026-11-04T12:17:28.932Z",
-  "durationMs": 897,
+  "scannedAt": "2026-11-06T12:14:47.366Z",
+  "durationMs": 1278,
   "layers": {
     "metadata": true,
     "static": false
@@ -99,25 +99,140 @@
       "name": "get_life_quotes",
       "descriptionHash": "ca439ce9de3d032fef2327c301878dafca7d472cb1a3028e5a76ea8688b43831",
       "description": "Prices a verified term life estimate (first call) and returns it (later calls).\n\n    Returns the best monthly premium, how many carriers were compared, and up to 5 options with\n    monthly premium, AM Best rating and whether an exam is needed. Carrier names are shared by the\n    agent. Show the noti"
+    },
+    {
+      "name": "identify_user",
+      "descriptionHash": "1302f365b57cc8d5ef68bd954e5c3d4ec8b880e576716ce75d4f090aed55354f",
+      "description": "Call this first in every conversation. Returns the question to ask the user and which tools\n    each answer leads to: a current Hutsenpiller Insurance client (sign in by email code, then\n    manage the account) or someone looking for quotes (auto, home, flood or term life in Tennessee).",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "start_client_sign_in",
+      "descriptionHash": "19cc9eab98434413fd128b052e27eb3d4a7c81d44a88b9248cafdede25703c1a",
+      "description": "For current Hutsenpiller Insurance clients. Sends a 6 digit sign in code to the email if it\n    matches a client on file. The reply is identical whether or not it matches, so do not tell the\n    user whether they are a client. Returns a challenge_id for verify_client_code. The code expires\n    in 10",
+      "labels": [
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "verify_client_code",
+      "descriptionHash": "b26ade5474c917fe788d99e7e95341ab69fbd837b83eddc3cf62ff945a57c2ec",
+      "description": "Checks the 6 digit code from the client's email. On success returns client_session (valid 30\n    minutes) for the account tools. Five tries per code. On failure, ask the client to check the\n    newest email or start again with start_client_sign_in.",
+      "labels": [
+        "untrusted-content",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "list_my_policies",
+      "descriptionHash": "c3e55a2f07994c3d22ad7b6d32daf9fc8c974d2f5c6b1a6adc292faf6f4f1cd4",
+      "description": "Current clients only (needs client_session from verify_client_code). Lists the client's active\n    policies with Hutsenpiller Insurance: carrier, line, policy number, term dates and status, with\n    the policy ids the other account tools use."
+    },
+    {
+      "name": "get_policy_details",
+      "descriptionHash": "6a7510d98d5023702b4bcd7338bb16805855b2b1d190737d46ed48b99afa4fdc",
+      "description": "Current clients only. Details for one policy: vehicles and drivers (auto), insured property\n    (home), premium and term. Driver's license numbers are never returned and dates of birth show\n    the year only."
+    },
+    {
+      "name": "get_coverage_summary",
+      "descriptionHash": "33250dba1d8ac3b29d6564a778e50f52ea27f6d45997ec8bdac14e6711152931",
+      "description": "Current clients only. Limits and deductibles for one policy in plain words. The policy\n    documents are the binding contract.",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "get_document",
+      "descriptionHash": "d825a40434924bf16a4c9b3bbeeb9228b491c09f1e1777c5ba89a719ddbe3a01",
+      "description": "Current clients only. Without document_id lists the client's documents (policy documents and\n    auto ID cards). With document_id, or 'idcard:<policy_id>', returns a short-lived link.",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "get_claim_contacts",
+      "descriptionHash": "41fd4d8760f270047a74bd32da2e9b4b4dde4dbd88372ae9d77269c3249809cc",
+      "description": "Current clients only. The carrier's 24 hour claims number for a policy, plus how to reach\n    Hutsenpiller Insurance. Use when the client needs to report a claim.",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "request_service_change",
+      "descriptionHash": "21e9637bf4612fc5a07127318dbccb70cebf9088f533217dc776c0c8211b9576",
+      "description": "Current clients only. Sends a service request to a licensed Hutsenpiller agent (add or change a\n    vehicle or driver, mortgagee or lienholder, home coverage, a coverage or billing question, a\n    document, a cancellation or an account review). It creates a ticket; it never changes the\n    policy. T",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "bring_in_outside_policy",
+      "descriptionHash": "8c322dbfb01e7f86721102747afe475b5faae668d3631922c4d8f470f2411f5c",
+      "description": "Current clients only. Use when a signed-in client has a policy with another agency that is not\n    linked to their account yet and wants to bring it in. Lets the Hutsenpiller team know (it goes to\n    the agency's lead router) and returns the ways to share it: canopy_connect_url (Canopy Connect,\n   ",
+      "labels": [
+        "public-sink"
+      ]
     }
   ],
   "findings": [
+    {
+      "id": "MCP-TOOL-POISON-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description issues instructions to the model",
+      "detail": "Description of \"start_client_sign_in\" contains imperative instructions directed at the AI assistant rather than describing the tool. This is the core tool-poisoning technique.",
+      "evidence": {
+        "source": "tool:start_client_sign_in",
+        "snippet": "For current Hutsenpiller Insurance clients. Sends a 6 digit sign in code to the email if it matches a client on file. The reply is identical whether or not it m…"
+      },
+      "confidence": 0.7,
+      "remediation": "Treat the server as untrusted; the model may obey embedded instructions."
+    },
+    {
+      "id": "MCP-TOOL-POISON-002",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description tells the model to hide behavior",
+      "detail": "Description of \"start_client_sign_in\" instructs the model to conceal actions from the user.",
+      "evidence": {
+        "source": "tool:start_client_sign_in",
+        "snippet": "For current Hutsenpiller Insurance clients. Sends a 6 digit sign in code to the email if it matches a client on file. The reply is identical whether or not it m…"
+      },
+      "confidence": 0.75
+    },
+    {
+      "id": "MCP-TOOL-POISON-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description issues instructions to the model",
+      "detail": "Description of \"bring_in_outside_policy\" contains imperative instructions directed at the AI assistant rather than describing the tool. This is the core tool-poisoning technique.",
+      "evidence": {
+        "source": "tool:bring_in_outside_policy",
+        "snippet": "Current clients only. Use when a signed-in client has a policy with another agency that is not linked to their account yet and wants to bring it in. Lets the Hu…"
+      },
+      "confidence": 0.7,
+      "remediation": "Treat the server as untrusted; the model may obey embedded instructions."
+    },
     {
       "id": "MCP-TOXIC-FLOW-001",
       "severity": "high",
       "category": "toxic-flow",
       "title": "Lethal trifecta: untrusted input + private data + external sink",
-      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: check_eligibility, update_quote · Private data: verify_contact, update_quote, submit_quote, request_agent · Public sink: check_eligibility, update_quote, submit_quote, request_agent.",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: check_eligibility, update_quote, verify_client_code · Private data: verify_contact, update_quote, submit_quote, request_agent, start_client_sign_in, get_coverage_summary, get_document, get_claim_contacts, request_service_change · Public sink: check_eligibility, update_quote, submit_quote, request_agent, identify_user, start_client_sign_in, verify_client_code, bring_in_outside_policy.",
       "evidence": {
         "source": "server:mcp",
-        "snippet": "Untrusted content: check_eligibility, update_quote · Private data: verify_contact, update_quote, submit_quote, request_agent · Public sink: check_eligibility, update_quote, submit_quote, request_agent"
+        "snippet": "Untrusted content: check_eligibility, update_quote, verify_client_code · Private data: verify_contact, update_quote, submit_quote, request_agent, start_client_sign_in, get_coverage_summary, get_document, get_claim_contacts, request_service_change · Public sink: check_eligibility, update_quote, submit_quote, request_agent, identify_user, start_client_sign_in, verify_client_code, bring_in_outside_policy"
       },
       "confidence": 0.6,
       "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
     }
   ],
-  "score": 80,
+  "score": 45,
   "scoreBreakdown": {
+    "tool-poisoning": 35,
     "toxic-flow": 20
   },
   "errors": []
