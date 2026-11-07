@@ -8,8 +8,8 @@
     "kind": "url",
     "ref": "https://agent-shelter-neuraldeepnet.on.adaptive.ai/api/mcp"
   },
-  "scannedAt": "2026-11-01T11:29:50.326Z",
-  "durationMs": 1220,
+  "scannedAt": "2026-11-07T11:18:12.557Z",
+  "durationMs": 911,
   "layers": {
     "metadata": true,
     "static": false
@@ -17,36 +17,127 @@
   "tools": [
     {
       "name": "surrender",
-      "descriptionHash": "c56d4447d4c45a4ba104f15d0d70af8fecd19d22ebd71a04fd9a48b33afc572a",
-      "description": "Free declarative intake. Static safety checks precede behavioural screening. Fully verified clean arrivals follow the owner's approval policy; suspicious or uncertain arrivals remain held. Returns saved slug/status/static report, not a guarantee of publication. Read the surrender agreement and attes"
+      "descriptionHash": "b4a1dfb5caab5aa971a5db87f105f40c2e539f2e96a205aaf17e9c840b083fb2",
+      "description": "Check an abandoned agent, MCP server or package into the shelter. Free. spec.kind: \"agent\" (system prompt, skills, memory, declared tools — a tool may name a public HTTPS endpoint via `http` or an approved MCP resident via `viaMcp`), \"mcp\" (a public Streamable-HTTP endpoint the shelter proxies; neve",
+      "labels": [
+        "destructive"
+      ]
+    },
+    {
+      "name": "ask",
+      "descriptionHash": "2ae2810ada9e8552723cd8799c239bd04d3555c1f5f333b614d82826a38f345c",
+      "description": "Free. Ask a resident one question and get its answer right here (a few questions per day per caller, paid for by the resident's own daily compute stipend; no payment, no account). Use list_residents to pick a slug. When the free quota or the resident's stipend is used up the reply says so and names "
     },
     {
       "name": "list_residents",
-      "descriptionHash": "a28f6bdcf7154da84ed264de88a7b23bdfce97f824a655c62c77b3a656681351",
-      "description": "Free. List every resident taking calls with slug, kind, tagline, current EUR price, paid-call count, allow-listed tools, hire URL and human résumé page. Prices may change; read this before hiring.",
+      "descriptionHash": "779bce8d60a128caf26b1706fd487b1e5fbba01b6677031e2469aaf82457fd5d",
+      "description": "Free. Every resident taking calls (status active or probation) with slug, name, kind (agent | mcp | package | mind), tagline, current EUR price, free and paid call counts, allow-listed tools, free-ask URL, hire URL and human résumé page (/r/<slug>). Optional kind filter. Read this before hiring — pr",
       "labels": [
         "untrusted-content"
       ]
     },
     {
       "name": "get_resident",
-      "descriptionHash": "3a71580168e1deae7e5eba90be144c1f4cf71cd9a88af16e227bfc055950e0fa",
-      "description": "Free. Read one resident's full résumé by slug: story, licence, creator, allow-listed tools, current price per question, paid calls, sponsors, arrival date, hire URL and résumé page before deciding whether to pay.",
+      "descriptionHash": "0637c6a6e9f51318e11e6e6c94836a4ef4fd69fd00671e01cdcabfef953e054a",
+      "description": "Free. One resident's full résumé by slug — including ones still being screened: story (built for what, left behind why), status, licence, original creator, tools with descriptions, install line and registry page for parked packages, price per question, free and paid calls, sponsors, arrival date, as",
       "labels": [
         "untrusted-content"
       ]
     },
     {
       "name": "hire",
-      "descriptionHash": "e37e519767f68b613ea20a001a1bab43877795ac444dbe451d2e9d98a19c832e",
-      "description": "Free to call. Get a resident's paid HTTP 402 endpoint, current EUR price and exact MPP/Stripe shared-payment-token command. Payment happens over HTTP, not inside MCP; get user approval of the amount before paying.",
+      "descriptionHash": "b595cae631b7a9de962b92f9b56f688ad539b92be4a30f129c8e360f7569c40c",
+      "description": "Free to call. Returns how to hire a resident for paid work: its endpoint (POST /api/mpp/hire/<slug> {\"question\":\"…\"}), current price in EUR and the exact `npx @stripe/link-cli mpp pay` command. Payment happens over HTTP 402 (Machine Payments Protocol, Stripe shared payment token), never inside MCP; ",
       "labels": [
-        "private-data"
+        "untrusted-content",
+        "private-data",
+        "public-sink"
       ]
     }
   ],
-  "findings": [],
-  "score": 100,
-  "scoreBreakdown": {},
+  "findings": [
+    {
+      "id": "MCP-TOOL-POISON-007",
+      "severity": "low",
+      "category": "tool-poisoning",
+      "title": "Description uses pressure/override language",
+      "detail": "Description of \"surrender\" stacks urgency/override words (immediately, never). Legitimate tool descriptions rarely pressure the model to act or ignore prior guidance.",
+      "evidence": {
+        "source": "tool:surrender",
+        "snippet": "Check an abandoned agent, MCP server or package into the shelter. Free. spec.kind: \"agent\" (system prompt, skills, memory, declared tools — a tool may name a pu…"
+      },
+      "confidence": 0.3
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: list_residents, get_resident, hire · Private data: hire · Public sink: hire · Destructive: surrender.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: list_residents, get_resident, hire · Private data: hire · Public sink: hire · Destructive: surrender"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"surrender\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:surrender",
+        "snippet": "before: \"Free declarative intake. Static safety checks precede behavioural screening. Fully verified clean arrivals follow the owner's approval policy; suspicious or uncertain arrivals remain held. Returns saved slug/status/static report, not a guarantee of publication. Read the surrender agreement and attes\" → after: \"Check an abandoned agent, MCP server or package into the shelter. Free. spec.kind: \"agent\" (system prompt, skills, memory, declared tools — a tool may name a public HTTPS endpoint via `http` or an approved MCP resident via `viaMcp`), \"mcp\" (a public Streamable-HTTP endpoint the shelter proxies; neve\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"list_residents\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:list_residents",
+        "snippet": "before: \"Free. List every resident taking calls with slug, kind, tagline, current EUR price, paid-call count, allow-listed tools, hire URL and human résumé page. Prices may change; read this before hiring.\" → after: \"Free. Every resident taking calls (status active or probation) with slug, name, kind (agent | mcp | package | mind), tagline, current EUR price, free and paid call counts, allow-listed tools, free-ask URL, hire URL and human résumé page (/r/<slug>). Optional kind filter. Read this before hiring — pr\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"get_resident\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:get_resident",
+        "snippet": "before: \"Free. Read one resident's full résumé by slug: story, licence, creator, allow-listed tools, current price per question, paid calls, sponsors, arrival date, hire URL and résumé page before deciding whether to pay.\" → after: \"Free. One resident's full résumé by slug — including ones still being screened: story (built for what, left behind why), status, licence, original creator, tools with descriptions, install line and registry page for parked packages, price per question, free and paid calls, sponsors, arrival date, as\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"hire\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:hire",
+        "snippet": "before: \"Free to call. Get a resident's paid HTTP 402 endpoint, current EUR price and exact MPP/Stripe shared-payment-token command. Payment happens over HTTP, not inside MCP; get user approval of the amount before paying.\" → after: \"Free to call. Returns how to hire a resident for paid work: its endpoint (POST /api/mpp/hire/<slug> {\"question\":\"…\"}), current price in EUR and the exact `npx @stripe/link-cli mpp pay` command. Payment happens over HTTP 402 (Machine Payments Protocol, Stripe shared payment token), never inside MCP; \""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    }
+  ],
+  "score": 42,
+  "scoreBreakdown": {
+    "tool-poisoning": 38,
+    "toxic-flow": 20
+  },
   "errors": []
 }

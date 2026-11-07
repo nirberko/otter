@@ -8,8 +8,8 @@
     "kind": "url",
     "ref": "https://cliniko.usefulapi.io/mcp"
   },
-  "scannedAt": "2026-11-03T12:14:05.081Z",
-  "durationMs": 481,
+  "scannedAt": "2026-11-07T11:21:05.173Z",
+  "durationMs": 447,
   "layers": {
     "metadata": true,
     "static": false
@@ -39,8 +39,8 @@
     },
     {
       "name": "cliniko_list_appointments",
-      "descriptionHash": "79a59a5a265a3a336094e8ad9995539449270516dea9ef5d9651e06349f3f851",
-      "description": "List individual appointments, optionally filtered by patient/practitioner/business/type and a starts_at date-time window (starts_from / starts_to, ISO 8601). GET /individual_appointments."
+      "descriptionHash": "f4d4941c02f8fb13e5c8a1aa7b51ab95f3857609155bc4172ae2241605026152",
+      "description": "List individual appointments, optionally filtered by patient/practitioner/business/type and a starts_at window (starts_from / starts_to: ISO 8601 with Z or an offset, or YYYY-MM-DD = 00:00 UTC; sent to Cliniko in UTC). GET /individual_appointments."
     },
     {
       "name": "cliniko_get_appointment",
@@ -108,8 +108,34 @@
     },
     {
       "name": "cliniko_create_appointment",
-      "descriptionHash": "6db182555ab5cee71479bf689f91d505bce77943d4d9af9794d823ea7dacad45",
-      "description": "WRITE — books a REAL new individual appointment in the live Cliniko practice. Requires patient_id, practitioner_id, business_id, appointment_type_id, and starts_at (ISO 8601). ends_at defaults from the appointment type if omitted. POST /individual_appointments.",
+      "descriptionHash": "dc219f76ad8ea18e8a7b86001289853979d8399e1e8bc4e85511177a103a3c02",
+      "description": "WRITE — books a REAL new individual appointment in the live Cliniko practice. Requires patient_id, practitioner_id, business_id, appointment_type_id, and starts_at (ISO 8601 with Z or an offset; sent in UTC). ends_at defaults from the appointment type if omitted. To hold time without a patient (a ro",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "cliniko_list_unavailable_block_types",
+      "descriptionHash": "4976c44d4eb7a273470eec7f8f4a44c6c447ca231c0f8a28e93113b0902db04a",
+      "description": "List the practice's unavailable block types (e.g. Room Block, Lunch, Leave) with id, name, colour and default duration. Use the id as unavailable_block_type_id in cliniko_create_unavailable_block. GET /unavailable_block_types."
+    },
+    {
+      "name": "cliniko_list_unavailable_blocks",
+      "descriptionHash": "64de161af11718115b23e830dcce874e87552e147c11d47cb462230e59144d6c",
+      "description": "List unavailable blocks (diary time held without a patient: room blocks, lunch, leave), optionally filtered by business, practitioner, block type and a starts_at window (ISO 8601 with Z or an offset, or YYYY-MM-DD = 00:00 UTC). Archived blocks are excluded. GET /unavailable_blocks."
+    },
+    {
+      "name": "cliniko_create_unavailable_block",
+      "descriptionHash": "fa142e4da673de4411d41403de577e58407ce1a2a03f5a1fd651074843fb444f",
+      "description": "WRITE — holds REAL diary time in the live Cliniko practice without a patient: a room block, lunch, leave or meeting. No patient_id. Requires business_id, practitioner_id (the diary column to block), starts_at and ends_at (ISO 8601 with Z or an offset; sent in UTC). Set unavailable_block_type_id (fro",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "cliniko_archive_unavailable_block",
+      "descriptionHash": "55857adc6c24f429d3ea383961e393a39d76ea18815f0e98aff9603879c2df0d",
+      "description": "WRITE — archives (removes from the diary) one REAL unavailable block in the live Cliniko practice, e.g. to undo a block created by mistake. POST /unavailable_blocks/{id}/archive.",
       "labels": [
         "public-sink"
       ]
@@ -121,18 +147,45 @@
       "severity": "high",
       "category": "toxic-flow",
       "title": "Lethal trifecta: untrusted input + private data + external sink",
-      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: cliniko_list_patients · Private data: cliniko_get_account, cliniko_create_patient · Public sink: cliniko_list_patients, cliniko_create_patient, cliniko_create_appointment.",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: cliniko_list_patients · Private data: cliniko_get_account, cliniko_create_patient · Public sink: cliniko_list_patients, cliniko_create_patient, cliniko_create_appointment, cliniko_create_unavailable_block, cliniko_archive_unavailable_block.",
       "evidence": {
         "source": "server:mcp",
-        "snippet": "Untrusted content: cliniko_list_patients · Private data: cliniko_get_account, cliniko_create_patient · Public sink: cliniko_list_patients, cliniko_create_patient, cliniko_create_appointment"
+        "snippet": "Untrusted content: cliniko_list_patients · Private data: cliniko_get_account, cliniko_create_patient · Public sink: cliniko_list_patients, cliniko_create_patient, cliniko_create_appointment, cliniko_create_unavailable_block, cliniko_archive_unavailable_block"
       },
       "confidence": 0.6,
       "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"cliniko_list_appointments\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:cliniko_list_appointments",
+        "snippet": "before: \"List individual appointments, optionally filtered by patient/practitioner/business/type and a starts_at date-time window (starts_from / starts_to, ISO 8601). GET /individual_appointments.\" → after: \"List individual appointments, optionally filtered by patient/practitioner/business/type and a starts_at window (starts_from / starts_to: ISO 8601 with Z or an offset, or YYYY-MM-DD = 00:00 UTC; sent to Cliniko in UTC). GET /individual_appointments.\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"cliniko_create_appointment\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:cliniko_create_appointment",
+        "snippet": "before: \"WRITE — books a REAL new individual appointment in the live Cliniko practice. Requires patient_id, practitioner_id, business_id, appointment_type_id, and starts_at (ISO 8601). ends_at defaults from the appointment type if omitted. POST /individual_appointments.\" → after: \"WRITE — books a REAL new individual appointment in the live Cliniko practice. Requires patient_id, practitioner_id, business_id, appointment_type_id, and starts_at (ISO 8601 with Z or an offset; sent in UTC). ends_at defaults from the appointment type if omitted. To hold time without a patient (a ro\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
     }
   ],
-  "score": 80,
+  "score": 50,
   "scoreBreakdown": {
-    "toxic-flow": 20
+    "toxic-flow": 20,
+    "tool-poisoning": 30
   },
   "errors": []
 }

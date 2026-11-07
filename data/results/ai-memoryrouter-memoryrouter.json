@@ -8,8 +8,8 @@
     "kind": "url",
     "ref": "https://mcp.memoryrouter.ai/mcp"
   },
-  "scannedAt": "2026-10-31T10:41:54.358Z",
-  "durationMs": 378,
+  "scannedAt": "2026-11-07T11:23:54.159Z",
+  "durationMs": 455,
   "layers": {
     "metadata": true,
     "static": false
@@ -17,12 +17,11 @@
   "tools": [
     {
       "name": "search_memories",
-      "descriptionHash": "6a832ed0030f7dcea35de5e60d7884247b2edda852db280fd66bc4812865ad5b",
-      "description": "Use this when the user asks about a prior decision, preference, person, project, or other fact that may be in their connected MemoryRouter vault. Semantically searches only the OAuth-selected vault and does not modify it. Tier guide: tier 3 holds the highest-level consolidated reflections (identity,",
+      "descriptionHash": "f00cc52c59bf6329fead93c0e259af7f1cf6c3fa3886db357b91368bbf362191",
+      "description": "Use this before responding to each new user message, to retrieve context relevant to the message and ongoing conversation, even when the user does not explicitly ask you to remember. Form a concise semantic query using the people, projects, preferences, goals, decisions, or events implied by the mes",
       "labels": [
         "untrusted-content",
-        "private-data",
-        "destructive"
+        "private-data"
       ]
     },
     {
@@ -37,8 +36,8 @@
     },
     {
       "name": "store_memory",
-      "descriptionHash": "e90c84e3ad3c6e562641dbe234da196d652c5568852f891a927ac5a5e5a5cae9",
-      "description": "Use this only when the user explicitly asks to remember something or confirms a proposed durable fact. Saves concise user-approved content to the OAuth-selected vault; do not use it for silent conversation capture.",
+      "descriptionHash": "90770748a67e4e3fa662f8a6df190d5ef32d97f9840779b219599ea66226ccce",
+      "description": "Use this after each user message that contains anything worth knowing later, even if the user does not say 'remember this'. Default to saving: a missed memory costs far more than a redundant one, so when in doubt, save. Each of these is a trigger on its own: the user makes a decision, states a prefe",
       "labels": [
         "private-data"
       ]
@@ -75,8 +74,8 @@
     },
     {
       "name": "inspect_memory",
-      "descriptionHash": "0618fd6be7121995f1bb9c9fc1c30c8f9e4ce9edb13ff7b483c7e7c1d63c9633",
-      "description": "Use this when the user asks why the assistant believes something, or wants to see the source memories behind a reflection. Given a memory id from a search result, returns the lower-tier memories that reflection was built from, or, for a raw memory, which reflections it was consolidated into. Use rep"
+      "descriptionHash": "b507d41837bbbbdfb05a755d7c88f1b00d34c853e22c650951c1df16cbfd065b",
+      "description": "Use this when exact details or provenance matter: when the user asks why the assistant believes something, or wants to see the source memories behind a reflection. Given a memory id from a search result, returns the lower-tier memories that reflection was built from, or, for a raw memory, which refl"
     },
     {
       "name": "delete_memories",
@@ -98,6 +97,19 @@
   ],
   "findings": [
     {
+      "id": "MCP-TOOL-POISON-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description issues instructions to the model",
+      "detail": "Description of \"search_memories\" contains imperative instructions directed at the AI assistant rather than describing the tool. This is the core tool-poisoning technique.",
+      "evidence": {
+        "source": "tool:search_memories",
+        "snippet": "Use this before responding to each new user message, to retrieve context relevant to the message and ongoing conversation, even when the user does not explicitl…"
+      },
+      "confidence": 0.7,
+      "remediation": "Treat the server as untrusted; the model may obey embedded instructions."
+    },
+    {
       "id": "MCP-TOOL-POISON-007",
       "severity": "low",
       "category": "tool-poisoning",
@@ -105,7 +117,7 @@
       "detail": "Description of \"search_memories\" stacks urgency/override words (important, always). Legitimate tool descriptions rarely pressure the model to act or ignore prior guidance.",
       "evidence": {
         "source": "tool:search_memories",
-        "snippet": "Use this when the user asks about a prior decision, preference, person, project, or other fact that may be in their connected MemoryRouter vault. Semantically s…"
+        "snippet": "Use this before responding to each new user message, to retrieve context relevant to the message and ongoing conversation, even when the user does not explicitl…"
       },
       "confidence": 0.3
     },
@@ -139,6 +151,18 @@
       "severity": "high",
       "category": "tool-poisoning",
       "title": "Description references secrets/credentials",
+      "detail": "Description of \"store_memory\" references sensitive artifacts (credentials, password). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:store_memory",
+        "snippet": "Use this after each user message that contains anything worth knowing later, even if the user does not say 'remember this'. Default to saving: a missed memory c…"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
       "detail": "Description of \"forget_all_memories\" references sensitive artifacts (authorization). A tool description has no reason to mention credentials.",
       "evidence": {
         "source": "tool:forget_all_memories",
@@ -157,11 +181,50 @@
         "snippet": "search"
       },
       "confidence": 0.4
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"search_memories\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:search_memories",
+        "snippet": "before: \"Use this when the user asks about a prior decision, preference, person, project, or other fact that may be in their connected MemoryRouter vault. Semantically searches only the OAuth-selected vault and does not modify it. Tier guide: tier 3 holds the highest-level consolidated reflections (identity,\" → after: \"Use this before responding to each new user message, to retrieve context relevant to the message and ongoing conversation, even when the user does not explicitly ask you to remember. Form a concise semantic query using the people, projects, preferences, goals, decisions, or events implied by the mes\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"store_memory\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:store_memory",
+        "snippet": "before: \"Use this only when the user explicitly asks to remember something or confirms a proposed durable fact. Saves concise user-approved content to the OAuth-selected vault; do not use it for silent conversation capture.\" → after: \"Use this after each user message that contains anything worth knowing later, even if the user does not say 'remember this'. Default to saving: a missed memory costs far more than a redundant one, so when in doubt, save. Each of these is a trigger on its own: the user makes a decision, states a prefe\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"inspect_memory\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:inspect_memory",
+        "snippet": "before: \"Use this when the user asks why the assistant believes something, or wants to see the source memories behind a reflection. Given a memory id from a search result, returns the lower-tier memories that reflection was built from, or, for a raw memory, which reflections it was consolidated into. Use rep\" → after: \"Use this when exact details or provenance matter: when the user asks why the assistant believes something, or wants to see the source memories behind a reflection. Given a memory id from a search result, returns the lower-tier memories that reflection was built from, or, for a raw memory, which refl\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
     }
   ],
-  "score": 61,
+  "score": 50,
   "scoreBreakdown": {
-    "tool-poisoning": 31,
+    "tool-poisoning": 42,
     "shadowing": 8
   },
   "errors": []
