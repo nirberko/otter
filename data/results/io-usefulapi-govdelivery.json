@@ -1,0 +1,85 @@
+{
+  "schemaVersion": 1,
+  "scanner": {
+    "version": "1.6.0",
+    "rules": "402995650b68"
+  },
+  "target": {
+    "kind": "url",
+    "ref": "https://govdelivery.usefulapi.io/mcp"
+  },
+  "scannedAt": "2026-11-08T11:37:35.521Z",
+  "durationMs": 607,
+  "layers": {
+    "metadata": true,
+    "static": false
+  },
+  "tools": [
+    {
+      "name": "govdelivery_list_topics",
+      "descriptionHash": "abc17fb552d81d13ac2ff20ca0d704452eedbd1062b5f041fa22153937fa2ca4",
+      "description": "List the topics of the GovDelivery account (their codes and names). Topic codes are needed for subscriptions and bulletins. Read-only. GovDelivery REST: GET /api/account/{account}/topics."
+    },
+    {
+      "name": "govdelivery_get_subscriber",
+      "descriptionHash": "f7a2055428637392bf432c7c3baed3d417a222dc3a959efcf16c4df3894398e0",
+      "description": "Read one subscriber by email address: their topic subscriptions and record fields, as GovDelivery returns them (XML). Read-only. GovDelivery REST: GET /api/account/{account}/subscribers/{base64 email}.xml.",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "govdelivery_get_bulletin",
+      "descriptionHash": "7c349812d6d47a72ee2214b237f4c9f95fe23d500d0bdb7e4d4e77bb2731577c",
+      "description": "Read one bulletin by id: subject, state (draft or sent), topics and total subscribers, as GovDelivery returns them (XML). Read-only. Bulletin ids come from the bulletin you created or from GovDelivery. GovDelivery REST: GET /api/account/{account}/bulletins/{id}.xml."
+    },
+    {
+      "name": "govdelivery_set_subscriber_topics",
+      "descriptionHash": "b2f6a61d33c8e1955490b7936e324a4f884bf682809ec43340e332908b16369c",
+      "description": "WRITE: adds ONE subscriber to topics, or REPLACES that subscriber's topic subscriptions with exactly the codes given (GovDelivery 'replace or create'), so topics not listed may be removed. Use only for a person who opted in to these topics; never for purchased or scraped lists. Set send_notification",
+      "labels": [
+        "untrusted-content",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "govdelivery_create_bulletin_draft",
+      "descriptionHash": "41e415136cfbd95cb4cef7ca3dc4893874d7573806e0816e1540c307f4a545b6",
+      "description": "WRITE: creates a DRAFT bulletin for the given topics. Nothing is sent: the draft waits in GovDelivery until govdelivery_send_bulletin sends it. Subject: plain text, max 400 characters; GovDelivery advises against special characters such as ! or quotes because spam filters may flag them (advice only,",
+      "labels": [
+        "untrusted-content",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "govdelivery_send_bulletin",
+      "descriptionHash": "46dfacfb125774882873e5a981b3f22a4d71d1ea6cc02f28f4ca41135bb0a1d9",
+      "description": "WRITE: SENDS an existing DRAFT bulletin by email to every subscriber of its topics, now. This cannot be undone. Set confirm_send to true only after the user has approved this exact bulletin in this conversation. A sent bulletin cannot be sent again. GovDelivery REST: POST /api/account/{account}/bull",
+      "labels": [
+        "public-sink"
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: govdelivery_get_subscriber, govdelivery_set_subscriber_topics, govdelivery_create_bulletin_draft · Private data: govdelivery_get_subscriber · Public sink: govdelivery_get_subscriber, govdelivery_set_subscriber_topics, govdelivery_create_bulletin_draft, govdelivery_send_bulletin.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: govdelivery_get_subscriber, govdelivery_set_subscriber_topics, govdelivery_create_bulletin_draft · Private data: govdelivery_get_subscriber · Public sink: govdelivery_get_subscriber, govdelivery_set_subscriber_topics, govdelivery_create_bulletin_draft, govdelivery_send_bulletin"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 80,
+  "scoreBreakdown": {
+    "toxic-flow": 20
+  },
+  "errors": []
+}

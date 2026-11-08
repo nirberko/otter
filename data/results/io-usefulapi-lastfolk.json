@@ -1,0 +1,125 @@
+{
+  "schemaVersion": 1,
+  "scanner": {
+    "version": "1.6.0",
+    "rules": "402995650b68"
+  },
+  "target": {
+    "kind": "url",
+    "ref": "https://lastfolk.usefulapi.io/mcp"
+  },
+  "scannedAt": "2026-11-08T11:50:00.275Z",
+  "durationMs": 172,
+  "layers": {
+    "metadata": true,
+    "static": false
+  },
+  "tools": [
+    {
+      "name": "lastfolk_whoami",
+      "descriptionHash": "b76563f8265bad9ccf469f76832264d59c163997a668cdbd7f464d398bd8db7c",
+      "description": "Show which LastFolk tenant and environment (sandbox or production) this API key belongs to, plus the key prefix and last four characters. Use it to confirm the key works. GET /v1/whoami.",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "lastfolk_check_environment",
+      "descriptionHash": "023d728cf55e1ba643fde74070a7f948d0fd873e63a62f002364c09edfe44bed",
+      "description": "Check that the API key environment matches the connected courier provider account, before any delivery is created. Returns match: true when they agree. A mismatch is an error. GET /v1/environment.",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "lastfolk_create_quote",
+      "descriptionHash": "9596f18e5a721fb7e69d447956e890ace0111b0a7bf70f3f266c531a8315553e",
+      "description": "Price a pickup-to-dropoff delivery and get a quote_id. Reserves nothing and charges nothing. The quote is single-use and expires at expires_at; pass quote_id to lastfolk_create_delivery before then. Price amounts are decimal strings: never parse them as floats. POST /v1/quotes.",
+      "labels": [
+        "untrusted-content",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "lastfolk_list_deliveries",
+      "descriptionHash": "21309449834c3842e180130a1cab02fc3a64d053887aa535a063151c3fa27827",
+      "description": "List your deliveries, newest first, with status, tracking URL and ETAs. Filter by status, your external_order_id, or a created date range. Page with next_cursor. The dropoff PIN is not in lists: use lastfolk_get_delivery. GET /v1/deliveries.",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "lastfolk_get_delivery",
+      "descriptionHash": "dc60fb978d418d240df1ecb96f744ab95e07fa24a3f75f57a44c15a83b930bdd",
+      "description": "Read one delivery: status, tracking URL, ETAs, timestamps, and the dropoff verification_pin the recipient gives the courier. The PIN is a secret: share it only with the recipient. GET /v1/deliveries/{delivery_id}.",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "lastfolk_create_delivery",
+      "descriptionHash": "6c77b0a424ec920b098f6183353ad3439ea62f3c0574c3aa5a9c478be3fd2163",
+      "description": "DISPATCHES a real courier job against a quote_id from lastfolk_create_quote, and starts the billing for it. The quote must be unused and not expired. Use a unique idempotency_key per delivery (an order id works): a retry with the same key and body returns the original delivery and never dispatches a",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "lastfolk_cancel_delivery",
+      "descriptionHash": "f15429487c3dc696b2c0bfb63bec16be487079dba70ccbdf39580356d39e931f",
+      "description": "Cancel a delivery that the courier has not collected yet (status pending or pickup). Cancelling a delivery that is already cancelled succeeds with changed: false. After pickup, the API refuses with delivery_not_cancellable. Cancelling moves no money in the same call. POST /v1/deliveries/{delivery_id",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "lastfolk_get_billing_profile",
+      "descriptionHash": "68b1f4dc47598b0629147a6b8cdd410dc7e9a12a45f85d42a2e5cca6a91b8951",
+      "description": "Read the account's fiscal identity: legal company name, tax ID and type, and billing address. Exactly seven fields, each text or null. GET /v1/billing-profile."
+    },
+    {
+      "name": "lastfolk_update_billing_profile",
+      "descriptionHash": "02cbf32bc63259c75402c14fbc5d8105277faf0a79056ac213c9d7ef52e8be2a",
+      "description": "Change the account's fiscal identity. Fields you omit or send empty keep their stored value. Send null to clear one field. The tax ID is checked against the resulting billing country, and the whole update is refused if it fails. Changes flow to billing records and invoices. PUT /v1/billing-profile.",
+      "labels": [
+        "private-data",
+        "public-sink"
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"lastfolk_get_delivery\" references sensitive artifacts (secret). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:lastfolk_get_delivery",
+        "snippet": "Read one delivery: status, tracking URL, ETAs, timestamps, and the dropoff verification_pin the recipient gives the courier. The PIN is a secret: share it only …"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: lastfolk_create_quote, lastfolk_list_deliveries, lastfolk_get_delivery · Private data: lastfolk_whoami, lastfolk_check_environment, lastfolk_get_delivery, lastfolk_update_billing_profile · Public sink: lastfolk_create_quote, lastfolk_get_delivery, lastfolk_create_delivery, lastfolk_cancel_delivery, lastfolk_update_billing_profile.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: lastfolk_create_quote, lastfolk_list_deliveries, lastfolk_get_delivery · Private data: lastfolk_whoami, lastfolk_check_environment, lastfolk_get_delivery, lastfolk_update_billing_profile · Public sink: lastfolk_create_quote, lastfolk_get_delivery, lastfolk_create_delivery, lastfolk_cancel_delivery, lastfolk_update_billing_profile"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 60,
+  "scoreBreakdown": {
+    "tool-poisoning": 20,
+    "toxic-flow": 20
+  },
+  "errors": []
+}

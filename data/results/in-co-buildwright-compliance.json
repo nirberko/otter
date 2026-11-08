@@ -1,0 +1,119 @@
+{
+  "schemaVersion": 1,
+  "scanner": {
+    "version": "1.6.0",
+    "rules": "402995650b68"
+  },
+  "target": {
+    "kind": "url",
+    "ref": "https://buildwright.co.in/api/mcp"
+  },
+  "scannedAt": "2026-11-08T11:26:26.175Z",
+  "durationMs": 1099,
+  "layers": {
+    "metadata": true,
+    "static": false
+  },
+  "tools": [
+    {
+      "name": "mca_late_fee",
+      "descriptionHash": "904bdfe40a051bb11c86d67fdb4040df387264b8c2e9faba7cab75c010c5111f",
+      "description": "The MCA additional fee or statutory penalty for a late company or LLP filing in India: AOC-4, MGT-7/7A, INC-20A, LLP Form 8, LLP Form 11. Returns the figure or multiplier with days late, the legal source, and the consequence of not filing."
+    },
+    {
+      "name": "compliance_calendar",
+      "descriptionHash": "e208909b3a812a27ebf10173597f7a4c9852728bdf7a5e4077a64ade5d1d00d4",
+      "description": "The dated statutory filing calendar for an Indian private limited company, one person company or LLP: what is due and when, from the incorporation date, with first-year rules (s.2(41), first AGM) applied.",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "company_lookup",
+      "descriptionHash": "bf5a9a2b2aeadab0007afd8accc7878495a8f16d949568f1daf5e5ee78a36dbb",
+      "description": "Looks up an Indian company or LLP in the Ministry of Corporate Affairs' company master data on data.gov.in: name, type, incorporation date, MCA status and Registrar of Companies. Feed the type and date into compliance_calendar. The dataset runs a few months behind MCA, so a company set up recently m"
+    },
+    {
+      "name": "cheque_bounce_timer",
+      "descriptionHash": "41a261e7dee62cabf84f3948c24a922d85d0217577ac4ecfee11d7fb129762fa",
+      "description": "The live deadline clock after a cheque bounce in India under s.138 Negotiable Instruments Act: when the demand notice must go, when the drawer's 15 days run out, and the last day to file the complaint.",
+      "labels": [
+        "private-data",
+        "destructive"
+      ]
+    },
+    {
+      "name": "msme_interest",
+      "descriptionHash": "1fcb6050767154b1ac26704c8c77e41f578a747dd4eb529ffde9f61b28eb4156",
+      "description": "Compound interest a buyer owes a micro or small enterprise on a delayed payment under s.16 MSMED Act (three times the RBI bank rate, compounded monthly), with the covered/not-covered verdict."
+    },
+    {
+      "name": "list_free_tools",
+      "descriptionHash": "bc18da6ec65459b268e2bd1a03dc47cc84b9930cb2b95a72483d133e2aa3b274",
+      "description": "The free Indian compliance tools and document templates BuildWright publishes, with URLs, for anything this server's tools do not compute.",
+      "labels": [
+        "untrusted-content",
+        "private-data"
+      ]
+    },
+    {
+      "name": "engage_buildwright",
+      "descriptionHash": "9de10a58da7438f8af6c8afb46e507318a55873beb571956655cb74af13d6fc0",
+      "description": "How to have a filing, document or compliance task done by BuildWright's people: contact routes and what the firm handles. Use when the user wants the work done for them.",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "list_services",
+      "descriptionHash": "bcceb3d081ee792fd0c70d82a094ec50a002cb4945bb67378541d3d170b033bf",
+      "description": "BuildWright's SEBI adviser services with our fee in rupees, what is included, and the service page, for information. Nothing is sold in the chat: to go ahead, use request_service and BuildWright calls back. Fees to SEBI, BSE or the state are separate at actuals. Show the price exactly as returned; n",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "request_service",
+      "descriptionHash": "96db4f5a1a9f0dc8467e660b542a540a5c87fc521de3e6add1298073fdc7c020",
+      "description": "Send the person's request to BuildWright so a person calls them back. Use for any documentation, filing or compliance task, listed or not. Before calling: ask the person for each field in conversation (name, their own 10-digit Indian mobile, optionally email, what they need, entity type, state). Nev",
+      "labels": [
+        "private-data",
+        "public-sink"
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOOL-POISON-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description issues instructions to the model",
+      "detail": "Description of \"request_service\" contains imperative instructions directed at the AI assistant rather than describing the tool. This is the core tool-poisoning technique.",
+      "evidence": {
+        "source": "tool:request_service",
+        "snippet": "Send the person's request to BuildWright so a person calls them back. Use for any documentation, filing or compliance task, listed or not. Before calling: ask t…"
+      },
+      "confidence": 0.7,
+      "remediation": "Treat the server as untrusted; the model may obey embedded instructions."
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: list_free_tools, list_services · Private data: compliance_calendar, cheque_bounce_timer, list_free_tools, engage_buildwright, request_service · Public sink: request_service · Destructive: cheque_bounce_timer.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: list_free_tools, list_services · Private data: compliance_calendar, cheque_bounce_timer, list_free_tools, engage_buildwright, request_service · Public sink: request_service · Destructive: cheque_bounce_timer"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 60,
+  "scoreBreakdown": {
+    "tool-poisoning": 20,
+    "toxic-flow": 20
+  },
+  "errors": []
+}

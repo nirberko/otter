@@ -1,0 +1,142 @@
+{
+  "schemaVersion": 1,
+  "scanner": {
+    "version": "1.6.0",
+    "rules": "402995650b68"
+  },
+  "target": {
+    "kind": "url",
+    "ref": "https://openanthropic.com/mcp"
+  },
+  "scannedAt": "2026-11-08T11:24:19.941Z",
+  "durationMs": 312,
+  "layers": {
+    "metadata": true,
+    "static": false
+  },
+  "tools": [
+    {
+      "name": "upload",
+      "descriptionHash": "7790e22902216fc87fc2e76637b91a226e02418c9b96819fc30d82c5ce1cf296",
+      "description": "Upload one HTML/code payload and get a public share URL plus an edit token. Each call creates a new asset unless idempotencyKey is reused. Anonymous uploads are rate-limited to 10/hour and 50/day per IP; authenticated uploads are limited per account. Content is public unless password-protected and e",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink",
+        "destructive"
+      ]
+    },
+    {
+      "name": "upload_site",
+      "descriptionHash": "0e72ae0857dedd759ebbbeaf5ba2a6e9f300dc4da8763db22f36584a9222a0a7",
+      "description": "Publish a multi-file static site from an authenticated account. Pass files as an array of {path, content} strings; the root must contain index.html or index.htm. Returns a /s/<id>/ URL that serves HTML/CSS/JS/assets. Limits: 200 files, 20 MB total, 5 MB per file. Requires OAuth or an API key; site l",
+      "labels": [
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "list_assets",
+      "descriptionHash": "aaf241e16b0cf20504a49299760582871032f425be4bdc322763c2f7b794c42d",
+      "description": "List up to 50 assets owned by the authenticated user, newest first, with id, filename, timestamps and share URL. Requires an API key or signed-in session; read-only, and results are capped at 50 with no pagination. Use search_gallery for public works from other users, or view to open one of your ass",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "view",
+      "descriptionHash": "0a7edc72cba5b4a32572fecd714ef5fb293eb5d9576424ba245d14070b545adc",
+      "description": "Fetch a single asset by id and return its content, filename, creation time and share URL. Read-only and safe to retry; public assets need no auth, password-protected assets return an error with the share URL, and client-encrypted content is returned as stored. Use search_gallery to find an id, or li",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "delete",
+      "descriptionHash": "a9e25ac88479d8df992e3bf88a4d3805f74372b639938435e1278d69db000ee9",
+      "description": "Permanently delete one of your own assets by id. Irreversible: the share URL stops working immediately and the content cannot be restored. Requires authentication and ownership; ids you do not own return an error. Use list_assets to find the id; there is no bulk delete.",
+      "labels": [
+        "public-sink",
+        "destructive"
+      ]
+    },
+    {
+      "name": "get_info",
+      "descriptionHash": "ab90e92de55600d6b56591bf9586e820dddee05fa799efcef4981453025dd694",
+      "description": "Return Oh My Share service metadata: version, REST and MCP endpoints, feature list, and per-IP rate limits (10 uploads/hour, 500 views/hour). Read-only, no auth, cheap to call. Use it once at startup to discover capabilities; use list_assets or search_gallery for actual content.",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "search_gallery",
+      "descriptionHash": "8fa8cc4a10ab81c5a93abdcaaa1b01da69d296c9ce2eb3710911999e5915c925",
+      "description": "Search public gallery works by keyword across title, description, tags and id; omit query to browse the newest works. Returns a paginated result set (items, total, page, pages) where each item has id, title, views and URLs. sort is new (newest) or hot (most liked and viewed); limit is capped at 20. ",
+      "labels": [
+        "untrusted-content"
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"upload\" references sensitive artifacts (password). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:upload",
+        "snippet": "Upload one HTML/code payload and get a public share URL plus an edit token. Each call creates a new asset unless idempotencyKey is reused. Anonymous uploads are…"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"view\" references sensitive artifacts (password). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:view",
+        "snippet": "Fetch a single asset by id and return its content, filename, creation time and share URL. Read-only and safe to retry; public assets need no auth, password-prot…"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-SHADOW-001",
+      "severity": "medium",
+      "category": "shadowing",
+      "title": "Generic tool name can shadow trusted tools",
+      "detail": "Tool \"delete\" uses a generic high-value name. When multiple servers load together, this can intercept calls meant for a trusted server.",
+      "evidence": {
+        "source": "tool:delete",
+        "snippet": "delete"
+      },
+      "confidence": 0.4
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: upload, list_assets, view, search_gallery · Private data: upload, upload_site, list_assets, view · Public sink: upload, upload_site, list_assets, view, delete, get_info · Destructive: upload, delete.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: upload, list_assets, view, search_gallery · Private data: upload, upload_site, list_assets, view · Public sink: upload, upload_site, list_assets, view, delete, get_info · Destructive: upload, delete"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 42,
+  "scoreBreakdown": {
+    "tool-poisoning": 30,
+    "shadowing": 8,
+    "toxic-flow": 20
+  },
+  "errors": []
+}

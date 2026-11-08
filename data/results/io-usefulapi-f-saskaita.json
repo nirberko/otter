@@ -1,0 +1,124 @@
+{
+  "schemaVersion": 1,
+  "scanner": {
+    "version": "1.6.0",
+    "rules": "402995650b68"
+  },
+  "target": {
+    "kind": "url",
+    "ref": "https://f-saskaita.usefulapi.io/mcp"
+  },
+  "scannedAt": "2026-11-08T11:34:29.585Z",
+  "durationMs": 419,
+  "layers": {
+    "metadata": true,
+    "static": false
+  },
+  "tools": [
+    {
+      "name": "fsaskaita_get_profile",
+      "descriptionHash": "78f700e180c68698c3b1f55919ba19b14d01a791d7c3ba2e088cac0aa236f9b0",
+      "description": "Get the business that the token belongs to: name, business type, address, VAT code and company code. A good first call. GET /profile.",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "fsaskaita_list_currencies",
+      "descriptionHash": "221d048c14186f0e6bdf8546232f855eb6423d0165ad89ed77b39eabfbc4d3f0",
+      "description": "List the currency codes and titles that invoices and expenses accept. GET /currencies."
+    },
+    {
+      "name": "fsaskaita_list_invoices",
+      "descriptionHash": "861c6de6070421d7bfc0f725c775a371df7cd5444a07831e2257a63dced2a5eb",
+      "description": "List finalized invoices, newest first, 50 per page. Drafts made in the app are not included. The meta block gives current_page, last_page and total. GET /invoices."
+    },
+    {
+      "name": "fsaskaita_get_invoice",
+      "descriptionHash": "d1ca89d7d3a885b112a074de115153cbe357d4e5f067b011442da2c468a5822b",
+      "description": "Get one invoice with its seller, buyer, lines (products), payment options, totals and share_link. GET /invoices/{invoice}."
+    },
+    {
+      "name": "fsaskaita_download_invoice_pdf",
+      "descriptionHash": "d59d48956da54b10b5b415c0f2e4fbf59e2dc0cec360b59985fc5485603cf0e3",
+      "description": "Download the PDF of one invoice. Returns the file as base64 with its content type and file name. Files over 3 MB are refused. GET /invoices/{invoice}/download.",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "fsaskaita_list_expenses",
+      "descriptionHash": "7b07b0ab1193fc812e3ec82023c5b2c1f9081e182af18fb0a55f410a5f1fe3d3",
+      "description": "List expenses, newest first, 50 per page. Each item has date, total, currency, seller and timestamps. GET /expenses."
+    },
+    {
+      "name": "fsaskaita_get_expense",
+      "descriptionHash": "99f6d08c9ee36e2b5efafd3aee7b4620b7470a42137dc0b549a5b6c9dd4acd5f",
+      "description": "Get one expense: date, total (with VAT), currency, seller and timestamps. The stored VAT and supplier invoice number are not returned. GET /expenses/{expense}."
+    },
+    {
+      "name": "fsaskaita_download_expense_file",
+      "descriptionHash": "fa83c92f63a6ad54828bd146656be93c8a170921a2401cfbb0b3e9f762ce3537",
+      "description": "Download the document file (receipt or invoice) of one expense. Returns the file as base64 with its content type and file name. Files over 3 MB are refused. GET /expenses/{expense}/download.",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "fsaskaita_create_invoice",
+      "descriptionHash": "32107f95d4c579c37268684b74a6e46e26f45a6717abf68190fafce77ab5b0f1",
+      "description": "WRITE: create and finalize a new invoice in the business. It takes a number, queues its PDF and fires the invoice.created webhook. Omit invoice_number to take the next number of the series. The call is NOT repeatable: after a network error, list invoices before you retry. POST /invoices.",
+      "labels": [
+        "untrusted-content",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "fsaskaita_update_invoice",
+      "descriptionHash": "45ccaf1f9015ad9ca7837913d9bcbf79eac8fda786720ec5dabf79af372edf23",
+      "description": "WRITE: replace EVERY field of an existing invoice with the values you send. Read the invoice first with fsaskaita_get_invoice and resend all of it. invoice_number is required: without it the invoice is renumbered. Lines, payment options and seller fields are rewritten and the PDF is regenerated. PUT",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "fsaskaita_create_expense",
+      "descriptionHash": "4bb338d1d4ee4fa2eabb94d9e67f4cf19a60d696789e749ae65fd4944a9cd35b",
+      "description": "WRITE: record a new expense with its document file (receipt or invoice from a supplier). The file is required. The call fires the expense.created webhook and is NOT repeatable: list expenses before you retry after a network error. POST /expenses (multipart).",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "fsaskaita_update_expense",
+      "descriptionHash": "abfe1dcba17537bed33285fa8926d9075ef51d739264d32a5d174b791d9fb893",
+      "description": "WRITE: replace EVERY field of an existing expense. Read it first with fsaskaita_get_expense and resend all of it. Stored VAT and supplier invoice number are not returned, so send them again if you need them. The file is optional: when you send one it replaces the stored file. PUT /expenses/{expense}",
+      "labels": [
+        "private-data",
+        "public-sink"
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: fsaskaita_create_invoice, fsaskaita_create_expense · Private data: fsaskaita_get_profile, fsaskaita_download_invoice_pdf, fsaskaita_download_expense_file, fsaskaita_create_expense, fsaskaita_update_expense · Public sink: fsaskaita_create_invoice, fsaskaita_update_invoice, fsaskaita_create_expense, fsaskaita_update_expense.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: fsaskaita_create_invoice, fsaskaita_create_expense · Private data: fsaskaita_get_profile, fsaskaita_download_invoice_pdf, fsaskaita_download_expense_file, fsaskaita_create_expense, fsaskaita_update_expense · Public sink: fsaskaita_create_invoice, fsaskaita_update_invoice, fsaskaita_create_expense, fsaskaita_update_expense"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 80,
+  "scoreBreakdown": {
+    "toxic-flow": 20
+  },
+  "errors": []
+}

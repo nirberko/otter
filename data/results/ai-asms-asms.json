@@ -8,8 +8,8 @@
     "kind": "url",
     "ref": "https://asms.ai/mcp"
   },
-  "scannedAt": "2026-11-07T11:08:24.855Z",
-  "durationMs": 473,
+  "scannedAt": "2026-11-08T11:21:04.899Z",
+  "durationMs": 754,
   "layers": {
     "metadata": true,
     "static": false
@@ -78,8 +78,8 @@
     },
     {
       "name": "list_rentals",
-      "descriptionHash": "14cc42823bc1de58de0f205c695b7ef6b6e7edc241075fb830c8d459ecdc098e",
-      "description": "List the account's rented numbers with their country, period and end date. Ended rentals are left out unless `includeEnded` is true."
+      "descriptionHash": "abca841e6ea3c8665c00589310c61d34580dd031d78f08cbcd2d69fb01e5cc76",
+      "description": "List the account's rented numbers with their country, period, end date and whether auto-renew is on. Ended rentals are left out unless `includeEnded` is true."
     },
     {
       "name": "read_rental_sms",
@@ -97,6 +97,22 @@
       "labels": [
         "public-sink"
       ]
+    },
+    {
+      "name": "renew_rental",
+      "descriptionHash": "02bf8bd694e5f077195edc2ae30ecf7b67ed949e720ef5c8efba2d07e03df854",
+      "description": "Keep a rented number for another period: the period is added to its current end, at today's price for that period in its country (see get_rental_offers). Possible from 2 hours after renting until 20 minutes before the end. Debits the wallet only if the renewal goes through. WARNING: this spends real",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "set_rental_auto_renew",
+      "descriptionHash": "50bbd2d1cf097f6540d3af248fe79a31e090dda5ec79b3c7853c4aec5bdf660f",
+      "description": "With auto-renew on, the number is renewed for its rental period from the wallet a day before it ends (6 hours before for a one-day rental); if the balance is short then, the account is emailed and nothing is charged. Turning it on lets the wallet be charged later: confirm with the user first.",
+      "labels": [
+        "private-data"
+      ]
     }
   ],
   "findings": [
@@ -105,18 +121,32 @@
       "severity": "high",
       "category": "toxic-flow",
       "title": "Lethal trifecta: untrusted input + private data + external sink",
-      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: read_rental_sms · Private data: get_balance, create_otp_order, rent_number · Public sink: poll_sms, get_rental_offers, rent_number, read_rental_sms, cancel_rental.",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: read_rental_sms · Private data: get_balance, create_otp_order, rent_number, renew_rental, set_rental_auto_renew · Public sink: poll_sms, get_rental_offers, rent_number, read_rental_sms, cancel_rental.",
       "evidence": {
         "source": "server:mcp",
-        "snippet": "Untrusted content: read_rental_sms · Private data: get_balance, create_otp_order, rent_number · Public sink: poll_sms, get_rental_offers, rent_number, read_rental_sms, cancel_rental"
+        "snippet": "Untrusted content: read_rental_sms · Private data: get_balance, create_otp_order, rent_number, renew_rental, set_rental_auto_renew · Public sink: poll_sms, get_rental_offers, rent_number, read_rental_sms, cancel_rental"
       },
       "confidence": 0.6,
       "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"list_rentals\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:list_rentals",
+        "snippet": "before: \"List the account's rented numbers with their country, period and end date. Ended rentals are left out unless `includeEnded` is true.\" → after: \"List the account's rented numbers with their country, period, end date and whether auto-renew is on. Ended rentals are left out unless `includeEnded` is true.\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
     }
   ],
-  "score": 80,
+  "score": 60,
   "scoreBreakdown": {
-    "toxic-flow": 20
+    "toxic-flow": 20,
+    "tool-poisoning": 20
   },
   "errors": []
 }

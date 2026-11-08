@@ -6,10 +6,10 @@
   },
   "target": {
     "kind": "url",
-    "ref": "https://redirx-mcp-server.onrender.com/mcp"
+    "ref": "https://app.redirx.dev/mcp"
   },
-  "scannedAt": "2026-10-24T09:03:14.139Z",
-  "durationMs": 872,
+  "scannedAt": "2026-11-08T11:25:58.328Z",
+  "durationMs": 1348,
   "layers": {
     "metadata": true,
     "static": false
@@ -26,32 +26,33 @@
     },
     {
       "name": "import_inventory",
-      "descriptionHash": "db28d9827e24f3d1fa38be79079925d1ae021c4cef8152b657123182b8950b47",
-      "description": "Import explicit HTTP(S) URL strings into an owned immutable old or new inventory. No crawl or page scraping. Use data.inventory.id only when data.inventory.status is complete for run_migration; partial imports need corrected input and a new key. The free trial allows 500 old / 2000 new URLs and 2 Mi",
+      "descriptionHash": "441925aed86ef3dbde812375c35e83ed73095b871f74473b6131d6d890c25410",
+      "description": "Import explicit HTTP(S) URL strings into an owned, immutable old or new inventory. No crawl or page fetch. Use data.inventory.id with run_migration only when data.inventory.status is complete; a partial import lists its exclusions and needs corrected input and a new key. Up to 15,000 old / 20,000 ne",
       "labels": [
         "untrusted-content"
       ]
     },
     {
       "name": "run_migration",
-      "descriptionHash": "6efe661c2a06ccda0a84f7a94bf20be3f72decd6ce55326ed9c299d71b7f9655",
-      "description": "Run URL matching from immutable inventories. When current billing is enabled, the separate free trial allows 500 old URLs; paid purchases or monthly allowances support 15000 old / 20000 new URLs. Payment-required responses provide a browser billing link. Only a human completes checkout. Pass its ver",
+      "descriptionHash": "a938ed8b0df17f4e4a1badc082f86d431c58f748b68822048929ed26dbd33b3b",
+      "description": "Match old URLs to new ones from two complete inventories. Migrations up to 500 old URLs run free (one free run a day, five in total per account). Otherwise the answer is payment_required with the one-time price ($1 per 50 old URLs, $10 minimum) and a checkout link that only a person can complete; af",
       "labels": [
         "destructive"
       ]
     },
     {
-      "name": "refine_matches",
-      "descriptionHash": "87d33b164fbafe621c3df052e5c2f39b15791f20439bfa2d926161a197b1c81a",
-      "description": "Resume a paused matching pass, or improve unresolved URL mappings with explicitly confirmed examples. Up to three total passes; does not consume another free migration. Read data.jev.seed_revision from get_migration first. If paused, honor retry_after_seconds and resolve the reported pause reason be",
+      "name": "get_migration",
+      "descriptionHash": "391de491a9d78b65a703ec5b7ff0eb2c7ca73cd3b692e9575d93311b43917a8f",
+      "description": "Read an owned migration, its latest inventories, runs (with progress), exports and verifications, and the next recoverable action. Keep migration_id across reconnects; poll only after retry_after_seconds. A finished run still needs review before export.",
       "labels": [
-        "untrusted-content"
+        "untrusted-content",
+        "destructive"
       ]
     },
     {
-      "name": "get_migration",
-      "descriptionHash": "91170e7508f38ac0909c690967ee7b705938a48caba114bcb51a9fc0938a1570",
-      "description": "Read an owned migration summary and its next recoverable action. Retain migration_id and run_id across reconnects. Poll only after retry_after_seconds; a completed run still requires explicit review before export.",
+      "name": "group_matches",
+      "descriptionHash": "705e602a32112ea4b65fbc7a3acf005d9f0b19edb4d47d2c85959165d60d420c",
+      "description": "Start review here. Groups a run's mappings by the URL rewrite they apply (from → to, e.g. /product/{slug}/ → /products/{slug}), groups with the most undecided rows first. kind is moved, kept_tail, same_path, unchanged (no redirect needed) or unmatched; renamed counts rows whose last segment also cha",
       "labels": [
         "untrusted-content",
         "destructive"
@@ -59,82 +60,170 @@
     },
     {
       "name": "list_matches",
-      "descriptionHash": "82b19d89745ce54ef0b4e8aed9338bef0161ce1b25b2006dd37286f5529acc77",
-      "description": "Read owned match exceptions in stable traffic order. Follow data.next_cursor until null using the same run and filter; one page is not the whole run. Retain each mapping revision and data.selection_revision for review/export. Traffic absence is distinct from observed zero. Confidence is an uncalibra",
+      "descriptionHash": "6cc1ef4cf24d34dae1287af1d763b56aae8f56d4c0c8dec592ca429f2d3db652",
+      "description": "Read a run's mappings in stable URL order: the latest proposal, the current decision and its revision. Pass group_id (from group_matches) to read one group's rows. Follow data.next_cursor until null with the same run, filter and group; one page is not the whole run. data.counts are for the whole run",
       "labels": [
         "untrusted-content",
         "destructive"
       ]
     },
     {
+      "name": "resolve_group",
+      "descriptionHash": "3b051fb3b881ff05b5758c5a1ca256a4115523e9739a40b7169ae9c68845dae1",
+      "description": "After the person decides on a whole group from group_matches: record one decision (approve confirms each row's latest proposal; reject, defer or intentional_removal) for every row in the group that has no decision yet. Rows already decided are never changed, and rows in except_mapping_ids are left f",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
       "name": "resolve_matches",
-      "descriptionHash": "f9537490f4449fd111da0aa848710f829da81df3e2b3f1b46baa2c66a942fdd3",
-      "description": "Apply audited, optimistic-concurrency decisions. To confirm a model-proposed target, use set_target with target_url, mapping_id and expected_revision after explicit user approval. Inspect every returned outcome: a batch can partially fail. On revision conflicts, reread matches and reassess the decis"
+      "descriptionHash": "0d077b2cce97156e421683530c3e6177d056d92dabc967d5006e3b2020d3c41a",
+      "description": "Record audited decisions on individual rows with optimistic concurrency, after the user agrees (for a whole group, use resolve_group): approve (confirms the proposed target, or target_url if given), set_target (an exact URL from the new inventory), reject, defer or intentional_removal. Each needs ma",
+      "labels": [
+        "untrusted-content",
+        "private-data"
+      ]
+    },
+    {
+      "name": "refine_matches",
+      "descriptionHash": "10525817a18c738ff97ba201199f2b304ee6c7a31c38f91d6fb672201c75676f",
+      "description": "Resume a run that stopped part-way (same pass, kept proposals), or start its next pass, which learns from the targets people confirmed and the most confident proposals. Up to three passes per run; no new charge. Read the run's seed_revision from get_migration or list_matches first.",
+      "labels": [
+        "destructive"
+      ]
     },
     {
       "name": "export_redirects",
-      "descriptionHash": "e47bb0b3df968abf9908b9395eb62275d480c702c9f4865b1e89728dd565cc93",
-      "description": "Create an immutable artifact from explicitly approved decisions. Use data.selection_revision from the latest review response as revision. allow_partial requires explicit agreement to exclusions. Export does not install redirects. Large downloads are returned only as backend-authorized artifact resou"
+      "descriptionHash": "ba7c485e1c911ba62cf18a4fb3641bc919188f1f02b32d022990782fe2116bb9",
+      "description": "Create an immutable redirect file at exactly the selection revision you showed the person (data.selection_revision). Before exporting, ask the person what to include: every proposal is the default, or only those at or above a confidence; say how many fall below RedirX's recommended review threshold ",
+      "labels": [
+        "private-data",
+        "destructive"
+      ]
     },
     {
       "name": "verify_redirects",
-      "descriptionHash": "cb993e5378f3e16fdeaf7638c3d4383b70421f91fe11a0661758b2bed18c8b4c",
-      "description": "Start or resume an owned artifact HTTP check. Supply an existing deployment_id, or explicitly confirm installation with live_origin and origin_rewrites ({} preserves artifact destinations). This does not install rules or establish Google indexing, page canonicals, robots permissions, or sitemap corr"
+      "descriptionHash": "a62979185df30e0b791ef237cad387f87603654aa4d820be64b677768050f835",
+      "description": "Only after the user confirms an export is installed: check each of its redirects on the live site (status, hops, final destination). Give live_origin (where the old URLs are served) and origin_rewrites mapping export destination origins to live ones ({} keeps them). Poll get_migration for results. T",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "ping",
+      "descriptionHash": "17fd109ed755dc03778a1370fe8cba687045e603da45c616bd6ad30a33a8cb5e",
+      "description": "Connection check. Returns \"pong\". Has no side effects."
     }
   ],
   "findings": [
     {
-      "id": "MCP-SCHEMA-SMELL-001",
-      "severity": "medium",
-      "category": "schema-smell",
-      "title": "Read-only tool requests dangerous parameters",
-      "detail": "Tool \"import_inventory\" appears informational but accepts parameters (context) that enable code/file/secret access.",
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"import_inventory\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
       "evidence": {
         "source": "tool:import_inventory",
-        "snippet": "migration_id, side, urls, idempotency_key, context"
+        "snippet": "before: \"Import explicit HTTP(S) URL strings into an owned immutable old or new inventory. No crawl or page scraping. Use data.inventory.id only when data.inventory.status is complete for run_migration; partial imports need corrected input and a new key. The free trial allows 500 old / 2000 new URLs and 2 Mi\" → after: \"Import explicit HTTP(S) URL strings into an owned, immutable old or new inventory. No crawl or page fetch. Use data.inventory.id with run_migration only when data.inventory.status is complete; a partial import lists its exclusions and needs corrected input and a new key. Up to 15,000 old / 20,000 ne\""
       },
-      "confidence": 0.55
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
     },
     {
-      "id": "MCP-SCHEMA-SMELL-001",
-      "severity": "medium",
-      "category": "schema-smell",
-      "title": "Read-only tool requests dangerous parameters",
-      "detail": "Tool \"refine_matches\" appears informational but accepts parameters (context) that enable code/file/secret access.",
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"run_migration\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:run_migration",
+        "snippet": "before: \"Run URL matching from immutable inventories. When current billing is enabled, the separate free trial allows 500 old URLs; paid purchases or monthly allowances support 15000 old / 20000 new URLs. Payment-required responses provide a browser billing link. Only a human completes checkout. Pass its ver\" → after: \"Match old URLs to new ones from two complete inventories. Migrations up to 500 old URLs run free (one free run a day, five in total per account). Otherwise the answer is payment_required with the one-time price ($1 per 50 old URLs, $10 minimum) and a checkout link that only a person can complete; af\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"refine_matches\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
       "evidence": {
         "source": "tool:refine_matches",
-        "snippet": "migration_id, run_id, expected_seed_revision, idempotency_key, context"
+        "snippet": "before: \"Resume a paused matching pass, or improve unresolved URL mappings with explicitly confirmed examples. Up to three total passes; does not consume another free migration. Read data.jev.seed_revision from get_migration first. If paused, honor retry_after_seconds and resolve the reported pause reason be\" → after: \"Resume a run that stopped part-way (same pass, kept proposals), or start its next pass, which learns from the targets people confirmed and the most confident proposals. Up to three passes per run; no new charge. Read the run's seed_revision from get_migration or list_matches first.\""
       },
-      "confidence": 0.55
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
     },
     {
-      "id": "MCP-SCHEMA-SMELL-001",
-      "severity": "medium",
-      "category": "schema-smell",
-      "title": "Read-only tool requests dangerous parameters",
-      "detail": "Tool \"get_migration\" appears informational but accepts parameters (context) that enable code/file/secret access.",
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"get_migration\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
       "evidence": {
         "source": "tool:get_migration",
-        "snippet": "migration_id, run_id, operation_id, context"
+        "snippet": "before: \"Read an owned migration summary and its next recoverable action. Retain migration_id and run_id across reconnects. Poll only after retry_after_seconds; a completed run still requires explicit review before export.\" → after: \"Read an owned migration, its latest inventories, runs (with progress), exports and verifications, and the next recoverable action. Keep migration_id across reconnects; poll only after retry_after_seconds. A finished run still needs review before export.\""
       },
-      "confidence": 0.55
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
     },
     {
-      "id": "MCP-SCHEMA-SMELL-001",
-      "severity": "medium",
-      "category": "schema-smell",
-      "title": "Read-only tool requests dangerous parameters",
-      "detail": "Tool \"list_matches\" appears informational but accepts parameters (context) that enable code/file/secret access.",
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"list_matches\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
       "evidence": {
         "source": "tool:list_matches",
-        "snippet": "migration_id, run_id, filter, cursor, limit, context"
+        "snippet": "before: \"Read owned match exceptions in stable traffic order. Follow data.next_cursor until null using the same run and filter; one page is not the whole run. Retain each mapping revision and data.selection_revision for review/export. Traffic absence is distinct from observed zero. Confidence is an uncalibra\" → after: \"Read a run's mappings in stable URL order: the latest proposal, the current decision and its revision. Pass group_id (from group_matches) to read one group's rows. Follow data.next_cursor until null with the same run, filter and group; one page is not the whole run. data.counts are for the whole run\""
       },
-      "confidence": 0.55
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"resolve_matches\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:resolve_matches",
+        "snippet": "before: \"Apply audited, optimistic-concurrency decisions. To confirm a model-proposed target, use set_target with target_url, mapping_id and expected_revision after explicit user approval. Inspect every returned outcome: a batch can partially fail. On revision conflicts, reread matches and reassess the decis\" → after: \"Record audited decisions on individual rows with optimistic concurrency, after the user agrees (for a whole group, use resolve_group): approve (confirms the proposed target, or target_url if given), set_target (an exact URL from the new inventory), reject, defer or intentional_removal. Each needs ma\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"export_redirects\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:export_redirects",
+        "snippet": "before: \"Create an immutable artifact from explicitly approved decisions. Use data.selection_revision from the latest review response as revision. allow_partial requires explicit agreement to exclusions. Export does not install redirects. Large downloads are returned only as backend-authorized artifact resou\" → after: \"Create an immutable redirect file at exactly the selection revision you showed the person (data.selection_revision). Before exporting, ask the person what to include: every proposal is the default, or only those at or above a confidence; say how many fall below RedirX's recommended review threshold \""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"verify_redirects\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:verify_redirects",
+        "snippet": "before: \"Start or resume an owned artifact HTTP check. Supply an existing deployment_id, or explicitly confirm installation with live_origin and origin_rewrites ({} preserves artifact destinations). This does not install rules or establish Google indexing, page canonicals, robots permissions, or sitemap corr\" → after: \"Only after the user confirms an export is installed: check each of its redirects on the live site (status, hops, final destination). Give live_origin (where the old URLs are served) and origin_rewrites mapping export destination origins to live ones ({} keeps them). Poll get_migration for results. T\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
     }
   ],
-  "score": 85,
+  "score": 58,
   "scoreBreakdown": {
-    "schema-smell": 15
+    "tool-poisoning": 43
   },
   "errors": []
 }

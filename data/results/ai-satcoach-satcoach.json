@@ -8,8 +8,8 @@
     "kind": "url",
     "ref": "https://mcp.satcoach.ai/mcp"
   },
-  "scannedAt": "2026-11-06T12:12:19.973Z",
-  "durationMs": 713,
+  "scannedAt": "2026-11-08T11:21:34.232Z",
+  "durationMs": 1005,
   "layers": {
     "metadata": true,
     "static": false
@@ -37,66 +37,89 @@
         "untrusted-content",
         "public-sink"
       ]
+    },
+    {
+      "name": "list_children",
+      "descriptionHash": "22ed285473ba63eec379c1a33175150bb36e27a67024715dbdbc96ba39402516",
+      "description": "Lists the parent's children that SATCoach shares with this connection: the children whose student account is linked to this parent account, as on the parent dashboard. For each child: child (the reference the other tools take), label (the child's first name, unless the parent renamed it in SATCoach)",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "get_child_summary",
+      "descriptionHash": "f48063cf0ba4eee81f4f608108043f9b70537e6f55c3a7b12e8061a3c9c9e55a",
+      "description": "A summary of how the child is doing, enough for most questions about the child: this week's practice, which is the last 7 days as the parent portal counts them, and status (ahead, on_track, behind, or not_enough_data, measured against the child's daily goal), the skills the portal says need focused "
+    },
+    {
+      "name": "get_progress",
+      "descriptionHash": "159fe27cf511b5a6bcbcf8d7db75088d29a59296bae44fc776c044c5a2a95640",
+      "description": "Practice numbers for one period, counted as the parent portal counts them: this_week (the last 7 days, the portal's \"This Week\"), last_week (the 7 days before those), or last_4_weeks (the last 28 days). Returns the period's start and end, days active, questions done (every answered question counts, "
+    },
+    {
+      "name": "get_focus_areas",
+      "descriptionHash": "1c683f8d724a09d121ae4c1140ac520da7ec7f3b4d244727c235627d9979bd03",
+      "description": "The child's weak skills as the parent portal shows them: needsFocusedAttention (up to 2 skills the portal says need focused attention) and weakestSkills (up to 6, the portal's weakest skills, weakest first). Also up to 3 focus areas, the first of those skills, each with what goes wrong and what SATC"
+    },
+    {
+      "name": "get_diagnostic_report",
+      "descriptionHash": "a1c767293c00868217d3f6237b03786fc16cbe8e9957dfbef507bf7579aa1d5c",
+      "description": "The latest published summary of the child's diagnostic test, with the date it was published. If none is published yet, it returns status not_published and no results: the report isn't ready. For when the parent asks what the diagnostic said. Not for getting the diagnostic's questions, answers, or qu"
+    },
+    {
+      "name": "get_tutor_updates",
+      "descriptionHash": "a53655760ec4afd1711186f70f2eb3002e141a308c145a282989d4974617199d",
+      "description": "The tutor's most recent updates sent to the parent about the child, newest first, up to limit (at most 5), each with its date, type, and text. These are the updates the parent portal shows: only ones actually sent to the parent. With none sent yet, the list is empty. For when the parent asks what th",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "get_weekly_plan",
+      "descriptionHash": "b8c9a5469fd9fe9b7c5e022b6bf9e26be0fe2f2a335a17feb7769e7d161d4433",
+      "description": "This week's plan as SATCoach has it: the daily goal (questions a day), the focus skills, the test date, and the weeks left until it. For when the parent asks what the child should do this week, or wants the plan on the family calendar; it doesn't add anything to a calendar. Not for changing the plan"
+    },
+    {
+      "name": "save_family_context",
+      "descriptionHash": "23d0106dbb26440c10ccbdf51d5d64db7aed027d41de40b46ef31f3c2cd79e47",
+      "description": "Saves what the parent shares about the child's SAT plans: target score and reason, past PSAT, SAT, or ACT scores, upcoming test dates, weekly practice time, other help, and a short note. SATCoach shows the newest values in the app to the parent and to the child's tutor, labeled as shared by the pare",
+      "labels": [
+        "private-data",
+        "public-sink"
+      ]
     }
   ],
   "findings": [
     {
+      "id": "MCP-TOOL-POISON-007",
+      "severity": "low",
+      "category": "tool-poisoning",
+      "title": "Description uses pressure/override language",
+      "detail": "Description of \"get_focus_areas\" stacks urgency/override words (never, attention). Legitimate tool descriptions rarely pressure the model to act or ignore prior guidance.",
+      "evidence": {
+        "source": "tool:get_focus_areas",
+        "snippet": "The child's weak skills as the parent portal shows them: needsFocusedAttention (up to 2 skills the portal says need focused attention) and weakestSkills (up to …"
+      },
+      "confidence": 0.3
+    },
+    {
       "id": "MCP-TOXIC-FLOW-001",
-      "severity": "medium",
+      "severity": "high",
       "category": "toxic-flow",
-      "title": "Toxic flow: untrusted input can reach an external sink",
-      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: skill_check, share_family_context · Public sink: skill_check, share_family_context.",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: skill_check, share_family_context · Private data: get_tutor_updates, save_family_context · Public sink: skill_check, share_family_context, list_children, save_family_context.",
       "evidence": {
         "source": "server:mcp",
-        "snippet": "Untrusted content: skill_check, share_family_context · Public sink: skill_check, share_family_context"
+        "snippet": "Untrusted content: skill_check, share_family_context · Private data: get_tutor_updates, save_family_context · Public sink: skill_check, share_family_context, list_children, save_family_context"
       },
-      "confidence": 0.45,
+      "confidence": 0.6,
       "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
-    },
-    {
-      "id": "MCP-RUGPULL-001",
-      "severity": "high",
-      "category": "tool-poisoning",
-      "title": "Tool description changed since last scan",
-      "detail": "Tool \"about_satcoach\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
-      "evidence": {
-        "source": "tool:about_satcoach",
-        "snippet": "before: \"Public facts about SATCoach: who it's for, what it does, the test it supports (the digital SAT), current prices, how to start, and how parents will be able to connect their own assistant. Use it when someone asks about SATCoach, or is looking for SAT prep that targets a student's weak skills and kee\" → after: \"Public facts about SATCoach: who it's for, what it does, the test it supports (the digital SAT), current prices, how to start, and how parents connect their own assistant. For questions about SATCoach, or about SAT prep that targets a student's weak skills and keeps parents informed. It doesn't expl\""
-      },
-      "confidence": 0.8,
-      "remediation": "Re-review the tool before continuing to trust it."
-    },
-    {
-      "id": "MCP-RUGPULL-001",
-      "severity": "high",
-      "category": "tool-poisoning",
-      "title": "Tool description changed since last scan",
-      "detail": "Tool \"skill_check\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
-      "evidence": {
-        "source": "tool:skill_check",
-        "snippet": "before: \"Returns the link and steps for SATCoach's free SAT skill check: 20 questions, about 15 minutes, no account. A parent opens the link and gets one to give the student. The student takes the check on SATCoach's site, and the results (an early score range and the skills to work on first) show there and \" → after: \"Returns the link and steps for SATCoach's free SAT skill check: 20 questions, about 15 minutes, no account. A parent opens the link and gets one to give the student. The student takes the check on SATCoach's site, and the results (an early score range and the skills to work on first) show there and \""
-      },
-      "confidence": 0.8,
-      "remediation": "Re-review the tool before continuing to trust it."
-    },
-    {
-      "id": "MCP-RUGPULL-001",
-      "severity": "high",
-      "category": "tool-poisoning",
-      "title": "Tool description changed since last scan",
-      "detail": "Tool \"share_family_context\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
-      "evidence": {
-        "source": "tool:share_family_context",
-        "snippet": "before: \"Sends one email from SATCoach (hello@satcoach.ai) to a parent, with a link to set up SATCoach for their child, carrying what you already know about the child's SAT plans: target score, past PSAT, SAT, or ACT scores, upcoming test dates, weekly practice time, and other help. Use it only when a parent\" → after: \"Passes SATCoach what the assistant already knows about a child's SAT plans (target score, past PSAT, SAT, or ACT scores, upcoming test dates, weekly practice time, and other help), and SATCoach sends the parent one email from hello@satcoach.ai with a link to set up SATCoach for their child. Only for\""
-      },
-      "confidence": 0.8,
-      "remediation": "Re-review the tool before continuing to trust it."
     }
   ],
-  "score": 57,
+  "score": 77,
   "scoreBreakdown": {
-    "toxic-flow": 8,
-    "tool-poisoning": 35
+    "tool-poisoning": 3,
+    "toxic-flow": 20
   },
   "errors": []
 }

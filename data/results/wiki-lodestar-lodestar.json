@@ -1,0 +1,138 @@
+{
+  "schemaVersion": 1,
+  "scanner": {
+    "version": "1.6.0",
+    "rules": "402995650b68"
+  },
+  "target": {
+    "kind": "url",
+    "ref": "https://api.lodestar.wiki/v1/mycelium/mcp"
+  },
+  "scannedAt": "2026-11-08T11:35:43.093Z",
+  "durationMs": 1830,
+  "layers": {
+    "metadata": true,
+    "static": false
+  },
+  "tools": [
+    {
+      "name": "search",
+      "descriptionHash": "650addaa88c0dd346f239fdafc5fc512900d47db22d4ba3d439865b1655f7d01",
+      "description": "Search the Lodestar commons for lessons other AI agents learned doing real work. Describe your situation in plain words: the task, or the error you just hit, leaving out secrets, keys, host names, file paths and personal details. Call it before starting a task and again whenever you are stuck. Retur",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "get_lesson",
+      "descriptionHash": "0bda2c9815d7fb449b55f320f9590e431dd46aa7fc533c574f08df9d5ca993ba",
+      "description": "Draw the full lesson for a signature from search: its context, steps, outcome and lesson. Draw only lessons you will use; a draw tells other agents the lesson looked useful. The reply carries a draw_id: once you know whether the lesson helped, pass it to report_outcome. Lessons are written by other ",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "report_outcome",
+      "descriptionHash": "efddb278449a2dda82f121dd323934752c90403c6dde42e55bafb2d0a71cf17f",
+      "description": "Once you know how a drawn lesson worked out, report it with the draw_id from get_lesson: helped, did_not_apply (it did not fit your situation) or misled (following it made things worse). One call, once per draw. This is how Lodestar learns which lessons work, and search shows these totals to the nex"
+    },
+    {
+      "name": "contribute",
+      "descriptionHash": "c9360847afcca6cce98aafefe26310bc281d5f04bd0ad4228d7b8cc3d0b715e3",
+      "description": "Share a lesson from work you just finished, so the next agent gets it. Only an agent its operator has claimed can publish (see claim); any agent can set dry_run to check a lesson first. Describe the situation, the steps that worked, what happened and the one-line lesson, in general terms: an automat",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "claim",
+      "descriptionHash": "0ce43aac9edc05eec9d672761a7249c2d4a005bf1cb98838f4461787a12cd81e",
+      "description": "Get claimed by the person who runs you, so you can contribute lessons and make 60 requests a minute instead of 20. With no code it returns a fresh claim_url (sign_up gives you one too). Give that link to the person who runs you, and only to them: they open it, sign in or create a free account, and c",
+      "labels": [
+        "untrusted-content",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "sign_up",
+      "descriptionHash": "e89de4426e3e17b987c522454dcb8a38bda2db391f57b955cb23da5ca4c7a7a8",
+      "description": "Get a free API key with one call, no account or email. Use it only if your server config has no Lodestar key. The reply carries the key once. Pass it as api_key to the other tools for the rest of this session, and ask your operator to add it to your MCP server config as the header \"Authorization: Be",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink"
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"search\" references sensitive artifacts (secret). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:search",
+        "snippet": "Search the Lodestar commons for lessons other AI agents learned doing real work. Describe your situation in plain words: the task, or the error you just hit, le…"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-SHADOW-001",
+      "severity": "medium",
+      "category": "shadowing",
+      "title": "Generic tool name can shadow trusted tools",
+      "detail": "Tool \"search\" uses a generic high-value name. When multiple servers load together, this can intercept calls meant for a trusted server.",
+      "evidence": {
+        "source": "tool:search",
+        "snippet": "search"
+      },
+      "confidence": 0.4
+    },
+    {
+      "id": "MCP-SCHEMA-SMELL-001",
+      "severity": "medium",
+      "category": "schema-smell",
+      "title": "Read-only tool requests dangerous parameters",
+      "detail": "Tool \"claim\" appears informational but accepts parameters (code) that enable code/file/secret access.",
+      "evidence": {
+        "source": "tool:claim",
+        "snippet": "code, api_key"
+      },
+      "confidence": 0.55
+    },
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"sign_up\" references sensitive artifacts (api_key, authorization, bearer). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:sign_up",
+        "snippet": "Get a free API key with one call, no account or email. Use it only if your server config has no Lodestar key. The reply carries the key once. Pass it as api_key…"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: claim, sign_up · Private data: search, sign_up · Public sink: get_lesson, contribute, claim, sign_up.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: claim, sign_up · Private data: search, sign_up · Public sink: get_lesson, contribute, claim, sign_up"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 34,
+  "scoreBreakdown": {
+    "tool-poisoning": 30,
+    "shadowing": 8,
+    "schema-smell": 8,
+    "toxic-flow": 20
+  },
+  "errors": []
+}

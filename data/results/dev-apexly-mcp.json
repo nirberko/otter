@@ -8,19 +8,97 @@
     "kind": "url",
     "ref": "https://mcp.apexly.dev/mcp"
   },
-  "scannedAt": "2026-10-27T09:57:02.646Z",
-  "durationMs": 790,
+  "scannedAt": "2026-11-08T11:25:48.810Z",
+  "durationMs": 2557,
   "layers": {
-    "metadata": false,
+    "metadata": true,
     "static": false
   },
-  "findings": [],
-  "score": 100,
-  "scoreBreakdown": {},
-  "errors": [
+  "tools": [
     {
-      "scanner": "metadata",
-      "message": "Streamable HTTP error: Error POSTing to endpoint: {\"error\":{\"code\":\"unauthorized\",\"message\":\"The API key is missing, invalid or revoked.\",\"fix\":\"Send a valid key as \\\"Authorization: Bearer sk_live_…\\\" or \\\"sk_test_…\\\".\",\"docs\":\"https://docs.apexly.dev/errors/unauthorized\"}}"
+      "name": "create_domain",
+      "descriptionHash": "a04e21c894c7f50bd5ebc703ec6e707a7c2ba65f377a214b9af07795eb03a961",
+      "description": "Add a customer's hostname (e.g. careers.acme.com or acme.com) to the app this API key belongs to. Idempotent: adding a hostname the app already has returns the existing domain. The domain starts in pending_dns; the customer must then add the DNS record in status_explained / get_dns_instructions, or ",
+      "labels": [
+        "untrusted-content",
+        "private-data"
+      ]
+    },
+    {
+      "name": "get_domain",
+      "descriptionHash": "aecf7b82f0a54f4b9d24dadf4d7d45976831e74a13ce27c541582af204ae5d84",
+      "description": "Current state of one domain: status (pending_dns → verifying → issuing → active; or dns_broken, cert_failed, held, expired), the DNS record the customer must add, the connect_url and the certificate. status_explained says in one sentence why it is in that status and what to do next. Use it to poll a",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "list_domains",
+      "descriptionHash": "7129f5b7d775bfecd3b2f9930d36690719ed2e4b0261bed47ee8e1b7ce602dfd",
+      "description": "The app's domains, newest first, one page at a time. Pass next_cursor back as cursor for the next page (null means there are no more). Filter by status or by hostname prefix to find a domain id."
+    },
+    {
+      "name": "verify_domain",
+      "descriptionHash": "4fb697c6db7e3db59d88157d7b228eac0a466554694219efe9dddd3b7773186e",
+      "description": "Queue a DNS check right away instead of waiting for the next scheduled one; use it after the customer says they added the record. On cert_failed it retries the certificate. At most one per 15 seconds per domain. The check runs in the background: call get_domain a few seconds later for the result.",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "get_connect_url",
+      "descriptionHash": "c169b6979554710d9da620dffeaf33a576545d4e1d6538c6b279eacca8321106",
+      "description": "The link to send the customer (the domain owner): a page branded with the app that detects their DNS provider, shows the exact record with copy buttons and tells them when the domain is live. Prefer it when the customer is not technical. It is safe to share with the customer, not publicly.",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "get_dns_instructions",
+      "descriptionHash": "f8d967002866cfb2fbdba23f5e884f9a927d01448d138312022b49841236ea73",
+      "description": "The exact DNS record(s) the customer must add for this domain, plus step-by-step instructions for their DNS provider (detected from the domain's nameservers: GoDaddy, Cloudflare, Namecheap, Route 53 and ~40 more; generic steps otherwise). Record names are relative to the registrable domain (\"careers",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "diagnose_domain",
+      "descriptionHash": "5a911608a571d5acc64ca7182ac2c39477f440eda102b044afa793874cff2995",
+      "description": "Why a domain is not live and what to change (the domain doctor, same as GET /v1/domains/{id}/diagnose): runs every check live (the record at 1.1.1.1, 8.8.8.8 and the domain's own nameservers, other A and stale AAAA records, the Cloudflare proxy, CAA, the certificate, the origin, the www pair). Each ",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "delete_domain",
+      "descriptionHash": "fffe7bf6c67c057775f3b5c172d918947f9fef4faf7dd5197e28173e61111497",
+      "description": "Remove a domain: it stops being served within 5 seconds and its certificate is dropped. Irreversible (adding the hostname again starts over with a new record). Only call it after the user explicitly confirmed deleting this hostname, and pass confirm: true.",
+      "labels": [
+        "private-data",
+        "destructive"
+      ]
     }
-  ]
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: create_domain, get_connect_url · Private data: create_domain, get_domain, verify_domain, get_connect_url, get_dns_instructions, diagnose_domain, delete_domain · Public sink: get_connect_url · Destructive: delete_domain.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: create_domain, get_connect_url · Private data: create_domain, get_domain, verify_domain, get_connect_url, get_dns_instructions, diagnose_domain, delete_domain · Public sink: get_connect_url · Destructive: delete_domain"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 80,
+  "scoreBreakdown": {
+    "toxic-flow": 20
+  },
+  "errors": []
 }

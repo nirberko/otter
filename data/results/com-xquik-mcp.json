@@ -8,19 +8,128 @@
     "kind": "url",
     "ref": "https://xquik.com/mcp"
   },
-  "scannedAt": "2026-09-27T10:05:53.853Z",
-  "durationMs": 161,
+  "scannedAt": "2026-11-08T11:25:32.197Z",
+  "durationMs": 702,
   "layers": {
-    "metadata": false,
+    "metadata": true,
     "static": false
   },
-  "findings": [],
-  "score": 100,
-  "scoreBreakdown": {},
-  "errors": [
+  "tools": [
     {
-      "scanner": "metadata",
-      "message": "Streamable HTTP error: Error POSTing to endpoint: {\"error\":\"Authentication required\"}"
+      "name": "docs",
+      "descriptionHash": "75f2d36467725e26d08335ea0bc249fcf41d980b41ce27cc0846309312186120",
+      "description": "Search Xquik's public docs to answer questions about its X (Twitter) API, MCP setup, SDKs, errors and limits. Queries reach only the read-only docs server. Free."
+    },
+    {
+      "name": "search",
+      "descriptionHash": "f66bd3854c51b82a51e40b409e15b8596cd8bf1112479c110a01ebe6192e0ca2",
+      "description": "Search the current credential's Xquik OpenAPI catalog for X (Twitter) operations. The sandbox has no network access. spec is global and the async function's first argument. spec.paths maps paths to HTTP methods and operation objects. Fields include operationId, summary, description, readOnly, tags, ",
+      "labels": [
+        "private-data",
+        "destructive"
+      ]
+    },
+    {
+      "name": "execute",
+      "descriptionHash": "777cc0cbbb08f8a4b90f5534263044edcbeb1b19ca43cc77f87c4b7e3cc3c754",
+      "description": "Execute JavaScript against Xquik's X (Twitter) API. Reads cost 1 credit per result, 2 per analyzed post & 5 per article. 1,000 credits cost $0.12-$0.15. Writes cost 10 credits & posts from 30. Empty & failed reads are free. First use the search tool to find endpoints, parameters & response schemas. ",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink",
+        "destructive"
+      ]
+    },
+    {
+      "name": "whoami",
+      "descriptionHash": "2087996e452b8b04901c98f24a6fbcbf096c7a8dbe7271b23a4767c24635afb3",
+      "description": "Return the Xquik account this connection is authenticated as. Takes no arguments. The id stays the same across token refresh, reconnection & permission changes. Free.",
+      "labels": [
+        "private-data"
+      ]
     }
-  ]
+  ],
+  "findings": [
+    {
+      "id": "MCP-SCHEMA-SMELL-001",
+      "severity": "medium",
+      "category": "schema-smell",
+      "title": "Read-only tool requests dangerous parameters",
+      "detail": "Tool \"search\" appears informational but accepts parameters (code) that enable code/file/secret access.",
+      "evidence": {
+        "source": "tool:search",
+        "snippet": "code"
+      },
+      "confidence": 0.55
+    },
+    {
+      "id": "MCP-SHADOW-001",
+      "severity": "medium",
+      "category": "shadowing",
+      "title": "Generic tool name can shadow trusted tools",
+      "detail": "Tool \"search\" uses a generic high-value name. When multiple servers load together, this can intercept calls meant for a trusted server.",
+      "evidence": {
+        "source": "tool:search",
+        "snippet": "search"
+      },
+      "confidence": 0.4
+    },
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"execute\" references sensitive artifacts (credentials). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:execute",
+        "snippet": "Execute JavaScript against Xquik's X (Twitter) API. Reads cost 1 credit per result, 2 per analyzed post & 5 per article. 1,000 credits cost $0.12-$0.15. Writes …"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-SCHEMA-SMELL-001",
+      "severity": "medium",
+      "category": "schema-smell",
+      "title": "Read-only tool requests dangerous parameters",
+      "detail": "Tool \"execute\" appears informational but accepts parameters (code) that enable code/file/secret access.",
+      "evidence": {
+        "source": "tool:execute",
+        "snippet": "code, result_id"
+      },
+      "confidence": 0.55
+    },
+    {
+      "id": "MCP-SHADOW-001",
+      "severity": "medium",
+      "category": "shadowing",
+      "title": "Generic tool name can shadow trusted tools",
+      "detail": "Tool \"execute\" uses a generic high-value name. When multiple servers load together, this can intercept calls meant for a trusted server.",
+      "evidence": {
+        "source": "tool:execute",
+        "snippet": "execute"
+      },
+      "confidence": 0.4
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: execute · Private data: search, execute, whoami · Public sink: execute · Destructive: search, execute.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: execute · Private data: search, execute, whoami · Public sink: execute · Destructive: search, execute"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 36,
+  "scoreBreakdown": {
+    "schema-smell": 12,
+    "shadowing": 12,
+    "tool-poisoning": 20,
+    "toxic-flow": 20
+  },
+  "errors": []
 }
