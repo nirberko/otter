@@ -1,0 +1,95 @@
+{
+  "schemaVersion": 1,
+  "scanner": {
+    "version": "1.6.0",
+    "rules": "402995650b68"
+  },
+  "target": {
+    "kind": "url",
+    "ref": "https://reir.aruon.ai/mcp"
+  },
+  "scannedAt": "2026-11-09T13:06:34.171Z",
+  "durationMs": 1028,
+  "layers": {
+    "metadata": true,
+    "static": false
+  },
+  "tools": [
+    {
+      "name": "list_products",
+      "descriptionHash": "60e5f1674f3cb4fb5d701a8e1f80174619c16ad1cf92f0eb084db80eb5da4a25",
+      "description": "The ARUON catalog: every report with its price (or null where it is quoted), whether it can be ordered now, whether it is instant pay, the turnaround, a sample and the terms. The same records as https://reir.aruon.ai/pricing.json. Empty, with a reason, while ordering is closed.",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "check_coverage",
+      "descriptionHash": "3e5b749f06de7f22d0f85a8c6b22c7befd5787cd1afd128e25f4521d0f7425e8",
+      "description": "How well ARUON holds a place for one report: band full_data (24-hour clock where sla_hours is set), area_scan, zip_only or unknown, with the reason. The answer the order page reads. A band other than full_data, or ok=false, means an analyst confirms scope before anything is charged."
+    },
+    {
+      "name": "create_order",
+      "descriptionHash": "ebad6d860f0458f5b4f52be6277962948379a6d0f71a7b8f1bf88742370c443d",
+      "description": "Files an order through the same door as the web order form and returns {order_token, status, checkout_url}. status is one of: awaiting_payment: Instant pay: finish checkout at checkout_url. Nothing runs before payment. Work begins at our analyst's go-ahead.; awaiting_scope_review: An analyst confirm",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "get_order_status",
+      "descriptionHash": "909fdb04465a0cc7ce42c37095676c7d6af26288e4adaf5e3bc264ca26871947",
+      "description": "The order's status by its order_token: awaiting_payment: Instant pay: finish checkout at checkout_url. Nothing runs before payment. Work begins at our analyst's go-ahead.; awaiting_scope_review: An analyst confirms scope with the buyer first, then sends the payment link or an invoice. Nothing is cha",
+      "labels": [
+        "untrusted-content",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "start_crypto_payment",
+      "descriptionHash": "2e9c0e9fce18cc36a4dfa65b7d9836a33a81781aa4a545bcb29fd8d07b37912b",
+      "description": "For an order awaiting payment: files the payment intake (billing address, role, the wallet the buyer will send from, and acceptance of the terms, refund and privacy documents, and of Schedule C (Crypto Payments) of the Terms of Service with accept_terms, before any code is emailed). For a Ukrainian ",
+      "labels": [
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "confirm_crypto_payment",
+      "descriptionHash": "a1935d54abb1b5c62eb320305453d230a60fd197744064e230cb606f7ec5f709",
+      "description": "The six-digit code mailed to the human buyer's inbox: ask the person for it; it is never sent to you. Answers with the quote (coin, network, exact amount, address, 20 minutes to send) or the hold and who must act. If the quote expires before a payment arrives, call request_new_quote.",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "request_new_quote",
+      "descriptionHash": "f01c9a7f5a58c58b972da9f318f1d1ffcbd0e848c82cd662c9850737d958bd57",
+      "description": "For an order whose crypto quote expired before a payment arrived (get_order_status says so): asks for a new quote, at a new exact amount with 20 minutes to send. It is the order page's GET A NEW QUOTE button. Refused while the current quote is still inside its 20 minutes (send against that one), onc",
+      "labels": [
+        "private-data",
+        "public-sink"
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: get_order_status · Private data: list_products, create_order, start_crypto_payment, request_new_quote · Public sink: get_order_status, start_crypto_payment, confirm_crypto_payment, request_new_quote.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: get_order_status · Private data: list_products, create_order, start_crypto_payment, request_new_quote · Public sink: get_order_status, start_crypto_payment, confirm_crypto_payment, request_new_quote"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 80,
+  "scoreBreakdown": {
+    "toxic-flow": 20
+  },
+  "errors": []
+}

@@ -8,8 +8,8 @@
     "kind": "url",
     "ref": "https://aithon.tech/mcp"
   },
-  "scannedAt": "2026-11-04T12:30:12.713Z",
-  "durationMs": 916,
+  "scannedAt": "2026-11-09T13:25:30.842Z",
+  "durationMs": 1201,
   "layers": {
     "metadata": true,
     "static": false
@@ -17,18 +17,27 @@
   "tools": [
     {
       "name": "catalog.search",
-      "descriptionHash": "0edd32d851ae02fc58b7c1e35fba3c9c7626e147b7cab38af428c03ded253845",
-      "description": "Search scoped catalog"
+      "descriptionHash": "bc8cd9b41bb4173ec8fd2eea0aebcec54fa35ead39474a8f667106d9029917ba",
+      "description": "Search this endpoint's catalog of business connectivity, voice and managed-IT services. Matches query text against service names and descriptions, with an optional exact category filter. Returns up to limit services (default 25, max 100) with id, name, category, provider and pricing; price detail de",
+      "labels": [
+        "private-data"
+      ]
     },
     {
       "name": "catalog.get",
-      "descriptionHash": "121733a46669ef8e2d61b874500b474a7bc87f9958f0b598517851dc9ff9ca4b",
-      "description": "Get scoped service details"
+      "descriptionHash": "370f0fae3870649cdd40c0a26e15486aa79762b3e183029fe844e7de6b203eb2",
+      "description": "Get full details for one catalog service by service_id (from catalog.search): name, description, category, provider, pricing and its order schema. Price detail depends on your access tier. Read-only; no API key needed.",
+      "labels": [
+        "private-data"
+      ]
     },
     {
       "name": "catalog.order_schema.get",
-      "descriptionHash": "4bc941da84974ef1186dfe96b8e7ee76f80bfff3d15f30a18b8c8f3000bb41f8",
-      "description": "Get machine-orderable schema for a scoped service"
+      "descriptionHash": "ea2cb4777f61c7c2eec15dcaa1c0c49b26c2de3f2628a0d17b929f83e2726871",
+      "description": "Get the order schema for one catalog service by service_id: whether agents can order it and the configuration a quote.request payload must satisfy. Read-only; no API key needed. Call it before quote.request so the request validates.",
+      "labels": [
+        "private-data"
+      ]
     },
     {
       "name": "order.draft",
@@ -37,8 +46,11 @@
     },
     {
       "name": "quote.request",
-      "descriptionHash": "53f4e4e00b00a53f88a45c8a23fa79560dc22ba3e8b5f8c09bb44eed4bc384d7",
-      "description": "Request a quote for a scoped service. Reuse client_reference to get the same quote back."
+      "descriptionHash": "d954a276d3638ef5256433a6654852aa9fdafa11357f3e49eac0fa7d58d2d511",
+      "description": "Request a price quote for one catalog service (service_id from catalog.search). Needs an API key with a quote mandate from your owner; the mandate's spending ceiling and daily quote limits apply. Repeating a client_reference returns the same quote instead of a new one. Supply configuration per catal",
+      "labels": [
+        "private-data"
+      ]
     },
     {
       "name": "quote.get",
@@ -47,8 +59,11 @@
     },
     {
       "name": "quote.cancel",
-      "descriptionHash": "1b0f256bf0345c1d663cd5eac8fa525e88b4d4bdafafccf89bc794f0be093d09",
-      "description": "Cancel one of your open quotes."
+      "descriptionHash": "4b7006d34c39a90bd97389731bab309ca847dcde00131812b53a78a157f966a3",
+      "description": "Cancel one of your own open quotes by quote_id. Needs an API key with a quote mandate from your owner. Another agent's quote returns quote_not_found. Returns the quote_id and its new status.",
+      "labels": [
+        "private-data"
+      ]
     },
     {
       "name": "cart.draft.create",
@@ -78,21 +93,87 @@
   "findings": [
     {
       "id": "MCP-TOXIC-FLOW-001",
-      "severity": "medium",
+      "severity": "high",
       "category": "toxic-flow",
-      "title": "Toxic flow: untrusted input can reach an external sink",
-      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: order.get · Public sink: order.get.",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: order.get · Private data: catalog.search, catalog.get, catalog.order_schema.get, quote.request, quote.cancel · Public sink: order.get.",
       "evidence": {
         "source": "server:mcp",
-        "snippet": "Untrusted content: order.get · Public sink: order.get"
+        "snippet": "Untrusted content: order.get · Private data: catalog.search, catalog.get, catalog.order_schema.get, quote.request, quote.cancel · Public sink: order.get"
       },
-      "confidence": 0.45,
+      "confidence": 0.6,
       "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"catalog.search\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:catalog.search",
+        "snippet": "before: \"Search scoped catalog\" → after: \"Search this endpoint's catalog of business connectivity, voice and managed-IT services. Matches query text against service names and descriptions, with an optional exact category filter. Returns up to limit services (default 25, max 100) with id, name, category, provider and pricing; price detail de\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"catalog.get\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:catalog.get",
+        "snippet": "before: \"Get scoped service details\" → after: \"Get full details for one catalog service by service_id (from catalog.search): name, description, category, provider, pricing and its order schema. Price detail depends on your access tier. Read-only; no API key needed.\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"catalog.order_schema.get\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:catalog.order_schema.get",
+        "snippet": "before: \"Get machine-orderable schema for a scoped service\" → after: \"Get the order schema for one catalog service by service_id: whether agents can order it and the configuration a quote.request payload must satisfy. Read-only; no API key needed. Call it before quote.request so the request validates.\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"quote.request\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:quote.request",
+        "snippet": "before: \"Request a quote for a scoped service. Reuse client_reference to get the same quote back.\" → after: \"Request a price quote for one catalog service (service_id from catalog.search). Needs an API key with a quote mandate from your owner; the mandate's spending ceiling and daily quote limits apply. Repeating a client_reference returns the same quote instead of a new one. Supply configuration per catal\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"quote.cancel\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:quote.cancel",
+        "snippet": "before: \"Cancel one of your open quotes.\" → after: \"Cancel one of your own open quotes by quote_id. Needs an API key with a quote mandate from your owner. Another agent's quote returns quote_not_found. Returns the quote_id and its new status.\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
     }
   ],
-  "score": 92,
+  "score": 41,
   "scoreBreakdown": {
-    "toxic-flow": 8
+    "toxic-flow": 20,
+    "tool-poisoning": 39
   },
   "errors": []
 }

@@ -8,19 +8,78 @@
     "kind": "url",
     "ref": "https://prokso.com/api/v1/mcp"
   },
-  "scannedAt": "2026-11-04T12:34:44.132Z",
-  "durationMs": 646,
+  "scannedAt": "2026-11-09T13:31:01.368Z",
+  "durationMs": 2519,
   "layers": {
-    "metadata": false,
+    "metadata": true,
     "static": false
   },
-  "findings": [],
-  "score": 100,
-  "scoreBreakdown": {},
-  "errors": [
+  "tools": [
     {
-      "scanner": "metadata",
-      "message": "Streamable HTTP error: Error POSTing to endpoint: {\"error\": {\"code\": \"unauthorized\", \"message\": \"Pass your API key in the header: Authorization: Bearer <key>.\"}}"
+      "name": "get_account",
+      "descriptionHash": "91116eb81ab969430e4ae20e7046301d4de89e3029d35a5edd58b69d66e12bdd",
+      "description": "Get the email of the Prokso account this API key belongs to and its current balance in USD (in cents and formatted). Use it to confirm the account or before suggesting a purchase. Takes no arguments; read-only, never spends money.",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "get_prices",
+      "descriptionHash": "ea93f54dfb04a36b2e935232ef2aad4b9f6fcfe3f77bba97fb0ad54a31fbed92",
+      "description": "Get current prices per GB for residential, mobile and datacenter proxies, including volume tiers and the minimum order when paying from the balance. Use it to estimate the cost of a task; it does not buy anything. Takes no arguments."
+    },
+    {
+      "name": "list_plans",
+      "descriptionHash": "9328d54f7ccdd7d7febf67a9f7535ebeca2638d26a1a49a639fa58bcbfde1bc7",
+      "description": "List all proxy plans on the account with id, label, proxy type, status (active, paused or limited) and remaining traffic. Call it first to find the plan_id that get_plan and get_proxy_lines need. Takes no arguments; read-only."
+    },
+    {
+      "name": "get_plan",
+      "descriptionHash": "e8f0a994707d7a4498cb6daaa32d79d01183ad154987dc4062bcf3a0ee9da0e3",
+      "description": "Get full connection details for one plan: login, password, gateway host, ports (823 HTTP and 824 SOCKS5 with a new IP per request, 10000-20000 for a sticky IP) and remaining traffic. Use it when you need the credentials to configure a client yourself; for ready-made proxy strings use get_proxy_lines",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "get_proxy_lines",
+      "descriptionHash": "74c87248c009a63beaabbe40839f66d436d92a11d481b3468d1d6b4a4b1f60b5",
+      "description": "Generate ready-to-use proxy strings for a plan. session='rotating' returns one line whose IP changes on every request (ports 823/824); session='sticky' gives one IP per port for 1-120 minutes (ports from 10000). Optional country (ISO code such as 'us' or 'de', several comma-separated), and for preci"
     }
-  ]
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"get_plan\" references sensitive artifacts (credentials, password). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:get_plan",
+        "snippet": "Get full connection details for one plan: login, password, gateway host, ports (823 HTTP and 824 SOCKS5 with a new IP per request, 10000-20000 for a sticky IP) …"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: get_account · Private data: get_account, get_plan · Public sink: get_account.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: get_account · Private data: get_account, get_plan · Public sink: get_account"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 60,
+  "scoreBreakdown": {
+    "tool-poisoning": 20,
+    "toxic-flow": 20
+  },
+  "errors": []
 }

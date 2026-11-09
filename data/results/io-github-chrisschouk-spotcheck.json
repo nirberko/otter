@@ -1,0 +1,102 @@
+{
+  "schemaVersion": 1,
+  "scanner": {
+    "version": "1.6.0",
+    "rules": "402995650b68"
+  },
+  "target": {
+    "kind": "url",
+    "ref": "https://spotcheck.cc/api/mcp"
+  },
+  "scannedAt": "2026-11-09T13:07:07.734Z",
+  "durationMs": 810,
+  "layers": {
+    "metadata": true,
+    "static": false
+  },
+  "tools": [
+    {
+      "name": "check_playlist",
+      "descriptionHash": "7d34f4fd295691b0bb1bde918045e76782c7018267259be703cae3a5d111305d",
+      "description": "Scores one Spotify playlist for bot and fake-follower risk. Returns the playlist (id, name, curator, followers, tracks, url), botRisk.score from 0 to 100, botRisk.level (low, medium, high or editorial), the warning factors behind the score (follower-to-track ratio, generic naming, sudden follower sp",
+      "labels": [
+        "untrusted-content",
+        "private-data"
+      ]
+    },
+    {
+      "name": "get_curator_contacts",
+      "descriptionHash": "b76821e0983b8bc0b487a890c94f048f5ed471bb648e7aa9d341d32cea0d7a97",
+      "description": "Extracts public submission contact channels (emails, Instagram, X/Twitter, TikTok handles, and submission links) from a Spotify playlist description, along with researched curator pitch guidance when available.",
+      "labels": [
+        "untrusted-content",
+        "private-data"
+      ]
+    },
+    {
+      "name": "list_monitors",
+      "descriptionHash": "63f027cdf01edc8c275a7e425e6c300e6678e8da1e935891c11f8bddadede0cb",
+      "description": "Lists all playlists currently tracked under 24/7 cloud monitoring for the authenticated account, including 24-hour and 7-day follower deltas, anomaly flags, and latest snapshot timestamps. For one playlist's full 31-day snapshot series, call check_playlist with its playlist_id."
+    },
+    {
+      "name": "add_monitor",
+      "descriptionHash": "8c82a02b391cfb361071644681d16568486d65949ae77c13885adfa4e67ad70c",
+      "description": "Enrolls a Spotify playlist in automated cloud monitoring for daily follower snapshots, growth trend analysis, and inorganic spike alerts. Allows up to 25 monitored playlists per Premium account. Adding a playlist that is already monitored leaves its existing name and track_id unchanged; to change th"
+    },
+    {
+      "name": "remove_monitor",
+      "descriptionHash": "d07ff8b20b0cbe602c85c410567b8dadab340353a9944d5b85ad6c0ff8915063",
+      "description": "Stops cloud monitoring for one playlist on the signed-in Premium account. The daily follower snapshot, the spike and drop alert emails and the track-removed alert all stop for that playlist on this account, and it disappears from list_monitors. Returns { ok, message, playlistId }. Side effects: dele",
+      "labels": [
+        "destructive"
+      ]
+    },
+    {
+      "name": "get_account_status",
+      "descriptionHash": "d26d650ef5a52edd47ea8b618e78e8f5b050cf9bd934a2334da5f3dc149727ed",
+      "description": "Describes who SpotCheck thinks the caller is and what they can do right now. Returns email (null when anonymous), tier (free, pro or premium), isAnonymous, authMethod (oauth, session, api_key, anonymous or env_override), features (playlistChecking, fullFactorBreakdown, historicalTrends, curatorConta",
+      "labels": [
+        "untrusted-content",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "scan_warning_playlists",
+      "descriptionHash": "25871ba29872b7c19cdd6488af5470a991e2c2975815e1d12ea91c81694f75c7",
+      "description": "Scores every Spotify playlist an artist pastes after a distributor flags a track for artificial streaming (the full list from Spotify for Artists). Use it for a batch of up to 50 links; for one playlist, use check_playlist, which also works anonymously. Returns each playlist ranked by bot-risk score"
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"get_account_status\" references sensitive artifacts (api_key). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:get_account_status",
+        "snippet": "Describes who SpotCheck thinks the caller is and what they can do right now. Returns email (null when anonymous), tier (free, pro or premium), isAnonymous, auth…"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: check_playlist, get_curator_contacts, get_account_status · Private data: check_playlist, get_curator_contacts · Public sink: get_account_status · Destructive: remove_monitor.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: check_playlist, get_curator_contacts, get_account_status · Private data: check_playlist, get_curator_contacts · Public sink: get_account_status · Destructive: remove_monitor"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 60,
+  "scoreBreakdown": {
+    "tool-poisoning": 20,
+    "toxic-flow": 20
+  },
+  "errors": []
+}
