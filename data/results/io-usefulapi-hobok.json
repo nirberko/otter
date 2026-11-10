@@ -1,0 +1,124 @@
+{
+  "schemaVersion": 1,
+  "scanner": {
+    "version": "1.6.0",
+    "rules": "402995650b68"
+  },
+  "target": {
+    "kind": "url",
+    "ref": "https://hobok.usefulapi.io/mcp"
+  },
+  "scannedAt": "2026-11-10T12:58:59.699Z",
+  "durationMs": 505,
+  "layers": {
+    "metadata": true,
+    "static": false
+  },
+  "tools": [
+    {
+      "name": "hobok_get_me",
+      "descriptionHash": "03766fa9204b678465ff36378f34ee6c6dd2748abe83dfc924b00cc71e85ff6d",
+      "description": "Show the hobby business this API key is bound to, the plan, the next invoice number, the payment terms and the currency. GET /v1/me.",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "hobok_list_payment_methods",
+      "descriptionHash": "056912fdecda7fbff0ba0dec48530e94b1d764bd92dad21f93244165aff18c4c",
+      "description": "List the payment method values that hobok_mark_invoice_paid accepts. Each value is in Swedish and is printed on the receipt. GET /v1/payment-methods."
+    },
+    {
+      "name": "hobok_list_invoices",
+      "descriptionHash": "435040cb611c758411f8d31e480af2f3a2047da0fef855b4001e3942ac2b5394",
+      "description": "List invoices, optionally by status (sent, paid, credited). Each invoice has its number, buyer, lines, totals and dates. GET /v1/invoices."
+    },
+    {
+      "name": "hobok_get_invoice",
+      "descriptionHash": "d4069b6e6ae021620c4234feba46753f2a0679c23262c7c1d61b6cea7f22ab0f",
+      "description": "Fetch one invoice with its lines, totals, status and emails sent. GET /v1/invoices/{local_id}.",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "hobok_create_invoice",
+      "descriptionHash": "533cd6c66c9f7767c7451a4546eaea2df43d2a200d3a25c2e0ff3dc666294d86",
+      "description": "Issue an invoice with status sent. It takes the next invoice number, which cannot be reused. Give client_id for a saved customer, or buyer for a one-off buyer, not both. VAT is always 0. The invoice is emailed only when send_email is true. POST /v1/invoices with an Idempotency-Key. Retrying the same",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "hobok_mark_invoice_paid",
+      "descriptionHash": "974084e07c4047cfbd5e63600d3fb9cc1ed37fa9cb8c913986ce4e855956119f",
+      "description": "Record that a sent invoice was paid. Hobok creates the receipt and books the income for the year. Only a sent invoice can be marked paid; any other status returns 409. POST /v1/invoices/{local_id}/mark-paid with an Idempotency-Key. Use hobok_list_payment_methods for payment_method values. A network ",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "hobok_email_receipt",
+      "descriptionHash": "f9b9f65d1c6744bfc5d6667b09562095d97165ae1685c4c90b7ec5ab806798a7",
+      "description": "Queue the payment receipt of a paid invoice for delivery to the buyer. A 200 means queued, not delivered. The API has no idempotency key here: a retry can send the receipt twice, so check hobok_get_invoice first. POST /v1/invoices/{local_id}/receipt/email.",
+      "labels": [
+        "untrusted-content",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "hobok_list_clients",
+      "descriptionHash": "b3d6795800118fbae8e2d4ae54997bc24e51d7a0b4f4a739d7554d06f59cb3f7",
+      "description": "List the saved customers of the hobby business. Use an id from this list as client_id in hobok_create_invoice. GET /v1/clients."
+    },
+    {
+      "name": "hobok_create_client",
+      "descriptionHash": "ad20d6681bdf9a475ea14251778b0e7be45a6e81d2092860643da4886433fd4b",
+      "description": "Add a saved customer with a name and optional address and contact fields. POST /v1/clients. Hobok documents no idempotency key here. A network or timeout error does not say whether the record was saved: list the records first before you retry.",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "hobok_list_products",
+      "descriptionHash": "fae84b391aaffa9b63c2ba9afb9435cfb4b2c725c72fd6a72d82b77febb64070",
+      "description": "List the saved products and services of the hobby business, with their prices. GET /v1/products."
+    },
+    {
+      "name": "hobok_create_product",
+      "descriptionHash": "8d3508bbdaef17dd687f188f90aa82aac389f0582f1c6ae91278ae0e9d2a2351",
+      "description": "Add a saved product or service with its price in SEK. POST /v1/products. Hobok documents no idempotency key here. A network or timeout error does not say whether the record was saved: list the records first before you retry.",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink"
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: hobok_get_invoice, hobok_create_invoice, hobok_mark_invoice_paid, hobok_email_receipt, hobok_create_client, hobok_create_product · Private data: hobok_get_me, hobok_create_invoice, hobok_mark_invoice_paid, hobok_create_client, hobok_create_product · Public sink: hobok_create_invoice, hobok_mark_invoice_paid, hobok_email_receipt, hobok_create_client, hobok_create_product.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: hobok_get_invoice, hobok_create_invoice, hobok_mark_invoice_paid, hobok_email_receipt, hobok_create_client, hobok_create_product · Private data: hobok_get_me, hobok_create_invoice, hobok_mark_invoice_paid, hobok_create_client, hobok_create_product · Public sink: hobok_create_invoice, hobok_mark_invoice_paid, hobok_email_receipt, hobok_create_client, hobok_create_product"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 80,
+  "scoreBreakdown": {
+    "toxic-flow": 20
+  },
+  "errors": []
+}

@@ -8,19 +8,105 @@
     "kind": "url",
     "ref": "https://veilfile.com/mcp"
   },
-  "scannedAt": "2026-11-08T11:37:06.971Z",
-  "durationMs": 241,
+  "scannedAt": "2026-11-10T12:58:52.777Z",
+  "durationMs": 862,
   "layers": {
-    "metadata": false,
+    "metadata": true,
     "static": false
   },
-  "findings": [],
-  "score": 100,
-  "scoreBreakdown": {},
-  "errors": [
+  "tools": [
     {
-      "scanner": "metadata",
-      "message": "Streamable HTTP error: Error POSTing to endpoint: {\"jsonrpc\": \"2.0\", \"id\": 0, \"error\": {\"code\": -32001, \"message\": \"The request has no valid API key or connected app access. Send a current API key as Authorization: Bearer <API key>, or reconnect the app.\"}}"
+      "name": "upload_artifact",
+      "descriptionHash": "7364048ba1d9f54aa04aba0703ad59b0375f872ac7d65b3c801272dd9f5e01ed",
+      "description": "Upload a file from base64 content and return its id, its private share link as url, expires_at, size_bytes and secret_flags. The link stops working when the file expires. The decoded file can be up to 25 MiB; for larger files, create_upload_url takes the bytes by PUT instead. The secret scan reads t",
+      "labels": [
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "create_upload_url",
+      "descriptionHash": "4cb9472424db6a60192cacf347f0338f54cd15ea4e742e8157522d02517ba1f3",
+      "description": "Create a one-time upload URL for a file too large to send as base64 through upload_artifact. The result has upload_url, expires_at, max_size_bytes (25 MiB), ttl_days and filename. The URL is valid for 15 minutes and needs no API key. A PUT of the file's raw bytes to it, for example with curl --uploa",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "list_artifacts",
+      "descriptionHash": "6db59cac81ab597410a884829512f916b87b2d6d57bcafa71dc774f80706cf99",
+      "description": "List the files in this workspace, newest first. Each entry has id, filename, mime_type, size_bytes, url, expires_at, secret_flags and created_at. Expired files that are not yet deleted are included. The tool changes nothing.",
+      "labels": [
+        "untrusted-content",
+        "private-data"
+      ]
+    },
+    {
+      "name": "revoke_artifact",
+      "descriptionHash": "29eaacd207b4c5452278f9ef5a2d3b733d8084e21df30b27314230745e349b4a",
+      "description": "Revoke a file by its id. Its link stops working at once and the file is deleted. The result is revoked: true, or revoked: false when this workspace has no file with that id. If storage could not be reached, the result adds storage_deleted: false and a later sweep finishes the deletion. Repeating the",
+      "labels": [
+        "private-data"
+      ]
     }
-  ]
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"upload_artifact\" references sensitive artifacts (secret). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:upload_artifact",
+        "snippet": "Upload a file from base64 content and return its id, its private share link as url, expires_at, size_bytes and secret_flags. The link stops working when the fil…"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"create_upload_url\" references sensitive artifacts (secret). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:create_upload_url",
+        "snippet": "Create a one-time upload URL for a file too large to send as base64 through upload_artifact. The result has upload_url, expires_at, max_size_bytes (25 MiB), ttl…"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"list_artifacts\" references sensitive artifacts (secret). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:list_artifacts",
+        "snippet": "List the files in this workspace, newest first. Each entry has id, filename, mime_type, size_bytes, url, expires_at, secret_flags and created_at. Expired files …"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: create_upload_url, list_artifacts · Private data: upload_artifact, create_upload_url, list_artifacts, revoke_artifact · Public sink: upload_artifact, create_upload_url.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: create_upload_url, list_artifacts · Private data: upload_artifact, create_upload_url, list_artifacts, revoke_artifact · Public sink: upload_artifact, create_upload_url"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 45,
+  "scoreBreakdown": {
+    "tool-poisoning": 35,
+    "toxic-flow": 20
+  },
+  "errors": []
 }

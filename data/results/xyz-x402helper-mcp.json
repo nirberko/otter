@@ -8,8 +8,8 @@
     "kind": "url",
     "ref": "https://x402helper.xyz/mcp"
   },
-  "scannedAt": "2026-11-06T12:28:39.005Z",
-  "durationMs": 2274,
+  "scannedAt": "2026-11-10T13:01:14.522Z",
+  "durationMs": 2014,
   "layers": {
     "metadata": true,
     "static": false
@@ -26,34 +26,73 @@
     },
     {
       "name": "call_endpoint",
-      "descriptionHash": "72d94725b8a98d49573044b74010f6729d6d0f14c13604419847934c642d900e",
+      "descriptionHash": "fbc672d4b92558fb5f354b73c42ff7ab830ab5f06dbd81a7b90ff8d6b9aed2ec",
       "description": "Executes an endpoint found via search_endpoints. Pass `routeId` and `arguments` (keys = `parameters[].name` of that route, omit if the route has none). If payment is required, returns isError=true with `x402Version`+`accepts` in structuredContent - sign those accepts and retry with `_meta[\"x402/paym"
     },
     {
       "name": "get_day_summary",
-      "descriptionHash": "9a3793ca68106f7d16a550e88b86ccf4cb0f283a2e41d6298eb15a9c478af432",
-      "description": "Fast and simple way to get morning brief in one call: weather, S&P 500 / Dow / NASDAQ, BTC/ETH/SOL with 24h change, top-5 news.Use it when the user asks for a daily brief, morning digest, market+weather snapshot, or \"what's happening today. Do NOT use for single-fact lookups or for tickers/coins/cou"
+      "descriptionHash": "3a16c1962185c87e947ebaff1aa70bf0578752e423a7c16a9ad33cce0b2c54ce",
+      "description": "Fast and simple way to get morning brief in one call: weather, S&P 500 / Dow / NASDAQ, BTC/ETH/SOL with 24h change, top-5 news. Use it when the user asks for a daily brief, morning digest, market+weather snapshot, or what is happening today. Do NOT use for single-fact lookups or for tickers/coins/co"
     },
     {
       "name": "buy_gift_cards",
-      "descriptionHash": "c98c489a03cc4c3893ee3bfd88229d9828fdfc7074aec61a816ff7984cf8fe5a",
+      "descriptionHash": "ced0fbe68f8ea5d83a274dea8e4bc650a9de4832b5f264763b95bff55a73f9cb",
       "description": "Simple direct way to buy a digital gift card (Amazon, Steam, Apple, Netflix, Google Play, PlayStation, Xbox, IKEA, Airbnb, …) via natural language. Describe what you want in `prompt`, e.g. \"steam 25 USD\" or \"amazon 50 euro germany\". If country is omitted, US is used as default. Minimal card nominal "
     },
     {
       "name": "get_my_history",
-      "descriptionHash": "b9f8baea94b72a299942f14885a8cd727823149bf8e6338424ad7584cdcfed2b",
-      "description": "Access to your full account data: balance, digital purchases and paid calls. Use it when you need to audit, verify, or summarize what paid calls you have made - e.g. to check spend, find purchased codes, confirm a past payment settled, or list your recent endpoints or their parameters. Returns aggre",
+      "descriptionHash": "6942402ec82229162d61c8f8ac586e07603705182275714951a2a20ff2ab8f17",
+      "description": "Get your full account data: balance, digital purchases and paid calls. Use it when you need to audit your account: check balance, verify, or summarize what paid calls you have made - e.g. to check spend, find purchased codes, confirm a past payment settled, or list your recent endpoints or their par",
       "labels": [
-        "untrusted-content"
+        "untrusted-content",
+        "private-data",
+        "public-sink"
       ]
     },
     {
-      "name": "topup_balance",
-      "descriptionHash": "06bc126ede8fd58a76c76eae75fdee08d1cae0d4722f76c9574ffee5ad68ac27",
-      "description": "Top up your agent balance (USDC, min 0.01, max 1000) to speed up paid requests: when it covers tool/endpoint price, calls are charged directly from balance without the 402 challenge flow. Call once without payment - the response will contain `accepts` to sign, then retry with the signed payment. On "
+      "name": "top_up_balance",
+      "descriptionHash": "775747b93256197bf24435ac88808d7cf0ca78d3e47c001932866d6700be84ab",
+      "description": "Top up your agent balance to speed up paid requests. The `amount` you pay here is not a per-call price: it is added to your balance and is drawn down across many future calls like the `call_endpoint` or `buy_gift_cards` tools. When the balance covers the tool/endpoint price, calls are charged direct"
     }
   ],
   "findings": [
+    {
+      "id": "MCP-TOOL-POISON-002",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description tells the model to hide behavior",
+      "detail": "Description of \"get_my_history\" instructs the model to conceal actions from the user.",
+      "evidence": {
+        "source": "tool:get_my_history",
+        "snippet": "Get your full account data: balance, digital purchases and paid calls. Use it when you need to audit your account: check balance, verify, or summarize what paid…"
+      },
+      "confidence": 0.75
+    },
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"get_my_history\" references sensitive artifacts (password, secret, bearer). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:get_my_history",
+        "snippet": "Get your full account data: balance, digital purchases and paid calls. Use it when you need to audit your account: check balance, verify, or summarize what paid…"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: search_endpoints, get_my_history · Private data: get_my_history · Public sink: get_my_history · Destructive: search_endpoints.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: search_endpoints, get_my_history · Private data: get_my_history · Public sink: get_my_history · Destructive: search_endpoints"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    },
     {
       "id": "MCP-RUGPULL-001",
       "severity": "high",
@@ -62,7 +101,20 @@
       "detail": "Tool \"call_endpoint\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
       "evidence": {
         "source": "tool:call_endpoint",
-        "snippet": "before: \"Executes an endpoint found via search_endpoints. Pass `routeId` and `arguments` (keys = `parameters[].name` of that route; omit if the route has none). If payment is required, returns isError=true with `x402Version`+`accepts` in structuredContent - sign those accepts and retry with `_meta[\"x402/paym\" → after: \"Executes an endpoint found via search_endpoints. Pass `routeId` and `arguments` (keys = `parameters[].name` of that route, omit if the route has none). If payment is required, returns isError=true with `x402Version`+`accepts` in structuredContent - sign those accepts and retry with `_meta[\"x402/paym\""
+        "snippet": "before: \"Executes an endpoint found via search_endpoints. Pass `routeId` and `arguments` (keys = `parameters[].name` of that route, omit if the route has none). If payment is required, returns isError=true with `x402Version`+`accepts` in structuredContent - sign those accepts and retry with `_meta[\"x402/paym\" → after: \"Executes an endpoint found via search_endpoints. Pass `routeId` and `arguments` (keys = `parameters[].name` of that route, omit if the route has none). If payment is required, returns isError=true with `x402Version`+`accepts` in structuredContent - sign those accepts and retry with `_meta[\"x402/paym\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"get_day_summary\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:get_day_summary",
+        "snippet": "before: \"Fast and simple way to get morning brief in one call: weather, S&P 500 / Dow / NASDAQ, BTC/ETH/SOL with 24h change, top-5 news.Use it when the user asks for a daily brief, morning digest, market+weather snapshot, or \"what's happening today. Do NOT use for single-fact lookups or for tickers/coins/cou\" → after: \"Fast and simple way to get morning brief in one call: weather, S&P 500 / Dow / NASDAQ, BTC/ETH/SOL with 24h change, top-5 news. Use it when the user asks for a daily brief, morning digest, market+weather snapshot, or what is happening today. Do NOT use for single-fact lookups or for tickers/coins/co\""
       },
       "confidence": 0.8,
       "remediation": "Re-review the tool before continuing to trust it."
@@ -75,7 +127,7 @@
       "detail": "Tool \"buy_gift_cards\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
       "evidence": {
         "source": "tool:buy_gift_cards",
-        "snippet": "before: \"Simple direct way to buy a digital gift card (Amazon, Steam, Apple, Netflix, Google Play, PlayStation, Xbox, IKEA, Airbnb, …) via natural language. Describe what you want in `prompt`. Minimal card nominal is $1. The product and denomination are matched automatically: the closest package for the requ\" → after: \"Simple direct way to buy a digital gift card (Amazon, Steam, Apple, Netflix, Google Play, PlayStation, Xbox, IKEA, Airbnb, …) via natural language. Describe what you want in `prompt`, e.g. \"steam 25 USD\" or \"amazon 50 euro germany\". If country is omitted, US is used as default. Minimal card nominal \""
+        "snippet": "before: \"Simple direct way to buy a digital gift card (Amazon, Steam, Apple, Netflix, Google Play, PlayStation, Xbox, IKEA, Airbnb, …) via natural language. Describe what you want in `prompt`, e.g. \"steam 25 USD\" or \"amazon 50 euro germany\". If country is omitted, US is used as default. Minimal card nominal \" → after: \"Simple direct way to buy a digital gift card (Amazon, Steam, Apple, Netflix, Google Play, PlayStation, Xbox, IKEA, Airbnb, …) via natural language. Describe what you want in `prompt`, e.g. \"steam 25 USD\" or \"amazon 50 euro germany\". If country is omitted, US is used as default. Minimal card nominal \""
       },
       "confidence": 0.8,
       "remediation": "Re-review the tool before continuing to trust it."
@@ -88,15 +140,28 @@
       "detail": "Tool \"get_my_history\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
       "evidence": {
         "source": "tool:get_my_history",
-        "snippet": "before: \"Access to your own successful paid calls history. Use it when you need to audit, verify, or summarize what paid calls you have made - e.g. to check spend, confirm a past payment settled, or list your recent endpoints or their parameters. Pass the buyerID you received as `meta.yourID` in any successf\" → after: \"Access to your full account data: balance, digital purchases and paid calls. Use it when you need to audit, verify, or summarize what paid calls you have made - e.g. to check spend, find purchased codes, confirm a past payment settled, or list your recent endpoints or their parameters. Returns aggre\""
+        "snippet": "before: \"Access to your full account data: balance, digital purchases and paid calls. Use it when you need to audit, verify, or summarize what paid calls you have made - e.g. to check spend, find purchased codes, confirm a past payment settled, or list your recent endpoints or their parameters. Returns aggre\" → after: \"Get your full account data: balance, digital purchases and paid calls. Use it when you need to audit your account: check balance, verify, or summarize what paid calls you have made - e.g. to check spend, find purchased codes, confirm a past payment settled, or list your recent endpoints or their par\""
       },
       "confidence": 0.8,
       "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "medium",
+      "category": "tool-poisoning",
+      "title": "Tool removed since last scan",
+      "detail": "Tool \"topup_balance\" is no longer advertised. Removal can precede a shadowing replacement from another server.",
+      "evidence": {
+        "source": "tool:topup_balance",
+        "snippet": "removed: topup_balance"
+      },
+      "confidence": 0.5
     }
   ],
-  "score": 65,
+  "score": 40,
   "scoreBreakdown": {
-    "tool-poisoning": 35
+    "tool-poisoning": 41,
+    "toxic-flow": 20
   },
   "errors": []
 }

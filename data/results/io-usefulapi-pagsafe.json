@@ -1,0 +1,111 @@
+{
+  "schemaVersion": 1,
+  "scanner": {
+    "version": "1.6.0",
+    "rules": "402995650b68"
+  },
+  "target": {
+    "kind": "url",
+    "ref": "https://pagsafe.usefulapi.io/mcp"
+  },
+  "scannedAt": "2026-11-10T13:00:38.475Z",
+  "durationMs": 653,
+  "layers": {
+    "metadata": true,
+    "static": false
+  },
+  "tools": [
+    {
+      "name": "pagsafe_create_pix_charge",
+      "descriptionHash": "fb3cceec2ad5aad3e66c96db1147af69355fb45bd3de0e64a7b29c41cd90ba3d",
+      "description": "Create a one-time Pix charge. Returns the id, status PENDING, and pix.payload (the copy and paste code to show the buyer). The charge is paid only when the PagSafe webhook reports AUTHORIZED: do not treat the reply as paid. A retry with the same external_id, amount and customer.document returns the ",
+      "labels": [
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "pagsafe_get_transaction",
+      "descriptionHash": "2a3d07b46766b2285ae13c5f008140c6160660642e07d0bd16ff65f93538dde7",
+      "description": "Get the current status of a transaction created through this API: PENDING, AUTHORIZED (paid), FAILED, REFUNDED, IN_DISPUTE or CHARGEBACK. Use it to check a payment or to recover a lost webhook; prefer the webhook for live updates. Uses GET /v2/transactions/{transaction_id}.",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "pagsafe_refund_transaction",
+      "descriptionHash": "dfc84b3c0f7a148f0198638d07b8b0b7dc8c04d74d4f018c3ebcfdf1090f8e8b",
+      "description": "Refund the full amount of a transaction back to the buyer. The transaction must be AUTHORIZED, created through this API, and have enough balance in every split account. A refund cannot be undone. Uses POST /v2/transactions/{transaction_id}/refund.",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "pagsafe_create_pix_subscription",
+      "descriptionHash": "4691e71a6b0db6def6b571a0be593dc1a36583a6975bcd6c46b839e2752bd5a6",
+      "description": "Create a recurring Pix Automático subscription. Returns status PENDING_AUTHORIZATION and pix.qr_code or pix.payment_link: show one to the buyer, who must authorize it once. After authorization the status becomes ACTIVE and later cycles are charged on their own. For Pix, the cycles are SEMANAL, MENSA",
+      "labels": [
+        "untrusted-content",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "pagsafe_get_subscription",
+      "descriptionHash": "1916fbba0363bc1b2db37af0de0633d24ef363b84d74a7245e0c2b06a4cd2df2",
+      "description": "Get a subscription's status (PENDING_AUTHORIZATION, ACTIVE, LATE, PAUSED or CANCELED), amount, cycle, and the dates of the last and next charge. Uses GET /v2/subscriptions/{subscription_id}."
+    },
+    {
+      "name": "pagsafe_cancel_pix_subscription",
+      "descriptionHash": "6d8ec228c801cc9a75a29a6abcc9b5fcfe030d8bc0ab78fa69f882df88ecbfc0",
+      "description": "Cancel a PagSafe customer subscription so no further cycles are charged. The buyer keeps access until the cycle already paid ends. This cancels a subscription of YOUR customer, not a UsefulAPI plan. Uses POST /v2/subscriptions/{subscription_id}/cancel.",
+      "labels": [
+        "public-sink"
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"pagsafe_create_pix_subscription\" references sensitive artifacts (authorization). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:pagsafe_create_pix_subscription",
+        "snippet": "Create a recurring Pix Automático subscription. Returns status PENDING_AUTHORIZATION and pix.qr_code or pix.payment_link: show one to the buyer, who must author…"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"pagsafe_get_subscription\" references sensitive artifacts (authorization). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:pagsafe_get_subscription",
+        "snippet": "Get a subscription's status (PENDING_AUTHORIZATION, ACTIVE, LATE, PAUSED or CANCELED), amount, cycle, and the dates of the last and next charge. Uses GET /v2/su…"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: pagsafe_create_pix_subscription · Private data: pagsafe_create_pix_charge · Public sink: pagsafe_create_pix_charge, pagsafe_get_transaction, pagsafe_refund_transaction, pagsafe_create_pix_subscription, pagsafe_cancel_pix_subscription.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: pagsafe_create_pix_subscription · Private data: pagsafe_create_pix_charge · Public sink: pagsafe_create_pix_charge, pagsafe_get_transaction, pagsafe_refund_transaction, pagsafe_create_pix_subscription, pagsafe_cancel_pix_subscription"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 50,
+  "scoreBreakdown": {
+    "tool-poisoning": 30,
+    "toxic-flow": 20
+  },
+  "errors": []
+}

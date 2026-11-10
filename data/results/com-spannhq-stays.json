@@ -8,8 +8,8 @@
     "kind": "url",
     "ref": "https://mcp.spannhq.com/mcp"
   },
-  "scannedAt": "2026-11-06T12:16:01.833Z",
-  "durationMs": 812,
+  "scannedAt": "2026-11-10T12:48:44.015Z",
+  "durationMs": 355,
   "layers": {
     "metadata": true,
     "static": false
@@ -17,8 +17,8 @@
   "tools": [
     {
       "name": "search_availability",
-      "descriptionHash": "b3d8a2db8461bfc782ae9a5c91a9bf45ff8383a67e80434e32e8241c93e3d73d",
-      "description": "Search deterministic sample stay options from the Spann Stays fixture; no live inventory or property availability is queried."
+      "descriptionHash": "934ef02c9e6993845af0b73c624730d3362f16b461e85f94ef38d4f499487d7a",
+      "description": "Search deterministic sample stay options from the Spann Stays fixture; no live inventory or property availability is queried. Set data_source=approved_customer_catalog for actual approved customer discovery (no live inventory); select using prepare_discovered_stay and a trusted desktop browser host."
     },
     {
       "name": "explain_booking_constraints",
@@ -53,10 +53,74 @@
       "labels": [
         "untrusted-content"
       ]
+    },
+    {
+      "name": "discover_customer_stays",
+      "descriptionHash": "7e11dab3d44e2497029ae18aa7946954408f005c50f722d99990401b15752879",
+      "description": "Find eligible actual owner-approved customer property records by destination and traveler fit, without knowing a property name or ID. Read-only catalog discovery; no live availability or price. Returns fit evidence, limitations, official routes and expiring selection tokens. Coverage is limited to t",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "prepare_discovered_stay",
+      "descriptionHash": "0159c852507734b5219f0c3232471b75705ac23ee48f14552fad89d04e177936",
+      "description": "Create a Spann journey for the selected actual customer record. Returns an opaque resume credential and a trusted-desktop browser task; does not execute a browser, fill guests, accept terms, book or pay.",
+      "labels": [
+        "private-data",
+        "destructive"
+      ]
+    },
+    {
+      "name": "get_spann_journey_status",
+      "descriptionHash": "d4a4e3bf0a9f68d2ed1bb9f87180596c8172e0581a7afd4267b73cbd2af6e0bf",
+      "description": "Resume a Spann handoff by its opaque journey credential. Preparation reports are assistant-reported; booking and payment remain unconfirmed until independently reconciled with the provider. Confirmed states require an independently authorized property/provider receipt. Never send guest/card details.",
+      "labels": [
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "get_spann_booking_confirmation",
+      "descriptionHash": "0b7e05764ec1ad93102c1cd504021357e9b1e6e8d6b1e0c6b412b1399208141f",
+      "description": "Read only booking/payment confirmation for a Spann reference using its separate long-lived confirmation token. Does not resume browser work or authorize confirmation. Synthetic receipts never become real booking/payment status.",
+      "labels": [
+        "private-data"
+      ]
     }
   ],
-  "findings": [],
-  "score": 100,
-  "scoreBreakdown": {},
+  "findings": [
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: get_guest_observations · Private data: prepare_reservation_action, get_customer_property, discover_customer_stays, prepare_discovered_stay, get_spann_journey_status, get_spann_booking_confirmation · Public sink: get_spann_journey_status · Destructive: prepare_discovered_stay.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: get_guest_observations · Private data: prepare_reservation_action, get_customer_property, discover_customer_stays, prepare_discovered_stay, get_spann_journey_status, get_spann_booking_confirmation · Public sink: get_spann_journey_status · Destructive: prepare_discovered_stay"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"search_availability\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:search_availability",
+        "snippet": "before: \"Search deterministic sample stay options from the Spann Stays fixture; no live inventory or property availability is queried.\" → after: \"Search deterministic sample stay options from the Spann Stays fixture; no live inventory or property availability is queried. Set data_source=approved_customer_catalog for actual approved customer discovery (no live inventory); select using prepare_discovered_stay and a trusted desktop browser host.\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    }
+  ],
+  "score": 60,
+  "scoreBreakdown": {
+    "toxic-flow": 20,
+    "tool-poisoning": 20
+  },
   "errors": []
 }

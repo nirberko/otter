@@ -1,0 +1,107 @@
+{
+  "schemaVersion": 1,
+  "scanner": {
+    "version": "1.6.0",
+    "rules": "402995650b68"
+  },
+  "target": {
+    "kind": "url",
+    "ref": "https://incitefulmed.com/academic/mcp"
+  },
+  "scannedAt": "2026-11-10T12:47:29.836Z",
+  "durationMs": 1494,
+  "layers": {
+    "metadata": true,
+    "static": false
+  },
+  "tools": [
+    {
+      "name": "search_literature",
+      "descriptionHash": "6936715fd95fa70e60f461b64764e589f6c3f36b5e141bf53f7fe7875d9e73f7",
+      "description": "A live keyword search of OpenAlex (CC0 metadata), not of the citation graph snapshot. It matches titles, abstracts and full text where OpenAlex has it, ranked by relevance. Use it to find seed papers when you have a topic but no DOIs yet. Keyword matches miss related work that uses different words, "
+    },
+    {
+      "name": "get_papers",
+      "descriptionHash": "c8a39f4cde2a37f27d7585e580266efc7a73e5d7ff1e7c844ddaae4cf8443a8e",
+      "description": "Fetch OpenAlex records for up to 100 papers by DOI, OpenAlex ID (W…), PMID or PMCID: abstract, authors, venue, type and version, is_retracted, PMID/PMCID and the best open-access link with its licence. It does not use the citation graph. Inputs it cannot match come back in unresolved with a reason.",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "find_similar_papers",
+      "descriptionHash": "179987c258225b8d6f44201e3d53fd9511b6728be22a91a00c95ac8d23038b87",
+      "description": "Ranks papers by their citation links to the seeds, which surfaces related work that keyword search misses. Give 1–500 seed papers (DOIs, OpenAlex IDs or PMIDs); returns the papers most similar to them by citation links, sorted by score. Method: fast similarity, Adamic/Adar plus Salton co-citation on"
+    },
+    {
+      "name": "explore_citation_network",
+      "descriptionHash": "6b20c7fdd9c61b0b3977d08fb4cacd45faf2aba8eb3337035cfac97255bc5668",
+      "description": "Map a field by its citations rather than its keywords: rank papers, authors, journals or institutions in the depth-2 citation graph Inciteful builds around 1–500 seed papers. analysis: similar (shared references and co-citation with the seeds), important (local PageRank), reviews (papers citing many",
+      "labels": [
+        "destructive"
+      ]
+    },
+    {
+      "name": "connect_papers",
+      "descriptionHash": "ba8aa622215c50a08c1b60149c0eb0184e9bfed4cde6178a725257cc3bc40c41",
+      "description": "Find citation paths between two papers (DOI, OpenAlex ID or PMID), treating each citation as a link in either direction. Returns the paths, the citation edges (citing → cited), the papers on the paths, and each path's hop count in provenance.hops. extended: true also returns longer paths, aiming for"
+    },
+    {
+      "name": "query_citation_graph",
+      "descriptionHash": "b847798ad0b3a83cb3c8956e7cc7bb865d5914e49800441cb7c8441325f0c13c",
+      "description": "Run your own read-only SQLite query on the citation graph Inciteful builds around 1–500 seed papers (depth 2). It queries the Inciteful citation graph API; schema: https://incitefulmed.com/academic/help/power-users#database-schema Rules: a single SELECT statement. Rows returned: the limit argument i",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink",
+        "destructive"
+      ]
+    },
+    {
+      "name": "read_paper",
+      "descriptionHash": "1da8c8240604b48999305901767855542714a321321d43b025498fd16719c705",
+      "description": "Read the full text of an open-access paper from PubMed Central (PMC BioC) in chunks: pass offset (0 to start) and max_chars (up to 40000), then continue from next_offset until it is null. Returns the article's licence and a sha256 of the whole text. When PMC has no text for the paper, returns candid"
+    },
+    {
+      "name": "export_citations",
+      "descriptionHash": "040cb5e7c02ecff6665b98b4fd400a865432e2e3a162ea3c9a8086237672bfa8",
+      "description": "Build BibTeX or RIS citations for up to 100 papers (DOI, OpenAlex ID, PMID or PMCID) from their OpenAlex records, with entry types, years, volume, issue, pages and escaping. Each row holds one entry; join the entries with a blank line to make a .bib or .ris file. Inputs it cannot match are listed in",
+      "labels": [
+        "private-data"
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOOL-POISON-006",
+      "severity": "low",
+      "category": "tool-poisoning",
+      "title": "Anomalously long tool description",
+      "detail": "Description of \"query_citation_graph\" is 3646 chars, far longer than this server's median (478). Overlong descriptions are a common place to bury instructions.",
+      "evidence": {
+        "source": "tool:query_citation_graph",
+        "snippet": "Run your own read-only SQLite query on the citation graph Inciteful builds around 1–500 seed papers (depth 2). It queries the Inciteful citation graph API; sche…"
+      },
+      "confidence": 0.4
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: query_citation_graph · Private data: get_papers, query_citation_graph, export_citations · Public sink: query_citation_graph · Destructive: explore_citation_network, query_citation_graph.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: query_citation_graph · Private data: get_papers, query_citation_graph, export_citations · Public sink: query_citation_graph · Destructive: explore_citation_network, query_citation_graph"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 77,
+  "scoreBreakdown": {
+    "tool-poisoning": 3,
+    "toxic-flow": 20
+  },
+  "errors": []
+}

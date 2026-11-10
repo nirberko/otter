@@ -8,13 +8,22 @@
     "kind": "url",
     "ref": "https://duoly.gg/mcp"
   },
-  "scannedAt": "2026-11-07T11:14:31.465Z",
-  "durationMs": 1597,
+  "scannedAt": "2026-11-10T12:50:26.906Z",
+  "durationMs": 1368,
   "layers": {
     "metadata": true,
     "static": false
   },
   "tools": [
+    {
+      "name": "get_order_status",
+      "descriptionHash": "8387e95a5f3a4f576deff36eda95a3e7d98bff449696c5b94c2170d6ec71a7e4",
+      "description": "Read the limited status of one Duoly order with its revocable dos_ code. Never ask for a password. The code is private; do not repeat or put it in a URL.",
+      "labels": [
+        "untrusted-content",
+        "private-data"
+      ]
+    },
     {
       "name": "list_games",
       "descriptionHash": "fadaa0b0e8e51231b7bd4268a5ce68ad11dfdc21a6d73d5dab25e1bd56b08cd8",
@@ -39,12 +48,8 @@
     },
     {
       "name": "get_quote",
-      "descriptionHash": "00fcc4451d6be03c3bf2b0c030a90b9483998d4b54010616039b4e0f9a5206e5",
-      "description": "Get a real calculated session price and bookUrl for a selected service. Share bookUrl to review options and pay on Duoly. Base price before account perks.",
-      "labels": [
-        "untrusted-content",
-        "public-sink"
-      ]
+      "descriptionHash": "591e8327382e26670933e3416958af2b21004cd73be163acccc5361d5f25117f",
+      "description": "Use find_session for discovery and pricing. Compatibility tool for a selected service: calculate its base price before account perks. Required inputs: game, service, quantity (1..5, 20% off at 5), currency (EUR or USD), server, and rank for rank-priced services; Minecraft also needs edition."
     },
     {
       "name": "get_availability",
@@ -53,31 +58,66 @@
     },
     {
       "name": "create_booking_link",
-      "descriptionHash": "01f5835e6f933c576198923e6b3188a4cff4240d52fa78a251377224379d4458",
-      "description": "Get a bookUrl that opens Duoly with the game and service selected. Share it for the user to review remaining options and pay on duoly.gg.",
-      "labels": [
-        "untrusted-content",
-        "public-sink"
-      ]
+      "descriptionHash": "29b515871a22abb48148422f12c8d561b6fc444ce2933e640b106bcc8d1fca84",
+      "description": "Use find_session for discovery and pricing. Call create_booking_link only to produce a final booking link after the user selects a session. No order or payment is created."
     }
   ],
   "findings": [
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"get_order_status\" references sensitive artifacts (password). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:get_order_status",
+        "snippet": "Read the limited status of one Duoly order with its revocable dos_ code. Never ask for a password. The code is private; do not repeat or put it in a URL."
+      },
+      "confidence": 0.65
+    },
     {
       "id": "MCP-TOXIC-FLOW-001",
       "severity": "high",
       "category": "toxic-flow",
       "title": "Lethal trifecta: untrusted input + private data + external sink",
-      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: get_quote, create_booking_link · Private data: list_services, find_session · Public sink: list_services, get_quote, create_booking_link.",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: get_order_status · Private data: get_order_status, list_services, find_session · Public sink: list_services.",
       "evidence": {
         "source": "server:mcp",
-        "snippet": "Untrusted content: get_quote, create_booking_link · Private data: list_services, find_session · Public sink: list_services, get_quote, create_booking_link"
+        "snippet": "Untrusted content: get_order_status · Private data: get_order_status, list_services, find_session · Public sink: list_services"
       },
       "confidence": 0.6,
       "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"get_quote\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:get_quote",
+        "snippet": "before: \"Get a real calculated session price and bookUrl for a selected service. Share bookUrl to review options and pay on Duoly. Base price before account perks.\" → after: \"Use find_session for discovery and pricing. Compatibility tool for a selected service: calculate its base price before account perks. Required inputs: game, service, quantity (1..5, 20% off at 5), currency (EUR or USD), server, and rank for rank-priced services; Minecraft also needs edition.\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"create_booking_link\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:create_booking_link",
+        "snippet": "before: \"Get a bookUrl that opens Duoly with the game and service selected. Share it for the user to review remaining options and pay on duoly.gg.\" → after: \"Use find_session for discovery and pricing. Call create_booking_link only to produce a final booking link after the user selects a session. No order or payment is created.\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
     }
   ],
-  "score": 80,
+  "score": 45,
   "scoreBreakdown": {
+    "tool-poisoning": 35,
     "toxic-flow": 20
   },
   "errors": []

@@ -1,0 +1,91 @@
+{
+  "schemaVersion": 1,
+  "scanner": {
+    "version": "1.6.0",
+    "rules": "402995650b68"
+  },
+  "target": {
+    "kind": "url",
+    "ref": "https://speech.moneytools.dev/mcp"
+  },
+  "scannedAt": "2026-11-10T12:50:24.402Z",
+  "durationMs": 364,
+  "layers": {
+    "metadata": true,
+    "static": false
+  },
+  "tools": [
+    {
+      "name": "speech_report",
+      "descriptionHash": "d1fea82894897e009ea1f489905193671b491af9de0a9260fd406927fec2ed33",
+      "description": "Paid live status snapshot: capacity remaining today, price table, billing rule, capabilities. 0.001 USDC via x402 over MCP (unpaid → PaymentRequired). Free quote remains at speech_quote / GET /v1/speech/quote."
+    },
+    {
+      "name": "speech_quote",
+      "descriptionHash": "898d13809e367654598274a05d601dc29e4dface977f57bfa4ababc389f58184",
+      "description": "Free: estimate the exact x402 price from minutes, seconds, bytes, or an audio URL (HEAD). Billing uses max(declared, parsed duration, 16 kbps size floor)."
+    },
+    {
+      "name": "speech_upload_url",
+      "descriptionHash": "6fc1de2b93a3ffca01cc3676748306bc9a8337b99c5e57a79df8978dd6c9b660",
+      "description": "Free: mint a short-lived (15 min), single-use PUT URL for local media. PUT the file via plain HTTP (not MCP), then pass upload_id to speech_transcribe. Size cap matches MaxBytes; rate-limited per client. Not a public file host — bytes are deleted after transcription or expiry.",
+      "labels": [
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "speech_transcribe",
+      "descriptionHash": "bb56cd46086dd8304eed39b607d772adf11f6b879bf4f9f27a694f630ffce5c0",
+      "description": "Generate a value-added transcript with timestamped segments, SRT/VTT, language detection, word count and duration (optional summary). 0.002 USDC/started minute (min 0.003); 3 free/day. Pass url, upload_id (from speech_upload_url), or audioBase64 — WAV/MP3/M4A/MP4/WebM/OGG/FLAC you have the right to "
+    },
+    {
+      "name": "speech_job_upload_url",
+      "descriptionHash": "6151c9dc01b1620f539b966e2effb95ef783e5ee346534ecfb6f4bbbe2ec226e",
+      "description": "Free: mint a signed single-use PUT URL for a long file (up to 100 MB / 180 min; MP3/WAV are segmented). PUT via plain HTTP; the PUT response carries the exact price. Then speech_job_submit with uploadId.",
+      "labels": [
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "speech_job_submit",
+      "descriptionHash": "20f20f04ca41fd50d3e760a526c05c840d4e911640d21a8500b6e9be162793b6",
+      "description": "Submit a long audio file (url or uploadId) as an async job: 0.002 USDC per started minute (exact, x402 Base USDC), up to 180 min. Without payment returns PaymentRequired with the exact price; pay via _meta[\"x402/payment\"]. First segment is transcribed before settlement; then poll speech_job_status o",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "speech_job_status",
+      "descriptionHash": "4e1f2fdbb4f6c057546afb61b482c2e9c17e8aee37767ae0645c7e23d8d6d14a",
+      "description": "Free: status, progress and (when done) transcript, segments, SRT/VTT of an async job. Needs jobId + jobToken (shown once at submit). format=srt|vtt|txt returns that text only.",
+      "labels": [
+        "public-sink",
+        "destructive"
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: speech_job_submit · Private data: speech_upload_url, speech_job_upload_url, speech_job_submit · Public sink: speech_upload_url, speech_job_upload_url, speech_job_submit, speech_job_status · Destructive: speech_job_status.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: speech_job_submit · Private data: speech_upload_url, speech_job_upload_url, speech_job_submit · Public sink: speech_upload_url, speech_job_upload_url, speech_job_submit, speech_job_status · Destructive: speech_job_status"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 80,
+  "scoreBreakdown": {
+    "toxic-flow": 20
+  },
+  "errors": []
+}

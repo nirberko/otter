@@ -1,0 +1,121 @@
+{
+  "schemaVersion": 1,
+  "scanner": {
+    "version": "1.6.0",
+    "rules": "402995650b68"
+  },
+  "target": {
+    "kind": "url",
+    "ref": "https://actuaryai.pro/mcp"
+  },
+  "scannedAt": "2026-11-10T13:16:42.478Z",
+  "durationMs": 348,
+  "layers": {
+    "metadata": true,
+    "static": false
+  },
+  "tools": [
+    {
+      "name": "gate",
+      "descriptionHash": "85bc811f68f01a3752f0a81e1371fdc838264898290576984ab372f10525646a",
+      "description": "Call BEFORE buying a token on Robinhood Chain. Returns ALLOW, DENY or REVIEW, every check with the fact it read, and an EIP-712 signed receipt. Missing data never gives ALLOW unless the policy says so.",
+      "labels": [
+        "untrusted-content",
+        "private-data"
+      ]
+    },
+    {
+      "name": "gate_batch",
+      "descriptionHash": "0705f222e9000fd10cc6012a364bd0276d2aa2167a2803ce822db25740b86c8c",
+      "description": "Gate up to 10 tokens against one policy in one call, one receipt each. Counts as one Gate call per token.",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "gate_facts",
+      "descriptionHash": "3b77894f04c90708ba321be251a2d40c9c3bc5802ef1ca9123e8dc9233c8244f",
+      "description": "Every fact a policy rule may use (name, type, meaning), the rule syntax, the presets, and current pricing."
+    },
+    {
+      "name": "get_receipt",
+      "descriptionHash": "e2749e36595033941661d7556eedb2797161323b60489b4aebbfd09a0ad6cdd5",
+      "description": "A stored decision receipt by id (rcpt_…)."
+    },
+    {
+      "name": "verify_receipt",
+      "descriptionHash": "fb63127c50a1d62a13beb47864512b4b02ff5e51a77357f3204a3d1fdd86cd44",
+      "description": "Checks that a receipt was signed by Actuary and that nothing in it changed. Pass the receipt object or its id."
+    },
+    {
+      "name": "create_mandate",
+      "descriptionHash": "6fc106bb3b2a38ac94dcd8388c362588b5310d735aed30f1cf5f4fb5c88ca261",
+      "description": "For a token you hold: $0.05 per 7 days over x402 (pay via the REST API or the stdio MCP server). Re-checks a token against the policy about every 30 minutes. Changes (decision, owner, implementation, mint/pause/blacklist, supply) are recorded as events you poll with mandate_events; optionally also P",
+      "labels": [
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "mandate_signal",
+      "descriptionHash": "37c43e2052007854b8f2b8ffe6e00e3300a66d5a2825068129425f165217dffb",
+      "description": "The newest signed signal for a mandate: exit, watch or hold, from its last decision, valid for one hour. Verify it, then your own code decides whether to sell; Actuary never trades."
+    },
+    {
+      "name": "verify_signal",
+      "descriptionHash": "c2fdc715d8ddb35e97d9a36842f66ee63f6445e8f65a99b77577ae33970271fc",
+      "description": "Checks that a mandate signal was signed by Actuary, that nothing in it changed and that it is still fresh. Act only on valid and fresh."
+    },
+    {
+      "name": "mandate_events",
+      "descriptionHash": "72b1174cac9baf8d3eb8695d9eef0c559735e3e25c6b6175094cce74e584bef2",
+      "description": "Events a mandate recorded since a unix time (0 = all). Use next_since for the following poll."
+    },
+    {
+      "name": "mandate_status",
+      "descriptionHash": "bfe4e9fd9b59b7451d77153a335e825dfbe65b5297b0a164efdfc7a3e064ef97",
+      "description": "Current decision, delivery mode, last check and failures of a mandate."
+    },
+    {
+      "name": "cancel_mandate",
+      "descriptionHash": "d397c448d4f2ee325e9a848520e7fd3ca204dd32af20be523d0cfa1e0b7c1f0e",
+      "description": "Stops checks and events for a mandate, e.g. after selling the token.",
+      "labels": [
+        "private-data"
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"create_mandate\" references sensitive artifacts (secret). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:create_mandate",
+        "snippet": "For a token you hold: $0.05 per 7 days over x402 (pay via the REST API or the stdio MCP server). Re-checks a token against the policy about every 30 minutes. Ch…"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: gate · Private data: gate, gate_batch, create_mandate, cancel_mandate · Public sink: create_mandate.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: gate · Private data: gate, gate_batch, create_mandate, cancel_mandate · Public sink: create_mandate"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 60,
+  "scoreBreakdown": {
+    "tool-poisoning": 20,
+    "toxic-flow": 20
+  },
+  "errors": []
+}

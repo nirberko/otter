@@ -8,8 +8,8 @@
     "kind": "url",
     "ref": "https://app.ptally.ai/mcp"
   },
-  "scannedAt": "2026-11-05T12:28:29.663Z",
-  "durationMs": 1495,
+  "scannedAt": "2026-11-10T12:44:46.839Z",
+  "durationMs": 1315,
   "layers": {
     "metadata": true,
     "static": false
@@ -60,10 +60,34 @@
       ]
     },
     {
-      "name": "run_quote",
-      "descriptionHash": "e1862ad708f3baf6a75b8be31a0cd435317d571f9d259ef1b6074c062c531878",
-      "description": "Dry-run a quote against a stored project. Takes `project_reference`, an optional `version_reference` (defaults to the latest live version; there is no fallback to drafts, so pass `version_reference` to price one — it must belong to the project and not be archived, else a tool error), and an `input` ",
+      "name": "get_quotes",
+      "descriptionHash": "cde4008fb31ad9811cd12392b35f6b2750f7466935fe8ab91e2ba82e1689e2c7",
+      "description": "List quotes stored on this self-host instance, newest first (`direction: \"asc\"` for oldest first). Filter by `project_reference` (from get_projects), `version_reference`, `since` (ISO date) or `search` (text match on indicators). Paged with `limit` (default 25, max 100) and `offset`; `has_more` says",
       "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "get_quote",
+      "descriptionHash": "6a1cd138d68bda1ac06f0f12573397bc79c5991eeca0801e4316fb66dfe34f14",
+      "description": "Review one quote in a standard shape, from a stored `quote_reference` (get_quotes) or a pasted `quote` — the dashboard's Copy JSON, a POST /quotes or run_quote response, or a bare engine output with `debug` (`quote_gz`: base64 gzip of the same JSON, for big pastes). Pass exactly one. Returns `{ sour",
+      "labels": [
+        "untrusted-content",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "amend_quote",
+      "descriptionHash": "93af1323ac86005eb9f4208802d07ef02f2ab1bce5ab0248a7c10d0ba8702e36",
+      "description": "Amend a SAVED quote (a quote_reference from get_quotes): its price (`result`), and optionally `valid` or `sold`, with a required `reason`. Logged in the quote's audit trail under the signed-in user, with the time, the old and new values, source \"mcp\" and the reason. The engine's own result, valid an"
+    },
+    {
+      "name": "run_quote",
+      "descriptionHash": "bdbdc350aecece489e50864c701835d4d0c9bb49a067a2db8500c53e0f07a5d1",
+      "description": "Price a quote against a stored project: a dry run by default, saved only with `save: true`. Takes `project_reference`, an optional `version_reference` (defaults to the latest live version; there is no fallback to drafts, so pass `version_reference` to price one — it must belong to the project and no",
+      "labels": [
+        "untrusted-content",
+        "public-sink",
         "destructive"
       ]
     },
@@ -93,6 +117,31 @@
   ],
   "findings": [
     {
+      "id": "MCP-TOOL-POISON-007",
+      "severity": "low",
+      "category": "tool-poisoning",
+      "title": "Description uses pressure/override language",
+      "detail": "Description of \"get_quote\" stacks urgency/override words (always, never). Legitimate tool descriptions rarely pressure the model to act or ignore prior guidance.",
+      "evidence": {
+        "source": "tool:get_quote",
+        "snippet": "Review one quote in a standard shape, from a stored `quote_reference` (get_quotes) or a pasted `quote` — the dashboard's Copy JSON, a POST /quotes or run_quote …"
+      },
+      "confidence": 0.3
+    },
+    {
+      "id": "MCP-TOOL-POISON-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description issues instructions to the model",
+      "detail": "Description of \"amend_quote\" contains imperative instructions directed at the AI assistant rather than describing the tool. This is the core tool-poisoning technique.",
+      "evidence": {
+        "source": "tool:amend_quote",
+        "snippet": "Amend a SAVED quote (a quote_reference from get_quotes): its price (`result`), and optionally `valid` or `sold`, with a required `reason`. Logged in the quote's…"
+      },
+      "confidence": 0.7,
+      "remediation": "Treat the server as untrusted; the model may obey embedded instructions."
+    },
+    {
       "id": "MCP-TOOL-POISON-001",
       "severity": "high",
       "category": "tool-poisoning",
@@ -106,34 +155,35 @@
       "remediation": "Treat the server as untrusted; the model may obey embedded instructions."
     },
     {
-      "id": "MCP-TOOL-POISON-006",
-      "severity": "low",
-      "category": "tool-poisoning",
-      "title": "Anomalously long tool description",
-      "detail": "Description of \"patch_version\" is 3762 chars, far longer than this server's median (455). Overlong descriptions are a common place to bury instructions.",
-      "evidence": {
-        "source": "tool:patch_version",
-        "snippet": "Change a DRAFT version's stored model with an RFC 6902 JSON Patch, merged on the server. Use it for targeted edits; any change to a clipped collection (__contex…"
-      },
-      "confidence": 0.4
-    },
-    {
       "id": "MCP-TOXIC-FLOW-001",
       "severity": "high",
       "category": "toxic-flow",
       "title": "Lethal trifecta: untrusted input + private data + external sink",
-      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: validate_project · Private data: get_schema, validate_project, get_projects, get_project, run_version_tests · Public sink: patch_version · Destructive: get_project, run_quote, run_version_tests, patch_version.",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: validate_project, get_quotes, get_quote, run_quote · Private data: get_schema, validate_project, get_projects, get_project, run_version_tests · Public sink: get_quote, run_quote, patch_version · Destructive: get_project, run_quote, run_version_tests, patch_version.",
       "evidence": {
         "source": "server:mcp",
-        "snippet": "Untrusted content: validate_project · Private data: get_schema, validate_project, get_projects, get_project, run_version_tests · Public sink: patch_version · Destructive: get_project, run_quote, run_version_tests, patch_version"
+        "snippet": "Untrusted content: validate_project, get_quotes, get_quote, run_quote · Private data: get_schema, validate_project, get_projects, get_project, run_version_tests · Public sink: get_quote, run_quote, patch_version · Destructive: get_project, run_quote, run_version_tests, patch_version"
       },
       "confidence": 0.6,
       "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"run_quote\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:run_quote",
+        "snippet": "before: \"Dry-run a quote against a stored project. Takes `project_reference`, an optional `version_reference` (defaults to the latest live version; there is no fallback to drafts, so pass `version_reference` to price one — it must belong to the project and not be archived, else a tool error), and an `input` \" → after: \"Price a quote against a stored project: a dry run by default, saved only with `save: true`. Takes `project_reference`, an optional `version_reference` (defaults to the latest live version; there is no fallback to drafts, so pass `version_reference` to price one — it must belong to the project and no\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
     }
   ],
-  "score": 59,
+  "score": 45,
   "scoreBreakdown": {
-    "tool-poisoning": 22,
+    "tool-poisoning": 35,
     "toxic-flow": 20
   },
   "errors": []

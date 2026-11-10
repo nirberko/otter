@@ -8,8 +8,8 @@
     "kind": "url",
     "ref": "https://cloud-bridge.ru/api/mcp"
   },
-  "scannedAt": "2026-11-06T12:27:39.570Z",
-  "durationMs": 2796,
+  "scannedAt": "2026-11-10T13:00:23.813Z",
+  "durationMs": 3104,
   "layers": {
     "metadata": true,
     "static": false
@@ -17,8 +17,8 @@
   "tools": [
     {
       "name": "list_clouds",
-      "descriptionHash": "ef8fbed33215793ade75e2dbf95629656dc14894b1044ba8c0d2019872880c99",
-      "description": "Список подключённых облачных хранилищ пользователя: id (нужен всем остальным инструментам), провайдер, аккаунт, квота."
+      "descriptionHash": "ae397beb26a3e6a4dd3d3f23b0d90060962eb98b8b1e55950fa0f1c96e86a014",
+      "description": "Список подключённых облачных хранилищ пользователя. Вызывайте ПЕРВЫМ — возвращаемый `id` это connection_id, обязательный параметр почти всех инструментов (list_files, create_transfer, start_dedup_scan и др.). Также: провайдер, аккаунт, квота."
     },
     {
       "name": "list_files",
@@ -70,14 +70,29 @@
       ]
     },
     {
+      "name": "list_dedup_scans",
+      "descriptionHash": "5734dafaba46fb263eebfeb589a10d38b7e3abea4e3457642e05c2b71cd5c9be",
+      "description": "Список сканов дублей (новые первыми): статус, проверено файлов, групп дублей, reclaim_bytes — сколько можно освободить. `connection_id` — фильтр по облаку."
+    },
+    {
+      "name": "get_dedup_scan",
+      "descriptionHash": "1f1f591ef98f51a1cdb74041e0b91533ccafbd9a961b9ed087b73f537fe3c172",
+      "description": "Детали скана дублей: статус (pending/running/completed/executing/failed/cancelled), прогресс, группы — `groups_same_folder` (готовы к чистке: у каждой `id` для execute_dedup и `keep` — какая копия останется), `groups_cross_folder`/`groups_dup_folders` (отчёт), reclaim_bytes. Ошибка 404 — скан не най"
+    },
+    {
+      "name": "list_scheduled_syncs",
+      "descriptionHash": "44f60b7f4d36e2d3169c996c0e8bdba531a613c341e49dc9ec9b2bf5f4f40514",
+      "description": "Регулярные синхронизации: name, маршрут source→target с именами облаков, frequency, direction (one_way/two_way), is_active, next_run_at, статистика запусков."
+    },
+    {
       "name": "create_transfer",
       "descriptionHash": "5a2ba2c5578344fd53944faab15572e9f1eb9973b17655ca5401593428d57e01",
       "description": "Запустить перенос файлов между двумя облаками (server-to-server, фоном — следите через get_transfer). `paths` — относительные пути источника; пустой или [''] = всё хранилище. Для key-based облаков (Google Drive и др.) передайте `entries` — словарь {rel_path: {is_dir, key, size, mime_type}} из list_f"
     },
     {
       "name": "cancel_transfer",
-      "descriptionHash": "fea89131b4ffe359f8c4c3b2d6a8e44d9543c75a0c14c21f4597f05b85814c06",
-      "description": "Остановить идущий перенос (или скрыть завершённый из истории)."
+      "descriptionHash": "1ce452decff695b24269468a74644bdc7f7ea8da00542d52f07b270266771e7f",
+      "description": "Остановить идущий перенос. Уже скопированные файлы остаются на цели — отката нет. На завершённом переносе: скрывает его из истории, данные не трогает. Ошибка 404 — перенос не найден."
     },
     {
       "name": "remote_upload",
@@ -102,6 +117,72 @@
       "description": "Отозвать публичную ссылку — перестаёт открываться навсегда.",
       "labels": [
         "public-sink"
+      ]
+    },
+    {
+      "name": "start_dedup_scan",
+      "descriptionHash": "16617b665bca5b2c316006207d8340645e0d40e11b701ad7067dbcb6cb72b908",
+      "description": "Запустить поиск дублей в облаке (фоном — статус через get_dedup_scan). Только анализ, ничего не удаляет и бесплатно. `scope_path` — папка ('' = весь диск); `keep_rule`: 'oldest' — сохранить старейшие копии, 'newest' — новейшие. Ошибки: 404 — облако не найдено; 409 — на этом облаке уже идёт скан или "
+    },
+    {
+      "name": "execute_dedup",
+      "descriptionHash": "2830fd14cce3f20c87236d59f5a6340069cfeeb199c4b6fd32a4633db4265c21",
+      "description": "Применить чистку к группам дублей — УДАЛЯЕТ ФАЙЛЫ. `group_ids` — строго из groups_* результата get_dedup_scan; `action`: 'trash' — в корзину провайдера (восстановимо), 'quarantine' — в папку _dedup_quarantine внутри облака (восстановимо). Одна копия в каждой группе всегда сохраняется (поле keep). Бе",
+      "labels": [
+        "destructive"
+      ]
+    },
+    {
+      "name": "cancel_dedup_scan",
+      "descriptionHash": "1a066dcb038220441e31c82d031072e1186497ddb6142ce4e0eabd80f5151e6d",
+      "description": "Отменить идущий скан дублей (pending/running → cancelled). На завершённом — no-op, вернёт текущий статус."
+    },
+    {
+      "name": "create_scheduled_sync",
+      "descriptionHash": "61488f3791c6001d84ef58ef67e8962d7a22f007a194496f8c078f3f64126372",
+      "description": "Создать регулярную синхронизацию: каждый запуск — инкрементальный перенос новых/изменённых файлов. `frequency`: once|hourly|daily|weekly|monthly (every_5_min — только Pro); `schedule_time` — 'HH:MM', `schedule_day` — день недели 0-6 (weekly) или число месяца (monthly); `direction`: 'one_way'|'two_wa"
+    },
+    {
+      "name": "update_scheduled_sync",
+      "descriptionHash": "d75858aecc7fb91fe8792352805b68446f67eb1b9247dcd4fd744a8994971017",
+      "description": "Изменить синхронизацию: `is_active` — пауза/возобновление, плюс name, frequency, direction, schedule_time, schedule_day. Ошибка 404 — синхронизация не найдена."
+    },
+    {
+      "name": "delete_scheduled_sync",
+      "descriptionHash": "9dc8e3c34082e725ee1de5a85fdd9f883d394f0c79211b654bf2d2af5450ac1a",
+      "description": "Удалить синхронизацию навсегда и отменить её ещё идущие переносы. Ошибка 404 — не найдена.",
+      "labels": [
+        "destructive"
+      ]
+    },
+    {
+      "name": "run_scheduled_sync",
+      "descriptionHash": "5e48e9cdaa3f519d87f4a8a2ef8a5620cfd2fe17e9ea5073c36ea7bec2a6a562",
+      "description": "Запустить синхронизацию немедленно вне расписания — возвращает transfer_id, статус через get_transfer. Ошибки: 403 — лимит месячной квоты; 404 — не найдена.",
+      "labels": [
+        "destructive"
+      ]
+    },
+    {
+      "name": "move_file",
+      "descriptionHash": "0b89497556b30fad5306930b97fe5ce28bab2e748671dc9138d16270a326a607",
+      "description": "Переместить или переименовать файл/папку внутри облака. `src` — текущий относительный путь (rel_path из list_files); `dst_dir` — папка назначения ('' = корень); `dst` — полный новый путь включая имя (переименование); `key` — provider id для key-based облаков (Drive/OneDrive — из list_files); `is_dir",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "create_folder",
+      "descriptionHash": "d7e75be996cd48d09a6ff442c26b0f6ab125411027b4de836eb742efc9dad445",
+      "description": "Создать папку в облаке (включая промежуточные). `path` — относительный путь. Идемпотентно — существующая папка не ошибка. Требует Pro."
+    },
+    {
+      "name": "delete_file",
+      "descriptionHash": "cecd2fb309a01b1a2b7b9cfe02b8319fe665943794821004108838cce6d6e5bf",
+      "description": "Удалить файл или папку в облаке — УДАЛЯЕТ ДАННЫЕ. `key` — path или provider id из list_files; `is_dir` — удалять папку рекурсивно. У провайдеров с корзиной восстановимо, у остальных — нет. Для дублей безопаснее execute_dedup (garантирует сохранение копии). Ошибки: 502 — провайдер отказал. Требует Pr",
+      "labels": [
+        "private-data",
+        "destructive"
       ]
     }
   ],
@@ -135,19 +216,45 @@
       "severity": "high",
       "category": "toxic-flow",
       "title": "Lethal trifecta: untrusted input + private data + external sink",
-      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: list_share_links, get_download_url · Private data: list_files, list_share_links, read_text_file, create_share_link · Public sink: list_share_links, remote_upload, create_share_link, revoke_share_link.",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: list_share_links, get_download_url · Private data: list_files, list_share_links, read_text_file, create_share_link, move_file, delete_file · Public sink: list_share_links, remote_upload, create_share_link, revoke_share_link · Destructive: execute_dedup, delete_scheduled_sync, run_scheduled_sync, delete_file.",
       "evidence": {
         "source": "server:mcp",
-        "snippet": "Untrusted content: list_share_links, get_download_url · Private data: list_files, list_share_links, read_text_file, create_share_link · Public sink: list_share_links, remote_upload, create_share_link, revoke_share_link"
+        "snippet": "Untrusted content: list_share_links, get_download_url · Private data: list_files, list_share_links, read_text_file, create_share_link, move_file, delete_file · Public sink: list_share_links, remote_upload, create_share_link, revoke_share_link · Destructive: execute_dedup, delete_scheduled_sync, run_scheduled_sync, delete_file"
       },
       "confidence": 0.6,
       "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"list_clouds\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:list_clouds",
+        "snippet": "before: \"Список подключённых облачных хранилищ пользователя: id (нужен всем остальным инструментам), провайдер, аккаунт, квота.\" → after: \"Список подключённых облачных хранилищ пользователя. Вызывайте ПЕРВЫМ — возвращаемый `id` это connection_id, обязательный параметр почти всех инструментов (list_files, create_transfer, start_dedup_scan и др.). Также: провайдер, аккаунт, квота.\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"cancel_transfer\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:cancel_transfer",
+        "snippet": "before: \"Остановить идущий перенос (или скрыть завершённый из истории).\" → after: \"Остановить идущий перенос. Уже скопированные файлы остаются на цели — отката нет. На завершённом переносе: скрывает его из истории, данные не трогает. Ошибка 404 — перенос не найден.\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
     }
   ],
-  "score": 52,
+  "score": 37,
   "scoreBreakdown": {
     "shadowing": 8,
-    "tool-poisoning": 20,
+    "tool-poisoning": 35,
     "toxic-flow": 20
   },
   "errors": []

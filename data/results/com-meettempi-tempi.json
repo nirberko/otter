@@ -8,8 +8,8 @@
     "kind": "url",
     "ref": "https://meettempi.com/mcp"
   },
-  "scannedAt": "2026-11-06T12:15:11.785Z",
-  "durationMs": 2511,
+  "scannedAt": "2026-11-10T12:47:54.315Z",
+  "durationMs": 1266,
   "layers": {
     "metadata": true,
     "static": false
@@ -71,6 +71,28 @@
       ]
     },
     {
+      "name": "share_booking_as_invitee",
+      "descriptionHash": "60943349deaeadd3429a560b65775fbe0b6a88ead0d2b62c0bf623f68939ba69",
+      "description": "Turns a confirmed booking into an invitation page anyone with its `url` can open: what, when (in the reader’s time zone) and with whom. It never shows the invitee’s email, phone or notes, and shows the meeting link only with `includeLink`. Calling it again changes the style or the link and keeps the",
+      "labels": [
+        "untrusted-content",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "stop_sharing_booking_as_invitee",
+      "descriptionHash": "eb70cc7622d59c90d55af9a597c2b12832ad11dfb954c53d245c37133d88385d",
+      "description": "Ends a booking’s invitation: its link stops working. Sharing again gives a new link."
+    },
+    {
+      "name": "get_shared_booking",
+      "descriptionHash": "49041608246cb68756e0c82c0658025fcc48b243b4421d501d2de811e061a797",
+      "description": "Returns the invitation behind a shared booking’s link (\"…/i/<token>\"): what, when, with whom, its status (upcoming, cancelled or past), its style, and where to book the same host. 404 once its sharer stopped sharing it.",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
       "name": "join_waitlist",
       "descriptionHash": "522b1a264b33e8d194c205aa2b1defc271a95fbe203991d23e6650d82825a92d",
       "description": "Requests access to host on Tempi (create event types, share a booking page). Not needed to book meetings, since booking pages are public. Returns the status: pending, approved (sign in to the Tempi web app), rejected, or open (no waitlist, sign in directly). Joining again with the same email returns",
@@ -86,84 +108,18 @@
       "severity": "high",
       "category": "toxic-flow",
       "title": "Lethal trifecta: untrusted input + private data + external sink",
-      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: check_series, create_booking, join_waitlist · Private data: get_available_slots, create_booking, get_booking, reschedule_booking_as_invitee, cancel_booking_as_invitee · Public sink: create_booking, join_waitlist.",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: check_series, create_booking, share_booking_as_invitee, join_waitlist · Private data: get_available_slots, create_booking, get_booking, reschedule_booking_as_invitee, cancel_booking_as_invitee, get_shared_booking · Public sink: create_booking, share_booking_as_invitee, join_waitlist.",
       "evidence": {
         "source": "server:mcp",
-        "snippet": "Untrusted content: check_series, create_booking, join_waitlist · Private data: get_available_slots, create_booking, get_booking, reschedule_booking_as_invitee, cancel_booking_as_invitee · Public sink: create_booking, join_waitlist"
+        "snippet": "Untrusted content: check_series, create_booking, share_booking_as_invitee, join_waitlist · Private data: get_available_slots, create_booking, get_booking, reschedule_booking_as_invitee, cancel_booking_as_invitee, get_shared_booking · Public sink: create_booking, share_booking_as_invitee, join_waitlist"
       },
       "confidence": 0.6,
       "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
-    },
-    {
-      "id": "MCP-RUGPULL-001",
-      "severity": "high",
-      "category": "tool-poisoning",
-      "title": "Tool description changed since last scan",
-      "detail": "Tool \"check_series\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
-      "evidence": {
-        "source": "tool:check_series",
-        "snippet": "before: \"For event types with `repeatMax` (from get_public_profile): lists each meeting of a series that starts at `start` (one of the slots) and repeats `every` 1, 2 or 4 weeks at the same local time, and whether each is free. Book it with create_booking and `repeat` when `bookable` is true. A series is boo\" → after: \"For event types with `repeatMax` (from get_public_profile): lists each meeting of a series that starts at `start` (one of the slots) and repeats `every` 1, 2 or 4 weeks at the host's clock time, and whether each is free. Pass the invitee's `timezone` to get each meeting's `when` in it: where clocks \""
-      },
-      "confidence": 0.8,
-      "remediation": "Re-review the tool before continuing to trust it."
-    },
-    {
-      "id": "MCP-RUGPULL-001",
-      "severity": "high",
-      "category": "tool-poisoning",
-      "title": "Tool description changed since last scan",
-      "detail": "Tool \"create_booking\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
-      "evidence": {
-        "source": "tool:create_booking",
-        "snippet": "before: \"Books `start`, which must be one of the `slots` from get_available_slots. Free events are confirmed at once, unless the event type has `requiresApproval`: then it's a request (status=pending_approval) that holds the time until a host approves or declines it, and the invitee hears either way by email\" → after: \"Books `start`, which must be one of the `slots` from get_available_slots. Free events are confirmed at once, unless the event type has `requiresApproval`: then it's a request (status=pending_approval) that holds the time until a host approves or declines it, and the invitee hears either way by email\""
-      },
-      "confidence": 0.8,
-      "remediation": "Re-review the tool before continuing to trust it."
-    },
-    {
-      "id": "MCP-RUGPULL-001",
-      "severity": "high",
-      "category": "tool-poisoning",
-      "title": "Tool description changed since last scan",
-      "detail": "Tool \"get_booking\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
-      "evidence": {
-        "source": "tool:get_booking",
-        "snippet": "before: \"Returns a booking by its id and token (from create_booking), or its manageUrl passed as both, with `changeableUntil`, `refundableUntil`, `canCancel` and `cancelReasonRequired`. For a series, `series` lists every meeting with its own manageUrl.\" → after: \"Returns a booking by its id and token (from create_booking), or its manageUrl passed as both, with `changeableUntil`, `refundableUntil` and `canCancel`. For a series, `series` lists every meeting with its own manageUrl.\""
-      },
-      "confidence": 0.8,
-      "remediation": "Re-review the tool before continuing to trust it."
-    },
-    {
-      "id": "MCP-RUGPULL-001",
-      "severity": "high",
-      "category": "tool-poisoning",
-      "title": "Tool description changed since last scan",
-      "detail": "Tool \"reschedule_booking_as_invitee\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
-      "evidence": {
-        "source": "tool:reschedule_booking_as_invitee",
-        "snippet": "before: \"Moves a confirmed booking to `start` with the same hosts. Get valid times from get_available_slots with this `bookingId` and `token`. The calendar event is updated and its provider notifies attendees. Payment carries over. Not possible after `changeableUntil` (409 change_too_late).\" → after: \"Moves a confirmed booking to `start` with the same hosts. Get valid times from get_available_slots with this `bookingId` and `token`. The calendar event is updated and its provider notifies attendees. Payment carries over. Not possible after `changeableUntil` (409 change_too_late). A request (status\""
-      },
-      "confidence": 0.8,
-      "remediation": "Re-review the tool before continuing to trust it."
-    },
-    {
-      "id": "MCP-RUGPULL-001",
-      "severity": "high",
-      "category": "tool-poisoning",
-      "title": "Tool description changed since last scan",
-      "detail": "Tool \"cancel_booking_as_invitee\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
-      "evidence": {
-        "source": "tool:cancel_booking_as_invitee",
-        "snippet": "before: \"Cancels a booking by its id and token. The event is removed from the host's calendar. Paid bookings cancelled before `refundableUntil` are refunded in full. Later cancellations get no refund. The event type sets the rules, which get_booking shows: no changes after `changeableUntil` (409 change_too_l\" → after: \"Cancels a booking by its id and token. The event is removed from the host's calendar. Paid bookings cancelled before `refundableUntil` are refunded in full. Later cancellations get no refund. The event type sets the rules, which get_booking shows: no changes after `changeableUntil` (409 change_too_l\""
-      },
-      "confidence": 0.8,
-      "remediation": "Re-review the tool before continuing to trust it."
     }
   ],
-  "score": 41,
+  "score": 80,
   "scoreBreakdown": {
-    "toxic-flow": 20,
-    "tool-poisoning": 39
+    "toxic-flow": 20
   },
   "errors": []
 }

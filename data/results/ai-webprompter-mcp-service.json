@@ -1,0 +1,132 @@
+{
+  "schemaVersion": 1,
+  "scanner": {
+    "version": "1.6.0",
+    "rules": "402995650b68"
+  },
+  "target": {
+    "kind": "url",
+    "ref": "https://mcp.webprompter.ai/mcp"
+  },
+  "scannedAt": "2026-11-10T13:03:06.415Z",
+  "durationMs": 649,
+  "layers": {
+    "metadata": true,
+    "static": false
+  },
+  "tools": [
+    {
+      "name": "create_site",
+      "descriptionHash": "9761698a9ccb68826d987c3e3a6c908d3c88c176688bc2499f058bd282c21322",
+      "description": "Create a new site owned by the caller. Site name must be lowercase letters/digits/hyphens, 1-64 chars. Returns { site } only. Read server instructions and call get_deployment_rules before building a zip or deploying."
+    },
+    {
+      "name": "list_sites",
+      "descriptionHash": "3e49fc96e8ec7b149d3d1378cf83a0b18cb99c5a1f2d3deab774aaf108909430",
+      "description": "List all sites owned by the authenticated caller, including deploy URLs, custom domain status, and bandwidth usage (with warning at 80% and shutdown message when the custom domain is suspended).",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "get_deployment_rules",
+      "descriptionHash": "b7e031188456b0e2970dc60a47cb95a5b8ec4b26e365c6290fea5101243928b4",
+      "description": "REQUIRED before deploy: returns platform deploy rules + a site-scoped checklist, example URLs for this site_id, and a short-lived deploy_ack_token. Call after create_site or list_sites. Pass the token to create_deploy_upload and commit_deploy_upload.",
+      "labels": [
+        "untrusted-content",
+        "private-data"
+      ]
+    },
+    {
+      "name": "create_deploy_upload",
+      "descriptionHash": "3af3da4b84c254317c7ed331e139a33b44f6f1717b15a62672a3ccef80ee264f",
+      "description": "Start a staging deploy: request presigned PUT URL for the zip. Use promote_staging_to_prod to go live on production. Requires deploy_ack_token from get_deployment_rules when MCP_ENFORCE_DEPLOY_ACK is on. Pass the same token to commit_deploy_upload. Returns upload_id; PUT the zip then commit_deploy_u",
+      "labels": [
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "commit_deploy_upload",
+      "descriptionHash": "baf56ff2bfd11f8512b3ca6749e241741506f71d19d9843c56e5699d087536e8",
+      "description": "Finalize deploy after PUT using upload_id. Pass the same deploy_ack_token from get_deployment_rules for this site as on create_deploy_upload when MCP_ENFORCE_DEPLOY_ACK is on.",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "list_deployments",
+      "descriptionHash": "9093f54bfe71914fe25378f203a5ede5f24eddac3f6d1e947e99e8d595c75b3b",
+      "description": "List deployments for a site, optionally filtered to one environment. Excludes pruned (deleted) versions. Only the current deployment plus 5 previous versions per environment are retained."
+    },
+    {
+      "name": "promote_staging_to_prod",
+      "descriptionHash": "cc4911e9d63e604bde240b2a81d0c24355d56ffa810630489dc0b9c01fdd8ca6",
+      "description": "Promote the current staging deployment to production (the only way to go live on prod). Copies the active staging artifact into a new prod version. Requires an active current staging deployment; does not accept a zip."
+    },
+    {
+      "name": "rollback_deployment",
+      "descriptionHash": "49f804ade5d20dc931f05a036c27fc4b8cd60eae1362fd1f6b807a5a9b0dc063",
+      "description": "Promote a previous deployment back to current for its environment."
+    },
+    {
+      "name": "download_deployment",
+      "descriptionHash": "7a260e556317ce55a82eb7dc9dfce01dd7fe6b786e1de9b37427b0ff8b385e5f",
+      "description": "Download a deployment version as a zip (presigned GET URL, expires in ~15 minutes). Use list_deployments to find deployment_id. Omits cleanUrls materialized copies when possible and includes static-hosting.json for editing and redeploying to staging.",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "connect_custom_domain",
+      "descriptionHash": "56daf8e9242bf95c25dfdfbb429cc7db96d41c5d1139b0f7379540c06c49753a",
+      "description": "Attach an externally owned domain to a site's live prod deployment. Returns ACM DNS validation CNAMEs (apex + www). Requires active prod deploy and an active domain subscription (subscribe in console first)."
+    },
+    {
+      "name": "get_custom_domain_status",
+      "descriptionHash": "c70591bc28491c9496950a1314cf89a1b3e58fced8c7ad319f70bfc049e3a34a",
+      "description": "Poll custom domain setup progress; triggers one processing tick. Returns steps and dns_records (cert validation + routing)."
+    },
+    {
+      "name": "disconnect_custom_domain",
+      "descriptionHash": "002ab0c3e2032ff399d32252e031d8435ff0cd9d4c0f5b74b292fd6e70908fa4",
+      "description": "Remove custom domain connection for a site (best-effort CloudFront disable + ACM delete).",
+      "labels": [
+        "destructive"
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-SCHEMA-SMELL-001",
+      "severity": "medium",
+      "category": "schema-smell",
+      "title": "Read-only tool requests dangerous parameters",
+      "detail": "Tool \"list_deployments\" appears informational but accepts parameters (environment) that enable code/file/secret access.",
+      "evidence": {
+        "source": "tool:list_deployments",
+        "snippet": "site_id, environment"
+      },
+      "confidence": 0.55
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: list_sites, get_deployment_rules, download_deployment · Private data: get_deployment_rules, create_deploy_upload · Public sink: create_deploy_upload, commit_deploy_upload · Destructive: disconnect_custom_domain.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: list_sites, get_deployment_rules, download_deployment · Private data: get_deployment_rules, create_deploy_upload · Public sink: create_deploy_upload, commit_deploy_upload · Destructive: disconnect_custom_domain"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 72,
+  "scoreBreakdown": {
+    "schema-smell": 8,
+    "toxic-flow": 20
+  },
+  "errors": []
+}

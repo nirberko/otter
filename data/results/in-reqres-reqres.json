@@ -8,8 +8,8 @@
     "kind": "url",
     "ref": "https://reqres.in/mcp"
   },
-  "scannedAt": "2026-11-06T12:18:01.449Z",
-  "durationMs": 588,
+  "scannedAt": "2026-11-10T12:50:37.785Z",
+  "durationMs": 907,
   "layers": {
     "metadata": true,
     "static": false
@@ -54,9 +54,49 @@
       ]
     },
     {
+      "name": "get_record",
+      "descriptionHash": "d40e272d9bca852d961c92a85d8d4d6c998766b7327791eb3edbe4034947fd07",
+      "description": "Read one record by id.",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "patch_record",
+      "descriptionHash": "3faf43193748399e0cb3e79fd7733efa0b66147566bdf8b582e12212e3e264d4",
+      "description": "Merge the given fields into a record and keep the rest, e.g. {\"done\": true} to tick off a task. Use this for most edits.",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "create_app_user",
+      "descriptionHash": "e5e425b95b761d7c1192a956927956d5f9e2224e36ad4f670e9bb9aaaa58b1dd",
+      "description": "Add an end user to the project (for apps where each user sees only their own records). No email is sent. Then call create_app_user_session to act as that user.",
+      "labels": [
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "create_app_user_session",
+      "descriptionHash": "2b92fae1e0a7d5b520a548231c13e4c73c706d858d098348934aa6357bf06e43",
+      "description": "Get a 6-hour session token for an app user without email. Send it as Authorization: Bearer <session_token> to https://reqres.in/app/collections/{collection}/records, where the user only sees their own records. Real users sign in with an emailed code via /api/app-users/login.",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "list_logs",
+      "descriptionHash": "b275fd9e8476eb3a7b5637e4564c9f140e09746d8730a8af79ea5068a90d715d",
+      "description": "See recent requests to the project (method, path, status, timing), newest first. Use it to debug why an app's calls fail."
+    },
+    {
       "name": "update_record",
-      "descriptionHash": "ac120cf184eac1d8c3d31db098d1346d8befd246ead18b9295714e41ba9b4503",
-      "description": "Replace a record's fields.",
+      "descriptionHash": "81c808d7d480dfeb8df0222dadedc79465e8c965dc85a5cd2ea6b268eadf3049",
+      "description": "Replace all of a record's fields: fields you leave out are removed. To change some fields and keep the rest, use patch_record.",
       "labels": [
         "private-data"
       ]
@@ -71,8 +111,50 @@
       ]
     }
   ],
-  "findings": [],
-  "score": 100,
-  "scoreBreakdown": {},
+  "findings": [
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"create_app_user_session\" references sensitive artifacts (authorization, bearer, session token). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:create_app_user_session",
+        "snippet": "Get a 6-hour session token for an app user without email. Send it as Authorization: Bearer <session_token> to https://reqres.in/app/collections/{collection}/rec…"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: create_project, create_app_user_session · Private data: create_project, create_collection, list_records, create_record, get_record, patch_record, create_app_user, create_app_user_session, update_record, delete_record · Public sink: create_app_user, create_app_user_session · Destructive: delete_record.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: create_project, create_app_user_session · Private data: create_project, create_collection, list_records, create_record, get_record, patch_record, create_app_user, create_app_user_session, update_record, delete_record · Public sink: create_app_user, create_app_user_session · Destructive: delete_record"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"update_record\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:update_record",
+        "snippet": "before: \"Replace a record's fields.\" → after: \"Replace all of a record's fields: fields you leave out are removed. To change some fields and keep the rest, use patch_record.\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    }
+  ],
+  "score": 50,
+  "scoreBreakdown": {
+    "tool-poisoning": 30,
+    "toxic-flow": 20
+  },
   "errors": []
 }

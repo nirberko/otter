@@ -8,8 +8,8 @@
     "kind": "url",
     "ref": "https://interlagos.sampa.br/mcp"
   },
-  "scannedAt": "2026-11-08T11:31:49.293Z",
-  "durationMs": 1086,
+  "scannedAt": "2026-11-10T12:54:02.568Z",
+  "durationMs": 1555,
   "layers": {
     "metadata": true,
     "static": false
@@ -46,8 +46,16 @@
     },
     {
       "name": "list_events",
-      "descriptionHash": "91804395d1cf7b54e9854d6a2c9e8bdcef7122946a013a483f5b1016807a61be",
-      "description": "List upcoming events in this neighborhood with date, venue, price, and URL. Events within the next 7 days include a weatherForecast (condition + min/max temperature) for the event day — use it to tell users e.g. \"the event is at X and it will be raining\". Pass `filter` to narrow by time or price; `f",
+      "descriptionHash": "8ac488d30a2cac6df820f21c579ef7574b29a757d58cf0964d733b4ad3e7d573",
+      "description": "Find upcoming events — the tool for planning an outing. Compose filters freely: a date range (`from`/`to`), free text (`q`, accent-insensitive: \"musica\" finds \"Música\"), `category`, a price ceiling (`price_max`), and a point plus radius (`near_lat`/`near_lng`/`radius_km` — e.g. the coordinates of a ",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "get_event",
+      "descriptionHash": "2a5912679cc0da3a6034cb3ac52d75f180e6909f0d24c9fa7e9a8277d67d5b13",
+      "description": "Full details of one event by slug (from list_events): plain-text description, performers, organizers, venue with coordinates and place link, numeric `price`, `purchase` (how to attend — see list_events), weather forecast, and — for events sold through this site — the ticket types and pricing options",
       "labels": [
         "untrusted-content"
       ]
@@ -102,8 +110,8 @@
     },
     {
       "name": "get_event_tickets",
-      "descriptionHash": "5669d9a6b58d92763b41aeb5c2f95f4ad0c88f0a60ef422be73eca5f8e692f78",
-      "description": "Get ticket types and prices for a specific event (Wix Events). Pass the event slug from list_events. Returns ticket names, prices, sale status, and how many are left.",
+      "descriptionHash": "f1c43f392d5b70aa2a1c912f4738b3bc6628245cee1139210ac7273e8a5cd761",
+      "description": "Get ticket types and prices for an event sold through this site (its `purchase.mode` is \"reserve\"). Pass the event slug from list_events. Returns ticket names, prices, sale status, how many are left, and pricing options. get_event returns the same list alongside the event details.",
       "labels": [
         "untrusted-content"
       ]
@@ -198,21 +206,60 @@
   ],
   "findings": [
     {
+      "id": "MCP-TOOL-POISON-006",
+      "severity": "low",
+      "category": "tool-poisoning",
+      "title": "Anomalously long tool description",
+      "detail": "Description of \"list_events\" is 1255 chars, far longer than this server's median (248). Overlong descriptions are a common place to bury instructions.",
+      "evidence": {
+        "source": "tool:list_events",
+        "snippet": "Find upcoming events — the tool for planning an outing. Compose filters freely: a date range (`from`/`to`), free text (`q`, accent-insensitive: \"musica\" finds \"…"
+      },
+      "confidence": 0.4
+    },
+    {
       "id": "MCP-TOXIC-FLOW-001",
       "severity": "high",
       "category": "toxic-flow",
       "title": "Lethal trifecta: untrusted input + private data + external sink",
-      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: get_site_info, search_places, get_place, list_events, create_booking, request_reservation, rsvp_event, get_event_tickets, search_dishes, list_pricing_plans, get_reviews, list_blog_posts, list_profiles · Private data: create_booking, list_forms · Public sink: create_booking, request_reservation, rsvp_event, list_blog_posts, submit_form.",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: get_site_info, search_places, get_place, list_events, get_event, create_booking, request_reservation, rsvp_event, get_event_tickets, search_dishes, list_pricing_plans, get_reviews, list_blog_posts, list_profiles · Private data: create_booking, list_forms · Public sink: create_booking, request_reservation, rsvp_event, list_blog_posts, submit_form.",
       "evidence": {
         "source": "server:mcp",
-        "snippet": "Untrusted content: get_site_info, search_places, get_place, list_events, create_booking, request_reservation, rsvp_event, get_event_tickets, search_dishes, list_pricing_plans, get_reviews, list_blog_posts, list_profiles · Private data: create_booking, list_forms · Public sink: create_booking, request_reservation, rsvp_event, list_blog_posts, submit_form"
+        "snippet": "Untrusted content: get_site_info, search_places, get_place, list_events, get_event, create_booking, request_reservation, rsvp_event, get_event_tickets, search_dishes, list_pricing_plans, get_reviews, list_blog_posts, list_profiles · Private data: create_booking, list_forms · Public sink: create_booking, request_reservation, rsvp_event, list_blog_posts, submit_form"
       },
       "confidence": 0.6,
       "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"list_events\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:list_events",
+        "snippet": "before: \"List upcoming events in this neighborhood with date, venue, price, and URL. Events within the next 7 days include a weatherForecast (condition + min/max temperature) for the event day — use it to tell users e.g. \"the event is at X and it will be raining\". Pass `filter` to narrow by time or price; `f\" → after: \"Find upcoming events — the tool for planning an outing. Compose filters freely: a date range (`from`/`to`), free text (`q`, accent-insensitive: \"musica\" finds \"Música\"), `category`, a price ceiling (`price_max`), and a point plus radius (`near_lat`/`near_lng`/`radius_km` — e.g. the coordinates of a \""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"get_event_tickets\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:get_event_tickets",
+        "snippet": "before: \"Get ticket types and prices for a specific event (Wix Events). Pass the event slug from list_events. Returns ticket names, prices, sale status, and how many are left.\" → after: \"Get ticket types and prices for an event sold through this site (its `purchase.mode` is \"reserve\"). Pass the event slug from list_events. Returns ticket names, prices, sale status, how many are left, and pricing options. get_event returns the same list alongside the event details.\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
     }
   ],
-  "score": 80,
+  "score": 49,
   "scoreBreakdown": {
+    "tool-poisoning": 31,
     "toxic-flow": 20
   },
   "errors": []
