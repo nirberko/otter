@@ -1,0 +1,105 @@
+{
+  "schemaVersion": 1,
+  "scanner": {
+    "version": "1.6.0",
+    "rules": "402995650b68"
+  },
+  "target": {
+    "kind": "url",
+    "ref": "https://facture-app.usefulapi.io/mcp"
+  },
+  "scannedAt": "2026-11-11T12:11:50.512Z",
+  "durationMs": 594,
+  "layers": {
+    "metadata": true,
+    "static": false
+  },
+  "tools": [
+    {
+      "name": "facture_list_issuers",
+      "descriptionHash": "8d4ea689941335237de202759b79af57a101c83006e2d676f9982c9b4d07b071",
+      "description": "List the issuers (emisores: the taxpayers that can stamp invoices) on this Facture account, with their RFC. Use an RFC to filter branches. Facture API: GET /emisor/find."
+    },
+    {
+      "name": "facture_list_branches",
+      "descriptionHash": "132bbc99023fa9a067f4284595b3715954a19f4f359b9d32b319e648928ff80d",
+      "description": "List the branches (sucursales) that can stamp invoices. Each branch id is the branch_id that facture_stamp_invoice needs. Pass issuer_rfc to show only one issuer's branches. Facture API: GET /sucursal/find."
+    },
+    {
+      "name": "facture_list_clients",
+      "descriptionHash": "83cf376268ddb31ebe19fdde8762405aac96f7bf27e21b6f20f349d1038f4f60",
+      "description": "List the clients (receptores) in the account catalog: name, RFC, tax regime and address. Facture API: GET /cliente/find."
+    },
+    {
+      "name": "facture_list_products",
+      "descriptionHash": "e15dd9f603dfaf711e354c69ce4e65c6fdb4f2433bef5f80d9e6e3289b0997f6",
+      "description": "List the products and services (conceptos) in the account catalog, with their unit prices and SAT keys. Facture API: GET /concepto/find."
+    },
+    {
+      "name": "facture_list_invoices",
+      "descriptionHash": "247b5e946fb0a1badcf19864b7f435c3b8fbe494509aab4f5cc3942dfd90f0ab",
+      "description": "List the invoices (comprobantes) issued from this account: folio, series, total, receiver and cancelled flag. Facture API: GET /facturacion/find."
+    },
+    {
+      "name": "facture_get_invoice",
+      "descriptionHash": "44187cb31ed81dce100b12af77ecd46a0e485e14b428adbce8819be0d949fde3",
+      "description": "Get one stamped invoice by its fiscal UUID: date, type, folio, currency, cancelled flag and totals. Facture API: GET /facturacion?id=<uuid>."
+    },
+    {
+      "name": "facture_create_client",
+      "descriptionHash": "f536910bef022dd76a4e980b66a3e2c655f4f70fa57082284a828c4e0530c118",
+      "description": "Create a client (receptor) in the account catalog. The SAT requires the RFC, tax regime, CFDI use and a fiscal address. Creates a record only; it stamps nothing. Facture API: POST /cliente.",
+      "labels": [
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "facture_create_product",
+      "descriptionHash": "7438c6b12fa72302e8cbde42646974225c5f77374c673842cad30e6a2823bbce",
+      "description": "Create a product or service (concepto) in the account catalog with a unit price in MXN and one IVA rate. Creates a record only; it stamps nothing. Facture API: POST /concepto.",
+      "labels": [
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "facture_stamp_invoice",
+      "descriptionHash": "e1deeee2ca5288bc52cf17ab7f429d902c13420449f9e8e705dfdf37a880fe74",
+      "description": "Stamp (timbrar) one CFDI invoice from a Facture JSON document, through the given branch. This issues a real tax invoice with the SAT and uses Facture credits: call it only after the user confirms every field. The stamped XML is left out of the reply; get it from Facture. Facture API: POST /timbrado/",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "facture_cancel_invoice",
+      "descriptionHash": "c89ea4ced93ff84c11cb7436635f4c009ad46f7fd5e6bd7420bae2ddc655f5a6",
+      "description": "Cancel (cancelar) one stamped invoice with the SAT. Reason 01 means an error with a replacement invoice: it needs replacement_uuid. Reasons 02 to 04 need no replacement. Cancelling can need the receiver's approval; the reply says so. Facture API: POST /cancelacion.",
+      "labels": [
+        "public-sink"
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: facture_stamp_invoice · Private data: facture_create_client, facture_create_product, facture_stamp_invoice · Public sink: facture_create_client, facture_create_product, facture_stamp_invoice, facture_cancel_invoice.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: facture_stamp_invoice · Private data: facture_create_client, facture_create_product, facture_stamp_invoice · Public sink: facture_create_client, facture_create_product, facture_stamp_invoice, facture_cancel_invoice"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 80,
+  "scoreBreakdown": {
+    "toxic-flow": 20
+  },
+  "errors": []
+}

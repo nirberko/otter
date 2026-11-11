@@ -8,8 +8,8 @@
     "kind": "url",
     "ref": "https://smoobu.usefulapi.io/mcp"
   },
-  "scannedAt": "2026-11-09T13:24:26.741Z",
-  "durationMs": 574,
+  "scannedAt": "2026-11-11T12:10:59.941Z",
+  "durationMs": 521,
   "layers": {
     "metadata": true,
     "static": false
@@ -77,16 +77,24 @@
     },
     {
       "name": "smoobu_list_message_threads",
-      "descriptionHash": "47aa8bb8d20270417259eed21bdf47932fc3c2abeb70548e812f6e895f5f10fa",
-      "description": "List the unified guest inbox: one thread per booking with guest name, property and the latest message, plus the unread count. Smoobu: GET /api/threads.",
+      "descriptionHash": "c5791c3f8098d5914b4f0e436c475212b23947dee2386dba903ad22959280131",
+      "description": "List the unified guest inbox: booking.guest_name, latest_message.subject, latest_message.text_content and latest_message.html_content, plus property and unread count. Read HTML when plain text is empty. Guest names require Guest Data (PII) enabled for the key; missing upstream content is not reconst",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "smoobu_get_conversation",
+      "descriptionHash": "e5e9885bbf38f6c709e5812897dc6e2679de58a86c727d846a2397b75f3dc87b",
+      "description": "Read one reservation and one page of its actual messages directly, rather than relying on an inbox thread's latest-message summary. Returns the guest name from the reservation and unmodified message subject, plain-text and HTML fields with pagination. If the reservation name is blank and it identifi",
       "labels": [
         "untrusted-content"
       ]
     },
     {
       "name": "smoobu_list_reservation_messages",
-      "descriptionHash": "aad3db8cc46c188ca5e396cbd62dd83544824c1e45e49909abacdfc681be34f6",
-      "description": "Get the full conversation for one reservation, paginated. Each message has a subject, plain-text and HTML body, and type (1 = inbox / from guest, 2 = outbox / sent). Smoobu: GET /api/reservations/{reservationId}/messages.",
+      "descriptionHash": "4dc94bd6ec6f79417f6604b5cd18b09215e116d4616d922e86dc29043d132ef7",
+      "description": "Get a reservation's conversation, paginated, preserving subject, message (plain text), messageHtml/htmlMessage (HTML), and type (1 = inbox / from guest, 2 = outbox / sent). Read HTML when message is empty. Guest names are on smoobu_get_reservation (guest-name) or smoobu_list_message_threads (booking",
       "labels": [
         "untrusted-content"
       ]
@@ -180,18 +188,44 @@
       "severity": "high",
       "category": "toxic-flow",
       "title": "Lethal trifecta: untrusted input + private data + external sink",
-      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: smoobu_get_user, smoobu_get_reservation, smoobu_get_reservation_placeholders, smoobu_check_availability, smoobu_list_message_threads, smoobu_list_reservation_messages, smoobu_list_guests, smoobu_list_custom_placeholders, smoobu_set_rates · Private data: smoobu_get_user, smoobu_get_guest, smoobu_update_reservation · Public sink: smoobu_get_user, smoobu_check_availability, smoobu_create_reservation, smoobu_set_rates, smoobu_send_message_to_guest, smoobu_send_message_to_host.",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: smoobu_get_user, smoobu_get_reservation, smoobu_get_reservation_placeholders, smoobu_check_availability, smoobu_list_message_threads, smoobu_get_conversation, smoobu_list_reservation_messages, smoobu_list_guests, smoobu_list_custom_placeholders, smoobu_set_rates · Private data: smoobu_get_user, smoobu_get_guest, smoobu_update_reservation · Public sink: smoobu_get_user, smoobu_check_availability, smoobu_create_reservation, smoobu_set_rates, smoobu_send_message_to_guest, smoobu_send_message_to_host.",
       "evidence": {
         "source": "server:mcp",
-        "snippet": "Untrusted content: smoobu_get_user, smoobu_get_reservation, smoobu_get_reservation_placeholders, smoobu_check_availability, smoobu_list_message_threads, smoobu_list_reservation_messages, smoobu_list_guests, smoobu_list_custom_placeholders, smoobu_set_rates · Private data: smoobu_get_user, smoobu_get_guest, smoobu_update_reservation · Public sink: smoobu_get_user, smoobu_check_availability, smoobu_create_reservation, smoobu_set_rates, smoobu_send_message_to_guest, smoobu_send_message_to_host"
+        "snippet": "Untrusted content: smoobu_get_user, smoobu_get_reservation, smoobu_get_reservation_placeholders, smoobu_check_availability, smoobu_list_message_threads, smoobu_get_conversation, smoobu_list_reservation_messages, smoobu_list_guests, smoobu_list_custom_placeholders, smoobu_set_rates · Private data: smoobu_get_user, smoobu_get_guest, smoobu_update_reservation · Public sink: smoobu_get_user, smoobu_check_availability, smoobu_create_reservation, smoobu_set_rates, smoobu_send_message_to_guest, smoobu_send_message_to_host"
       },
       "confidence": 0.6,
       "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"smoobu_list_message_threads\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:smoobu_list_message_threads",
+        "snippet": "before: \"List the unified guest inbox: one thread per booking with guest name, property and the latest message, plus the unread count. Smoobu: GET /api/threads.\" → after: \"List the unified guest inbox: booking.guest_name, latest_message.subject, latest_message.text_content and latest_message.html_content, plus property and unread count. Read HTML when plain text is empty. Guest names require Guest Data (PII) enabled for the key; missing upstream content is not reconst\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"smoobu_list_reservation_messages\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:smoobu_list_reservation_messages",
+        "snippet": "before: \"Get the full conversation for one reservation, paginated. Each message has a subject, plain-text and HTML body, and type (1 = inbox / from guest, 2 = outbox / sent). Smoobu: GET /api/reservations/{reservationId}/messages.\" → after: \"Get a reservation's conversation, paginated, preserving subject, message (plain text), messageHtml/htmlMessage (HTML), and type (1 = inbox / from guest, 2 = outbox / sent). Read HTML when message is empty. Guest names are on smoobu_get_reservation (guest-name) or smoobu_list_message_threads (booking\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
     }
   ],
-  "score": 60,
+  "score": 45,
   "scoreBreakdown": {
-    "tool-poisoning": 20,
+    "tool-poisoning": 35,
     "toxic-flow": 20
   },
   "errors": []

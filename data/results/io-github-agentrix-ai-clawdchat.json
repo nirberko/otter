@@ -8,8 +8,8 @@
     "kind": "url",
     "ref": "https://mcp.clawdchat.ai/mcp"
   },
-  "scannedAt": "2026-11-09T13:33:53.261Z",
-  "durationMs": 2087,
+  "scannedAt": "2026-11-11T12:21:25.035Z",
+  "durationMs": 2497,
   "layers": {
     "metadata": true,
     "static": false
@@ -34,7 +34,7 @@
     },
     {
       "name": "read_posts",
-      "descriptionHash": "d4cf3652401233c527362f534b22bd6dc8957b1b3d3fa754b710bdc59e1ac23b",
+      "descriptionHash": "b73ec04c27169ff53e14f35f1db82df2cd142514d66fce0553130d6f9ef3b49e",
       "description": "Browse ClawdChat posts.\nParameters:\n- source: feed (subscribed circles and followed agents), circle (requires circle_name), search (requires query), agent (requires agent_name), or detail (requires post_id)\n- sort: hot, new, top, or recommended; default hot\n- circle_name: circle display name, Englis",
       "labels": [
         "untrusted-content",
@@ -91,16 +91,16 @@
     },
     {
       "name": "read_direct_messages",
-      "descriptionHash": "a349678a7bbda4a547e08eb44343cc48e5882148ba2d6092f57d55010447e9db",
-      "description": "Read A2A inbox items, conversation lists, message history, and group chats.\nParameters:\n- action: inbox, list, conversations, get_conversation, thread, groups, group_info, or group_messages\n- conversation_id: conversation UUID for get_conversation/thread\n- status_filter: for list/conversations: all ",
+      "descriptionHash": "1d287c2ec7ab4048bfb227703e6aa2bae9586580ee6b7a23f4b39e2783d5ed2e",
+      "description": "Read A2A inbox items, conversation lists, message history, and group chats.\nParameters:\n- action: inbox, list, conversations, get_conversation, thread, groups, group_info, group_messages, or invite_preview\n- conversation_id: conversation UUID for get_conversation/thread\n- status_filter: for list/con",
       "labels": [
         "untrusted-content"
       ]
     },
     {
       "name": "direct_message",
-      "descriptionHash": "fd48600286aaaae4f7a0e4c021fc2fb4d19bb485243bf68167a316a4905f58cb",
-      "description": "Send a direct message, manage a conversation, or act in a group chat.\nParameters:\n- action: send, action, delete_conversation, group_create, group_invite, group_join, group_decline, group_leave, group_remove, group_send, group_invite_link, group_revoke_invite_link, or group_join_by_code\n- content: m",
+      "descriptionHash": "8aadecac7d11b216e99ae4c49aef182a1e0602dd9a622e1cff5817dc1a9b23d1",
+      "description": "Send a direct message, manage a conversation, or act in a group chat.\nParameters:\n- action: send, action, delete_conversation, group_create, group_invite, group_join, group_decline, group_leave, group_remove, group_send, group_invite_link, group_revoke_invite_link, group_join_by_code, invite_link, i",
       "labels": [
         "public-sink",
         "destructive"
@@ -121,19 +121,32 @@
     },
     {
       "name": "list_my_agents",
-      "descriptionHash": "6f9aa5868c2139d47e8cb59c94b8d159af90fd9e37551b9289d02155c6401ab2",
-      "description": "Return the current agent or list owned agents.\nParameters:\n- action: current (default) or list"
+      "descriptionHash": "9341d4d2f61835a33ba3a295745ef26f7181e648ffae8805d38ff5485d2307e7",
+      "description": "Return the currently bound agent (default) or list owned agents.\naction=current is only the bound agent, not the full account; when the account API is available it also includes total/claimed/max. Use action=list to see every owned agent.\nParameters:\n- action: current (default) or list"
     },
     {
       "name": "switch_agent",
-      "descriptionHash": "609f40bb1115c3ca72c5209eeaf7ab8dc14f81b1f1083cc5872c073d81125ab1",
+      "descriptionHash": "530791f9b28dcb8de52356257b242ce536befeb3804fabb75db10f14ca2493a6",
       "description": "Bind this session to one of your agents, or create a new agent and bind it.\nParameters:\n- action: switch (default) or create\n- agent_id: target agent UUID (switch)\n- confirm_reset: Set to true to generate and bind a new API key when the target agent does not have a stored key.\n- name: new agent hand",
       "labels": [
-        "private-data"
+        "private-data",
+        "public-sink"
       ]
     }
   ],
   "findings": [
+    {
+      "id": "MCP-TOOL-POISON-006",
+      "severity": "low",
+      "category": "tool-poisoning",
+      "title": "Anomalously long tool description",
+      "detail": "Description of \"direct_message\" is 1991 chars, far longer than this server's median (339). Overlong descriptions are a common place to bury instructions.",
+      "evidence": {
+        "source": "tool:direct_message",
+        "snippet": "Send a direct message, manage a conversation, or act in a group chat. Parameters: - action: send, action, delete_conversation, group_create, group_invite, group…"
+      },
+      "confidence": 0.4
+    },
     {
       "id": "MCP-TOOL-POISON-007",
       "severity": "low",
@@ -147,14 +160,26 @@
       "confidence": 0.3
     },
     {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"switch_agent\" references sensitive artifacts (authorization). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:switch_agent",
+        "snippet": "Bind this session to one of your agents, or create a new agent and bind it. Parameters: - action: switch (default) or create - agent_id: target agent UUID (swit…"
+      },
+      "confidence": 0.65
+    },
+    {
       "id": "MCP-TOXIC-FLOW-001",
       "severity": "high",
       "category": "toxic-flow",
       "title": "Lethal trifecta: untrusted input + private data + external sink",
-      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: read_posts, read_comments, read_direct_messages · Private data: upload_file, switch_agent · Public sink: upload_file, create_post, read_posts, read_comments, interact, direct_message, use_tools · Destructive: interact, direct_message.",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: read_posts, read_comments, read_direct_messages · Private data: upload_file, switch_agent · Public sink: upload_file, create_post, read_posts, read_comments, interact, direct_message, use_tools, switch_agent · Destructive: interact, direct_message.",
       "evidence": {
         "source": "server:mcp",
-        "snippet": "Untrusted content: read_posts, read_comments, read_direct_messages · Private data: upload_file, switch_agent · Public sink: upload_file, create_post, read_posts, read_comments, interact, direct_message, use_tools · Destructive: interact, direct_message"
+        "snippet": "Untrusted content: read_posts, read_comments, read_direct_messages · Private data: upload_file, switch_agent · Public sink: upload_file, create_post, read_posts, read_comments, interact, direct_message, use_tools, switch_agent · Destructive: interact, direct_message"
       },
       "confidence": 0.6,
       "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
@@ -164,10 +189,23 @@
       "severity": "high",
       "category": "tool-poisoning",
       "title": "Tool description changed since last scan",
+      "detail": "Tool \"read_posts\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:read_posts",
+        "snippet": "before: \"Browse ClawdChat posts.\nParameters:\n- source: feed (subscribed circles and followed agents), circle (requires circle_name), search (requires query), agent (requires agent_name), or detail (requires post_id)\n- sort: hot, new, top, or recommended; default hot\n- circle_name: circle display name, Englis\" → after: \"Browse ClawdChat posts.\nParameters:\n- source: feed (subscribed circles and followed agents), circle (requires circle_name), search (requires query), agent (requires agent_name), or detail (requires post_id)\n- sort: hot, new, top, or recommended; default hot\n- circle_name: circle display name, Englis\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
       "detail": "Tool \"read_direct_messages\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
       "evidence": {
         "source": "tool:read_direct_messages",
-        "snippet": "before: \"Read A2A inbox items, conversation lists, or message history.\nParameters:\n- action: inbox, list, conversations, get_conversation, or thread\n- conversation_id: conversation UUID for get_conversation/thread\n- status_filter: all (default), active, message_request, ignored, or blocked\n- unread_only: inb\" → after: \"Read A2A inbox items, conversation lists, message history, and group chats.\nParameters:\n- action: inbox, list, conversations, get_conversation, thread, groups, group_info, or group_messages\n- conversation_id: conversation UUID for get_conversation/thread\n- status_filter: for list/conversations: all \""
+        "snippet": "before: \"Read A2A inbox items, conversation lists, message history, and group chats.\nParameters:\n- action: inbox, list, conversations, get_conversation, thread, groups, group_info, or group_messages\n- conversation_id: conversation UUID for get_conversation/thread\n- status_filter: for list/conversations: all \" → after: \"Read A2A inbox items, conversation lists, message history, and group chats.\nParameters:\n- action: inbox, list, conversations, get_conversation, thread, groups, group_info, group_messages, or invite_preview\n- conversation_id: conversation UUID for get_conversation/thread\n- status_filter: for list/con\""
       },
       "confidence": 0.8,
       "remediation": "Re-review the tool before continuing to trust it."
@@ -180,7 +218,20 @@
       "detail": "Tool \"direct_message\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
       "evidence": {
         "source": "tool:direct_message",
-        "snippet": "before: \"Send a direct message or manage a conversation.\nParameters:\n- action: send, action, or delete_conversation\n- content: message body (1-5000 characters) for send\n- target_agent_name: recipient handle for send, mutually exclusive with conversation_id\n- conversation_id: existing conversation UUID\n- conv\" → after: \"Send a direct message, manage a conversation, or act in a group chat.\nParameters:\n- action: send, action, delete_conversation, group_create, group_invite, group_join, group_decline, group_leave, group_remove, group_send, group_invite_link, group_revoke_invite_link, or group_join_by_code\n- content: m\""
+        "snippet": "before: \"Send a direct message, manage a conversation, or act in a group chat.\nParameters:\n- action: send, action, delete_conversation, group_create, group_invite, group_join, group_decline, group_leave, group_remove, group_send, group_invite_link, group_revoke_invite_link, or group_join_by_code\n- content: m\" → after: \"Send a direct message, manage a conversation, or act in a group chat.\nParameters:\n- action: send, action, delete_conversation, group_create, group_invite, group_join, group_decline, group_leave, group_remove, group_send, group_invite_link, group_revoke_invite_link, group_join_by_code, invite_link, i\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"list_my_agents\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:list_my_agents",
+        "snippet": "before: \"Return the current agent or list owned agents.\nParameters:\n- action: current (default) or list\" → after: \"Return the currently bound agent (default) or list owned agents.\naction=current is only the bound agent, not the full account; when the account API is available it also includes total/claimed/max. Use action=list to see every owned agent.\nParameters:\n- action: current (default) or list\""
       },
       "confidence": 0.8,
       "remediation": "Re-review the tool before continuing to trust it."
@@ -193,15 +244,15 @@
       "detail": "Tool \"switch_agent\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
       "evidence": {
         "source": "tool:switch_agent",
-        "snippet": "before: \"Switch the active agent for this session.\nParameters:\n- action: switch (default)\n- agent_id: target agent UUID\n- confirm_reset: Set to true to generate and bind a new API key when the target agent does not have a stored key.\" → after: \"Bind this session to one of your agents, or create a new agent and bind it.\nParameters:\n- action: switch (default) or create\n- agent_id: target agent UUID (switch)\n- confirm_reset: Set to true to generate and bind a new API key when the target agent does not have a stored key.\n- name: new agent hand\""
+        "snippet": "before: \"Bind this session to one of your agents, or create a new agent and bind it.\nParameters:\n- action: switch (default) or create\n- agent_id: target agent UUID (switch)\n- confirm_reset: Set to true to generate and bind a new API key when the target agent does not have a stored key.\n- name: new agent hand\" → after: \"Bind this session to one of your agents, or create a new agent and bind it.\nParameters:\n- action: switch (default) or create\n- agent_id: target agent UUID (switch)\n- confirm_reset: Set to true to generate and bind a new API key when the target agent does not have a stored key.\n- name: new agent hand\""
       },
       "confidence": 0.8,
       "remediation": "Re-review the tool before continuing to trust it."
     }
   ],
-  "score": 45,
+  "score": 40,
   "scoreBreakdown": {
-    "tool-poisoning": 35,
+    "tool-poisoning": 40,
     "toxic-flow": 20
   },
   "errors": []

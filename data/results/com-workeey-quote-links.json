@@ -1,0 +1,110 @@
+{
+  "schemaVersion": 1,
+  "scanner": {
+    "version": "1.6.0",
+    "rules": "402995650b68"
+  },
+  "target": {
+    "kind": "url",
+    "ref": "https://www.workeey.com/api/mcp"
+  },
+  "scannedAt": "2026-11-11T12:01:55.772Z",
+  "durationMs": 336,
+  "layers": {
+    "metadata": true,
+    "static": false
+  },
+  "tools": [
+    {
+      "name": "job_check",
+      "descriptionHash": "f88cdf97c3b0019ebc9e1727332209bf65854d0d3fa129bbf050e36b2d491d5b",
+      "description": "For a trade job (plumbing, electrical, HVAC, handyman and more) and a place in the United States: whether it needs a permit, which license, whether sales tax goes on the invoice, the official forms, and where to take the waste — each with the official pages quoted, their dates and the day it was che"
+    },
+    {
+      "name": "price_check",
+      "descriptionHash": "2054881ebb564bc19c827b51225bf9da42f1a9686cb829b9d1e3a428769ac7e2",
+      "description": "A starting price for a job, from Workeey's price book (plumbing, electrical, hvac, handyman, house cleaning, landscaping), for a US place. Give the job in words and where (\"toilet repair\", \"Brooklyn, NY\"): it answers with the one matching job, priced as labor (hours × an hourly rate) + parts (with m"
+    },
+    {
+      "name": "create_quote_link",
+      "descriptionHash": "1c07a6aecefc32cb99a9d69c1c20b871f6242050b319c4e4d27f1b90aee0c795",
+      "description": "Create a Quote Link: a web page where the user's customer sees a quote for a job, picks one of up to 4 options and any add-ons, types their name, and approves, declines or asks for changes. Free; nobody needs an account. For a tradesperson or small service business who wants to send a customer a quo",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "get_quote_status",
+      "descriptionHash": "e57df239195adae0b962b0dde698d086bd280794b12e5a0b525ab176ec88af80",
+      "description": "See where a Quote Link stands: its status, how often the customer page was opened, and every answer the customer gave (approve, decline or changes; the option and add-ons picked, the amount, the name they typed, the time, and which version of the quote it answered, with any message), plus every vers",
+      "labels": [
+        "untrusted-content",
+        "private-data"
+      ]
+    },
+    {
+      "name": "revise_quote_link",
+      "descriptionHash": "eb6fbd5588eaafe5f79ac75ec51a2de3b4f56243d43051d3d890082a31a57f17",
+      "description": "Change a Quote Link that already exists: send the COMPLETE new quote (every field, exactly as for create_quote_link, not only the changes) together with the quote's manage_token. Start from the quote in the last entry of versions from get_quote_status, change what the user asked, and send all of it.",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "cancel_quote_link",
+      "descriptionHash": "05d6c0188eb2a49c0820dc7004891d8896b7abc5e22bf1d1e833b843aa31e756",
+      "description": "Cancel a Quote Link so the customer can no longer approve it: the customer link then says the quote was cancelled. Call it only when the user clearly asks to cancel or withdraw the quote. To change prices or options instead, use revise_quote_link. There is no tool to undo a cancel. The answers and v",
+      "labels": [
+        "private-data"
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOOL-POISON-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description issues instructions to the model",
+      "detail": "Description of \"create_quote_link\" contains imperative instructions directed at the AI assistant rather than describing the tool. This is the core tool-poisoning technique.",
+      "evidence": {
+        "source": "tool:create_quote_link",
+        "snippet": "Create a Quote Link: a web page where the user's customer sees a quote for a job, picks one of up to 4 options and any add-ons, types their name, and approves, …"
+      },
+      "confidence": 0.7,
+      "remediation": "Treat the server as untrusted; the model may obey embedded instructions."
+    },
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"create_quote_link\" references sensitive artifacts (password). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:create_quote_link",
+        "snippet": "Create a Quote Link: a web page where the user's customer sees a quote for a job, picks one of up to 4 options and any add-ons, types their name, and approves, …"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: create_quote_link, get_quote_status · Private data: create_quote_link, get_quote_status, cancel_quote_link · Public sink: create_quote_link, revise_quote_link.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: create_quote_link, get_quote_status · Private data: create_quote_link, get_quote_status, cancel_quote_link · Public sink: create_quote_link, revise_quote_link"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 50,
+  "scoreBreakdown": {
+    "tool-poisoning": 30,
+    "toxic-flow": 20
+  },
+  "errors": []
+}

@@ -1,0 +1,106 @@
+{
+  "schemaVersion": 1,
+  "scanner": {
+    "version": "1.6.0",
+    "rules": "402995650b68"
+  },
+  "target": {
+    "kind": "url",
+    "ref": "https://truetest.uk/mcp"
+  },
+  "scannedAt": "2026-11-11T12:31:07.506Z",
+  "durationMs": 2210,
+  "layers": {
+    "metadata": true,
+    "static": false
+  },
+  "tools": [
+    {
+      "name": "check_trading_record",
+      "descriptionHash": "e8185b9069c12db18982f8146911601733fdcc43e04b56cd6f95bbf4c618ec2e",
+      "description": "Judges whether a finished trading record's results look real or like luck: reads the trades, applies a luck test that allows for the number of versions tried, checks costs, losing years and grid/martingale signs, and returns a verdict (REAL / PROMISING / LIKELY_LUCK / NO_EVIDENCE / FAIL / HIDDEN_RIS",
+      "labels": [
+        "private-data",
+        "destructive"
+      ]
+    },
+    {
+      "name": "test_strategy_code",
+      "descriptionHash": "6a8fa0456c9515c5f3d964d2f46fb946cbaa755d9da31078d088e197aa8cd3a3",
+      "description": "Reads trading-strategy code - an MT5/MT4 Expert Advisor or indicator (.mq5/.mq4/.mqh/.set), a Python trading bot (.py), a TradingView Pine Script (.pine), a cTrader cBot or NinjaTrader strategy in C# (.cs) or rules written in plain words (.txt) - and reports code faults: wrong server clock, modules ",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "get_lab_status",
+      "descriptionHash": "4305403a9579c73572f98f262855ee15a929e7efc25c223c1fe572fc64701553",
+      "description": "Returns where a Strategy Lab stands - waiting for the rule card, waiting for the user's check, queued, running, done or watching forward - with the place in the queue, a rough wait, and once tested the verdict and its reason. Use it when the user asks how their test is going. It changes nothing in t",
+      "labels": [
+        "public-sink"
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOOL-POISON-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description issues instructions to the model",
+      "detail": "Description of \"test_strategy_code\" contains imperative instructions directed at the AI assistant rather than describing the tool. This is the core tool-poisoning technique.",
+      "evidence": {
+        "source": "tool:test_strategy_code",
+        "snippet": "Reads trading-strategy code - an MT5/MT4 Expert Advisor or indicator (.mq5/.mq4/.mqh/.set), a Python trading bot (.py), a TradingView Pine Script (.pine), a cTr…"
+      },
+      "confidence": 0.7,
+      "remediation": "Treat the server as untrusted; the model may obey embedded instructions."
+    },
+    {
+      "id": "MCP-SCHEMA-SMELL-001",
+      "severity": "medium",
+      "category": "schema-smell",
+      "title": "Read-only tool requests dangerous parameters",
+      "detail": "Tool \"test_strategy_code\" appears informational but accepts parameters (code) that enable code/file/secret access.",
+      "evidence": {
+        "source": "tool:test_strategy_code",
+        "snippet": "files, code, filename, email, name, symbols, timeframe, ai_draft"
+      },
+      "confidence": 0.55
+    },
+    {
+      "id": "MCP-TOOL-POISON-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description issues instructions to the model",
+      "detail": "Description of \"prompt:test-my-ea\" contains imperative instructions directed at the AI assistant rather than describing the tool. This is the core tool-poisoning technique.",
+      "evidence": {
+        "source": "tool:prompt:test-my-ea",
+        "snippet": "Guided start: what to attach for a free first read of an EA, indicator, bot or written rules."
+      },
+      "confidence": 0.7,
+      "remediation": "Treat the server as untrusted; the model may obey embedded instructions."
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: test_strategy_code · Private data: check_trading_record, test_strategy_code · Public sink: test_strategy_code, get_lab_status · Destructive: check_trading_record.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: test_strategy_code · Private data: check_trading_record, test_strategy_code · Public sink: test_strategy_code, get_lab_status · Destructive: check_trading_record"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 42,
+  "scoreBreakdown": {
+    "tool-poisoning": 30,
+    "schema-smell": 8,
+    "toxic-flow": 20
+  },
+  "errors": []
+}

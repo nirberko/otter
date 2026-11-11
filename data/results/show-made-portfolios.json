@@ -1,0 +1,100 @@
+{
+  "schemaVersion": 1,
+  "scanner": {
+    "version": "1.6.0",
+    "rules": "402995650b68"
+  },
+  "target": {
+    "kind": "url",
+    "ref": "https://made.show/api/mcp"
+  },
+  "scannedAt": "2026-11-11T12:12:59.740Z",
+  "durationMs": 1843,
+  "layers": {
+    "metadata": true,
+    "static": false
+  },
+  "tools": [
+    {
+      "name": "search_people",
+      "descriptionHash": "00ebcc89f2145f9a9679e0efad3c53afec56ad226b37329b2d77256062489cf3",
+      "description": "Find people across every public portfolio on made.show by free text (name with or without accents, headline, bio, role titles, organizations, skills), skills, location or availability. Returns short summaries with one suggested follow-up prompt each; call get_profile or get_portfolio for depth."
+    },
+    {
+      "name": "get_profile",
+      "descriptionHash": "5fb810edde9413215285bb23825fbd192f201b1dffb582f00f50095ce34a575f",
+      "description": "Start here whenever someone asks who a candidate is. Returns a ready-to-present introduction card (name, headline, current role, experience, strongest evidence, selected work, a quote) plus the underlying data. Present the card, then add one short paragraph relevant to the user's question."
+    },
+    {
+      "name": "get_portfolio",
+      "descriptionHash": "dd84f8eb9c6b8b8bd0fc816905c0300093482fc0ba17226b10e36b1f06bcf3d3",
+      "description": "The candidate's complete structured portfolio: experience, education, projects (problem / my part / approach / outcome / metrics / media), writing, references, languages and awards, plus computed facts like total experience and per-skill evidence. Pass `criteria` to also get an evidence map."
+    },
+    {
+      "name": "get_project",
+      "descriptionHash": "d3020ef593d013723729bb9ed91d39f459fafc25eb5e5ac362218d50780c7c72",
+      "description": "One project in full, by slug or id."
+    },
+    {
+      "name": "match_criteria",
+      "descriptionHash": "83076266629ec6e7539af1e1fc3cfb1296f42880bd6e0b37a21281e6bc54ac47",
+      "description": "Map your requirements to concrete evidence in the portfolio. Returns, per criterion, the matching projects/roles/education/writing (with ids you can use in publish_tailored_view), per-skill evidence, and gaps where no written evidence exists. Lexical and conservative: use your own judgment on top."
+    },
+    {
+      "name": "publish_tailored_view",
+      "descriptionHash": "f24a211e43f7d956df37d2a70236c611629f6e03cd8f0be65023eba4981ce779",
+      "description": "Compose a shareable portfolio page for your criteria, rendered in the candidate's own template. Each section is a criterion with the blocks (by kind + id from get_portfolio / match_criteria) that evidence it. You may add a short `note` per item explaining relevance; notes are labelled as AI-written.",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "request_work_sample",
+      "descriptionHash": "e1e6fdfd8d099f75b384399f0841489891c284a306b008d33a96521b2679b174",
+      "description": "Send a candidate a brief for a real work sample: what you need, the context and when you need it. Before sending, ask the user for anything missing (what they need, their company, their name and email) and show them the brief, since the candidate gets notified. The candidate accepts or declines in m",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "get_work_sample",
+      "descriptionHash": "f90653ad2424b70bd70bd7d62a8702b3fe78bfc5d0f676aa372ccf63e8d17e38",
+      "description": "Status of a brief sent with request_work_sample (requested, accepted, declined or submitted), and the candidate's work once submitted: summary, approach, rationale, media and links. Use when the user asks whether the candidate has replied."
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-SCHEMA-SMELL-001",
+      "severity": "medium",
+      "category": "schema-smell",
+      "title": "Read-only tool requests dangerous parameters",
+      "detail": "Tool \"request_work_sample\" appears informational but accepts parameters (context) that enable code/file/secret access.",
+      "evidence": {
+        "source": "tool:request_work_sample",
+        "snippet": "handle, company, contactName, contactEmail, title, description, context, deadline"
+      },
+      "confidence": 0.55
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: request_work_sample · Private data: request_work_sample · Public sink: publish_tailored_view, request_work_sample.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: request_work_sample · Private data: request_work_sample · Public sink: publish_tailored_view, request_work_sample"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 72,
+  "scoreBreakdown": {
+    "schema-smell": 8,
+    "toxic-flow": 20
+  },
+  "errors": []
+}

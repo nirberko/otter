@@ -8,8 +8,8 @@
     "kind": "url",
     "ref": "https://mapstools.googleapis.com/mcp"
   },
-  "scannedAt": "2026-11-05T12:30:42.374Z",
-  "durationMs": 443,
+  "scannedAt": "2026-11-11T12:00:23.324Z",
+  "durationMs": 412,
   "layers": {
     "metadata": true,
     "static": false
@@ -17,7 +17,7 @@
   "tools": [
     {
       "name": "search_places",
-      "descriptionHash": "2f092bb7b73bf5a2326527d345f0c51cc74139fe7cbe951ec7f018abccc45e31",
+      "descriptionHash": "10a703353655b85a943e57de33378d7c48f949269c8f920424a9583ac038cb51",
       "description": "Call this tool when the user's request is to find places, businesses, addresses, locations, points of interest, or any other Google Maps related search.\n\n**Input Requirements (CRITICAL):**\n\n1.  **`text_query` (string - MANDATORY):** The primary search query. This must clearly define what the user is",
       "labels": [
         "destructive"
@@ -25,18 +25,28 @@
     },
     {
       "name": "lookup_weather",
-      "descriptionHash": "165176602f55b65c99aac34d386f6c24dcacc303e194ab3419e96243bdcd04ac",
-      "description": "Retrieves comprehensive weather data including current conditions, hourly, and daily forecasts.\n\n**Specific Data Available:** Temperature (Current, Feels Like, Max/Min, Heat Index), Wind (Speed, Gusts, Direction), Celestial Events (Sunrise/Sunset, Moon Phase), Precipitation (Type, Probability, Quant",
+      "descriptionHash": "d4896954c6490c4e2a020c452aa2926576a311bc4aaa69c5afa5856d2ccfd8d3",
+      "description": "Retrieves comprehensive environmental intelligence for a location, including Weather, Air Quality (AQI & pollutants), and Pollen (tree, grass, weed, and plant species allergen levels): current conditions, hourly forecasts/history, and daily forecasts for Weather and Air Quality; Pollen is a daily fo",
       "labels": [
         "destructive"
       ]
     },
     {
       "name": "compute_routes",
-      "descriptionHash": "e51115275f6525400216fd9b2148c8c07d8f741792e8b9bbedc64e5044cc9c29",
+      "descriptionHash": "14aa92e89694c211adb4641e8387c0cc211c66e48624db37637a32534fc308e2",
       "description": "Computes travel routes between an origin and a destination, optionally through intermediate stops. Returns the distance and duration for each route.\n\n**Input Requirements (CRITICAL):**\n\n1.  **`origin` and `destination` (objects - MANDATORY):** Each must be provided using exactly one of:\n    *   **`a",
       "labels": [
+        "private-data",
         "destructive"
+      ]
+    },
+    {
+      "name": "search_along_route",
+      "descriptionHash": "4610e8c93071396ee6d66773338bc17ccdb4a8413bdde69b792c558b1043a4a5",
+      "description": "Call this tool when the user wants to find places, businesses, or points of interest along a travel route (e.g., \"gas stations on my way to Tahoe\", \"coffee shops between SF and San Jose\"). Calling this tool incurs higher cost than `search_places`, so use `search_places` instead when searching near a",
+      "labels": [
+        "untrusted-content",
+        "private-data"
       ]
     },
     {
@@ -73,6 +83,18 @@
       "confidence": 0.3
     },
     {
+      "id": "MCP-TOOL-POISON-007",
+      "severity": "low",
+      "category": "tool-poisoning",
+      "title": "Description uses pressure/override language",
+      "detail": "Description of \"lookup_weather\" stacks urgency/override words (never, mandatory). Legitimate tool descriptions rarely pressure the model to act or ignore prior guidance.",
+      "evidence": {
+        "source": "tool:lookup_weather",
+        "snippet": "Retrieves comprehensive environmental intelligence for a location, including Weather, Air Quality (AQI & pollutants), and Pollen (tree, grass, weed, and plant s…"
+      },
+      "confidence": 0.3
+    },
+    {
       "id": "MCP-TOOL-POISON-001",
       "severity": "high",
       "category": "tool-poisoning",
@@ -87,16 +109,42 @@
     },
     {
       "id": "MCP-TOXIC-FLOW-001",
-      "severity": "medium",
+      "severity": "high",
       "category": "toxic-flow",
-      "title": "Toxic flow: untrusted input can reach an external sink",
-      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: resolve_names, resolve_maps_urls · Public sink: resolve_names, resolve_maps_urls · Destructive: search_places, lookup_weather, compute_routes, resolve_names.",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: search_along_route, resolve_names, resolve_maps_urls · Private data: compute_routes, search_along_route · Public sink: resolve_names, resolve_maps_urls · Destructive: search_places, lookup_weather, compute_routes, resolve_names.",
       "evidence": {
         "source": "server:mcp",
-        "snippet": "Untrusted content: resolve_names, resolve_maps_urls · Public sink: resolve_names, resolve_maps_urls · Destructive: search_places, lookup_weather, compute_routes, resolve_names"
+        "snippet": "Untrusted content: search_along_route, resolve_names, resolve_maps_urls · Private data: compute_routes, search_along_route · Public sink: resolve_names, resolve_maps_urls · Destructive: search_places, lookup_weather, compute_routes, resolve_names"
       },
-      "confidence": 0.45,
+      "confidence": 0.6,
       "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"search_places\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:search_places",
+        "snippet": "before: \"Call this tool when the user's request is to find places, businesses, addresses, locations, points of interest, or any other Google Maps related search.\n\n**Input Requirements (CRITICAL):**\n\n1.  **`text_query` (string - MANDATORY):** The primary search query. This must clearly define what the user is\" → after: \"Call this tool when the user's request is to find places, businesses, addresses, locations, points of interest, or any other Google Maps related search.\n\n**Input Requirements (CRITICAL):**\n\n1.  **`text_query` (string - MANDATORY):** The primary search query. This must clearly define what the user is\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"lookup_weather\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:lookup_weather",
+        "snippet": "before: \"Retrieves comprehensive weather data including current conditions, hourly, and daily forecasts.\n\n**Specific Data Available:** Temperature (Current, Feels Like, Max/Min, Heat Index), Wind (Speed, Gusts, Direction), Celestial Events (Sunrise/Sunset, Moon Phase), Precipitation (Type, Probability, Quant\" → after: \"Retrieves comprehensive environmental intelligence for a location, including Weather, Air Quality (AQI & pollutants), and Pollen (tree, grass, weed, and plant species allergen levels): current conditions, hourly forecasts/history, and daily forecasts for Weather and Air Quality; Pollen is a daily fo\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
     },
     {
       "id": "MCP-RUGPULL-001",
@@ -106,42 +154,16 @@
       "detail": "Tool \"compute_routes\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
       "evidence": {
         "source": "tool:compute_routes",
-        "snippet": "before: \"Computes a travel route between a specified origin and destination. **Supported Travel Modes:** DRIVE (default), WALK.\n\n**Input Requirements (CRITICAL):**\nRequires both **origin** and **destination**. Each must be provided using one of the following methods, nested within its respective field:\n\n*   \" → after: \"Computes travel routes between an origin and a destination, optionally through intermediate stops. Returns the distance and duration for each route.\n\n**Input Requirements (CRITICAL):**\n\n1.  **`origin` and `destination` (objects - MANDATORY):** Each must be provided using exactly one of:\n    *   **`a\""
-      },
-      "confidence": 0.8,
-      "remediation": "Re-review the tool before continuing to trust it."
-    },
-    {
-      "id": "MCP-RUGPULL-001",
-      "severity": "high",
-      "category": "tool-poisoning",
-      "title": "Tool description changed since last scan",
-      "detail": "Tool \"resolve_names\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
-      "evidence": {
-        "source": "tool:resolve_names",
-        "snippet": "before: \"Resolves a batch list of specific location queries (landmark names or exact addresses) into canonical Google Maps Place IDs.\n\n**Input Requirements (CRITICAL):**\n\n1.  **`queries` (array of objects - MANDATORY):** A list of location queries to resolve. You may specify up to 20 queries.\n    *   **Each \" → after: \"Resolves a batch list of specific location queries (landmark names or exact addresses) into canonical Google Maps Place IDs.\n\n**Input Requirements (CRITICAL):**\n\n1.  **`queries` (array of objects - MANDATORY):** A list of location queries to resolve. You may specify up to 20 queries.\n    *   **Each \""
-      },
-      "confidence": 0.8,
-      "remediation": "Re-review the tool before continuing to trust it."
-    },
-    {
-      "id": "MCP-RUGPULL-001",
-      "severity": "high",
-      "category": "tool-poisoning",
-      "title": "Tool description changed since last scan",
-      "detail": "Tool \"resolve_maps_urls\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
-      "evidence": {
-        "source": "tool:resolve_maps_urls",
-        "snippet": "before: \"Resolves a list of Google Maps URLs into canonical Google Maps Place IDs.\n\n**When to call this tool (CRITICAL):**\n\n*   Use this tool when the user provides one or more Google Maps sharing links or URLs (e.g. 'https://maps.app.goo.gl/...', 'https://www.google.com/maps/place/...', or 'https://maps.goo\" → after: \"Resolves a list of Google Maps URLs into canonical Google Maps Place IDs.\n\n**When to call this tool (CRITICAL):**\n\n*   Use this tool when the user provides one or more Google Maps sharing links or URLs (e.g. 'https://maps.app.goo.gl/...', 'https://www.google.com/maps/place/...', or 'https://maps.goo\""
+        "snippet": "before: \"Computes travel routes between an origin and a destination, optionally through intermediate stops. Returns the distance and duration for each route.\n\n**Input Requirements (CRITICAL):**\n\n1.  **`origin` and `destination` (objects - MANDATORY):** Each must be provided using exactly one of:\n    *   **`a\" → after: \"Computes travel routes between an origin and a destination, optionally through intermediate stops. Returns the distance and duration for each route.\n\n**Input Requirements (CRITICAL):**\n\n1.  **`origin` and `destination` (objects - MANDATORY):** Each must be provided using exactly one of:\n    *   **`a\""
       },
       "confidence": 0.8,
       "remediation": "Re-review the tool before continuing to trust it."
     }
   ],
-  "score": 54,
+  "score": 42,
   "scoreBreakdown": {
     "tool-poisoning": 38,
-    "toxic-flow": 8
+    "toxic-flow": 20
   },
   "errors": []
 }
