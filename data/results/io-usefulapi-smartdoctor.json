@@ -1,0 +1,97 @@
+{
+  "schemaVersion": 1,
+  "scanner": {
+    "version": "1.6.0",
+    "rules": "402995650b68"
+  },
+  "target": {
+    "kind": "url",
+    "ref": "https://smartdoctor.usefulapi.io/mcp"
+  },
+  "scannedAt": "2026-11-12T13:07:53.684Z",
+  "durationMs": 236,
+  "layers": {
+    "metadata": true,
+    "static": false
+  },
+  "tools": [
+    {
+      "name": "smartdoctor_list_appointments",
+      "descriptionHash": "a1535a1a06f58ee52512f58216083a9be3d6dd15b60f17efecbfaf1137c49560",
+      "description": "List the clinic's appointments from a start date (default today), optionally for one patient or one status. Uses GET /integracao/agendas/listar."
+    },
+    {
+      "name": "smartdoctor_get_appointment",
+      "descriptionHash": "0cc52668bffba7c962440c6eb44440bfb6e2b4336c1bd7214353bbf4936eef48",
+      "description": "Get one appointment by id: date, time, status, specialty, doctor, unit, price and patient. Uses GET /integracao/agendas/{id}."
+    },
+    {
+      "name": "smartdoctor_check_appointment_conflict",
+      "descriptionHash": "5af91ca96e94bc39f2d7d4b8b8bb1af0db640e3dd988f88e3ae43938194eb574",
+      "description": "Check whether the patient already has an appointment on that date for that specialty, to avoid a double booking. An empty list means no conflict. Uses GET /integracao/agendas/verificar."
+    },
+    {
+      "name": "smartdoctor_list_free_slots",
+      "descriptionHash": "97a63d28299ddbce95d855c94dbada0f1d367f1275126efce06a1eab1e9dd79f",
+      "description": "List the free time slots per doctor for one specialty, before a time is offered to a patient. Read-only, sent as a POST. Uses POST /integracao/controle-agendas/horarios-disponiveis.",
+      "labels": [
+        "untrusted-content",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "smartdoctor_find_patient_by_cpf",
+      "descriptionHash": "167f868de8ee4eb14b693c23a1ee264fbda7428557ef0b32295818eaa2486bb8",
+      "description": "Check whether a CPF is already a patient of the clinic, and get the contact details. The answer has encontrado (true or false); when false, the patient is not registered. Uses GET /integracao/pacientes/cpf.",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "smartdoctor_list_prices",
+      "descriptionHash": "8fcb1c2090cc9264eb25e5ebdf27c3e2aa6c6adc4dbd714a83dbb997b55a3db8",
+      "description": "List the clinic's active specialties and their prices (convenio PARTICULAR and others). Uses GET /integracao/consultas-valor."
+    },
+    {
+      "name": "smartdoctor_create_appointment",
+      "descriptionHash": "9082b5c50c1668adb69bcc94e572826cc58da27bc9b781cedf5ea0fb6aeec6d1",
+      "description": "Book a consultation for a patient. Without a time, the first free time of the day is used. For a new patient (CPF not yet registered), patient_name, patient_phone and patient_birth_date are all required. The specialty needs a PARTICULAR price and a schedule on that date. Uses POST /integracao/agenda",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "smartdoctor_reschedule_appointment",
+      "descriptionHash": "5556dd328ce58dc1aaad16d1161767edf5744e34cd04dff407097d1e2a84e0ab",
+      "description": "Move an existing appointment to a new date and time. The new time must be free. Uses PUT /integracao/agendas with the appointment id."
+    },
+    {
+      "name": "smartdoctor_cancel_appointment",
+      "descriptionHash": "626dd9c6c3c4d515a1d6b5897e03736fa4c75c22012c91fe053b4d3a0adc68a6",
+      "description": "Cancel an appointment by id (status becomes CANCELADO). The appointment is kept in the clinic's records. Uses PUT /integracao/agendas.",
+      "labels": [
+        "private-data"
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: smartdoctor_list_free_slots · Private data: smartdoctor_find_patient_by_cpf, smartdoctor_cancel_appointment · Public sink: smartdoctor_list_free_slots, smartdoctor_create_appointment.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: smartdoctor_list_free_slots · Private data: smartdoctor_find_patient_by_cpf, smartdoctor_cancel_appointment · Public sink: smartdoctor_list_free_slots, smartdoctor_create_appointment"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 80,
+  "scoreBreakdown": {
+    "toxic-flow": 20
+  },
+  "errors": []
+}

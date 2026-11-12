@@ -1,0 +1,83 @@
+{
+  "schemaVersion": 1,
+  "scanner": {
+    "version": "1.6.0",
+    "rules": "402995650b68"
+  },
+  "target": {
+    "kind": "url",
+    "ref": "https://otovo.com/api/v1/mcp"
+  },
+  "scannedAt": "2026-11-12T12:54:58.041Z",
+  "durationMs": 673,
+  "layers": {
+    "metadata": true,
+    "static": false
+  },
+  "tools": [
+    {
+      "name": "get_my_otovo",
+      "descriptionHash": "25e473a3f18794601bdd77154cb4528f864e4feea75c002e7715209316d73d4d",
+      "description": "Reads what a customer can see in their Otovo portal, one view at a time. Changes nothing. With a scheduling code and no account, three views: booking_status (the address, services offered, the visit already scheduled and whether it can be moved or cancelled, open access questions, the support line),",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "find_inspection_times",
+      "descriptionHash": "98876f628342f630e284c2113782756750cc7d5e906b4734682ba4666d996c15",
+      "description": "Finds real inspection or panel-cleaning appointment times at a street address, for a person with no Otovo account or scheduling link. The times come from the dispatch planner, so a crew can reach the address in each one. Creates the person's customer record (name, contact details, address) so the pl",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "preview_change",
+      "descriptionHash": "9559e1f6e2c644e8c5aafdec0f2502394e5ccdefe177bdcbb1217beebd1077ab",
+      "description": "Prepares one change and returns a plain summary of exactly what it would do, with a preview_id. Changes nothing: the change happens only when that preview_id is confirmed. Without an account: book_appointment (code; body service_type, selected_slot exactly as booking_options returned it, location_id",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "confirm_change",
+      "descriptionHash": "f43f30b3ab8d87313adae11723c4fd349b06f6ac5b545b9626bc1179fb6d40a5",
+      "description": "Carries out exactly the change one preview described, using its preview_id, with confirmed=true meaning the customer approved that preview. Each preview_id stands for one change. An appointment receipt with status reconciliation_required means the outcome is not yet known. A change can update the cu"
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-SCHEMA-SMELL-001",
+      "severity": "medium",
+      "category": "schema-smell",
+      "title": "Read-only tool requests dangerous parameters",
+      "detail": "Tool \"get_my_otovo\" appears informational but accepts parameters (code) that enable code/file/secret access.",
+      "evidence": {
+        "source": "tool:get_my_otovo",
+        "snippet": "code, device_id, id, location_id, node_id, query, service_type, site_id, view, week_start"
+      },
+      "confidence": 0.55
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: preview_change · Private data: get_my_otovo, find_inspection_times, preview_change · Public sink: preview_change.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: preview_change · Private data: get_my_otovo, find_inspection_times, preview_change · Public sink: preview_change"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 72,
+  "scoreBreakdown": {
+    "schema-smell": 8,
+    "toxic-flow": 20
+  },
+  "errors": []
+}

@@ -1,0 +1,122 @@
+{
+  "schemaVersion": 1,
+  "scanner": {
+    "version": "1.6.0",
+    "rules": "402995650b68"
+  },
+  "target": {
+    "kind": "url",
+    "ref": "https://nero-reviews.nerolabs.workers.dev/mcp"
+  },
+  "scannedAt": "2026-11-12T13:03:47.281Z",
+  "durationMs": 586,
+  "layers": {
+    "metadata": true,
+    "static": false
+  },
+  "tools": [
+    {
+      "name": "register_trade",
+      "descriptionHash": "ce84335424f20785afb50eff891527961c2df8c817a995b3f81cf17811941fe6",
+      "description": "Sets up a tradesperson's business once, with their name, colours, logo and optional Google review link. Returns a trade_key (save it; every other tool needs it, and it cannot be shown again), the public trade page link, and a nero_trade_ref that carries the history into Nero Work. No human sign-up f",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "update_trade",
+      "descriptionHash": "59b053e9dd5ccb9a9424a14f266341b2fda62611f84323a3d46da784251af459",
+      "description": "Changes the business details shown on the review pages: name, trade, town, brand colours, logo link or Google review link. Only the fields given change. Returns the trade page link."
+    },
+    {
+      "name": "job_done",
+      "descriptionHash": "882e3b7f6fd5a215596a997317b9b2a14f9384f3d1f22901a9d3df4fe5dd8751",
+      "description": "Call this after EVERY finished job, whether the customer seemed happy or not, for example when the trade says \"job done for Mrs Patel\". Returns a one-time review link, a ready-to-send neutral message (message_to_send), and WhatsApp and SMS share links. Nero sends nothing: you or the trade send the m",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "my_score",
+      "descriptionHash": "14624929d8f747c4f98511a41a53d9fa039f7b745cbecab7167d044ec53415cb",
+      "description": "Answers \"what's my score\", \"what's my level\", \"how many reviews have I got\" or \"any new reviews\". Returns `spoken`, one short paragraph to read aloud as it is, plus the score (average stars to one decimal, same maths as Nero Work), number of reviews, verified jobs, level (New, Level 5 at 10 jobs, Le",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "list_reviews",
+      "descriptionHash": "362af3906dceec50ed4a9a41483fdd6002e83fab6fa146afea091ea3de90b11d",
+      "description": "Lists every review for the business, newest first (the only order offered; reviews are never sorted by stars), with stars, words, reviewer, job, date and any reply. Use limit and offset to page through.",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "reply_to_review",
+      "descriptionHash": "f1cd1b032b33c7d74087f1a6afd0fcb21e9be130e2059e8ec515fe84c3c1ff53",
+      "description": "Posts the trade's one public reply under a review (replies are final; the review itself never changes). Use it for every 1 to 3 star review: a calm, specific reply is what future customers read, and my_score lists the low reviews still waiting for one. The reply is checked and refused, with the reas",
+      "labels": [
+        "untrusted-content",
+        "public-sink",
+        "destructive"
+      ]
+    },
+    {
+      "name": "dispute_review",
+      "descriptionHash": "379272f249ac337a0db7bb228d9ac6749af94c66321cb8bf746123a71541e978",
+      "description": "The dispute desk. Call it when the trade says a review is unfair, untrue, from someone who was not their customer, blackmail (\"refund me or I leave 1 star\"), or contains private details, abuse or something legally wrong. It settles the dispute straight away from fixed rules (no person reads it, exce",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "export_history",
+      "descriptionHash": "c7e9cd5cf9212eb54686eab15ab331cde43eb655f886a66d7f54f38aae217fd4",
+      "description": "Returns the business's full record (every logged job, every rating, the totals in Nero Work's own field names, branding and nero_trade_ref) so the history can be loaded into Nero Work, the agent job exchange for trades, or kept as a backup.",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "review_rules",
+      "descriptionHash": "17dc0a96c6608daef54dad764a80c6103a718f84936c16d2a80ad1815aa1daaf",
+      "description": "Explains the review law rules Nero Reviews enforces (UK DMCC Act 2024 and CMA fake review guidance) in plain words, so you can explain to the trade why, for example, they cannot pick which customers to ask."
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"register_trade\" references sensitive artifacts (password). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:register_trade",
+        "snippet": "Sets up a tradesperson's business once, with their name, colours, logo and optional Google review link. Returns a trade_key (save it; every other tool needs it,…"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: my_score, list_reviews, reply_to_review, dispute_review · Private data: register_trade, dispute_review, export_history · Public sink: job_done, reply_to_review, dispute_review · Destructive: reply_to_review.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: my_score, list_reviews, reply_to_review, dispute_review · Private data: register_trade, dispute_review, export_history · Public sink: job_done, reply_to_review, dispute_review · Destructive: reply_to_review"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 60,
+  "scoreBreakdown": {
+    "tool-poisoning": 20,
+    "toxic-flow": 20
+  },
+  "errors": []
+}

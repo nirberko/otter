@@ -8,8 +8,8 @@
     "kind": "url",
     "ref": "https://redact.aigine.se/mcp"
   },
-  "scannedAt": "2026-11-10T13:00:28.919Z",
-  "durationMs": 1488,
+  "scannedAt": "2026-11-12T13:08:26.958Z",
+  "durationMs": 1591,
   "layers": {
     "metadata": true,
     "static": false
@@ -17,30 +17,28 @@
   "tools": [
     {
       "name": "create_upload_link",
-      "descriptionHash": "51d343271e085d3dbfa4f4be5669b39ed3b59bb14510f2a49d47979e184d103a",
-      "description": "Opens an interactive inline Drag & Drop EU upload widget directly inside supporting chat clients (MCP Apps) AND returns a temporary zero-retention EU upload URL (upload_url) so a user can upload a PDF, DOCX, PPTX, or image directly to Aigine in the EU.",
+      "descriptionHash": "8027cba3bb54ec5439f26687193ec34c259010b07304f5f0426a1f6d662c2ed7",
+      "description": "Aigine Redact detects and masks personal data and confidential information in documents. This opens a secure upload button so you can send a PDF, DOCX, PPTX or image (up to 50 MB) directly to Aigine's EU server. The file never passes through the chat. Returns an upload_id, valid for 15 minutes, for ",
       "labels": [
-        "public-sink",
-        "destructive"
-      ]
-    },
-    {
-      "name": "propose_masking",
-      "descriptionHash": "419d55c6187bf7b21f4c8df912b9d96276ebf7a76080c8757b8b2f048f3cbceb",
-      "description": "Identify and mask personal data (GDPR direct, indirect, and sensitive Art. 9) and confidential information (OSL / trade secrets) in documents (PDF, DOCX, PPTX, images) in the EU using specialized descriptive encoder AI (98%+ accuracy, flattened irreversible PDF, strict zero retention). RULES: (1) AU",
-      "labels": [
-        "untrusted-content",
         "private-data",
         "public-sink"
       ]
     },
     {
-      "name": "fetch_reviewed_document",
-      "descriptionHash": "a1e429bf8d54d9f00d567da233139c1615316edeafba138e8861adb40d257e88",
-      "description": "INTERACTIVE HUMAN MODE ONLY (autonomous agents must never call this tool). After a human finishes validating at review_url and clicks 'Redact' (where they can also click 'Open redacted PDF' directly in the browser), call this tool with doc_id to get a temporary download_url for the masked PDF and im",
+      "name": "propose_masking",
+      "descriptionHash": "82576e015377c82c1addd6997112d455dfdc360f4f968be46beecc0d99d8d8a3",
+      "description": "Detects and masks personal data (GDPR, including Art. 9 special categories) and confidential information (trade secrets, procurement tenders, FOIA exemptions, and statutory secrecy such as Swedish OSL) in a PDF, DOCX, PPTX, or image document. Takes the document as upload_id (from create_upload_link)",
       "labels": [
-        "private-data",
-        "destructive"
+        "private-data"
+      ]
+    },
+    {
+      "name": "fetch_reviewed_document",
+      "descriptionHash": "879d51a6c65a9fa991b40f1fe093a29d58a57d96e6c0a66255b884403529704a",
+      "description": "Returns a temporary download_url for the masked PDF of a document whose web GUI review is finished (doc_id from propose_masking). After delivery, the document is deleted from the processing server.",
+      "labels": [
+        "untrusted-content",
+        "private-data"
       ]
     }
   ],
@@ -53,39 +51,66 @@
       "detail": "Description of \"propose_masking\" references sensitive artifacts (secret). A tool description has no reason to mention credentials.",
       "evidence": {
         "source": "tool:propose_masking",
-        "snippet": "Identify and mask personal data (GDPR direct, indirect, and sensitive Art. 9) and confidential information (OSL / trade secrets) in documents (PDF, DOCX, PPTX, …"
+        "snippet": "Detects and masks personal data (GDPR, including Art. 9 special categories) and confidential information (trade secrets, procurement tenders, FOIA exemptions, a…"
       },
       "confidence": 0.65
-    },
-    {
-      "id": "MCP-TOOL-POISON-007",
-      "severity": "low",
-      "category": "tool-poisoning",
-      "title": "Description uses pressure/override language",
-      "detail": "Description of \"fetch_reviewed_document\" stacks urgency/override words (immediately, never). Legitimate tool descriptions rarely pressure the model to act or ignore prior guidance.",
-      "evidence": {
-        "source": "tool:fetch_reviewed_document",
-        "snippet": "INTERACTIVE HUMAN MODE ONLY (autonomous agents must never call this tool). After a human finishes validating at review_url and clicks 'Redact' (where they can a…"
-      },
-      "confidence": 0.3
     },
     {
       "id": "MCP-TOXIC-FLOW-001",
       "severity": "high",
       "category": "toxic-flow",
       "title": "Lethal trifecta: untrusted input + private data + external sink",
-      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: propose_masking · Private data: propose_masking, fetch_reviewed_document · Public sink: create_upload_link, propose_masking · Destructive: create_upload_link, fetch_reviewed_document.",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: fetch_reviewed_document · Private data: create_upload_link, propose_masking, fetch_reviewed_document · Public sink: create_upload_link.",
       "evidence": {
         "source": "server:mcp",
-        "snippet": "Untrusted content: propose_masking · Private data: propose_masking, fetch_reviewed_document · Public sink: create_upload_link, propose_masking · Destructive: create_upload_link, fetch_reviewed_document"
+        "snippet": "Untrusted content: fetch_reviewed_document · Private data: create_upload_link, propose_masking, fetch_reviewed_document · Public sink: create_upload_link"
       },
       "confidence": 0.6,
       "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"create_upload_link\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:create_upload_link",
+        "snippet": "before: \"Opens an interactive inline Drag & Drop EU upload widget directly inside supporting chat clients (MCP Apps) AND returns a temporary zero-retention EU upload URL (upload_url) so a user can upload a PDF, DOCX, PPTX, or image directly to Aigine in the EU.\" → after: \"Aigine Redact detects and masks personal data and confidential information in documents. This opens a secure upload button so you can send a PDF, DOCX, PPTX or image (up to 50 MB) directly to Aigine's EU server. The file never passes through the chat. Returns an upload_id, valid for 15 minutes, for \""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"propose_masking\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:propose_masking",
+        "snippet": "before: \"Identify and mask personal data (GDPR direct, indirect, and sensitive Art. 9) and confidential information (OSL / trade secrets) in documents (PDF, DOCX, PPTX, images) in the EU using specialized descriptive encoder AI (98%+ accuracy, flattened irreversible PDF, strict zero retention). RULES: (1) AU\" → after: \"Detects and masks personal data (GDPR, including Art. 9 special categories) and confidential information (trade secrets, procurement tenders, FOIA exemptions, and statutory secrecy such as Swedish OSL) in a PDF, DOCX, PPTX, or image document. Takes the document as upload_id (from create_upload_link)\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"fetch_reviewed_document\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:fetch_reviewed_document",
+        "snippet": "before: \"INTERACTIVE HUMAN MODE ONLY (autonomous agents must never call this tool). After a human finishes validating at review_url and clicks 'Redact' (where they can also click 'Open redacted PDF' directly in the browser), call this tool with doc_id to get a temporary download_url for the masked PDF and im\" → after: \"Returns a temporary download_url for the masked PDF of a document whose web GUI review is finished (doc_id from propose_masking). After delivery, the document is deleted from the processing server.\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
     }
   ],
-  "score": 59,
+  "score": 43,
   "scoreBreakdown": {
-    "tool-poisoning": 22,
+    "tool-poisoning": 38,
     "toxic-flow": 20
   },
   "errors": []
