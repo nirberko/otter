@@ -8,8 +8,8 @@
     "kind": "url",
     "ref": "https://tfrooms.com/mcp"
   },
-  "scannedAt": "2026-11-06T12:33:42.657Z",
-  "durationMs": 603,
+  "scannedAt": "2026-11-13T12:42:24.623Z",
+  "durationMs": 984,
   "layers": {
     "metadata": true,
     "static": false
@@ -17,13 +17,13 @@
   "tools": [
     {
       "name": "find_rooms",
-      "descriptionHash": "b925d6b88acff337f2866ee9c3f7c333d7a7bcb0d3a61e9fbc42762447298c7f",
-      "description": "Which of the twelve New Leaf properties in Twin Falls has a room free tonight or on particular nights. Asks all twelve live at the moment you call it. Give the dates: the published availability feeds carry CAPACITY, not vacancy, and say nothing about which nights are taken. With no dates it answers "
+      "descriptionHash": "d224f57e5040c3bd8faaa93fca388f53fd0a4ac142306ccd467742ecaa08efea",
+      "description": "Which of the twelve New Leaf properties in Twin Falls has a room free tonight or on particular nights. Checks all twelve live for the requested dates. The published availability feeds carry CAPACITY, not vacancy, and say nothing about which nights are taken. With no dates it answers for tonight and "
     },
     {
       "name": "list_properties",
-      "descriptionHash": "62301a428fb58d868fd7e6cfc4672d5b91894f48f8f539393187c8cf8d541930",
-      "description": "All twelve New Leaf properties: name, address, phone, which room types each sells online, its rates and its booking URL. Static facts only — it says nothing about whether a room is free tonight. Use find_rooms for that.",
+      "descriptionHash": "199710db48ae5693ec634f300ed304493952d12c91ec267988e6f9e994c01649",
+      "description": "All twelve New Leaf properties: name, address, phone, which room types each sells online, its rates and its booking URL. Static facts only; it says nothing about whether a room is free tonight.",
       "labels": [
         "untrusted-content"
       ]
@@ -35,12 +35,106 @@
     },
     {
       "name": "quote_stay",
-      "descriptionHash": "574e403553ac228c2509cc56c7dd96e50adc9e35c9d33debf704374cd4ef5ccf",
-      "description": "The total for one stay at one New Leaf property: the nights, the tax and what is paid at the property. Asks that property live and returns its answer word for word, so the figure is the one its booking form uses, and passes on its refusal when a stay cannot be sold. Use it once the property, room ty"
+      "descriptionHash": "08aa1b0e8b269ff4eb1b27a70cb3f4f8cdbad22b8a524c40ca3c59887b5d4679",
+      "description": "The total for one stay at one New Leaf property: the nights, the tax and what is paid at the property. Asks that property live and returns its quote, with source attribution on booking links, so the figure is the one its booking form uses, and passes on its refusal when a stay cannot be sold. Requir"
+    },
+    {
+      "name": "start_booking",
+      "descriptionHash": "84e32c738a0a7b334f57409018110fb653c918f5b7ebdcce63c13d6744502d7f",
+      "description": "Validates and prices a stay, checks current availability without holding a room, and emails a six-digit code. Requires the property, room type, dates, guest name, email and contact phone. The intent and code last 15 minutes. An identical start while its intent remains open returns the same booking_i",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "confirm_booking",
+      "descriptionHash": "5757c2f06825736c46627c03ab28a426844269f0314c22fec4c6e634c8a7f96c",
+      "description": "Verifies the code the guest received by email for a booking_id, then holds an available room and submits the reservation for staff confirmation within 24 hours. Requires that booking_id and six-digit code. Repeating the same valid pair returns the same reservation. After email proof, checks stays ma",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "get_booking",
+      "descriptionHash": "15fea22c6e8006dce7e9f334238a0c1857d04bcb0ff6bc9f3f421ba482030312",
+      "description": "Reads a reservation status, property, room type, dates and total using its reservation number and the last four digits of its contact phone. Does not return the guest name, email or full phone. Well-formed references with incorrect details return no reservation found; only failed lookups count towar",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "cancel_booking",
+      "descriptionHash": "95e9a0c274e1e5840c616dab6fa10bb634c063f653d1975c62056ab1bce3a01c",
+      "description": "Cancels in two steps. The first mode takes reservation_number and phone_last4, emails a code and returns cancel_id. The second mode takes cancel_id and code, cancels the reservation, releases the room and notifies staff and guest. Automated cancellation is available more than 48 hours before check-i",
+      "labels": [
+        "untrusted-content"
+      ]
     }
   ],
-  "findings": [],
-  "score": 100,
-  "scoreBreakdown": {},
+  "findings": [
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: list_properties, start_booking, confirm_booking, get_booking, cancel_booking · Private data: start_booking, confirm_booking, get_booking · Public sink: start_booking, confirm_booking, get_booking.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: list_properties, start_booking, confirm_booking, get_booking, cancel_booking · Private data: start_booking, confirm_booking, get_booking · Public sink: start_booking, confirm_booking, get_booking"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"find_rooms\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:find_rooms",
+        "snippet": "before: \"Which of the twelve New Leaf properties in Twin Falls has a room free tonight or on particular nights. Asks all twelve live at the moment you call it. Give the dates: the published availability feeds carry CAPACITY, not vacancy, and say nothing about which nights are taken. With no dates it answers \" → after: \"Which of the twelve New Leaf properties in Twin Falls has a room free tonight or on particular nights. Checks all twelve live for the requested dates. The published availability feeds carry CAPACITY, not vacancy, and say nothing about which nights are taken. With no dates it answers for tonight and \""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"list_properties\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:list_properties",
+        "snippet": "before: \"All twelve New Leaf properties: name, address, phone, which room types each sells online, its rates and its booking URL. Static facts only — it says nothing about whether a room is free tonight. Use find_rooms for that.\" → after: \"All twelve New Leaf properties: name, address, phone, which room types each sells online, its rates and its booking URL. Static facts only; it says nothing about whether a room is free tonight.\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"quote_stay\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:quote_stay",
+        "snippet": "before: \"The total for one stay at one New Leaf property: the nights, the tax and what is paid at the property. Asks that property live and returns its answer word for word, so the figure is the one its booking form uses, and passes on its refusal when a stay cannot be sold. Use it once the property, room ty\" → after: \"The total for one stay at one New Leaf property: the nights, the tax and what is paid at the property. Asks that property live and returns its quote, with source attribution on booking links, so the figure is the one its booking form uses, and passes on its refusal when a stay cannot be sold. Requir\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    }
+  ],
+  "score": 45,
+  "scoreBreakdown": {
+    "toxic-flow": 20,
+    "tool-poisoning": 35
+  },
   "errors": []
 }

@@ -8,8 +8,8 @@
     "kind": "url",
     "ref": "https://youtube-transcript.ai/mcp"
   },
-  "scannedAt": "2026-10-31T10:42:27.247Z",
-  "durationMs": 1126,
+  "scannedAt": "2026-11-13T12:38:09.811Z",
+  "durationMs": 726,
   "layers": {
     "metadata": true,
     "static": false
@@ -41,11 +41,38 @@
     },
     {
       "name": "get_transcripts_batch",
-      "descriptionHash": "771b97e49a8104d7fbf35c7cf4abe502120ab56e887f8863dd774744186d3420",
-      "description": "Read the transcripts of several videos in one call (up to 5), each cut to a length you choose, so you can skim a set of search results without filling your context. Each video counts as one request against your daily quota. For the rest of a long video use find_in_transcript or get_youtube_transcrip",
+      "descriptionHash": "84c3687c6649e115842a35fe4c2223e9ffd74bce5dc89c8ac01af91762cf85ec",
+      "description": "Read the transcripts of several videos in one call (up to 5, or 25 on the Ultra plan), each cut to a length you choose, so you can skim a set of search results without filling your context. Each video counts as one request against your daily quota. For the rest of a long video use find_in_transcript",
       "labels": [
         "untrusted-content"
       ]
+    },
+    {
+      "name": "get_video_details",
+      "descriptionHash": "fb0b84a3176d6fcc30e92438f250ef13a8a11d0c41dc02cae68a4d2dc5aedd11",
+      "description": "Get the facts about one video without its transcript: title, channel, views, length, publish date, which caption languages exist (human-made or auto-generated), the full description, and the chapter list with a link to each chapter. Use it to decide whether a video is worth reading, to find the righ",
+      "labels": [
+        "untrusted-content",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "get_transcript_section",
+      "descriptionHash": "3913b302ddf173e061986a55e7129cd45fc422ad804a48d119c8e8a23f58e4db",
+      "description": "Read only part of a transcript, between two timestamps, e.g. one chapter of a long podcast or the ten minutes around a moment found with find_in_transcript. Much smaller than the full transcript.",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "find_in_videos",
+      "descriptionHash": "9fa84376c8d5a198f0e7e4e78e2041c19623dbfa1f072284c83cf35c34fc3f44",
+      "description": "Search several videos for the same keywords in one call and get back only the matching passages, grouped by video, plus which videos never mention them. Use it to check a set of search results or a channel's latest uploads for a topic without reading them all. Up to 5 videos per call, or 25 on the U"
+    },
+    {
+      "name": "latest_from_channels",
+      "descriptionHash": "604d2c9440f0649e0b06bfb3968698bc521090aa0f47effe66157d9bd0006f12",
+      "description": "See what several channels uploaded most recently, in one call: the newest videos of each channel, newest first. Use it as a watchlist (\"anything new from these creators?\"), then skim the new videos with get_transcripts_batch or check them for a topic with find_in_videos. Up to 5 channels per call, o"
     },
     {
       "name": "get_video_comments",
@@ -109,11 +136,51 @@
         "snippet": "video, keywords, context, max_hits, lang"
       },
       "confidence": 0.55
+    },
+    {
+      "id": "MCP-SCHEMA-SMELL-001",
+      "severity": "medium",
+      "category": "schema-smell",
+      "title": "Read-only tool requests dangerous parameters",
+      "detail": "Tool \"find_in_videos\" appears informational but accepts parameters (context) that enable code/file/secret access.",
+      "evidence": {
+        "source": "tool:find_in_videos",
+        "snippet": "videos, keywords, context, max_hits_each, lang"
+      },
+      "confidence": 0.55
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: get_youtube_transcript, find_in_transcript, get_transcripts_batch, get_video_details, get_transcript_section, get_video_comments, search_spoken_words · Private data: get_account_status · Public sink: get_video_details · Destructive: search_youtube_videos.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: get_youtube_transcript, find_in_transcript, get_transcripts_batch, get_video_details, get_transcript_section, get_video_comments, search_spoken_words · Private data: get_account_status · Public sink: get_video_details · Destructive: search_youtube_videos"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"get_transcripts_batch\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:get_transcripts_batch",
+        "snippet": "before: \"Read the transcripts of several videos in one call (up to 5), each cut to a length you choose, so you can skim a set of search results without filling your context. Each video counts as one request against your daily quota. For the rest of a long video use find_in_transcript or get_youtube_transcrip\" → after: \"Read the transcripts of several videos in one call (up to 5, or 25 on the Ultra plan), each cut to a length you choose, so you can skim a set of search results without filling your context. Each video counts as one request against your daily quota. For the rest of a long video use find_in_transcript\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
     }
   ],
-  "score": 92,
+  "score": 48,
   "scoreBreakdown": {
-    "schema-smell": 8
+    "schema-smell": 12,
+    "toxic-flow": 20,
+    "tool-poisoning": 20
   },
   "errors": []
 }

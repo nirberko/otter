@@ -1,0 +1,116 @@
+{
+  "schemaVersion": 1,
+  "scanner": {
+    "version": "1.6.0",
+    "rules": "402995650b68"
+  },
+  "target": {
+    "kind": "url",
+    "ref": "https://kuotia.com/mcp"
+  },
+  "scannedAt": "2026-11-13T12:22:41.941Z",
+  "durationMs": 1734,
+  "layers": {
+    "metadata": true,
+    "static": false
+  },
+  "tools": [
+    {
+      "name": "kuotia_get_tax_calendar",
+      "descriptionHash": "403837fb28f99d9b9868aec65cacae7a5dd3ce2356a4476e76e3237f37cd0a97",
+      "description": "Use this when someone asks until when an autónomo in Spain can file or pay a specific tax return (modelo 303 IVA, 130 IRPF, 111, 115, 390, 347, 180, 190 or 100 renta) for a given tax period, or the last day to pay it by domiciliación. Give the modelo and the tax period it declares (for example 303 f",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "kuotia_estimate_reta",
+      "descriptionHash": "aca9884d18528f8344b5dd10c4b240ce21c195fe890fbe7b0d043bf0f1ddef2e",
+      "description": "Use this when someone asks how much cuota de autónomos (RETA, Seguridad Social) they would pay in Spain, or which tramo applies, from expected yearly income and expenses. Assumes a full year of activity as a persona física autónoma (not societario) in estimación directa simplificada of the common IR"
+    },
+    {
+      "name": "kuotia_estimate_net_income",
+      "descriptionHash": "7825d3d44a3f13b2b61f4b7865c600db0aa16c6d731b4b847f2c7b4f563fae0e",
+      "description": "Use this when an autónomo in mainland Spain or Baleares asks roughly how much IRPF and cuota de autónomos they would pay in a year and how much they would keep, from yearly income, expenses and comunidad autónoma. Income and expenses are yearly amounts without recoverable VAT and without their own c"
+    },
+    {
+      "name": "kuotia_get_autonomo_guide",
+      "descriptionHash": "483d6669a7c224ef33d8b651b54fe87bcef72a0a0e761f739c471860a6f6bbe3",
+      "description": "Use this when someone asks how to become autónomo in Spain (alta in Hacienda with modelo 036 and in the RETA), what an autónomo files each quarter and year, how IVA, IRPF retención and the cuota de autónomos work, what an invoice must contain, what a gestoría or gestor does, whether an autónomo need",
+      "labels": [
+        "untrusted-content",
+        "private-data"
+      ]
+    },
+    {
+      "name": "gestoria_get_tax_status",
+      "descriptionHash": "bf9c863afcd74cde7b1b1a57e624916d4265a1f8aae621b12124dd1157fcf2c0",
+      "description": "Use this when a connected Kuotia gestoría client asks how their taxes are going: which periods are being prepared, ready to file or filed, deadlines, and the amounts their gestor has made ready or filed. Amounts appear only for ready or filed returns. Read only: it never files, approves or changes a",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "gestoria_get_obligations",
+      "descriptionHash": "93335fa3ffad4e340870264eae8fbaedc3f441ea524dd00001ff6fbd307d363f",
+      "description": "Use this when a connected gestoría client asks which returns they must file in a year and by when, as their gestor confirmed them. Do not use for someone who is not a connected client.",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "gestoria_list_requests",
+      "descriptionHash": "1e20d75a4e8f70991f9110707e90d1194d24cfd77cf933c61905979f835316db",
+      "description": "Use this when a connected gestoría client asks what their gestor needs from them or whether something they sent arrived. Lists each pending or sent request with its type, period, due date and a portal link; the client answers in the Kuotia portal. Do not use to answer or create requests."
+    },
+    {
+      "name": "gestoria_send_message",
+      "descriptionHash": "fdfccf64a2e2508ea0b44f9e7e8d394fc8b10568676ddea23d7d0df8f198fc2a",
+      "description": "Use this when a connected Kuotia gestoría client explicitly asks to send a text message to their gestor (a question, a heads-up, a reply). It sends exactly the text the client approved, as the client, to their own gestor in the Kuotia portal, where the gestor answers; it cannot be unsent. Show the f",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "kuotia_action_receipts",
+      "descriptionHash": "2afae9ddbf5e55604d113abf64a02305c8c6bcd9339f69a0557004f088b97efa",
+      "description": "Use this after a message sent with gestoria_send_message, or another write made through this connection, had an uncertain outcome (a timeout or an error), to see whether it completed before trying again. Never repeat an uncertain action with a new idempotency_key before checking. It lists only this "
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOOL-POISON-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description issues instructions to the model",
+      "detail": "Description of \"gestoria_send_message\" contains imperative instructions directed at the AI assistant rather than describing the tool. This is the core tool-poisoning technique.",
+      "evidence": {
+        "source": "tool:gestoria_send_message",
+        "snippet": "Use this when a connected Kuotia gestoría client explicitly asks to send a text message to their gestor (a question, a heads-up, a reply). It sends exactly the …"
+      },
+      "confidence": 0.7,
+      "remediation": "Treat the server as untrusted; the model may obey embedded instructions."
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: kuotia_get_autonomo_guide, gestoria_send_message · Private data: kuotia_get_tax_calendar, kuotia_get_autonomo_guide, gestoria_get_tax_status, gestoria_get_obligations, gestoria_send_message · Public sink: gestoria_send_message.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: kuotia_get_autonomo_guide, gestoria_send_message · Private data: kuotia_get_tax_calendar, kuotia_get_autonomo_guide, gestoria_get_tax_status, gestoria_get_obligations, gestoria_send_message · Public sink: gestoria_send_message"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 60,
+  "scoreBreakdown": {
+    "tool-poisoning": 20,
+    "toxic-flow": 20
+  },
+  "errors": []
+}

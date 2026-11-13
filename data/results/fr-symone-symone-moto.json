@@ -8,8 +8,8 @@
     "kind": "url",
     "ref": "https://symone.fr/mcp"
   },
-  "scannedAt": "2026-10-31T10:46:42.449Z",
-  "durationMs": 1128,
+  "scannedAt": "2026-11-13T12:43:58.985Z",
+  "durationMs": 1856,
   "layers": {
     "metadata": true,
     "static": false
@@ -17,11 +17,8 @@
   "tools": [
     {
       "name": "search_routes",
-      "descriptionHash": "ec9d17640341eeb108b89483cf8988df3914127b6b499c210a5bbf164853b56a",
-      "description": "Search available motorcycle transport routes in France. Filter by departure city, arrival city, and date range. Returns paginated results with dates, prices, available slots, a next_cursor for the following page, and the booking URL. Primary route: Paris–Marseille from 299€. No authentication requir",
-      "labels": [
-        "untrusted-content"
-      ]
+      "descriptionHash": "e14839f78e8e060d7ef542c7a1f0485081f1bd4b725eb17fe250edcee75147ef",
+      "description": "Search available motorcycle transport routes in France. Filter by departure city, arrival city, and date range. Returns paginated results with dates, prices, available slots, a next_cursor for the following page, and for each trip a booking_url that opens its booking page on symone.fr (the stops sea"
     },
     {
       "name": "cities_near",
@@ -30,16 +27,104 @@
     },
     {
       "name": "get_booking_url",
-      "descriptionHash": "70141d7e19315453d3ffaec778813d5988af2cc64d56afe4a159d691cf06bba4",
-      "description": "Get the link the user must open to book a scheduled SYMONE trip or to request a quote for another route or date, plus reservation contacts. With route_id (from search_routes) the trip details are repeated next to the link. Booking and payment happen on symone.fr only.",
+      "descriptionHash": "da648cd80985f65672dd5f61a3f0e40f487f50b432e9abc7ca6ac12771bcd6af",
+      "description": "Get the link the user must open to book a scheduled SYMONE trip or to request a quote for another route or date, plus reservation contacts. With route_id (from search_routes) the trip details are repeated next to the link. With need \"quote\" and the trip details, the link opens the quote form already",
       "labels": [
         "untrusted-content",
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "request_quote",
+      "descriptionHash": "c2c810790703f62adc69c66141480b8c2d82d728294e773149c479965476872a",
+      "description": "Send a quote request (demande de devis) to SYMONE for the customer, for any route and date, including routes not listed by search_routes. Nothing is recorded until the customer confirms: SYMONE e-mails them a link (valid 48 h) to check the request, accept the terms and confirm. The quote then arrive",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "get_quote_request",
+      "descriptionHash": "1f06ed27720d378a60f74174595fb6c58c4895d9db01aa6395f4a9851638cc96",
+      "description": "Status of a quote request sent with request_quote: pending_confirmation (waiting for the customer to click the e-mail link), confirmed (recorded; the quote comes by e-mail), expired, cancelled_by_customer, superseded or failed."
+    },
+    {
+      "name": "create_checkout",
+      "descriptionHash": "f8cdb1a7513865f1fd97776d40ff8753bb842d58f2c2e5c1da8e829f25f7c7ee",
+      "description": "Prepare the booking of a scheduled trip from search_routes (UCP checkout). SYMONE computes the price; payment never goes through the assistant: the response has status requires_escalation and a continue_url. Give that link to the customer, who checks the booking on symone.fr and pays on the secure P"
+    },
+    {
+      "name": "get_checkout",
+      "descriptionHash": "268dc8587436099641cff5b3cb5f49b9757e26ea09dafdf7325f951667a22ff8",
+      "description": "Current state of a checkout session: requires_escalation (the customer still has to open continue_url and pay), completed (paid; order id given), incomplete (trip no longer bookable: choose another) or canceled (expired after 24 h, canceled, or turned into a quote request). The price is recomputed a"
+    },
+    {
+      "name": "update_checkout",
+      "descriptionHash": "06b6d593ff2cf0f00aa0077d6c43093ecc8afb32da6f3dd0b8823cb2ba748ec4",
+      "description": "Replace the content of an unpaid checkout session (other trip, number of motorcycles, riders, buyer). Send the whole checkout again, as for create_checkout.",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "complete_checkout",
+      "descriptionHash": "0ab1a62b8191155f0e949199a93b0d83a832ec6a3c9f41501a9384f61386af98",
+      "description": "UCP complete step. SYMONE never takes payment through an assistant, so this never charges anything: it returns the session with status completed if the customer has already paid on symone.fr, otherwise requires_escalation with the continue_url to give to the customer."
+    },
+    {
+      "name": "cancel_checkout",
+      "descriptionHash": "d1401f8be5ad1215ffc989c41c8966edc4af2777b5b0ed431e6d9cfe780696f6",
+      "description": "Cancel an unpaid checkout session (nothing was charged and no seat was held). A paid booking cannot be canceled here: the customer contacts SYMONE under the terms of sale.",
+      "labels": [
         "private-data"
       ]
     }
   ],
-  "findings": [],
-  "score": 100,
-  "scoreBreakdown": {},
+  "findings": [
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: get_booking_url · Private data: get_booking_url, cancel_checkout · Public sink: get_booking_url, request_quote, update_checkout.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: get_booking_url · Private data: get_booking_url, cancel_checkout · Public sink: get_booking_url, request_quote, update_checkout"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"search_routes\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:search_routes",
+        "snippet": "before: \"Search available motorcycle transport routes in France. Filter by departure city, arrival city, and date range. Returns paginated results with dates, prices, available slots, a next_cursor for the following page, and the booking URL. Primary route: Paris–Marseille from 299€. No authentication requir\" → after: \"Search available motorcycle transport routes in France. Filter by departure city, arrival city, and date range. Returns paginated results with dates, prices, available slots, a next_cursor for the following page, and for each trip a booking_url that opens its booking page on symone.fr (the stops sea\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"get_booking_url\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:get_booking_url",
+        "snippet": "before: \"Get the link the user must open to book a scheduled SYMONE trip or to request a quote for another route or date, plus reservation contacts. With route_id (from search_routes) the trip details are repeated next to the link. Booking and payment happen on symone.fr only.\" → after: \"Get the link the user must open to book a scheduled SYMONE trip or to request a quote for another route or date, plus reservation contacts. With route_id (from search_routes) the trip details are repeated next to the link. With need \"quote\" and the trip details, the link opens the quote form already\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    }
+  ],
+  "score": 50,
+  "scoreBreakdown": {
+    "toxic-flow": 20,
+    "tool-poisoning": 30
+  },
   "errors": []
 }

@@ -8,8 +8,8 @@
     "kind": "url",
     "ref": "https://cellionaire.com/mcp"
   },
-  "scannedAt": "2026-11-05T12:47:14.195Z",
-  "durationMs": 1189,
+  "scannedAt": "2026-11-13T12:39:44.919Z",
+  "durationMs": 595,
   "layers": {
     "metadata": true,
     "static": false
@@ -46,8 +46,18 @@
       ]
     },
     {
+      "name": "prepare_x402_order",
+      "descriptionHash": "fe4f4933e5c80ad3e9c817ccae44e3f0465d12c44cedfd32e886621d27b88b9e",
+      "description": "Price cells and return a ready-to-send x402 request (URL, method, headers, JSON body, exact amount). Nothing is reserved or charged. Send it with an x402 client (x402-fetch, x402-axios, @x402/fetch); it pays and creates the order in one request. Raise the client's max amount if the price is above it",
+      "labels": [
+        "untrusted-content",
+        "public-sink",
+        "destructive"
+      ]
+    },
+    {
       "name": "create_order",
-      "descriptionHash": "950580f579cc97bba2c6d171c4e38acff93b2536327876d41c1bc9f01a0e5c8e",
+      "descriptionHash": "9440c8a6367523370c1cf935d04c2b96aa98c999768725402d8436a01c069745",
       "description": "Create an order for cells and return the USDC payment details (recipient wallet, token, amount_units, Solana reference, pay_by, status URL). This tool does not pay: the caller sends the USDC transfer itself before pay_by. Same validation and limits as the website (minimum cells, at most 16 colours (",
       "labels": [
         "private-data"
@@ -55,8 +65,11 @@
     },
     {
       "name": "get_order_status",
-      "descriptionHash": "5acee4c8e4458c8d7416fde51dd2a17f573049c29c7e8ee9d682b95a15af509e",
-      "description": "Status of an order and its USDC payment (state, received, remaining, confirmations, refunds). Wraps GET /api/order/{id}. status: pending, processing, paid, pending_review, expired, cancelled, late_paid, refund_pending, refunded, failed."
+      "descriptionHash": "b3550be18a051cc65b7d765ebc7ed65e8d695b712525f6962c7bde2baf9ea9ac",
+      "description": "Status of an order and its USDC payment (state, received, confirmations, refunds). usdc.remaining is an amount to send only when usdc.can_topup is true, or when state is waiting (then it is the one full amount). If can_topup is false after a payment was seen, remaining is omitted: do not send a seco",
+      "labels": [
+        "public-sink"
+      ]
     }
   ],
   "findings": [
@@ -65,18 +78,45 @@
       "severity": "high",
       "category": "toxic-flow",
       "title": "Lethal trifecta: untrusted input + private data + external sink",
-      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: wall_overview, check_cells_available · Private data: create_order · Public sink: check_cells_available · Destructive: read_region.",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: wall_overview, check_cells_available, prepare_x402_order · Private data: create_order · Public sink: check_cells_available, prepare_x402_order, get_order_status · Destructive: read_region, prepare_x402_order.",
       "evidence": {
         "source": "server:mcp",
-        "snippet": "Untrusted content: wall_overview, check_cells_available · Private data: create_order · Public sink: check_cells_available · Destructive: read_region"
+        "snippet": "Untrusted content: wall_overview, check_cells_available, prepare_x402_order · Private data: create_order · Public sink: check_cells_available, prepare_x402_order, get_order_status · Destructive: read_region, prepare_x402_order"
       },
       "confidence": 0.6,
       "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"create_order\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:create_order",
+        "snippet": "before: \"Create an order for cells and return the USDC payment details (recipient wallet, token, amount_units, Solana reference, pay_by, status URL). This tool does not pay: the caller sends the USDC transfer itself before pay_by. Same validation and limits as the website (minimum cells, at most 16 colours (\" → after: \"Create an order for cells and return the USDC payment details (recipient wallet, token, amount_units, Solana reference, pay_by, status URL). This tool does not pay: the caller sends the USDC transfer itself before pay_by. Same validation and limits as the website (minimum cells, at most 16 colours (\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"get_order_status\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:get_order_status",
+        "snippet": "before: \"Status of an order and its USDC payment (state, received, remaining, confirmations, refunds). Wraps GET /api/order/{id}. status: pending, processing, paid, pending_review, expired, cancelled, late_paid, refund_pending, refunded, failed.\" → after: \"Status of an order and its USDC payment (state, received, confirmations, refunds). usdc.remaining is an amount to send only when usdc.can_topup is true, or when state is waiting (then it is the one full amount). If can_topup is false after a payment was seen, remaining is omitted: do not send a seco\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
     }
   ],
-  "score": 80,
+  "score": 50,
   "scoreBreakdown": {
-    "toxic-flow": 20
+    "toxic-flow": 20,
+    "tool-poisoning": 30
   },
   "errors": []
 }

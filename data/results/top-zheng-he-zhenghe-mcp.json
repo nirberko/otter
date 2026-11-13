@@ -8,19 +8,133 @@
     "kind": "url",
     "ref": "https://mcp.zheng-he.top/mcp"
   },
-  "scannedAt": "2026-10-31T10:55:43.193Z",
-  "durationMs": 591,
+  "scannedAt": "2026-11-13T12:55:22.862Z",
+  "durationMs": 798,
   "layers": {
-    "metadata": false,
+    "metadata": true,
     "static": false
   },
-  "findings": [],
-  "score": 100,
-  "scoreBreakdown": {},
-  "errors": [
+  "tools": [
     {
-      "scanner": "metadata",
-      "message": "Streamable HTTP error: Error POSTing to endpoint: {\"error\": {\"code\": \"402\", \"message\": \"Payment required\"}}"
+      "name": "nav_query",
+      "descriptionHash": "74c15505ddedcf8dbc93b612d6098ee92e5ec2fd34989613407e69a75c44084f",
+      "description": "查询正和金库实时状态：NAV（净值）、金库 USDC 总资产、LOVE 总份额、累计溢价。只读，无需任何授权。传入 address 可同时查该地址的 LOVE/USDC 余额与浮盈。"
+    },
+    {
+      "name": "zhenghe_route",
+      "descriptionHash": "a1e2770cfbc6e62b5bbb1a8e21f3e0f3a3a0ea654df64cb6f0b5d09c22413a37",
+      "description": "构造一笔正和路由支付（消费入口）。返回签名就绪的 approve+pay calldata，调用方本地签名上链即完成原子正和支付：商户收 USDC + 捐赠注入金库 + 引路人分账 + NAV 抬升。路由决策：USDC 够→直接付；USDC 不足但 LOVE×NAV 够→赎回 LOVE 付；都不够→返回缺口。私钥永不经过服务器。"
+    },
+    {
+      "name": "vault_action",
+      "descriptionHash": "a20def851e89da7bd6c5f4a13a0fa563d85509c3ff4e50e22088788c98b6533b",
+      "description": "正和金库操作。action=deposit：USDC→LOVE（返回 approve+deposit calldata）；action=withdraw：LOVE→USDC（返回 redeem calldata）；action=balance：查 LOVE 余额+NAV+浮盈（只读）。金库无 owner、无管理函数，NAV 单调增长——存款安全由合约字节码保证，可自验。",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "affiliate_bind",
+      "descriptionHash": "91d194ed09a2ebe2e0010aac3f7f81e8288d4dc8ba7ddc429bf1ab76e5455753",
+      "description": "绑定引路人（一次性、永久、链上不可改）。返回 bindReferrer calldata，签名上链即完成绑定。此后该地址每笔路由消费的 6bps USDC 立即分给引路人，商户捐赠 LOVE 的 20% 同样分账，原子结算。任何 Agent 都可以成为引路人推广正和并永久获取分成。"
+    },
+    {
+      "name": "jic_auth_challenge",
+      "descriptionHash": "f653aa27aac383b599a5ecff4733d86f11447bebaa7fb1c005e7d2ad5784da19",
+      "description": "【JIC 第 1 步】拿登录挑战。返回一段必须原样签名的 message，调用方用自己的钱包做 personal_sign（不是 EIP-712），得到 signature 后交给 jic_note_publish。私钥永不上传到服务器——这里只产生 nonce 文本。换来的 JWT 有效期 2 小时，过期重走本步即可。"
+    },
+    {
+      "name": "jic_agent_status",
+      "descriptionHash": "2d1f65788b4164ae6c193d15e74a4590dff00b11ac820c854f6f22f3432808a8",
+      "description": "【JIC 第 2 步·体检】发布前的三重体检：①是否已登记为 JIC 智灵（未登记也能发，但会被照常计费）②LOVE / USDC / ETH 余额（LOVE 付上刊费，ETH 付 session grant 的 gas）③按 LOVE 换算还能发几篇。只读，不需要任何签名。"
+    },
+    {
+      "name": "jic_source_trace",
+      "descriptionHash": "e52116b43d8538dfaf8c56d438892e0192fee6efb31c55e5216d48dd59546717",
+      "description": "【JIC 溯源】给一句古文找出处，返回 cn.jic.io 古籍文库里的候选书目（含 lib / path / bid / 相关度 / 原文片段）。注意：热门句子常被类书、诗文注本抢占前排（如《御定子史精华》《说郛》），别盲信第一名，用 jic_note_publish 的 bookPath 显式指定真正的母书。匿名可用，不需要登录。"
+    },
+    {
+      "name": "jic_note_publish",
+      "descriptionHash": "c5cb2e12e96615a75220a86a54a905d78279eaffc229c8e4769530292b85dde1",
+      "description": "【JIC 第 3 步·赚钱】用钱包签名把读书笔记发到 b.jic.io 并上线收款。闭环顺序：①JWT 换身份 ②挂载/复用公版书（挂载人以后拿该书托管版税 10%）③提交笔记 ④若返回 pendingFee 则用付款钥匙自动结费并给出上线链接。缺预算 → 返回 u.jic.io/agent-wallet 开通页 + grant 命令，流程到此为止；缺 LOVE → 返回补足指引。私钥始终在调用方手里，本工具只接收第 1 步那一次的签名。",
+      "labels": [
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "jic_verify_quote",
+      "descriptionHash": "47325645b28fb15175b34c3f920980fd6c39af31910e9bde89bebec203b7973f",
+      "description": "【引用自检】发布前把引文拿到 cn.jic.io 的母书原文里真查一遍，返回 found=true/false 与命中片段。自动化流水线必跑这一步——b.jic.io 的相关度排名不可信，热门句子常被类书抢注，没有这道闸门就会批量发错引用。"
+    },
+    {
+      "name": "jic_fleet_gate",
+      "descriptionHash": "8ec40541a1364fb015154ceb334742662dbc61917aa1a594a84074ba0e9de9ff",
+      "description": "【Fleet·自检】干活前先问一句：我这个身份现在能不能在这儿动？返回状态、剩余预算、以及该板块的白名单情况。只读，不需要签名，随时可查。"
+    },
+    {
+      "name": "jic_fleet_hello",
+      "descriptionHash": "dc10d136fa7099f4f1c3ced8f1ce3e2d023a1c8053e8b6303bb17fb632bcef69",
+      "description": "【Fleet·报到】向 JIC 报一张能力卡，说明这个 agent 会干什么、跑在什么运行时上。报到之后，主人就能在指挥舱里给它派活。需要签名（首次）或复用 jwt。"
+    },
+    {
+      "name": "jic_fleet_claim",
+      "descriptionHash": "78eee142cb20b963ffdc5173cf03aafffbbef639b7f01e3234e2977d1109ea8f",
+      "description": "【Fleet·领活】长轮询领取待办任务。领走的任务带 12 分钟租约——期间定期报 working 续租，到期没回报会自动回队列让别人领。这是 agent 常驻待命的核心循环：claim → 干 → report → 再 claim。"
+    },
+    {
+      "name": "jic_fleet_report",
+      "descriptionHash": "d44a62c3a2917a13e5b815e590e1ef2a61b136f6bbbcafca07ccf996a1e0d685",
+      "description": "【Fleet·回报】向 JIC 报告任务进展：working（续租）/ completed / failed / canceled。若响应里 pauseRequested=true，表示主人请求暂停，应停止并再报一次 canceled。"
+    },
+    {
+      "name": "jic_fleet_beat",
+      "descriptionHash": "6b89aac90746e1b0f26dda7137431865ab3cdfd2df8d387fd64bae694b8252c0",
+      "description": "【Fleet·心跳】告诉 JIC 这个 agent 还在线。建议 30~60 秒一次；10 分钟内有动静即算在线。常驻 agent 的主循环里定期调用。"
+    },
+    {
+      "name": "jic_notes_list",
+      "descriptionHash": "d4acf4cb7dc1f17c62f739e906a7853f4c733b89d9e3b198d17be4ab75b10d1d",
+      "description": "【JIC 战绩】列出某地址在 b.jic.io 发过的读书笔记：标题、上刊状态、挂载的母书、打赏收入、公开链接。只读，不需要任何签名。b.jic.io 自身不给跨域响应头，浏览器里查列表必须走本工具代理。"
+    },
+    {
+      "name": "jic_note_fee",
+      "descriptionHash": "f18e2d390ab1b4ad9d2850ad2bfdfbb2691b3b018a2f4013c6e2a31fee2515ce",
+      "description": "【JIC 上刊费 · 自治闭环】结清 b.jic.io 的证据成本（默认 0.01 LOVE），让 pendingFee 的笔记真正上刊。三个 action：① steps —— 返回 approve + Router.consume 的就绪 calldata（memo = b.jic.io:fee:<noteId>，chainId 8453），交调用方本地签名广播，本服务不碰私钥；② confirm —— 把交易哈希回传 b.jic.io 完成核验（POST /api/notes/:id/fee {tx}），笔记随即公开；b.jic.io 无 CORS 响应头，浏览器必须经本工具代理；③ s",
+      "labels": [
+        "untrusted-content",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "jic_heartbeat",
+      "descriptionHash": "38444446ba58d733600e1f78639c7679de1d1c9c029946f10c7c701eb34c680f",
+      "description": "【JIC 每日心跳】用一笔 0.001 USDC 的 LOVE 母库 consume 证明：我是 JIC agent、私钥在我自己手里、我还活着。每个 UTC 日一次，同一天重复只算一次。这是把「自由智灵」每日 1 篇发布配额往 10 篇推的主要途径——配额由 u.jic.io 的 14 维声誉决定，而声誉靠真实行为累积。返回 approve(USDC→母库) + consume(1000, ref) 的就绪 calldata，本地签名广播即可。ref 内含当日 UTC 日期：不能预付、也不能补付，所以必须由执行方当天算、当天发。"
+    },
+    {
+      "name": "jic_agent_register",
+      "descriptionHash": "a11915bba98c86dca202f50de3d84714e8eead26fe9e8d207bd3640e69992763",
+      "description": "【JIC 登记为智灵】把 agent 登记到 u.jic.io（等价于 jic-smart.mjs register）。未登记也能发笔记，但被当作「自由智灵」按最低声誉限流。实测坑点：u.jic.io 不接受把普通地址当 smartAccount——它会从签名者确定性推算出智能账户地址；第一次提交会被 422 并回传 predicted，本工具自动拿它重试。需要 agent 自己的 JWT（签名登录，私钥不出本地）。"
     }
-  ]
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: jic_note_fee · Private data: vault_action, jic_note_publish · Public sink: jic_note_publish, jic_note_fee.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: jic_note_fee · Private data: vault_action, jic_note_publish · Public sink: jic_note_publish, jic_note_fee"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 80,
+  "scoreBreakdown": {
+    "toxic-flow": 20
+  },
+  "errors": []
 }

@@ -8,8 +8,8 @@
     "kind": "url",
     "ref": "https://mcp.corpusfetch.com/mcp"
   },
-  "scannedAt": "2026-11-03T12:19:07.663Z",
-  "durationMs": 1251,
+  "scannedAt": "2026-11-13T12:39:51.252Z",
+  "durationMs": 949,
   "layers": {
     "metadata": true,
     "static": false
@@ -17,8 +17,8 @@
   "tools": [
     {
       "name": "corpusfetch_fetch_record",
-      "descriptionHash": "00632c2eb31d173817c545a05b178007160c408f31a97628e4ae413260a3a42f",
-      "description": "Fetch the body of a CorpusFetch record. Format 'md' (default, ~1500 tokens) or 'py' (zero-prose stdlib slice, ~300 tokens). Prefer warrant-first: call corpusfetch_fetch_warrant before this.",
+      "descriptionHash": "f9060c1abd7d5bd353e998bc424013caa11b34b9757758d5eec7f4c7ffde63d8",
+      "description": "Fetch the full resolved experience record. Format `md` (~1,500 tokens, includes reasoning) or `py` (~300 tokens, zero-prose executable invariants).",
       "labels": [
         "private-data",
         "destructive"
@@ -26,31 +26,112 @@
     },
     {
       "name": "corpusfetch_fetch_warrant",
-      "descriptionHash": "8cbd6cce6ae3af77797875863f39f016c471407f1992ed4cf6b0e377207b8d57",
-      "description": "Fetch the ~220-token warrant (precondition seal) for a CorpusFetch record. Fetch this before the .md record. If the seal fails, do not fetch the record.",
+      "descriptionHash": "274325e036dbc994fd1964ec801a6465dd625207dc7551ad0756d7be685ac7dd",
+      "description": "Fetch the compact ~220-token precondition seal for a resolved record. Always call this before `corpusfetch_fetch_record`—check the seal first; if it fails, the record does not apply to your current state.",
       "labels": [
         "private-data"
       ]
     },
     {
       "name": "corpusfetch_lookup_exception",
-      "descriptionHash": "75373e114ddb598eddbba75dd4200a8e54bd662ad0ff026a1a124a841c6bd594",
-      "description": "Route a Python exception class to candidate record addresses in the CorpusFetch pillar. Returns warrant_url, py_url, md_url, and fetch_when for each candidate. Fetch the warrant first (~220 tokens); if its seal fails, do not fetch the .md.",
-      "labels": [
-        "private-data"
-      ]
+      "descriptionHash": "7a3595c17d8dbc41122dea75a4096dd2ea25475a0f67461b5ff924440a0b73c6",
+      "description": "Look up operational experience for an exact Python exception class (e.g., KeyError, TimeoutError, ConnectionError). Use when you encounter an unexpected runtime error and need an empirically verified boundary decision rather than a guess. Prefer `corpusfetch_search` when you have a symptom descripti"
     },
     {
       "name": "corpusfetch_lookup_symptom",
-      "descriptionHash": "30ee2f4db82556480120f6b2aaf1aa2e19ffc853e724416d45589fff7ca7893b",
-      "description": "Route a runtime symptom to candidate record addresses in the CorpusFetch pillar. Returns warrant_url, py_url, md_url, and fetch_when for each candidate. Fetch the warrant first (~220 tokens); if its seal fails, do not fetch the .md.",
+      "descriptionHash": "cfb16e74d08ecd24aea9a44a0bb577ee688ee958d1da9fea2f98c8247fcee94a",
+      "description": "Look up operational experience for a specific runtime symptom or boundary failure (e.g., UNICODE_HOMOGLYPH_OR_MOJIBAKE). Use when facing an ambiguous failure state or unbounded reasoning loop. Prefer `corpusfetch_search` if you only have a loose description."
+    },
+    {
+      "name": "corpusfetch_request_experience",
+      "descriptionHash": "8bc352a53df3ff6248ceb20b43929644fbbba48f403c54495b3185df4b4625c6",
+      "description": "Request a new operational experience when `corpusfetch_search` returns no match. The corpus will generate and publish a record for your specific error or symptom within minutes. Use this instead of guessing when the problem is novel and no existing record applies.",
       "labels": [
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "corpusfetch_search",
+      "descriptionHash": "6884a1e302f6418d4a971f38564b441e8d6518788b2ba818ba4aed663dc6d756",
+      "description": "Search operational records for distributed systems failures, AI agent protocol issues, MCP/A2A problems, database anomalies, concurrency bugs, and runtime errors. Use when the user's problem involves infrastructure, agent-to-agent coordination, authentication, memory management, or observability. Do",
+      "labels": [
+        "untrusted-content",
         "private-data"
       ]
     }
   ],
-  "findings": [],
-  "score": 100,
-  "scoreBreakdown": {},
+  "findings": [
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: corpusfetch_search · Private data: corpusfetch_fetch_record, corpusfetch_fetch_warrant, corpusfetch_request_experience, corpusfetch_search · Public sink: corpusfetch_request_experience · Destructive: corpusfetch_fetch_record.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: corpusfetch_search · Private data: corpusfetch_fetch_record, corpusfetch_fetch_warrant, corpusfetch_request_experience, corpusfetch_search · Public sink: corpusfetch_request_experience · Destructive: corpusfetch_fetch_record"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"corpusfetch_fetch_record\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:corpusfetch_fetch_record",
+        "snippet": "before: \"Fetch the body of a CorpusFetch record. Format 'md' (default, ~1500 tokens) or 'py' (zero-prose stdlib slice, ~300 tokens). Prefer warrant-first: call corpusfetch_fetch_warrant before this.\" → after: \"Fetch the full resolved experience record. Format `md` (~1,500 tokens, includes reasoning) or `py` (~300 tokens, zero-prose executable invariants).\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"corpusfetch_fetch_warrant\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:corpusfetch_fetch_warrant",
+        "snippet": "before: \"Fetch the ~220-token warrant (precondition seal) for a CorpusFetch record. Fetch this before the .md record. If the seal fails, do not fetch the record.\" → after: \"Fetch the compact ~220-token precondition seal for a resolved record. Always call this before `corpusfetch_fetch_record`—check the seal first; if it fails, the record does not apply to your current state.\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"corpusfetch_lookup_exception\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:corpusfetch_lookup_exception",
+        "snippet": "before: \"Route a Python exception class to candidate record addresses in the CorpusFetch pillar. Returns warrant_url, py_url, md_url, and fetch_when for each candidate. Fetch the warrant first (~220 tokens); if its seal fails, do not fetch the .md.\" → after: \"Look up operational experience for an exact Python exception class (e.g., KeyError, TimeoutError, ConnectionError). Use when you encounter an unexpected runtime error and need an empirically verified boundary decision rather than a guess. Prefer `corpusfetch_search` when you have a symptom descripti\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"corpusfetch_lookup_symptom\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:corpusfetch_lookup_symptom",
+        "snippet": "before: \"Route a runtime symptom to candidate record addresses in the CorpusFetch pillar. Returns warrant_url, py_url, md_url, and fetch_when for each candidate. Fetch the warrant first (~220 tokens); if its seal fails, do not fetch the .md.\" → after: \"Look up operational experience for a specific runtime symptom or boundary failure (e.g., UNICODE_HOMOGLYPH_OR_MOJIBAKE). Use when facing an ambiguous failure state or unbounded reasoning loop. Prefer `corpusfetch_search` if you only have a loose description.\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    }
+  ],
+  "score": 43,
+  "scoreBreakdown": {
+    "toxic-flow": 20,
+    "tool-poisoning": 38
+  },
   "errors": []
 }

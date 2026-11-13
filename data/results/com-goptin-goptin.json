@@ -8,8 +8,8 @@
     "kind": "url",
     "ref": "https://app.goptin.com/mcp"
   },
-  "scannedAt": "2026-11-03T12:19:45.009Z",
-  "durationMs": 1354,
+  "scannedAt": "2026-11-13T12:40:30.291Z",
+  "durationMs": 1197,
   "layers": {
     "metadata": true,
     "static": false
@@ -34,6 +34,15 @@
       "description": "Read the messages of one conversation, oldest first. Use `before` with the earliest sent_at to page back.",
       "labels": [
         "untrusted-content"
+      ]
+    },
+    {
+      "name": "get_attachment",
+      "descriptionHash": "cf4db7d12494a02126ff55409239b959cf4488906f1ae1e5f1009066ea6fdba2",
+      "description": "Open a file attached to a message (images are returned so you can see them). Pass message_id from read_conversation or search_messages and the attachment index (default 0). Messages whose text is only \"[image: …]\" carry their content in the attachment — open it before answering.",
+      "labels": [
+        "untrusted-content",
+        "private-data"
       ]
     },
     {
@@ -108,6 +117,14 @@
       "description": "Change a Jira/ClickUp ticket: move it to another status (use a status name shown by list_tickets), set the due date, or replace the description. Changes are visible to the user's team — confirm with the user first."
     },
     {
+      "name": "create_ticket",
+      "descriptionHash": "76b8e15dde06f695503271f66416c5a9522c09106928ffbc055ba0a841c87b66",
+      "description": "Create a ClickUp ticket as the user: a subtask under parent_ticket_id (it goes into the parent's list), or a new ticket in a list. Returns ticket_id and url. The team sees it — show the user the title, description and assignees and confirm first. Jira is not supported yet.",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
       "name": "comment_ticket",
       "descriptionHash": "dd8c85ade291f1c9d70de08108d7d2336f5299568166abde10a133322961e406",
       "description": "Post a comment on a Jira/ClickUp ticket as the user. The team sees it — show the exact text to the user and confirm first.",
@@ -118,21 +135,35 @@
   ],
   "findings": [
     {
+      "id": "MCP-TOOL-POISON-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description issues instructions to the model",
+      "detail": "Description of \"get_attachment\" contains imperative instructions directed at the AI assistant rather than describing the tool. This is the core tool-poisoning technique.",
+      "evidence": {
+        "source": "tool:get_attachment",
+        "snippet": "Open a file attached to a message (images are returned so you can see them). Pass message_id from read_conversation or search_messages and the attachment index …"
+      },
+      "confidence": 0.7,
+      "remediation": "Treat the server as untrusted; the model may obey embedded instructions."
+    },
+    {
       "id": "MCP-TOXIC-FLOW-001",
       "severity": "high",
       "category": "toxic-flow",
       "title": "Lethal trifecta: untrusted input + private data + external sink",
-      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: list_conversations, read_conversation, search_messages, list_tickets, get_ticket, get_digest · Private data: create_task · Public sink: send_message, find_person, comment_ticket.",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: list_conversations, read_conversation, get_attachment, search_messages, list_tickets, get_ticket, get_digest, create_ticket · Private data: get_attachment, create_task · Public sink: send_message, find_person, comment_ticket.",
       "evidence": {
         "source": "server:mcp",
-        "snippet": "Untrusted content: list_conversations, read_conversation, search_messages, list_tickets, get_ticket, get_digest · Private data: create_task · Public sink: send_message, find_person, comment_ticket"
+        "snippet": "Untrusted content: list_conversations, read_conversation, get_attachment, search_messages, list_tickets, get_ticket, get_digest, create_ticket · Private data: get_attachment, create_task · Public sink: send_message, find_person, comment_ticket"
       },
       "confidence": 0.6,
       "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
     }
   ],
-  "score": 80,
+  "score": 60,
   "scoreBreakdown": {
+    "tool-poisoning": 20,
     "toxic-flow": 20
   },
   "errors": []

@@ -8,19 +8,78 @@
     "kind": "url",
     "ref": "https://snhp.dev/mcp/"
   },
-  "scannedAt": "2026-10-31T10:53:02.778Z",
-  "durationMs": 361,
+  "scannedAt": "2026-11-13T12:52:05.651Z",
+  "durationMs": 359,
   "layers": {
-    "metadata": false,
+    "metadata": true,
     "static": false
   },
-  "findings": [],
-  "score": 100,
-  "scoreBreakdown": {},
-  "errors": [
+  "tools": [
     {
-      "scanner": "metadata",
-      "message": "fetch failed"
+      "name": "compile_offer_policy",
+      "descriptionHash": "e74fab1d1523b493ac324bd228f5554a05230e47d713d342dd5f7f68ca42284e",
+      "description": "Turn a seller's offer, described in plain words, into negotiation RULES an AI agent cannot break.\n\nUSE THIS WHEN: you (or the business you act for) sell something where buyers — people or their AI buying\nagents — ask for discounts, and you want an AI to answer them without giving away margin. Descri",
+      "labels": [
+        "untrusted-content",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "draft_negotiation_reply",
+      "descriptionHash": "4b17fa5e29590cf78ee5812a19148c32adaf53dd399786a91127453564a800d4",
+      "description": "Draft the seller's reply to a buyer's message — the offer is decided by the SNHP engine INSIDE the policy.\n\nUSE THIS WHEN: a buyer (a person or their AI agent) has written to you about price or terms. Pass the policy\n(from compile_offer_policy) and their latest message exactly as written; pass back ",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "check_offer_policy",
+      "descriptionHash": "e93cf4280e9366c9e7c4da5dbdee484a8f1978c041e57f8825c9c9443807ca7a",
+      "description": "Check an edited negotiation policy: returns {ok, policy, issues, summary}. No model call, free.\n\nUSE THIS WHEN: you changed a policy from compile_offer_policy (a floor, an option, a forbidden combination)\nand want to know it is valid and what it now allows before using it in draft_negotiation_reply.",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "verify_deal_receipt",
+      "descriptionHash": "e121e0fe8acfe6727c4098899df3e5663c8131ba071bd0d4c170189772262c5f",
+      "description": "Verify a signed deal receipt against the seller's own policy: both signatures, that the signing keys are\nSNHP's own (published at /.well-known/ucp), the policy digest, and every rule re-checked from the package.\nReturns {ok, problems, checks, signed_by_snhp, signatures}. Free, no model call."
     }
-  ]
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOOL-POISON-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description issues instructions to the model",
+      "detail": "Description of \"check_offer_policy\" contains imperative instructions directed at the AI assistant rather than describing the tool. This is the core tool-poisoning technique.",
+      "evidence": {
+        "source": "tool:check_offer_policy",
+        "snippet": "Check an edited negotiation policy: returns {ok, policy, issues, summary}. No model call, free. USE THIS WHEN: you changed a policy from compile_offer_policy (a…"
+      },
+      "confidence": 0.7,
+      "remediation": "Treat the server as untrusted; the model may obey embedded instructions."
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: compile_offer_policy, draft_negotiation_reply, check_offer_policy · Private data: draft_negotiation_reply · Public sink: compile_offer_policy, draft_negotiation_reply.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: compile_offer_policy, draft_negotiation_reply, check_offer_policy · Private data: draft_negotiation_reply · Public sink: compile_offer_policy, draft_negotiation_reply"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 60,
+  "scoreBreakdown": {
+    "tool-poisoning": 20,
+    "toxic-flow": 20
+  },
+  "errors": []
 }

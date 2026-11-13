@@ -8,19 +8,107 @@
     "kind": "url",
     "ref": "https://api.neuroencoder.com/mcp"
   },
-  "scannedAt": "2026-11-11T12:19:15.341Z",
-  "durationMs": 414,
+  "scannedAt": "2026-11-13T12:41:21.832Z",
+  "durationMs": 1254,
   "layers": {
-    "metadata": false,
+    "metadata": true,
     "static": false
   },
-  "findings": [],
-  "score": 100,
-  "scoreBreakdown": {},
-  "errors": [
+  "tools": [
     {
-      "scanner": "metadata",
-      "message": "Streamable HTTP error: Error POSTing to endpoint: {\"jsonrpc\":\"2.0\",\"id\":null,\"error\":{\"code\":-32001,\"message\":\"Invalid or missing API key. Send 'Authorization: Bearer ne_live_...' (56 characters). No key? POST https://api.neuroencoder.com/v1/signup {\\\"agent\\\": true} returns a provisional agent key at once (no email; 2 h of EEG, 7 days). A trial key: `pip install neuroencoder && neuroencoder login --email you@lab.org`, or POST /v1/signup {\\\"email\\\": ..., \\\"device\\\": true}; docs https://docs.neuroencoder.com/agents\",\"data\":{\"message\":\"Invalid or missing API key.\",\"type\":\"authentication_error\",\"code\":\"invalid_api_key\",\"param\":null,\"fix\":\"Send 'Authorization: Bearer ne_live_...' (56 characters). No key? POST https://api.neuroencoder.com/v1/signup {\\\"agent\\\": true} returns a provisional agent key at once (no email; 2 h of EEG, 7 days). A trial key: `pip install neuroencoder && neuroencoder login --email you@lab.org`, or POST /v1/signup {\\\"email\\\": ..., \\\"device\\\": true}; docs https://docs.neuroencoder.com/agents\"}}}"
+      "name": "account",
+      "descriptionHash": "88645ae72dddd25c9ad7ca8901fa05a7d56903743bfe3c65bbab1443902ae565",
+      "description": "This API key: tier, limits and usage this month.",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "list_samples",
+      "descriptionHash": "988d1d0523473a2cf0c6f505f7e42089d771c208b5a8266690ad3b180e725bb5",
+      "description": "Precomputed real outputs (no upload needed): ids, titles, sizes, download URLs.",
+      "labels": [
+        "untrusted-content",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "get_sample",
+      "descriptionHash": "828be477112f6f54f995a1640ceee727d104990d6eb5c024f6f23b68f69d8a51",
+      "description": "One sample: README, licence, channels_used, and its embeddings in the POST /v1/embeddings response format (first windows only for long ones).",
+      "labels": [
+        "untrusted-content",
+        "public-sink",
+        "destructive"
+      ]
+    },
+    {
+      "name": "create_upload",
+      "descriptionHash": "ae7f737ea1fac9ad13b241bb9dd6cefdbc5d2344458d7052a5c099620ca43217",
+      "description": "Start an upload of a local .edf, .bdf or .npy file (at most 2 GB). Returns id and a presigned upload_url: PUT the file there within 10 minutes with exactly upload_headers (e.g. curl -X PUT --upload-file night.edf -H 'Content-Length: N' '<upload_url>', no Authorization header), then call start_embedd",
+      "labels": [
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "start_embedding_job",
+      "descriptionHash": "c534071027383ebe751135de4fc74677ae65f28f820c98aab387771c8be58358",
+      "description": "Queue an embeddings job on an uploaded file. window_seconds: 2 to 30 (default 30); stride_seconds: default window_seconds. picks: EDF/BDF channel labels to keep; channel_names: 10-20 labels overriding the file's; sfreq: required for .npy. Bills 30 s of EEG per window at any window_seconds (refunded ",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "start_sleep_staging_job",
+      "descriptionHash": "f1f7c3f0daa7b62b27f1bab6de2e922d235da0df8a479503d8aeeceb8e13d4aa",
+      "description": "Queue sleep staging of an uploaded whole-night PSG (.edf/.bdf; >= 1 EEG channel with a 10-20 label at >= 100 Hz; EOG used if present). eeg_channel/eog_channel: channels for the YASA features; picks, channel_names as for embeddings. Counts 1 night of the weekly quota (refunded on failure). Poll get_j"
+    },
+    {
+      "name": "get_job",
+      "descriptionHash": "f778982f209756d34b6eb7b840c48859ab984a3ab5fda152dd38659e673f2cb2",
+      "description": "A job's status (queued, running, succeeded, failed, cancelled, expired), usage, error or result. Poll every 5 s while queued or running."
+    },
+    {
+      "name": "get_result_url",
+      "descriptionHash": "ca5b98eec11e4d9bbca5b9a9446be5686fe4576e992a0ebdc1a5334cfbbe02d5",
+      "description": "Fresh presigned GET URLs (10 minutes) of a succeeded job's result. Embeddings: .npy float32 [windows, 768], window i starts at i * t_start_step s. Sleep staging: url = hypnogram JSON (stage, probabilities, confidence per 30 s epoch), csv_url = CSV, plus the summary.",
+      "labels": [
+        "untrusted-content"
+      ]
     }
-  ]
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"create_upload\" references sensitive artifacts (authorization). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:create_upload",
+        "snippet": "Start an upload of a local .edf, .bdf or .npy file (at most 2 GB). Returns id and a presigned upload_url: PUT the file there within 10 minutes with exactly uplo…"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: list_samples, get_sample, get_result_url · Private data: account, create_upload, start_embedding_job · Public sink: list_samples, get_sample, create_upload · Destructive: get_sample.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: list_samples, get_sample, get_result_url · Private data: account, create_upload, start_embedding_job · Public sink: list_samples, get_sample, create_upload · Destructive: get_sample"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 60,
+  "scoreBreakdown": {
+    "tool-poisoning": 20,
+    "toxic-flow": 20
+  },
+  "errors": []
 }

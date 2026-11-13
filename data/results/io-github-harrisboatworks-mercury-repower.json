@@ -8,8 +8,8 @@
     "kind": "url",
     "ref": "https://eutsoqdpjurknjsshxes.supabase.co/functions/v1/agent-mcp-server"
   },
-  "scannedAt": "2026-10-31T10:49:40.099Z",
-  "durationMs": 891,
+  "scannedAt": "2026-11-13T12:47:17.198Z",
+  "durationMs": 1750,
   "layers": {
     "metadata": true,
     "static": false
@@ -17,15 +17,19 @@
   "tools": [
     {
       "name": "search_motors",
-      "descriptionHash": "2c2c2905cfe4008420ffd0b23e27f25e1a5e02c290892ab686fab9b1e3b641b6",
-      "description": "Search current Mercury outboard inventory at Harris Boat Works (Ontario). Filter by horsepower, family (FourStroke, Pro XS, SeaPro, Racing), or stock status. Returns CAD pricing. Excludes Verado."
+      "descriptionHash": "467d122da4891be4604d5cb7c6f73d3d6f95157c62673d2e087efbd1e51617fa",
+      "description": "Search current Mercury outboard inventory at Harris Boat Works (Ontario). Filter by horsepower, family (FourStroke, Pro XS, SeaPro, Racing), or stock status. Returns CAD pricing. Excludes Verado. inStock/stockQuantity are the normalized stock signal; availability is the catalog label. candidatePageT",
+      "labels": [
+        "private-data"
+      ]
     },
     {
       "name": "get_motor",
-      "descriptionHash": "221d516a9c6de3bd8aab982cd5ca3a370bb3da1e168bf4d3e3c2bd7210172518",
-      "description": "Fetch a single Mercury motor by id or slug, including pricing, shaft length, and deep-link URL.",
+      "descriptionHash": "c5e4d4314e51dde77420ed7ff8b0e2e7604caf48a5fa17bf3e6439d1404b8107",
+      "description": "Fetch a single Mercury motor by id or slug, including pricing, decoded shaft/control/start facts, a specSource summary, normalized stock, and deep-link URL. Model-code fitment must be confirmed against the buyer’s transom before ordering; null means not stated. specSource flags database rigging pres",
       "labels": [
-        "untrusted-content"
+        "untrusted-content",
+        "private-data"
       ]
     },
     {
@@ -35,37 +39,127 @@
     },
     {
       "name": "build_quote",
-      "descriptionHash": "c40ce8796a428c6f9acd86e923bfd3497a1d5d559969af1a0d53f191e36a5dc1",
-      "description": "Build an itemized CAD quote (motor + installation + propeller + trade-in + HST + financing tier) and return a deep-link URL the customer can open. Optional contact captures a lead in the dealership CRM.",
+      "descriptionHash": "9de3e7891e1d5ae71450873d242c2d91df91174011cc4a9137251e68dacc97cd",
+      "description": "Build a read-only itemized CAD quote (motor + installation + propeller + trade-in + HST + financing tier) and return a deep-link URL the customer can open. Do not send contact details. A nonempty contact block is rejected. To store a lead, call submit_quote_lead with consent=true. Annotations are hi",
       "labels": [
         "untrusted-content",
-        "private-data"
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "submit_quote_lead",
+      "descriptionHash": "1bb02cd32d20047076bfaadd07f9ad71e4b8f05c7e275d30b4ae96480b482eca",
+      "description": "Submit a quote lead through the existing public quote API. Requires consent=true and a contact block with name and email. consent is explicit permission to store that contact with the calculated quote. This tool does not issue a consent receipt and does not change pricing, financing, or warranty. Co",
+      "labels": [
+        "private-data",
+        "public-sink"
       ]
     },
     {
       "name": "get_brand_rules",
       "descriptionHash": "08f51089891ec561548c690ea0b5ca2016d8d6ba6563adaf049650e0a4e5386c",
       "description": "Return Harris Boat Works' authoritative source-of-truth rules for any agent representing them: pricing currency, geography, no-Verado policy, financing minimums, deposit tiers, warranty."
+    },
+    {
+      "name": "search_articles",
+      "descriptionHash": "163e150ba2bd429b5e2ab696b660718bc16d0e9a6020da4bfac8333f973d873f",
+      "description": "Search published public blog guides. Returns title, excerpt, canonical HTML URL, language, author, publication date, and Markdown URL. Omits hidden, draft, future, and the Traditional Chinese noindex pilot. Read-only. Does not accept a URL.",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "get_article",
+      "descriptionHash": "894743520bfde3278f7fe88b7b7afe41fa1327c98eaf028357d67c84290ea425",
+      "description": "Fetch one published public blog guide by catalog slug and language. Reads only the allowlisted same-site Markdown twin for that catalog item. Never pass a URL. Text is bounded and truncation is explicit. Read-only.",
+      "labels": [
+        "untrusted-content"
+      ]
     }
   ],
   "findings": [
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"build_quote\" references sensitive artifacts (authorization). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:build_quote",
+        "snippet": "Build a read-only itemized CAD quote (motor + installation + propeller + trade-in + HST + financing tier) and return a deep-link URL the customer can open. Do n…"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"submit_quote_lead\" references sensitive artifacts (authorization). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:submit_quote_lead",
+        "snippet": "Submit a quote lead through the existing public quote API. Requires consent=true and a contact block with name and email. consent is explicit permission to stor…"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"agent-mcp-server\" exposes tools that together enable an exfiltration flow. Untrusted content: get_motor, build_quote, search_articles, get_article · Private data: search_motors, get_motor, build_quote, submit_quote_lead · Public sink: build_quote, submit_quote_lead.",
+      "evidence": {
+        "source": "server:agent-mcp-server",
+        "snippet": "Untrusted content: get_motor, build_quote, search_articles, get_article · Private data: search_motors, get_motor, build_quote, submit_quote_lead · Public sink: build_quote, submit_quote_lead"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    },
     {
       "id": "MCP-RUGPULL-001",
       "severity": "high",
       "category": "tool-poisoning",
       "title": "Tool description changed since last scan",
-      "detail": "Tool \"estimate_trade_in\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "detail": "Tool \"search_motors\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
       "evidence": {
-        "source": "tool:estimate_trade_in",
-        "snippet": "before: \"Estimate the trade-in value (CAD) of a customer's current outboard. Brand penalties apply (Mercury preferred, Yamaha/Honda neutral, Evinrude/Johnson/Force/Chrysler discounted).\" → after: \"Estimate the trade-in value (CAD) of a customer's current outboard using the live Harris Boat Works valuation. Horsepower may be omitted when the model infers a single validated HP.\""
+        "source": "tool:search_motors",
+        "snippet": "before: \"Search current Mercury outboard inventory at Harris Boat Works (Ontario). Filter by horsepower, family (FourStroke, Pro XS, SeaPro, Racing), or stock status. Returns CAD pricing. Excludes Verado.\" → after: \"Search current Mercury outboard inventory at Harris Boat Works (Ontario). Filter by horsepower, family (FourStroke, Pro XS, SeaPro, Racing), or stock status. Returns CAD pricing. Excludes Verado. inStock/stockQuantity are the normalized stock signal; availability is the catalog label. candidatePageT\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"get_motor\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:get_motor",
+        "snippet": "before: \"Fetch a single Mercury motor by id or slug, including pricing, shaft length, and deep-link URL.\" → after: \"Fetch a single Mercury motor by id or slug, including pricing, decoded shaft/control/start facts, a specSource summary, normalized stock, and deep-link URL. Model-code fitment must be confirmed against the buyer’s transom before ordering; null means not stated. specSource flags database rigging pres\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"build_quote\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:build_quote",
+        "snippet": "before: \"Build an itemized CAD quote (motor + installation + propeller + trade-in + HST + financing tier) and return a deep-link URL the customer can open. Optional contact captures a lead in the dealership CRM.\" → after: \"Build a read-only itemized CAD quote (motor + installation + propeller + trade-in + HST + financing tier) and return a deep-link URL the customer can open. Do not send contact details. A nonempty contact block is rejected. To store a lead, call submit_quote_lead with consent=true. Annotations are hi\""
       },
       "confidence": 0.8,
       "remediation": "Re-review the tool before continuing to trust it."
     }
   ],
-  "score": 80,
+  "score": 41,
   "scoreBreakdown": {
-    "tool-poisoning": 20
+    "tool-poisoning": 39,
+    "toxic-flow": 20
   },
   "errors": []
 }

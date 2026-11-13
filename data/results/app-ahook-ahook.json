@@ -8,8 +8,8 @@
     "kind": "url",
     "ref": "https://ahook.app/mcp"
   },
-  "scannedAt": "2026-11-06T12:30:08.506Z",
-  "durationMs": 224,
+  "scannedAt": "2026-11-13T12:38:10.941Z",
+  "durationMs": 438,
   "layers": {
     "metadata": true,
     "static": false
@@ -17,8 +17,8 @@
   "tools": [
     {
       "name": "create_inbox",
-      "descriptionHash": "adb414b52f74005aee6fe7a56db12fc9def56913430a7c81f748e7c8b6d5da11",
-      "description": "Create a webhook inbox. Returns its ingest URL and a read token (shown once).",
+      "descriptionHash": "f4432b449079aa3341e90bb4b6d8558daacfda1c92a685ff1ad42305cc1822f6",
+      "description": "Create a webhook inbox. Returns its ingest URL and a read token (shown once). The same slug is the inbox email address <slug>@ahook.app. Optional slug: a branded username for the inbox (3-63 lowercase letters, digits, and hyphens) — any account may pick one, including anonymous-free via MCP; the inb",
       "labels": [
         "untrusted-content",
         "private-data",
@@ -67,6 +67,15 @@
         "untrusted-content",
         "private-data",
         "destructive"
+      ]
+    },
+    {
+      "name": "search",
+      "descriptionHash": "9e07d1a882bc2e9f86a2e460c7836ce0eef2081fac9ddf4e5736474184334957",
+      "description": "Search the public API index (AHOOK Search, 14,000+ callable APIs and MCP servers). Ranks for whether an agent can actually use a result: BM25 text relevance plus readiness (machine interface, declared auth, liveness, llms.txt, ownership, example call), freshness, authority, and completeness. Every r",
+      "labels": [
+        "untrusted-content",
+        "public-sink"
       ]
     }
   ],
@@ -132,22 +141,60 @@
       "confidence": 0.65
     },
     {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"search\" references sensitive artifacts (authorization, bearer). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:search",
+        "snippet": "Search the public API index (AHOOK Search, 14,000+ callable APIs and MCP servers). Ranks for whether an agent can actually use a result: BM25 text relevance plu…"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-SHADOW-001",
+      "severity": "medium",
+      "category": "shadowing",
+      "title": "Generic tool name can shadow trusted tools",
+      "detail": "Tool \"search\" uses a generic high-value name. When multiple servers load together, this can intercept calls meant for a trusted server.",
+      "evidence": {
+        "source": "tool:search",
+        "snippet": "search"
+      },
+      "confidence": 0.4
+    },
+    {
       "id": "MCP-TOXIC-FLOW-001",
       "severity": "high",
       "category": "toxic-flow",
       "title": "Lethal trifecta: untrusted input + private data + external sink",
-      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: create_inbox, wait_for_event, list_events, delete_inbox · Private data: create_inbox, wait_for_event, list_events, get_event, extract_field, delete_inbox · Public sink: create_inbox · Destructive: delete_inbox.",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: create_inbox, wait_for_event, list_events, delete_inbox, search · Private data: create_inbox, wait_for_event, list_events, get_event, extract_field, delete_inbox · Public sink: create_inbox, search · Destructive: delete_inbox.",
       "evidence": {
         "source": "server:mcp",
-        "snippet": "Untrusted content: create_inbox, wait_for_event, list_events, delete_inbox · Private data: create_inbox, wait_for_event, list_events, get_event, extract_field, delete_inbox · Public sink: create_inbox · Destructive: delete_inbox"
+        "snippet": "Untrusted content: create_inbox, wait_for_event, list_events, delete_inbox, search · Private data: create_inbox, wait_for_event, list_events, get_event, extract_field, delete_inbox · Public sink: create_inbox, search · Destructive: delete_inbox"
       },
       "confidence": 0.6,
       "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"create_inbox\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:create_inbox",
+        "snippet": "before: \"Create a webhook inbox. Returns its ingest URL and a read token (shown once).\" → after: \"Create a webhook inbox. Returns its ingest URL and a read token (shown once). The same slug is the inbox email address <slug>@ahook.app. Optional slug: a branded username for the inbox (3-63 lowercase letters, digits, and hyphens) — any account may pick one, including anonymous-free via MCP; the inb\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
     }
   ],
-  "score": 41,
+  "score": 31,
   "scoreBreakdown": {
-    "tool-poisoning": 39,
+    "tool-poisoning": 41,
+    "shadowing": 8,
     "toxic-flow": 20
   },
   "errors": []

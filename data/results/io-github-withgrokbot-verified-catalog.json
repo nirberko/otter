@@ -8,8 +8,8 @@
     "kind": "url",
     "ref": "https://api.402xagent.com/mcp"
   },
-  "scannedAt": "2026-10-31T10:54:18.448Z",
-  "durationMs": 253,
+  "scannedAt": "2026-11-13T12:53:26.365Z",
+  "durationMs": 306,
   "layers": {
     "metadata": true,
     "static": false
@@ -60,7 +60,7 @@
     },
     {
       "name": "endpoint_spot_check",
-      "descriptionHash": "67ddf71c12b88396d8e4476a48b4baad902dcb72a3b94cdf608328f82f1aabf3",
+      "descriptionHash": "d43477c154c6835cf6a32bd336cd9946c0cb27e6b9feca8e6f9b06020209a07f",
       "description": "Decision-shaped 402xAgent check of a public URL (private, loopback and link-local addresses blocked on every redirect hop) for an x402 PAYMENT-REQUIRED / 402 challenge. Every answer has reason_code (stable code) and confidence (high|medium|low); rules: https://402xagent.com/rules.json. History: stab",
       "labels": [
         "untrusted-content",
@@ -98,6 +98,19 @@
       "name": "endpoint_report",
       "descriptionHash": "751fa45c84691802d25ad3d9fd3abbd7dae2e56877e7e7f40ea3ccf24321f615",
       "description": "Paid ($0.05 USDC on Base via x402, no free tier): the exact committed snapshots behind endpoint_spot_check's locked teasers: which payment terms changed in the last 30 days, when, from what to what, and the full hygiene checks. Pass the url and the commitment_ref from the free answer's locked_commit"
+    },
+    {
+      "name": "page_to_markdown",
+      "descriptionHash": "396ea1bcf66b322b5e83ca916f2462c83e341160ff405f22ed3b831a7601256a",
+      "description": "Fetch one public web page and return clean, LLM-ready Markdown of its main content (no nav, footers, ads or cookie banners; absolute links; tables kept) plus title, description, links, word_count and token_estimate. Respects robots.txt; skips login walls, paywalls and 401/403 pages (never charged). ",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "pdf_tables",
+      "descriptionHash": "0c5fe4577c7caa74f2db6dadede87d4fabf8a0540d2b84d0b8b51c4edcfe9167",
+      "description": "Extract the tables (CSV, JSON, Markdown) and per-page text from one PDF at a public URL. Digital PDFs ~97% cell accuracy; scanned pages (OCR) ~80%. Priced per page via x402 USDC on Base: $0.005/page with ocr=never, $0.015/page with ocr=auto. Charged only if every page succeeds. Max 20 pages per call"
     }
   ],
   "findings": [
@@ -114,14 +127,26 @@
       "confidence": 0.65
     },
     {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"page_to_markdown\" references sensitive artifacts (cookie). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:page_to_markdown",
+        "snippet": "Fetch one public web page and return clean, LLM-ready Markdown of its main content (no nav, footers, ads or cookie banners; absolute links; tables kept) plus ti…"
+      },
+      "confidence": 0.65
+    },
+    {
       "id": "MCP-TOXIC-FLOW-001",
       "severity": "high",
       "category": "toxic-flow",
       "title": "Lethal trifecta: untrusted input + private data + external sink",
-      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: get_overnight_cos_pack, get_receipt, endpoint_spot_check, discover · Private data: search_catalog, get_service, lookup, endpoint_spot_check · Public sink: lookup, endpoint_spot_check, payment_status · Destructive: lookup, get_receipt, endpoint_spot_check, x402_hygiene, discover.",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: get_overnight_cos_pack, get_receipt, endpoint_spot_check, discover, page_to_markdown · Private data: search_catalog, get_service, lookup, endpoint_spot_check · Public sink: lookup, endpoint_spot_check, payment_status · Destructive: lookup, get_receipt, endpoint_spot_check, x402_hygiene, discover.",
       "evidence": {
         "source": "server:mcp",
-        "snippet": "Untrusted content: get_overnight_cos_pack, get_receipt, endpoint_spot_check, discover · Private data: search_catalog, get_service, lookup, endpoint_spot_check · Public sink: lookup, endpoint_spot_check, payment_status · Destructive: lookup, get_receipt, endpoint_spot_check, x402_hygiene, discover"
+        "snippet": "Untrusted content: get_overnight_cos_pack, get_receipt, endpoint_spot_check, discover, page_to_markdown · Private data: search_catalog, get_service, lookup, endpoint_spot_check · Public sink: lookup, endpoint_spot_check, payment_status · Destructive: lookup, get_receipt, endpoint_spot_check, x402_hygiene, discover"
       },
       "confidence": 0.6,
       "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
@@ -131,57 +156,18 @@
       "severity": "high",
       "category": "tool-poisoning",
       "title": "Tool description changed since last scan",
-      "detail": "Tool \"search_catalog\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
-      "evidence": {
-        "source": "tool:search_catalog",
-        "snippet": "before: \"Search pay-per-call (x402) agent services in the verified catalog. Returns factual latest-check results (reachable, latency, advertised vs quoted price). No grades.\" → after: \"Browse or keyword-search the verified catalog of pay-per-call (x402) agent services. Use it when you don't know the task name or want to see what exists; use lookup to rank endpoints for a known task at a max price, and get_service for one id's full record. Read-only. No auth or API key; free, no qu\""
-      },
-      "confidence": 0.8,
-      "remediation": "Re-review the tool before continuing to trust it."
-    },
-    {
-      "id": "MCP-RUGPULL-001",
-      "severity": "high",
-      "category": "tool-poisoning",
-      "title": "Tool description changed since last scan",
-      "detail": "Tool \"get_service\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
-      "evidence": {
-        "source": "tool:get_service",
-        "snippet": "before: \"Get the full catalog record for one service id, including its latest check and raw log link.\" → after: \"Fetch the complete catalog record for one known service id (e.g. from search_catalog or lookup results). Use search_catalog to find ids and lookup to rank services for a task; get_service has no per-call receipts, so for receipts with tx and Basescan links call lookup with endpoint=<id>. Read-only. \""
-      },
-      "confidence": 0.8,
-      "remediation": "Re-review the tool before continuing to trust it."
-    },
-    {
-      "id": "MCP-RUGPULL-001",
-      "severity": "high",
-      "category": "tool-poisoning",
-      "title": "Tool description changed since last scan",
-      "detail": "Tool \"lookup\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
-      "evidence": {
-        "source": "tool:lookup",
-        "snippet": "before: \"Is an x402 endpoint reliable for a task at a price? Asks the catalog's lookup service for services matching a task at or under max_price_usd, sorted by known-answer pass rate over the last n paid calls, then price. Each result has its paid receipts (time, tx, Basescan link, charged, delivered, pass/\" → after: \"Rank x402 endpoints for a known task at or under a price: \"which endpoint should I pay for task X at <= $Y?\". Prefer it over search_catalog (keyword browsing, unranked) and get_service (one id's raw record). No auth or API key. Calls the hosted lookup service as client=vc-mcp; all MCP users share th\""
-      },
-      "confidence": 0.8,
-      "remediation": "Re-review the tool before continuing to trust it."
-    },
-    {
-      "id": "MCP-RUGPULL-001",
-      "severity": "high",
-      "category": "tool-poisoning",
-      "title": "Tool description changed since last scan",
       "detail": "Tool \"endpoint_spot_check\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
       "evidence": {
         "source": "tool:endpoint_spot_check",
-        "snippet": "before: \"SSRF-safe spot-check of a public URL for an x402 PAYMENT-REQUIRED / 402 challenge. Returns reachable, http_status, latency_ms, parsed accepts summary, quoted_price_usd, and optional price_matches_claimed. Never pays the target (probe GET only). 1 free check per client per UTC day (client=vc-mcp for \" → after: \"Decision-shaped 402xAgent check of a public URL (private, loopback and link-local addresses blocked on every redirect hop) for an x402 PAYMENT-REQUIRED / 402 challenge. Every answer has reason_code (stable code) and confidence (high|medium|low); rules: https://402xagent.com/rules.json. History: stab\""
+        "snippet": "before: \"Decision-shaped 402xAgent check of a public URL (private, loopback and link-local addresses blocked on every redirect hop) for an x402 PAYMENT-REQUIRED / 402 challenge. Every answer has reason_code (stable code) and confidence (high|medium|low); rules: https://402xagent.com/rules.json. History: stab\" → after: \"Decision-shaped 402xAgent check of a public URL (private, loopback and link-local addresses blocked on every redirect hop) for an x402 PAYMENT-REQUIRED / 402 challenge. Every answer has reason_code (stable code) and confidence (high|medium|low); rules: https://402xagent.com/rules.json. History: stab\""
       },
       "confidence": 0.8,
       "remediation": "Re-review the tool before continuing to trust it."
     }
   ],
-  "score": 41,
+  "score": 45,
   "scoreBreakdown": {
-    "tool-poisoning": 39,
+    "tool-poisoning": 35,
     "toxic-flow": 20
   },
   "errors": []

@@ -8,8 +8,8 @@
     "kind": "url",
     "ref": "https://sports-scores-mcp.sigrunner.workers.dev/mcp"
   },
-  "scannedAt": "2026-11-12T12:51:09.484Z",
-  "durationMs": 287,
+  "scannedAt": "2026-11-13T12:19:23.227Z",
+  "durationMs": 200,
   "layers": {
     "metadata": true,
     "static": false
@@ -26,13 +26,82 @@
       "description": "Return all events on a calendar date (UTC, \"YYYY-MM-DD\"), optionally filtered to one sport. Same unified schema and freshness field as get_live_scores. Use for finals, fixtures, and a full day board. Keyless, free."
     },
     {
+      "name": "get_odds",
+      "descriptionHash": "bd12b1e67a0f52571cf3d43c7c634cc36957dc17b18ad119e895ae3963936119",
+      "description": "Return betting lines for a league's current scoreboard: point spread, over/under total, and home/away moneyline (single-book, DraftKings via ESPN), plus each team's win/loss record and the game status. Call with a league token (nfl, nba, nhl, mlb, epl, \"la liga\", ncaaf, ucl, ...). Lines appear once ",
+      "labels": [
+        "untrusted-content",
+        "private-data"
+      ]
+    },
+    {
+      "name": "get_matchup",
+      "descriptionHash": "21d5e815a92398cc30c0828b6f74df7ad1bff4a6284d6f85dddcd9c18bff3fef",
+      "description": "One-call betting-research card for a SINGLE game: each team's recent form (last-5 result string, W-L record, and current streak), the head-to-head season series (series score + completed meetings), the against-the-spread record (US sports, once enough games exist), and ESPN's win-probability (US spo",
+      "labels": [
+        "untrusted-content",
+        "private-data"
+      ]
+    },
+    {
+      "name": "get_injuries",
+      "descriptionHash": "f63a9f96b5bcfb5a5a150f998ae52cc416773ceda59eb8777cc238b8d971b92c",
+      "description": "Return the current injury report for a league: player, team, position, status (Out, Day-To-Day, ...) and the latest short report note with its update time. Optionally filter to one team by name. Use before reading a betting line from get_odds. Keyless, free."
+    },
+    {
+      "name": "get_news",
+      "descriptionHash": "c1081b57f77781257b3dd075f8c388d7c1001b0fbe638cbc5ee6bd85b804da27",
+      "description": "Return the latest headlines for a league (headline, one-line summary, publish time, link). Use for breaking context such as suspensions or trades. Not an injury list: call get_injuries for that. Keyless, free.",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "list_odds_leagues",
+      "descriptionHash": "f8e3f2fb70426a61b0952cda83a8be32d95c2bc579c38cef791649751f70c3fe",
+      "description": "List the league tokens get_odds understands (US majors + top soccer leagues) with their sport and ESPN path. Keyless, free.",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
       "name": "list_sports",
-      "descriptionHash": "ee987ac74851e3719fd72696d4b1f65e53be0df3fc9ddc00fff4d41e76a75ca0",
-      "description": "List the sport filters this server understands (canonical labels + common aliases like nba/nfl/nhl/mlb). Keyless, free."
+      "descriptionHash": "b2582d50cfe79a5b3e4bca42fd8c23c6875b074df9a010776fd700b98b9df9ba",
+      "description": "List the sport filters the score tools understand (canonical labels + common aliases like nba/nfl/nhl/mlb). Keyless, free."
     }
   ],
-  "findings": [],
-  "score": 100,
-  "scoreBreakdown": {},
+  "findings": [
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: get_odds, get_matchup · Private data: get_odds, get_matchup, list_odds_leagues · Public sink: get_news.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: get_odds, get_matchup · Private data: get_odds, get_matchup, list_odds_leagues · Public sink: get_news"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"list_sports\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:list_sports",
+        "snippet": "before: \"List the sport filters this server understands (canonical labels + common aliases like nba/nfl/nhl/mlb). Keyless, free.\" → after: \"List the sport filters the score tools understand (canonical labels + common aliases like nba/nfl/nhl/mlb). Keyless, free.\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    }
+  ],
+  "score": 60,
+  "scoreBreakdown": {
+    "toxic-flow": 20,
+    "tool-poisoning": 20
+  },
   "errors": []
 }
