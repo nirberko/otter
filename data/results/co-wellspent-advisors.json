@@ -8,8 +8,8 @@
     "kind": "url",
     "ref": "https://api.wellspent.co/mcp"
   },
-  "scannedAt": "2026-11-10T12:45:49.580Z",
-  "durationMs": 347,
+  "scannedAt": "2026-11-14T11:35:47.750Z",
+  "durationMs": 479,
   "layers": {
     "metadata": true,
     "static": false
@@ -17,7 +17,7 @@
   "tools": [
     {
       "name": "search_fee_only_advisors",
-      "descriptionHash": "eb3e3b2920f1b78b3d8a2692ecf9c59c20a65edb8084ffd41b393ae80d29374f",
+      "descriptionHash": "d1ee15f41d656cdf509c8152f2fd603c8818c86a3bb64ff0cde07cc99eae422d",
       "description": "Use this when someone wants to find a fee-only financial advisor, financial planner, or fiduciary in the US or Canada, especially for a specific situation (e.g. equity compensation, retirement, cross-border US/Canada, physicians). Returns advisors paid only by their clients, never by commissions, ra",
       "labels": [
         "private-data",
@@ -34,9 +34,23 @@
       ]
     },
     {
+      "name": "find_advisor_or_firm_by_name",
+      "descriptionHash": "73da3fd5b85171a1baa2ceab5f76654a47751cc8c6b3251662dd51ff0bab1a35",
+      "description": "Use this when the person names a specific advisor or firm and wants to know whether Wellspent lists them as fee-only, or wants their profile. Matches advisor names, firm names and places in the public graph, which holds only advisors Wellspent treats as fee-only. A match gives the slug for get_advis"
+    },
+    {
       "name": "show_advisor_cards",
       "descriptionHash": "cb27a27b7db06fbda2f36ee20846459eff590d458be74723cad53440cee8cf48",
       "description": "Use this after search_fee_only_advisors to show up to 8 of its results as cards, in the order given, each with a View profile link to find.wellspent.co. Pass the slugs from the search results. Shows only public Wellspent data. Do not use for advisors that did not come from a Wellspent search."
+    },
+    {
+      "name": "get_fee_benchmarks",
+      "descriptionHash": "217cdb616eeac962441dc8395d6cbe8fce7350fee7bdb3b6d1301f946c01c11d",
+      "description": "Use this when the person asks what a fee-only financial advisor costs, or whether a price they were quoted is typical. Returns the median and the middle half (25th to 75th percentile) of what fee-only firms charge for ongoing planning per year, a one-time plan, an hourly rate, and a percentage of as",
+      "labels": [
+        "untrusted-content",
+        "public-sink"
+      ]
     },
     {
       "name": "list_specialties_and_audiences",
@@ -44,8 +58,63 @@
       "description": "Use this when you need valid slugs for search_fee_only_advisors, or the person asks what they can search by. Lists planning specialties, client audiences, and regions (US states and Canadian provinces that have advisors)."
     }
   ],
-  "findings": [],
-  "score": 100,
-  "scoreBreakdown": {},
+  "findings": [
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"search_fee_only_advisors\" references sensitive artifacts (credentials). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:search_fee_only_advisors",
+        "snippet": "Use this when someone wants to find a fee-only financial advisor, financial planner, or fiduciary in the US or Canada, especially for a specific situation (e.g.…"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-SCHEMA-SMELL-001",
+      "severity": "medium",
+      "category": "schema-smell",
+      "title": "Read-only tool requests dangerous parameters",
+      "detail": "Tool \"search_fee_only_advisors\" appears informational but accepts parameters (credentials) that enable code/file/secret access.",
+      "evidence": {
+        "source": "tool:search_fee_only_advisors",
+        "snippet": "country, region, city, specialties, audiences, virtual_ok, fee_models, credentials, max_asset_minimum, limit"
+      },
+      "confidence": 0.55
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: get_fee_benchmarks · Private data: search_fee_only_advisors, get_advisor_profile · Public sink: search_fee_only_advisors, get_advisor_profile, get_fee_benchmarks.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: get_fee_benchmarks · Private data: search_fee_only_advisors, get_advisor_profile · Public sink: search_fee_only_advisors, get_advisor_profile, get_fee_benchmarks"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"search_fee_only_advisors\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:search_fee_only_advisors",
+        "snippet": "before: \"Use this when someone wants to find a fee-only financial advisor, financial planner, or fiduciary in the US or Canada, especially for a specific situation (e.g. equity compensation, retirement, cross-border US/Canada, physicians). Returns advisors paid only by their clients, never by commissions, ra\" → after: \"Use this when someone wants to find a fee-only financial advisor, financial planner, or fiduciary in the US or Canada, especially for a specific situation (e.g. equity compensation, retirement, cross-border US/Canada, physicians). Returns advisors paid only by their clients, never by commissions, ra\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    }
+  ],
+  "score": 42,
+  "scoreBreakdown": {
+    "tool-poisoning": 30,
+    "schema-smell": 8,
+    "toxic-flow": 20
+  },
   "errors": []
 }

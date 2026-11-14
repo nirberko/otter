@@ -8,8 +8,8 @@
     "kind": "url",
     "ref": "https://optimtoken-mcp.optimnow.io/mcp"
   },
-  "scannedAt": "2026-11-05T12:56:15.579Z",
-  "durationMs": 7173,
+  "scannedAt": "2026-11-14T12:00:47.617Z",
+  "durationMs": 2315,
   "layers": {
     "metadata": true,
     "static": false
@@ -17,12 +17,12 @@
   "tools": [
     {
       "name": "compare-llm-models",
-      "descriptionHash": "4bc58daea06a0ba7a7018bd516343b3d1e99dff793b64598badb31e1385e9593",
-      "description": "Browse and filter the whole LLM catalogue and get back a ranked table: price, quality (ELO), efficiency and capabilities. Use this when the user wants to SEE THE FIELD — 'show me models under $1/1M', 'which providers have vision models', 'list open-weight models above ELO 1300'. For a single PICK un"
+      "descriptionHash": "d4ecd34694a2b1cc71a3c1afbe88191e07bb8714574bd02f5cff9fc1bfcf255b",
+      "description": "Browse and filter the whole LLM catalogue and get back a ranked table: price, quality (ELO), efficiency and capabilities. Use this when the user wants to SEE THE FIELD — 'show me models under $1/1M', 'which providers have vision models', 'list open-weight models above ELO 1300', 'the ten cheapest mo"
     },
     {
       "name": "estimate-llm-cost",
-      "descriptionHash": "66521c300f8c9c381d235d8af799a5b81aa08612641269fde7dd4d1f0dcf6f4f",
+      "descriptionHash": "94e0888bde897860131c4fd0ff5a8903ef5ca37ea411a1eec5ebdeb60c7b800a",
       "description": "Cost a workload with EXACT numbers the caller supplies: arbitrary token counts per request and any monthly volume, not just the 10k/100k/1m presets the other cost tools use. Use this for 'about 800 in and 200 out, 4 million calls a month', or to price one named model across every use-case profile. T",
       "labels": [
         "private-data"
@@ -38,7 +38,7 @@
     },
     {
       "name": "recommend-llm-model",
-      "descriptionHash": "32e82494a2423b138bdc48a2c226d4697222ba3f43ab8c23f3793bb6d78d6b94",
+      "descriptionHash": "dd50e9c51630700f2855fd1d48e92827cbe6abbd85ab4e1efe9ef44beff39237",
       "description": "Pick a model. Returns a ranked top 3 for one workload under optional constraints, each with a per-constraint satisfied/violated breakdown as the evidence. Use this when the user wants an ANSWER rather than a table — 'what should I use for support tickets under $500 a month'. To browse or filter the ",
       "labels": [
         "untrusted-content"
@@ -46,12 +46,100 @@
     },
     {
       "name": "compare-compute-pricing",
-      "descriptionHash": "8993bd80f65a265e65a0ed3b84461402c7d867b7045639726119b29773c18a02",
-      "description": "Compare cloud compute instance pricing across AWS, Azure, GCP, DigitalOcean, OCI, OVH, and Alibaba. Filter by region, provider, vCPUs, memory, category, processor, or use case. All prices are Linux on-demand list prices in USD. Not every price column is live: `provenance.priceTypes` says which of ea"
+      "descriptionHash": "ef5ae2cb0fee54967f7693613974d7d48906c1612a6deb9b70e764e5bd4d2cc5",
+      "description": "Compare cloud compute instance pricing across AWS, Azure, GCP, DigitalOcean, OCI, OVH, and Alibaba. Filter by region, provider, vCPUs, memory, category, processor, or use case. Use this for 'the cheapest 8 vCPU / 32 GiB instance in Europe', and for what a commitment saves: each row gives the Linux l"
+    },
+    {
+      "name": "compare-model-hosts",
+      "descriptionHash": "61c79fc7db41eccd22826973ab449c96c4acfcb5d1399ff001f543f6a6f7ae6b",
+      "description": "Who sells a model, and at what price. Most models are sold by several hosts (the model maker, a cloud platform such as Amazon Bedrock, Azure or Vertex, or an independent host) at different rates, and every other tool here quotes ONE of them. For 1-4 named models this returns how many hosts sell each"
+    },
+    {
+      "name": "estimate-self-hosting-breakeven",
+      "descriptionHash": "eac35f68095d5bac1791bb67546ea2e31534ce2cb96a19b3d24035054bcbf023",
+      "description": "API or own capacity: the monthly volume at which renting GPU instances costs the same as paying a model's API per token. An API bill grows with every request, a rented instance costs the same whether it is busy or idle, so below the break-even the API is cheaper and above it the fleet is. Give a mod",
+      "labels": [
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "track-llm-price-changes",
+      "descriptionHash": "4311dcf721a721438bcb6b225d3275c36fbdd5163a0b7413a307cb6feac0428c",
+      "description": "What moved. Every other tool here quotes today's price; this one says whether it has just changed, from the price archive optimtoken.optimnow.io keeps (its first day is `provenance.trackingStart`). Without `models` it returns the moves of the last 7 days across the catalogue: each model whose quoted"
     }
   ],
-  "findings": [],
-  "score": 100,
-  "scoreBreakdown": {},
+  "findings": [
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: recommend-llm-model · Private data: estimate-llm-cost, compare-models-side-by-side, estimate-self-hosting-breakeven · Public sink: estimate-self-hosting-breakeven.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: recommend-llm-model · Private data: estimate-llm-cost, compare-models-side-by-side, estimate-self-hosting-breakeven · Public sink: estimate-self-hosting-breakeven"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"compare-llm-models\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:compare-llm-models",
+        "snippet": "before: \"Browse and filter the whole LLM catalogue and get back a ranked table: price, quality (ELO), efficiency and capabilities. Use this when the user wants to SEE THE FIELD — 'show me models under $1/1M', 'which providers have vision models', 'list open-weight models above ELO 1300'. For a single PICK un\" → after: \"Browse and filter the whole LLM catalogue and get back a ranked table: price, quality (ELO), efficiency and capabilities. Use this when the user wants to SEE THE FIELD — 'show me models under $1/1M', 'which providers have vision models', 'list open-weight models above ELO 1300', 'the ten cheapest mo\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"estimate-llm-cost\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:estimate-llm-cost",
+        "snippet": "before: \"Cost a workload with EXACT numbers the caller supplies: arbitrary token counts per request and any monthly volume, not just the 10k/100k/1m presets the other cost tools use. Use this for 'about 800 in and 200 out, 4 million calls a month', or to price one named model across every use-case profile. T\" → after: \"Cost a workload with EXACT numbers the caller supplies: arbitrary token counts per request and any monthly volume, not just the 10k/100k/1m presets the other cost tools use. Use this for 'about 800 in and 200 out, 4 million calls a month', or to price one named model across every use-case profile. T\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"recommend-llm-model\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:recommend-llm-model",
+        "snippet": "before: \"Pick a model. Returns a ranked top 3 for one workload under optional constraints, each with a per-constraint satisfied/violated breakdown as the evidence. Use this when the user wants an ANSWER rather than a table — 'what should I use for support tickets under $500 a month'. To browse or filter the \" → after: \"Pick a model. Returns a ranked top 3 for one workload under optional constraints, each with a per-constraint satisfied/violated breakdown as the evidence. Use this when the user wants an ANSWER rather than a table — 'what should I use for support tickets under $500 a month'. To browse or filter the \""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"compare-compute-pricing\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:compare-compute-pricing",
+        "snippet": "before: \"Compare cloud compute instance pricing across AWS, Azure, GCP, DigitalOcean, OCI, OVH, and Alibaba. Filter by region, provider, vCPUs, memory, category, processor, or use case. All prices are Linux on-demand list prices in USD. Not every price column is live: `provenance.priceTypes` says which of ea\" → after: \"Compare cloud compute instance pricing across AWS, Azure, GCP, DigitalOcean, OCI, OVH, and Alibaba. Filter by region, provider, vCPUs, memory, category, processor, or use case. Use this for 'the cheapest 8 vCPU / 32 GiB instance in Europe', and for what a commitment saves: each row gives the Linux l\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    }
+  ],
+  "score": 43,
+  "scoreBreakdown": {
+    "toxic-flow": 20,
+    "tool-poisoning": 38
+  },
   "errors": []
 }

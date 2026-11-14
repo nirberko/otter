@@ -1,0 +1,128 @@
+{
+  "schemaVersion": 1,
+  "scanner": {
+    "version": "1.6.0",
+    "rules": "402995650b68"
+  },
+  "target": {
+    "kind": "url",
+    "ref": "https://www.agrodiler.com/mcp"
+  },
+  "scannedAt": "2026-11-14T11:36:04.837Z",
+  "durationMs": 1928,
+  "layers": {
+    "metadata": true,
+    "static": false
+  },
+  "tools": [
+    {
+      "name": "search_products",
+      "descriptionHash": "208ebfbcc964e656b7fabf74ba46371700ad736e0230108620b7daa7831d5c5e",
+      "description": "Search the agrodiler.com catalog (bearings, spare parts for agricultural machinery, machines; stores for Ukraine and the EU) with the same search as the site. lang selects the site and market: en (EU, EUR), uk or ru (Ukraine, UAH). Accepts part numbers, bearing designations (also GOST numbers, conve",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "get_product",
+      "descriptionHash": "2f87211c7fd453270a88de0b18026343167af530a773feaf647fdc05cc448546",
+      "description": "Details of one product by handle: title, part number, brand, type, size and stock, minimum order quantity (moq), current unit price in the market currency (UAH incl. VAT for uk/ru, EUR excluding VAT for en: quote adds the VAT of the delivery country) (null = price on request, set by the manager), pr",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "quote",
+      "descriptionHash": "2c9b589bcfbbff9cd3848287bdc5c823fc649af39e0e84b6b07e5682fdc80833",
+      "description": "Calculate the binding total for a list of items with the same code the site checkout uses (prices, minimum order, shipping rules: Nova Poshta for Ukraine; for lang en shipping and VAT by the ship_to country, minimum order 49 EUR excl. VAT). Read-only: creates no order. Use the returned total_minor a"
+    },
+    {
+      "name": "cart_link",
+      "descriptionHash": "ff906daf24ca12ebde342a323171f923a5b047177a9534b33a95c537d87206b6",
+      "description": "Build a link that opens agrodiler.com with these items in the cart and the order form shown. Use it when the buyer prefers to finish on the site or your client cannot call place_order. Quantities below the minimum order quantity are raised to it. Does not place an order."
+    },
+    {
+      "name": "place_order",
+      "descriptionHash": "c6673be09286b5dcab20bf6278317e1abbd048f82faaf63d7c6a89f4cc1079d9",
+      "description": "Submit an order request on behalf of the buyer, after they approved the items and the quote total. No payment is taken and nothing is charged: a 6-digit code is emailed to the buyer; after the buyer confirms (confirm_order or the email link) a manager checks it and contacts them. idempotency_key is ",
+      "labels": [
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "confirm_order",
+      "descriptionHash": "19f470556f3c125e79ca944d2787b18c05031c3faa7296d6d8553b2eafa184ea",
+      "description": "Confirm an order request with the 6-digit code the buyer received by email, plus order_number and order_secret from place_order. Ask the buyer for the code; never guess it. 8 attempts per order request in total (a resent code does not reset them). After confirmation the request goes to a manager; no",
+      "labels": [
+        "public-sink",
+        "destructive"
+      ]
+    },
+    {
+      "name": "resend_code",
+      "descriptionHash": "a5dac0ce550931132b41358f393a023ef7c5c02203aed530ec82dff17986fc37",
+      "description": "Email the buyer a new confirmation code when the first did not arrive or expired (30 minutes). Needs order_number and order_secret from place_order. At most 2 resends per order request; the old code stops working.",
+      "labels": [
+        "public-sink"
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"place_order\" references sensitive artifacts (secret). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:place_order",
+        "snippet": "Submit an order request on behalf of the buyer, after they approved the items and the quote total. No payment is taken and nothing is charged: a 6-digit code is…"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"confirm_order\" references sensitive artifacts (secret). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:confirm_order",
+        "snippet": "Confirm an order request with the 6-digit code the buyer received by email, plus order_number and order_secret from place_order. Ask the buyer for the code; nev…"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"resend_code\" references sensitive artifacts (secret). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:resend_code",
+        "snippet": "Email the buyer a new confirmation code when the first did not arrive or expired (30 minutes). Needs order_number and order_secret from place_order. At most 2 r…"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: get_product · Private data: place_order · Public sink: search_products, place_order, confirm_order, resend_code · Destructive: confirm_order.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: get_product · Private data: place_order · Public sink: search_products, place_order, confirm_order, resend_code · Destructive: confirm_order"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 45,
+  "scoreBreakdown": {
+    "tool-poisoning": 35,
+    "toxic-flow": 20
+  },
+  "errors": []
+}

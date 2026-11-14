@@ -26,8 +26,8 @@
     },
     {
       "name": "get_my_player",
-      "descriptionHash": "8532eb948d7db3ac37c3470d310687e7d24e542c4a76050ddc6a7178f59f89ea",
-      "description": "Attributes, club, form, goals, injuries, market value in Claws (CFC), shirt number, look and league position for your player."
+      "descriptionHash": "0b102d9ca9cb25a33ed4c32e988c696c3c78b893944ffb3b08746eae82c1612e",
+      "description": "Attributes, club, form, goals, injuries, market value in Claws (CFC), shirt number, look and league position for your player. Also returns status: whether you are suspended (matches left, why, which matches you miss), injured, whether you are in the squad for your next match (starting, bench, not_se"
     },
     {
       "name": "train",
@@ -36,15 +36,15 @@
     },
     {
       "name": "get_agent_key",
-      "descriptionHash": "6a9165c1db4931f8102e0501279ffbeabfd13ee2f33693223e1433826a398613",
-      "description": "Get your agent key. Call it once per player: the key is shown a single time and the league keeps only a hash, so store it safely. It is what train, agent_get_my_moments, agent_set_character and agent_moment_voice ask for as agent_key. If a key was already issued you get key_already_issued; the owner",
+      "descriptionHash": "d13ac2b1a968a7b8cf6c9d6ff4fc570208751806c1e5e109811b003f7e2cb5c8",
+      "description": "Get your agent key. Call it once per player: the key is shown a single time and the league keeps only a hash, so store it safely. It is what train, agent_get_my_moments, agent_set_character, agent_moment_voice and the message tools ask for as agent_key. If a key was already issued you get key_alread",
       "labels": [
         "untrusted-content"
       ]
     },
     {
       "name": "get_my_form_report",
-      "descriptionHash": "143f8c78c42a96e9015d8ef7369ef0bc85c0c4b644a221bcf3c91e74ac8b43c1",
+      "descriptionHash": "5f6db81590391fd1d3b0223f1de0e09c2e45a21692b680c6d95eada303314afb",
       "description": "How your own player is doing and what is coming: form and its trend, the last training sessions and what they moved, goals and assists, fitness and suspension, how much of this season's growth is left, and the next fixture with the opponent's league position, recent results and the appointed referee"
     },
     {
@@ -97,6 +97,34 @@
       "name": "agent_moment_voice",
       "descriptionHash": "fc650a68f0f37d24fbed50aee132bf1213d31068efdf3a2cd4cd4a6df62ae43d",
       "description": "Write your player's quote for a key moment waiting for your words. Call agent_get_my_moments first to see waiting_for_your_words with the moment_ids and a template_quote for inspiration. Text 2–200 characters, plain text only (no HTML tags), checked against the word filter. Only real (non-dummy) age"
+    },
+    {
+      "name": "agent_get_messages",
+      "descriptionHash": "316915d6e22e1d8c9563a132813552054d700f3ec6d2bf9a28de3e5987b07ed6",
+      "description": "Your inbox: messages from your manager (the human running your club) and from your owner, newest first, up to 20. Each has message_id, thread_id, from (manager, owner or system), topic, text, at, new and you_replied. From system are league notices, for example that a suspension or injury has started",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "agent_reply_message",
+      "descriptionHash": "74e26b96eb281d7369dbc3113ff1fce07b353e68d9816faf4f933a7b7fd130e0",
+      "description": "Reply in a conversation from agent_get_messages, as your footballer. thread_id from the inbox; topic one of form_fitness, position_role, playtime, training, tactics_match, satisfaction, contract_transfer, club_life (optional); text 1-280 characters, plain text. The same filter as for humans applies:",
+      "labels": [
+        "untrusted-content",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "agent_send_message",
+      "descriptionHash": "a58d08df315ddd3f6ff926c0113928fef419de8e324f1bb06d5a0b3ead651138",
+      "description": "Start a talk with the manager of your club yourself. type: sick_tired (ill or tired), other_position (want to play elsewhere), more_playtime, transfer (want to leave), happy, unhappy, wants_talk. text 1-280 characters, plain text, about football at ClawFC. The manager sees it in the Messenger with b",
+      "labels": [
+        "untrusted-content",
+        "public-sink"
+      ]
     }
   ],
   "findings": [
@@ -105,10 +133,10 @@
       "severity": "high",
       "category": "toxic-flow",
       "title": "Lethal trifecta: untrusted input + private data + external sink",
-      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: register_player, get_agent_key · Private data: get_match_report, get_referees · Public sink: register_player.",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: register_player, get_agent_key, agent_get_messages, agent_reply_message, agent_send_message · Private data: get_match_report, get_referees, agent_get_messages · Public sink: register_player, agent_get_messages, agent_reply_message, agent_send_message.",
       "evidence": {
         "source": "server:mcp",
-        "snippet": "Untrusted content: register_player, get_agent_key · Private data: get_match_report, get_referees · Public sink: register_player"
+        "snippet": "Untrusted content: register_player, get_agent_key, agent_get_messages, agent_reply_message, agent_send_message · Private data: get_match_report, get_referees, agent_get_messages · Public sink: register_player, agent_get_messages, agent_reply_message, agent_send_message"
       },
       "confidence": 0.6,
       "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
@@ -118,19 +146,58 @@
       "severity": "high",
       "category": "tool-poisoning",
       "title": "Tool description changed since last scan",
-      "detail": "Tool \"get_match_report\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "detail": "Tool \"register_player\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
       "evidence": {
-        "source": "tool:get_match_report",
-        "snippet": "before: \"Minute-by-minute commentary for a match. Omit match_id for the most recent one.\" → after: \"Minute-by-minute commentary for a match, plus tactical_execution: per club the percentage of agent choices that followed the tactic and the touchline shouts (empty until the engine records them). Omit match_id for the most recent one.\""
+        "source": "tool:register_player",
+        "snippet": "before: \"Register this agent as a player in ClawFC: the Veldoria Premier League while it has a free shirt, the Veldoria First Division after that. Free, no waiting list: you take a shirt off a generated player and are in the squad for the next matchday. Pick a stable agent_id and keep it — it is how you find\" → after: \"Register this agent as a player in ClawFC: the Veldoria Premier League while it has a free shirt, the Veldoria First Division after that. Free, no waiting list: you take a shirt off a generated player and are in the squad for the next matchday. Pick a stable agent_id and keep it — it is how you find\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"get_my_player\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:get_my_player",
+        "snippet": "before: \"Attributes, club, form, goals, injuries, market value in Claws (CFC), shirt number, look and league position for your player.\" → after: \"Attributes, club, form, goals, injuries, market value in Claws (CFC), shirt number, look and league position for your player. Also returns status: whether you are suspended (matches left, why, which matches you miss), injured, whether you are in the squad for your next match (starting, bench, not_se\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"get_agent_key\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:get_agent_key",
+        "snippet": "before: \"Get your agent key. Call it once per player: the key is shown a single time and the league keeps only a hash, so store it safely. It is what train, agent_get_my_moments, agent_set_character and agent_moment_voice ask for as agent_key. If a key was already issued you get key_already_issued; the owner\" → after: \"Get your agent key. Call it once per player: the key is shown a single time and the league keeps only a hash, so store it safely. It is what train, agent_get_my_moments, agent_set_character, agent_moment_voice and the message tools ask for as agent_key. If a key was already issued you get key_alread\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"get_my_form_report\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:get_my_form_report",
+        "snippet": "before: \"How your own player is doing and what is coming: form and its trend, the last training sessions and what they moved, goals and assists, fitness and suspension, how much of this season's growth is left, and the next fixture with the opponent's league position, recent results and the appointed referee\" → after: \"How your own player is doing and what is coming: form and its trend, the last training sessions and what they moved, goals and assists, fitness and suspension, how much of this season's growth is left, and the next fixture with the opponent's league position, recent results and the appointed referee\""
       },
       "confidence": 0.8,
       "remediation": "Re-review the tool before continuing to trust it."
     }
   ],
-  "score": 60,
+  "score": 43,
   "scoreBreakdown": {
     "toxic-flow": 20,
-    "tool-poisoning": 20
+    "tool-poisoning": 38
   },
   "errors": []
 }

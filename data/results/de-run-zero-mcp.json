@@ -8,8 +8,8 @@
     "kind": "url",
     "ref": "https://api.run-zero.de/mcp"
   },
-  "scannedAt": "2026-11-10T12:49:33.824Z",
-  "durationMs": 2859,
+  "scannedAt": "2026-11-14T11:39:37.893Z",
+  "durationMs": 2820,
   "layers": {
     "metadata": true,
     "static": false
@@ -126,8 +126,8 @@
     },
     {
       "name": "runzero_volume_status",
-      "descriptionHash": "e4cac1b719fad1d046f9ed4f039597e6399b5d7c15ee625d500508354193d859",
-      "description": "Show the persistent volume of a service: mount path, size, last backup, the backups that can be restored, and the state of a running or last restore. Volumes are declared under `volumes:` in run-zero.yaml (runzero_get_help topic files).",
+      "descriptionHash": "2ecdd76bdf712e48a9d72eac50b96689da5488732144093832a21d963b33729e",
+      "description": "Show the persistent volume of a service: mount path, size, last backup, the backups that can be restored, and the state of a running or last restore or import. Volumes are declared under `volumes:` in run-zero.yaml (runzero_get_help topic files).",
       "labels": [
         "private-data",
         "destructive"
@@ -142,6 +142,24 @@
       "name": "runzero_restore_volume",
       "descriptionHash": "e1cb9dd08839fe26a94530c2f6969e19f1fb24ac84a7a3eb8d6db7b5b9e99b93",
       "description": "Replace the data on the persistent volume with a backup. The service stops, the current data is backed up first, the backup is unpacked, and the service starts again. Takes minutes; follow it with runzero_volume_status (`restore.phase` ends at `done`, with `error` if it failed and the data stayed un"
+    },
+    {
+      "name": "runzero_volume_import_link",
+      "descriptionHash": "70659c0c9d251601825180af50f5c2fd34ee767e58d0bf8e2dae6b8cf2572001",
+      "description": "Step 1 of moving existing data (an SQLite file, a pb_data folder) onto the persistent volume of a service. Returns a dashboard page where the USER drops the file, and a one-hour upload link with a ready curl command for a shell on the machine that has the file; the bytes never pass through the model",
+      "labels": [
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "runzero_import_volume",
+      "descriptionHash": "3fb46dd3adb8352271aac8438e275efca85d8ee334b2f5515040978ff05d892b",
+      "description": "Step 2: put an uploaded file (runzero_volume_import_link) onto the persistent volume. The service stops, the current data is backed up first, the file is placed, and the service starts again. Existing data is only replaced with overwrite: true; ask the user before setting it. An SQLite file is check",
+      "labels": [
+        "private-data",
+        "destructive"
+      ]
     },
     {
       "name": "runzero_set_secrets",
@@ -372,6 +390,15 @@
       "labels": [
         "public-sink"
       ]
+    },
+    {
+      "name": "runzero_claim_handoff",
+      "descriptionHash": "e7ec8de8a5b81419624a7e5c2d4c68aa33511abdd16a573e08877885c4e1c432",
+      "description": "Claim a handoff link the user copied from the run.zero dashboard (a link ending in /handoffs/<token>). Returns the app idea the user wrote and the next steps. Works once, only for the account that made the link, within 15 minutes. If it fails, ask the user for a fresh link.",
+      "labels": [
+        "private-data",
+        "destructive"
+      ]
     }
   ],
   "findings": [
@@ -465,7 +492,7 @@
       "severity": "low",
       "category": "tool-poisoning",
       "title": "Anomalously long tool description",
-      "detail": "Description of \"runzero_push_files\" is 1319 chars, far longer than this server's median (236). Overlong descriptions are a common place to bury instructions.",
+      "detail": "Description of \"runzero_push_files\" is 1319 chars, far longer than this server's median (246). Overlong descriptions are a common place to bury instructions.",
       "evidence": {
         "source": "tool:runzero_push_files",
         "snippet": "Push changes into the app's Git repository as ONE atomic commit (create, patch, and delete in a single push). CHANGING an existing file? Use `edits` — an exact-…"
@@ -549,18 +576,31 @@
       "severity": "high",
       "category": "toxic-flow",
       "title": "Lethal trifecta: untrusted input + private data + external sink",
-      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: runzero_list_apps, runzero_get_app, runzero_list_templates, runzero_list_versions, runzero_wait_for_build, runzero_upload_assets, runzero_list_users · Private data: runzero_get_help, runzero_get_app, runzero_delete_app, runzero_volume_status, runzero_set_secrets, runzero_list_secrets, runzero_delete_secret, runzero_list_builds, runzero_activate_version, runzero_push_files, runzero_list_files, runzero_read_file, runzero_upload_assets, runzero_create_user, runzero_reset_user_password, runzero_list_identity_providers, runzero_create_identity_provider, runzero_generate_image, runzero_db_query, runzero_describe_addon, runzero_get_legal_profile · Public sink: runzero_get_app, runzero_publish, runzero_set_publish_mode, runzero_upload_assets, runzero_list_users, runzero_set_legal_profile · Destructive: runzero_delete_app, runzero_deploy, runzero_delete_service, runzero_volume_status, runzero_delete_secret, runzero_push_files, runzero_upload_assets, runzero_delete_user, runzero_reset_user_password, runzero_db_query.",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: runzero_list_apps, runzero_get_app, runzero_list_templates, runzero_list_versions, runzero_wait_for_build, runzero_upload_assets, runzero_list_users · Private data: runzero_get_help, runzero_get_app, runzero_delete_app, runzero_volume_status, runzero_volume_import_link, runzero_import_volume, runzero_set_secrets, runzero_list_secrets, runzero_delete_secret, runzero_list_builds, runzero_activate_version, runzero_push_files, runzero_list_files, runzero_read_file, runzero_upload_assets, runzero_create_user, runzero_reset_user_password, runzero_list_identity_providers, runzero_create_identity_provider, runzero_generate_image, runzero_db_query, runzero_describe_addon, runzero_get_legal_profile, runzero_claim_handoff · Public sink: runzero_get_app, runzero_volume_import_link, runzero_publish, runzero_set_publish_mode, runzero_upload_assets, runzero_list_users, runzero_set_legal_profile · Destructive: runzero_delete_app, runzero_deploy, runzero_delete_service, runzero_volume_status, runzero_import_volume, runzero_delete_secret, runzero_push_files, runzero_upload_assets, runzero_delete_user, runzero_reset_user_password, runzero_db_query, runzero_claim_handoff.",
       "evidence": {
         "source": "server:mcp",
-        "snippet": "Untrusted content: runzero_list_apps, runzero_get_app, runzero_list_templates, runzero_list_versions, runzero_wait_for_build, runzero_upload_assets, runzero_list_users · Private data: runzero_get_help, runzero_get_app, runzero_delete_app, runzero_volume_status, runzero_set_secrets, runzero_list_secrets, runzero_delete_secret, runzero_list_builds, runzero_activate_version, runzero_push_files, runzero_list_files, runzero_read_file, runzero_upload_assets, runzero_create_user, runzero_reset_user_password, runzero_list_identity_providers, runzero_create_identity_provider, runzero_generate_image, runzero_db_query, runzero_describe_addon, runzero_get_legal_profile · Public sink: runzero_get_app, runzero_publish, runzero_set_publish_mode, runzero_upload_assets, runzero_list_users, runzero_set_legal_profile · Destructive: runzero_delete_app, runzero_deploy, runzero_delete_service, runzero_volume_status, runzero_delete_secret, runzero_push_files, runzero_upload_assets, runzero_delete_user, runzero_reset_user_password, runzero_db_query"
+        "snippet": "Untrusted content: runzero_list_apps, runzero_get_app, runzero_list_templates, runzero_list_versions, runzero_wait_for_build, runzero_upload_assets, runzero_list_users · Private data: runzero_get_help, runzero_get_app, runzero_delete_app, runzero_volume_status, runzero_volume_import_link, runzero_import_volume, runzero_set_secrets, runzero_list_secrets, runzero_delete_secret, runzero_list_builds, runzero_activate_version, runzero_push_files, runzero_list_files, runzero_read_file, runzero_upload_assets, runzero_create_user, runzero_reset_user_password, runzero_list_identity_providers, runzero_create_identity_provider, runzero_generate_image, runzero_db_query, runzero_describe_addon, runzero_get_legal_profile, runzero_claim_handoff · Public sink: runzero_get_app, runzero_volume_import_link, runzero_publish, runzero_set_publish_mode, runzero_upload_assets, runzero_list_users, runzero_set_legal_profile · Destructive: runzero_delete_app, runzero_deploy, runzero_delete_service, runzero_volume_status, runzero_import_volume, runzero_delete_secret, runzero_push_files, runzero_upload_assets, runzero_delete_user, runzero_reset_user_password, runzero_db_query, runzero_claim_handoff"
       },
       "confidence": 0.6,
       "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"runzero_volume_status\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:runzero_volume_status",
+        "snippet": "before: \"Show the persistent volume of a service: mount path, size, last backup, the backups that can be restored, and the state of a running or last restore. Volumes are declared under `volumes:` in run-zero.yaml (runzero_get_help topic files).\" → after: \"Show the persistent volume of a service: mount path, size, last backup, the backups that can be restored, and the state of a running or last restore or import. Volumes are declared under `volumes:` in run-zero.yaml (runzero_get_help topic files).\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
     }
   ],
-  "score": 33,
+  "score": 32,
   "scoreBreakdown": {
-    "tool-poisoning": 47,
+    "tool-poisoning": 48,
     "toxic-flow": 20
   },
   "errors": []

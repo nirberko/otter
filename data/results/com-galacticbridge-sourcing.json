@@ -1,0 +1,124 @@
+{
+  "schemaVersion": 1,
+  "scanner": {
+    "version": "1.6.0",
+    "rules": "402995650b68"
+  },
+  "target": {
+    "kind": "url",
+    "ref": "https://galacticbridge.com/mcp"
+  },
+  "scannedAt": "2026-11-14T11:37:12.474Z",
+  "durationMs": 883,
+  "layers": {
+    "metadata": true,
+    "static": false
+  },
+  "tools": [
+    {
+      "name": "get_service_info",
+      "descriptionHash": "bf3fd4078ad7154ffafeac790bc0bcb8ae78ce0018aa6586f40438e5048c7173",
+      "description": "Scope, destinations, how ordering and payment work, safety rules and contacts. Call this first.",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "list_routes",
+      "descriptionHash": "615755c3f06b4a0ddf4caa5d9eefd164d0bd8c0009dce583b721b30cef8a156b",
+      "description": "Shipping routes (lanes) with mode and status. Only lanes with status 'accepting' can be estimated."
+    },
+    {
+      "name": "classify_product",
+      "descriptionHash": "93c6334b5bcb9e9eb8454245c5f69f7efabe2a9a541eb4e80517b66b6cdc57cf",
+      "description": "Find the East African Community tariff code, the Uganda duty and the import checks (standards, permits) for a product description."
+    },
+    {
+      "name": "estimate_delivered_cost",
+      "descriptionHash": "0a6363deeffa0b023fb98e4f265c140c68724a3f420a065b1487afa7009950c1",
+      "description": "Planning estimate of the full delivered price in Uganda: goods, freight, insurance, import duty, VAT, levies and our fee. It is NOT a final quote: final quotes need written supplier and shipping prices."
+    },
+    {
+      "name": "submit_sourcing_request",
+      "descriptionHash": "52c7c984b8cc839c473eeab87db35fc619ff82ec4075f3af936ea6d1f7311a9e",
+      "description": "Create a real request for a person who wants to buy and receive goods. Use ONLY with the person's permission and their real contact details: our team will contact them. Returns a reference and a PRIVATE tracking key: give both to the person and keep them private.",
+      "labels": [
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "track_request",
+      "descriptionHash": "eef10051103c5f8d4814adbad2cf741ce95433eb2b2c82daeed91ad7eb458709",
+      "description": "Current status, next step, quote (if sent), amount due and shipment steps of a request, using its reference and private key.",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "get_payment_options",
+      "descriptionHash": "87c6c5e50212d035ae1e2c16618b8b5d1413900846b74ed85e8545e87c379e4f",
+      "description": "Amount still due, the order reference to quote, and the company's payment accounts (only accounts in the company's registered name). Pay only these."
+    },
+    {
+      "name": "create_payment_link",
+      "descriptionHash": "818bd8f17d71bc3957ff311f5e3185432c2ee5bcffc04fdb122722b45a8b9217",
+      "description": "Create a secure Flutterwave payment page for the amount still due (UGX: MTN, Airtel or card; USD: card). Use only with the person's instruction. Payment is confirmed with Flutterwave before it counts."
+    },
+    {
+      "name": "apply_as_supplier",
+      "descriptionHash": "7c5a26410ac719ad22632f2c2aba1d84d8fc358c944089000d3a45daf8261ad7",
+      "description": "For a company (factory, sourcing agent, freight forwarder, clearing agent, insurer, inspection company) that wants to receive matching buyer requests. Use only for a company you represent, with its real business email. The company confirms by a link sent to that email, completes its details, and two",
+      "labels": [
+        "untrusted-content",
+        "public-sink"
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"track_request\" references sensitive artifacts (private key). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:track_request",
+        "snippet": "Current status, next step, quote (if sent), amount due and shipment steps of a request, using its reference and private key."
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-SCHEMA-SMELL-001",
+      "severity": "medium",
+      "category": "schema-smell",
+      "title": "Read-only tool requests dangerous parameters",
+      "detail": "Tool \"track_request\" appears informational but accepts parameters (private_key) that enable code/file/secret access.",
+      "evidence": {
+        "source": "tool:track_request",
+        "snippet": "reference, private_key"
+      },
+      "confidence": 0.55
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: apply_as_supplier · Private data: get_service_info, submit_sourcing_request, track_request · Public sink: submit_sourcing_request, apply_as_supplier.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: apply_as_supplier · Private data: get_service_info, submit_sourcing_request, track_request · Public sink: submit_sourcing_request, apply_as_supplier"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 52,
+  "scoreBreakdown": {
+    "tool-poisoning": 20,
+    "schema-smell": 8,
+    "toxic-flow": 20
+  },
+  "errors": []
+}

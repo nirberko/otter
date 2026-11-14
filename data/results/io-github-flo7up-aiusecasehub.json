@@ -8,8 +8,8 @@
     "kind": "url",
     "ref": "https://basic-backend713-dsd8hygyfkc8d8f5.swedencentral-01.azurewebsites.net/api/mcp"
   },
-  "scannedAt": "2026-11-05T12:53:41.412Z",
-  "durationMs": 2348,
+  "scannedAt": "2026-11-14T11:58:19.122Z",
+  "durationMs": 2641,
   "layers": {
     "metadata": true,
     "static": false
@@ -17,27 +17,126 @@
   "tools": [
     {
       "name": "search_usecases",
-      "descriptionHash": "c7f0b1d2d6625b2b4f910590a942bb98ee587282696a00ec4855613cc42d7b56",
-      "description": "Search curated AI use cases using the default hybrid ranking. Use this when an agent has a natural-language search term."
+      "descriptionHash": "4962345ed3a734f583a10a9add6e6e464025f391d1d75a6cca05ec973751f8c8",
+      "description": "Search curated AI use cases using the default hybrid ranking. Use this when an agent has a natural-language search term. Each result has Url (the original public source), HubUrl (the record on aiusecasehub.com) and, where the company has one, CompanyPages (its hub company page).",
+      "labels": [
+        "untrusted-content",
+        "private-data"
+      ]
     },
     {
       "name": "hybrid_search_usecases",
-      "descriptionHash": "ef11d943d8abea60674c9746e424d2ebe095b93c9d98b34ac1148a85b0bdaddb",
-      "description": "Search AI use cases with hybrid full-text and vector ranking. Supports provider, industry, geography, technology, customer, partner, and boolean case-type filters."
+      "descriptionHash": "95ee06bb603108b10200dccbd6cdb1c769fb5a0ba47338863e7f29311243bafc",
+      "description": "Search AI use cases with hybrid full-text and vector ranking. Supports provider, industry, geography, technology, customer, partner, and boolean case-type filters. Filters work without a query, for example customer_name alone lists that company's deployments, including spelling variants and units gr",
+      "labels": [
+        "untrusted-content",
+        "private-data"
+      ]
     },
     {
       "name": "vector_search_usecases",
-      "descriptionHash": "5cb91b5391f06e56e773868fd250eac03bd4c166f6c3ba9c0a82201132b05d08",
-      "description": "Semantic vector search for AI use cases using the meaning of the query text."
+      "descriptionHash": "ec5760b354cd84b7c2413eba122b0f891c5fc5cab9b6f01b85cf06545a2fc58a",
+      "description": "Semantic vector search for AI use cases using the meaning of the query text. Results carry the same Url, HubUrl and CompanyPages links as the other searches.",
+      "labels": [
+        "untrusted-content"
+      ]
     },
     {
       "name": "get_usecase_details",
-      "descriptionHash": "77fc147f443da5dbd1877a9ec5a51863785672e366d4eb97bf3938bb48367833",
-      "description": "Fetch detailed information for a single AI use case by RowKey/id."
+      "descriptionHash": "7a1344c251e46f1d35e6a5b4e8293ffb56b66b9a24599447d66c5aace2e6bf82",
+      "description": "Fetch detailed information for a single AI use case by RowKey/id, with its source Url, HubUrl and CompanyPages links.",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "get_company_profile",
+      "descriptionHash": "64a9548f17f4ce8966624aeff2dd0b90de8166bc119c83a100f9d0c1fbe751d0",
+      "description": "What the hub's company page shows for one company: a one-line summary, the maturity stage of its public AI record (0 Nothing public, 1 Self-reported, 2 Early, 3 In production, 4 At scale, with the rule behind it), documented deployments and how many are in production, AI providers, use-case patterns",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "get_ai_trends",
+      "descriptionHash": "bb25e7eee95a7c52d7d50acf5d3b20845ac84e1d581b129e436a79f6d7d64d21",
+      "description": "The hub's trends page as data: the weekly 'who gains, who is under pressure' calls (industries, business models, vendors and listed companies, jobs, countries) with their reasons, confidence, cited evidence and the date each call was first made, plus earlier calls; the fastest-rising use-case patter",
+      "labels": [
+        "public-sink"
+      ]
     }
   ],
-  "findings": [],
-  "score": 100,
-  "scoreBreakdown": {},
+  "findings": [
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: search_usecases, hybrid_search_usecases, vector_search_usecases, get_usecase_details · Private data: search_usecases, hybrid_search_usecases, get_company_profile · Public sink: get_ai_trends.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: search_usecases, hybrid_search_usecases, vector_search_usecases, get_usecase_details · Private data: search_usecases, hybrid_search_usecases, get_company_profile · Public sink: get_ai_trends"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"search_usecases\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:search_usecases",
+        "snippet": "before: \"Search curated AI use cases using the default hybrid ranking. Use this when an agent has a natural-language search term.\" → after: \"Search curated AI use cases using the default hybrid ranking. Use this when an agent has a natural-language search term. Each result has Url (the original public source), HubUrl (the record on aiusecasehub.com) and, where the company has one, CompanyPages (its hub company page).\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"hybrid_search_usecases\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:hybrid_search_usecases",
+        "snippet": "before: \"Search AI use cases with hybrid full-text and vector ranking. Supports provider, industry, geography, technology, customer, partner, and boolean case-type filters.\" → after: \"Search AI use cases with hybrid full-text and vector ranking. Supports provider, industry, geography, technology, customer, partner, and boolean case-type filters. Filters work without a query, for example customer_name alone lists that company's deployments, including spelling variants and units gr\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"vector_search_usecases\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:vector_search_usecases",
+        "snippet": "before: \"Semantic vector search for AI use cases using the meaning of the query text.\" → after: \"Semantic vector search for AI use cases using the meaning of the query text. Results carry the same Url, HubUrl and CompanyPages links as the other searches.\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"get_usecase_details\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:get_usecase_details",
+        "snippet": "before: \"Fetch detailed information for a single AI use case by RowKey/id.\" → after: \"Fetch detailed information for a single AI use case by RowKey/id, with its source Url, HubUrl and CompanyPages links.\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    }
+  ],
+  "score": 43,
+  "scoreBreakdown": {
+    "toxic-flow": 20,
+    "tool-poisoning": 38
+  },
   "errors": []
 }

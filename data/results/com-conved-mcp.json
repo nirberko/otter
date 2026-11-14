@@ -23,4 +23,92 @@
       "message": "Streamable HTTP error: Error POSTing to endpoint: {\"error\":\"unauthorized\",\"message\":\"Missing or invalid API token (header Authorization: Bearer …).\"}"
     }
   ]
+}hat source. Without arguments: the categories and their number of formats; with \"category\": the formats of that category (id → name). There are hundreds of formats, so avoid",
+      "labels": [
+        "private-data",
+        "destructive"
+      ]
+    },
+    {
+      "name": "convert",
+      "descriptionHash": "f13d7db32d06c5b7e81e1dfe03c4df0ec6fdf1c018755d8bbf8632d13954ce6c",
+      "description": "Convert one file to another format (one file in, one file out). Input – exactly one of: \"url\" (a public http(s) link), \"text\" + \"filename\" (source as text, e.g. Markdown, HTML, CSV, SVG; max 1 MB), \"data_base64\" + \"filename\" (a small binary file). For a file on the user's computer use create_upload ",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink",
+        "destructive"
+      ]
+    },
+    {
+      "name": "create_upload",
+      "descriptionHash": "e46ff61c47af066db090ab2bacc00b3e12043979bdaf24cba99c43dd67104533",
+      "description": "Get a file that is not at a public URL into a conversion to \"to\". Returns a one-time link (1 hour, one file, counts toward the limits like convert) in two forms: (1) upload_page – a web page where the USER picks the file in the browser; use it when the file is on the user's computer and you cannot r",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink",
+        "destructive"
+      ]
+    },
+    {
+      "name": "get_job",
+      "descriptionHash": "70d9f69b664d01f24ba311d3d69b1f45762b8993bf8044ec9eb637155f12e60c",
+      "description": "Status of a conversion: \"waiting\", \"done\" (with download_url and expires_at; for \"to\": \"pdfa\" also \"validation\" – the PDF/A-2b conformance check by an independent validator: compliant, failed_rules, issues) or \"error\" (with an error code, e.g. timeout, killed, tool_error, empty_output, unsupported, ",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "list_jobs",
+      "descriptionHash": "dde6de2f2f88956e150b1005b947dc40d0eb0174b2f5b17d9ec14984a50ec6db",
+      "description": "Recent conversions, newest first (id, file name, formats, status, time): those made through this connection (with a personal API token: all API conversions of the account). Use get_job for the download link.",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "get_account",
+      "descriptionHash": "0a0d946c9ffae8b1149da2072bf658869c909b588da42b6c591f30ff4d6718b5",
+      "description": "The account e-mail and limits. plan: \"free\" (limit per hour) or \"custom\" (limit per 24 hours). hourLimit / usedHour count conversions in the last 60 minutes, dailyLimit / usedToday in the last 24 hours (rolling windows, not calendar days); maxFileMb is the maximum file size. 0 in any limit means no ",
+      "labels": [
+        "private-data"
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"get_job\" references sensitive artifacts (password). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:get_job",
+        "snippet": "Status of a conversion: \"waiting\", \"done\" (with download_url and expires_at; for \"to\": \"pdfa\" also \"validation\" – the PDF/A-2b conformance check by an independe…"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: convert, create_upload, get_job · Private data: list_formats, convert, create_upload, get_job, list_jobs, get_account · Public sink: convert, create_upload, get_job · Destructive: list_formats, convert, create_upload.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: convert, create_upload, get_job · Private data: list_formats, convert, create_upload, get_job, list_jobs, get_account · Public sink: convert, create_upload, get_job · Destructive: list_formats, convert, create_upload"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 60,
+  "scoreBreakdown": {
+    "tool-poisoning": 20,
+    "toxic-flow": 20
+  },
+  "errors": []
 }

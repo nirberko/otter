@@ -8,8 +8,8 @@
     "kind": "url",
     "ref": "https://api.blvkware.dev/hallux/mcp"
   },
-  "scannedAt": "2026-11-10T12:49:39.231Z",
-  "durationMs": 695,
+  "scannedAt": "2026-11-14T11:39:42.972Z",
+  "durationMs": 283,
   "layers": {
     "metadata": true,
     "static": false
@@ -17,31 +17,49 @@
   "tools": [
     {
       "name": "hallux_check_command",
-      "descriptionHash": "9e1929badfe4492ebeffb843f6860df0bd5a1b2d9af7fd044402912601a721b4",
-      "description": "Call this BEFORE running any command that installs a dependency: npm, yarn, pnpm, bun, pip, uv, poetry, pipx, cargo, go get, dotnet add package, nuget.\n\nLanguage models invent plausible package names that have never existed, and attackers register those names because they can predict them. Installin",
+      "descriptionHash": "df216f4ae64dbd4528391aff1d47dd912cb8310a928e970565ebe057c07b0abf",
+      "description": "Call this BEFORE running any command that installs or runs a dependency: npm/yarn/pnpm/bun install, npx, pip/uv/poetry/pipx, cargo add, go get, dotnet add package, gem install, composer require, dart pub add, docker pull/run, git clone.\n\nLanguage models invent plausible package names that have never",
       "labels": [
+        "untrusted-content",
         "destructive"
       ]
     },
     {
       "name": "hallux_check",
-      "descriptionHash": "09cb9a345cd37b84c8e4cc5a2b9a004900b82fb4213628e5e8ab0875c09a361c",
-      "description": "Does this identifier actually exist? Call before acting on any name you recalled rather than read: a package to install, a module to import, a DOI to cite.\n\nReturns one of: exists, deprecated, absent, phantom, squat, unknown.\n  exists     - proceed\n  deprecated - proceed, but use `successor`\n  absen"
+      "descriptionHash": "d02d5cf7a7872003f63c6772b0159e58648fae596219b5bf0b1cb2d082190c7c",
+      "description": "Does this identifier actually exist, and is it safe? Call before acting on any name you recalled rather than read: a package to install, a module to import, a Docker image, a GitHub Action or repo, a DOI to cite.\n\nVerdicts: exists (proceed, but read `risk`), deprecated (use `successor`), absent (not"
     },
     {
       "name": "hallux_check_manifest",
-      "descriptionHash": "c9cc397503f4a0e409d15fbada7bd3d0bc2d9734add52da6963500c69078bf1c",
-      "description": "Call this after writing or editing a dependency file, and before committing it. Supported: package.json, requirements.txt, pyproject.toml, Cargo.toml, go.mod.\n\nChecks every dependency in one pass, including dev and optional groups, which is where an invented name usually arrives.",
+      "descriptionHash": "accc863e7b7fcee872001400e04e23beca9a8f10f678973aa185e648a4620743",
+      "description": "Call after writing or editing a dependency file and before committing or installing. Checks every dependency in one pass, including dev and optional groups, where an invented name usually arrives. Exact pinned versions are verified too. Supported: package.json, requirements.txt, pyproject.toml, Pipf",
       "labels": [
         "private-data"
       ]
     },
     {
       "name": "hallux_watch",
-      "descriptionHash": "689935abf426f30099f74ec3eb4be15f58649ab9da96079e3f6e4af206ee7b3e",
-      "description": "Register identifiers for notification when their verdict changes. The transition that matters is phantom to squat: a name models invent that somebody then registers.\n\nUse this for a dependency that came back `absent` or `phantom` and that the user intends to use anyway, or for a set of dependencies ",
+      "descriptionHash": "c3518cfc698fccc1536c56af808d834500937cdb49c0886316ba4a496736f559",
+      "description": "Register identifiers for a signed webhook when their verdict changes: phantom -> squat (someone registered a name models invent) or absent -> exists. Use for a name that came back absent/phantom which the user still intends to use, or a dependency set worth monitoring. Requires an API key; costs 25 ",
       "labels": [
+        "private-data",
         "public-sink"
+      ]
+    },
+    {
+      "name": "hallux_report",
+      "descriptionHash": "aecbec183dc3459e5e7999aad12445d4e43ef94a2d1393ae39433dd577ba2c79",
+      "description": "Report identifiers a model produced that turned out not to exist. HALLUX verifies each against its registry and records only absent ones as attestations in the public hallucination ledger, which is how names graduate to `phantom` and get watched for squatting. Requires an API key.",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "hallux_account",
+      "descriptionHash": "3de6ca7eb00dc75c25f63284934c132ecf3e6cf18e6cd6151bd93aa21b6c25a8",
+      "description": "Show remaining credits for the API key in use (or free-tier status), pricing, and where to buy credits with PayPal.",
+      "labels": [
+        "private-data"
       ]
     }
   ],
@@ -54,14 +72,81 @@
       "detail": "Tool \"hallux_check_command\" appears informational but accepts parameters (command) that enable code/file/secret access.",
       "evidence": {
         "source": "tool:hallux_check_command",
-        "snippet": "command"
+        "snippet": "command, model"
       },
       "confidence": 0.55
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: hallux_check_command · Private data: hallux_check_manifest, hallux_watch, hallux_report, hallux_account · Public sink: hallux_watch · Destructive: hallux_check_command.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: hallux_check_command · Private data: hallux_check_manifest, hallux_watch, hallux_report, hallux_account · Public sink: hallux_watch · Destructive: hallux_check_command"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"hallux_check_command\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:hallux_check_command",
+        "snippet": "before: \"Call this BEFORE running any command that installs a dependency: npm, yarn, pnpm, bun, pip, uv, poetry, pipx, cargo, go get, dotnet add package, nuget.\n\nLanguage models invent plausible package names that have never existed, and attackers register those names because they can predict them. Installin\" → after: \"Call this BEFORE running any command that installs or runs a dependency: npm/yarn/pnpm/bun install, npx, pip/uv/poetry/pipx, cargo add, go get, dotnet add package, gem install, composer require, dart pub add, docker pull/run, git clone.\n\nLanguage models invent plausible package names that have never\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"hallux_check\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:hallux_check",
+        "snippet": "before: \"Does this identifier actually exist? Call before acting on any name you recalled rather than read: a package to install, a module to import, a DOI to cite.\n\nReturns one of: exists, deprecated, absent, phantom, squat, unknown.\n  exists     - proceed\n  deprecated - proceed, but use `successor`\n  absen\" → after: \"Does this identifier actually exist, and is it safe? Call before acting on any name you recalled rather than read: a package to install, a module to import, a Docker image, a GitHub Action or repo, a DOI to cite.\n\nVerdicts: exists (proceed, but read `risk`), deprecated (use `successor`), absent (not\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"hallux_check_manifest\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:hallux_check_manifest",
+        "snippet": "before: \"Call this after writing or editing a dependency file, and before committing it. Supported: package.json, requirements.txt, pyproject.toml, Cargo.toml, go.mod.\n\nChecks every dependency in one pass, including dev and optional groups, which is where an invented name usually arrives.\" → after: \"Call after writing or editing a dependency file and before committing or installing. Checks every dependency in one pass, including dev and optional groups, where an invented name usually arrives. Exact pinned versions are verified too. Supported: package.json, requirements.txt, pyproject.toml, Pipf\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"hallux_watch\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:hallux_watch",
+        "snippet": "before: \"Register identifiers for notification when their verdict changes. The transition that matters is phantom to squat: a name models invent that somebody then registers.\n\nUse this for a dependency that came back `absent` or `phantom` and that the user intends to use anyway, or for a set of dependencies \" → after: \"Register identifiers for a signed webhook when their verdict changes: phantom -> squat (someone registered a name models invent) or absent -> exists. Use for a name that came back absent/phantom which the user still intends to use, or a dependency set worth monitoring. Requires an API key; costs 25 \""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
     }
   ],
-  "score": 92,
+  "score": 35,
   "scoreBreakdown": {
-    "schema-smell": 8
+    "schema-smell": 8,
+    "toxic-flow": 20,
+    "tool-poisoning": 38
   },
   "errors": []
 }
