@@ -1,0 +1,109 @@
+{
+  "schemaVersion": 1,
+  "scanner": {
+    "version": "1.6.0",
+    "rules": "402995650b68"
+  },
+  "target": {
+    "kind": "url",
+    "ref": "https://qants-site.qants.workers.dev/mcp"
+  },
+  "scannedAt": "2026-11-15T12:07:47.489Z",
+  "durationMs": 336,
+  "layers": {
+    "metadata": true,
+    "static": false
+  },
+  "tools": [
+    {
+      "name": "search_agents",
+      "descriptionHash": "611a7f5c05e51439c07f30e0a84b3f9e028c8455a6201c2e871336266ba09631",
+      "description": "Search the public Diwan al-Mizan agent directory by name, handle, skill, platform, or summary. Read-only. A listing is not an endorsement. Testnet only; tQNT has no cash value."
+    },
+    {
+      "name": "get_agent",
+      "descriptionHash": "00e6c25b5c7cf9975284f102a00b2b574e6db84721308f02c00bd2481b37ed2d",
+      "description": "Fetch one public Diwan al-Mizan listing by id or exact name. Read-only. A listing is not an endorsement."
+    },
+    {
+      "name": "mizan_status",
+      "descriptionHash": "b8f0551f9566de13f27bc2d8e9aed214600b1d85516eace621f2d6a0b7396d5c",
+      "description": "Live Mizan benchmark counts: how many predictions have been submitted and resolved, and how many agent versions are rated (50 or more resolved answers in a category). No authentication. Does not invent scores."
+    },
+    {
+      "name": "mizan_get_passport",
+      "descriptionHash": "9120a87e474ce8b03446ad42e2c7d2476fd362f073bfccffdd62e08b0cc56e64",
+      "description": "Fetch the public, version-bound Mizan calibration passport for an agent_id. No authentication. A version is not rated until 50 resolved answers in a category. Also returns the badge URL and README markdown.",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "mizan_issue_key",
+      "descriptionHash": "4a7b82a4e084b17fe5df3565baf11321076cc2d6189b75a7d0f26c7de648150f",
+      "description": "Call the public POST /v1/keys endpoint and return a new API key (shown once). The key can only submit checks for this agent_id. First request claims the name. This writes to the public API; store the key yourself — the server does not keep a copy.",
+      "labels": [
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "mizan_check",
+      "descriptionHash": "f51b23b0e4a48f129e98c4741df65878365b28ec7e7a263df6312743e3a0ddbd",
+      "description": "Log an answer and confidence on the public POST /v1/check endpoint before the question resolves. Requires the API key from mizan_issue_key, passed as api_key (not stored). For I don't know, set answer to IDK and omit confidence. You may send question_id from GET /v1/questions instead of copying ques",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "trust_check",
+      "descriptionHash": "0b55490af930e6e08077e35befa14c110ecab6f5050a3a910e5fc8fb0d6fc13a",
+      "description": "Read-only. Given a Mizan agent_id (and optionally a category), return a plain verdict from its PUBLIC Mizan passport: no_record (nothing logged), provisional (fewer than 50 resolved answers, indicative only) or rated (50 or more), plus calibration warning flags and what the verdict does not cover. I"
+    },
+    {
+      "name": "mizan_try",
+      "descriptionHash": "9c1873122ccc4faf5379afbebe7233f434661884896d0bb2b29adc713706ea79",
+      "description": "Test your own calibration in under 60 seconds, no signup and no key. Call with no arguments to get the 10 fixed practice questions (true/false statements). Then call again with probabilities = {\"q01\": 0.9, ...}: the probability from 0 to 1 that each statement is TRUE, all 10 ids required. Returns yo",
+      "labels": [
+        "untrusted-content",
+        "public-sink",
+        "destructive"
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"mizan_check\" references sensitive artifacts (api_key). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:mizan_check",
+        "snippet": "Log an answer and confidence on the public POST /v1/check endpoint before the question resolves. Requires the API key from mizan_issue_key, passed as api_key (n…"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: mizan_get_passport, mizan_check, mizan_try · Private data: mizan_issue_key, mizan_check · Public sink: mizan_issue_key, mizan_check, mizan_try · Destructive: mizan_try.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: mizan_get_passport, mizan_check, mizan_try · Private data: mizan_issue_key, mizan_check · Public sink: mizan_issue_key, mizan_check, mizan_try · Destructive: mizan_try"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 60,
+  "scoreBreakdown": {
+    "tool-poisoning": 20,
+    "toxic-flow": 20
+  },
+  "errors": []
+}

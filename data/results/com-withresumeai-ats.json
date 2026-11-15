@@ -8,19 +8,89 @@
     "kind": "url",
     "ref": "https://withresumeai.com/api/mcp"
   },
-  "scannedAt": "2026-11-09T13:32:17.345Z",
-  "durationMs": 98,
+  "scannedAt": "2026-11-15T12:24:16.281Z",
+  "durationMs": 800,
   "layers": {
-    "metadata": false,
+    "metadata": true,
     "static": false
   },
-  "findings": [],
-  "score": 100,
-  "scoreBreakdown": {},
-  "errors": [
+  "tools": [
     {
-      "scanner": "metadata",
-      "message": "Streamable HTTP error: Error POSTing to endpoint: {\"error\":{\"code\":\"challenge\",\"message\":\"This request requires a challenge to be completed.\",\"id\":\"sfo1::1794231137-xkQMu9K90p25IixqzSNQiHRdlYcIHr9p\"}}\n"
+      "name": "which_ats",
+      "descriptionHash": "83a8357edfc1d55f2ea5c19e80afc104651c2845073e039f41cd7809946851f0",
+      "description": "Look up the applicant tracking system (ATS) a specific large employer uses, from ResumeAI's State of ATS 2026 dataset (738 Fortune 500 / Global 2000 employers). Workday runs 47.5% of 436 re-verified large employers (November 2026 refresh). The verified sample skews toward vendors with public job API"
+    },
+    {
+      "name": "ats_stats",
+      "descriptionHash": "dfca424e5bcbdaefc14f4108f112e25b1554fef5617483f8d0737563f069f7c7",
+      "description": "Canonical ATS market-share numbers from the November 2026 refresh of ResumeAI's State of ATS 2026 dataset. Workday runs 47.5% of 436 re-verified large employers (November 2026 refresh). The verified sample skews toward vendors with public job APIs. Every share in the response is computed from that r",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "list_companies",
+      "descriptionHash": "06210b5a94a436cbc12a87513a28b96dc149e3c7399c91c21c38dbf0aaf0c0b6",
+      "description": "List employers from the State of ATS 2026 dataset, optionally filtered by ATS vendor (case-insensitive substring, e.g. 'workday', 'greenhouse', 'oracle') and/or industry (substring, e.g. 'health', 'consulting'). Returns at most 100 rows per call — narrow the filters or fetch the full dataset from ht"
+    },
+    {
+      "name": "ats_changes",
+      "descriptionHash": "96cd15546e7e012533de50d590cb030e24f0d24c12cd4e1bea8b1c0a53507874",
+      "description": "The living-feed counterpart of the dataset: which tracked employers changed their applicant tracking system. Every entry currently in the feed was confirmed by a person against the live careers portal during the July 2026 re-verification and published together, which is why they share a timestamp — ",
+      "labels": [
+        "untrusted-content",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "check_resume",
+      "descriptionHash": "900b592e3babc361e2e8f862733f703f2f4f25c739473760dc8dbcd2f08bcbbf",
+      "description": "Score a resume 0-100 with ResumeAI's production ATS engine — the same one behind https://withresumeai.com/ats-checker. Returns a breakdown (keywords, format, sections, content, length), concrete fixes, and missing keywords. Optionally pass a target company (to get that employer's verified ATS + vend",
+      "labels": [
+        "destructive"
+      ]
+    },
+    {
+      "name": "get_agent_resume",
+      "descriptionHash": "87d2e502feb606bc52d2a15a1326a8a6026b026a2ec0926a96de17fd86db7222",
+      "description": "Fetch a job seeker's structured, machine-readable resume as JSON Resume (https://jsonresume.org/schema/) — but ONLY when its human owner has explicitly shared a consent token for it. Pass that token and the tool returns the JSON Resume plus ats_context: how to render the profile for the owner's targ",
+      "labels": [
+        "private-data",
+        "destructive"
+      ]
     }
-  ]
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"check_resume\" references sensitive artifacts (api_key). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:check_resume",
+        "snippet": "Score a resume 0-100 with ResumeAI's production ATS engine — the same one behind https://withresumeai.com/ats-checker. Returns a breakdown (keywords, format, se…"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: ats_changes · Private data: get_agent_resume · Public sink: ats_stats, ats_changes · Destructive: check_resume, get_agent_resume.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: ats_changes · Private data: get_agent_resume · Public sink: ats_stats, ats_changes · Destructive: check_resume, get_agent_resume"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 60,
+  "scoreBreakdown": {
+    "tool-poisoning": 20,
+    "toxic-flow": 20
+  },
+  "errors": []
 }

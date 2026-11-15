@@ -8,8 +8,8 @@
     "kind": "url",
     "ref": "https://corpuslaw.us/api/mcp"
   },
-  "scannedAt": "2026-11-13T12:55:43.815Z",
-  "durationMs": 868,
+  "scannedAt": "2026-11-15T12:34:28.458Z",
+  "durationMs": 526,
   "layers": {
     "metadata": true,
     "static": false
@@ -69,40 +69,113 @@
     },
     {
       "name": "formation.checkout",
-      "descriptionHash": "6fdc88604e192466a762dec2822bec3c55482ebd5417e8456045e7b126a538e9",
-      "description": "Creates the founder's LLC or nonprofit formation order and a USDC (Solana) payment request — no API key, no Corpus sign-in. Payment is USDC on Solana ONLY. The first call takes the complete draft, the founder's contactEmail, an idempotencyKey (the same order is returned on retry), and consent { vers",
+      "descriptionHash": "ff1278d747d170ea6738ca1de4950e86cfbe0e1a62d34a5d3362d0f6683e2f58",
+      "description": "Creates the founder's LLC or nonprofit formation order and a payment link — no API key, no Corpus sign-in. By default the link is a Stripe-hosted checkout link (cards, Apple Pay, Google Pay, Link and the other methods Stripe offers the payer). rail: \"usdc\" returns a USDC (Solana) payment request ins",
       "labels": [
+        "untrusted-content",
         "private-data",
         "public-sink"
       ]
     },
     {
       "name": "formation.payment_status",
-      "descriptionHash": "a519534aed7ba11451dd306a79105c0533e181ffc60192b90b6bb8c399d22b71",
-      "description": "Reports the USDC payment state of an LLC or nonprofit formation order created by formation.checkout: awaiting, paid, expired, underpaid or held, plus whether the founder has confirmed by email (required within 48 hours of payment). Reading the chain also records a payment that just arrived. Free; do",
+      "descriptionHash": "f38471a4ce3f1562d1462047ea154f98c7976f8026d7d9a51bdf87b08c0a4b46",
+      "description": "Reports the payment state of an order created by formation.checkout: awaiting, processing (the payment method settles later, or Corpus is recording it), paid, expired, failed, underpaid, held (staff review, including a payment hold or dispute) or refunded (in full; formation.status separately report",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "formation.webhook",
+      "descriptionHash": "3db2bb5f19d751fb3ef94f4efa78a37a9af3cf5c49b51fe81dc3f029f5c92088",
+      "description": "Registers an https endpoint on one LLC or nonprofit formation order, from its orderId and trackingToken, so Corpus POSTs each lifecycle step instead of the agent polling formation.status: paid, founder confirmed, in review, review approved, submitted to the state, accepted, certificate available, co",
       "labels": [
         "private-data",
-        "public-sink"
+        "public-sink",
+        "destructive"
       ]
     }
   ],
   "findings": [
     {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"formation.checkout\" references sensitive artifacts (bearer). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:formation.checkout",
+        "snippet": "Creates the founder's LLC or nonprofit formation order and a payment link — no API key, no Corpus sign-in. By default the link is a Stripe-hosted checkout link …"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOOL-POISON-006",
+      "severity": "low",
+      "category": "tool-poisoning",
+      "title": "Anomalously long tool description",
+      "detail": "Description of \"formation.checkout\" is 1865 chars, far longer than this server's median (335). Overlong descriptions are a common place to bury instructions.",
+      "evidence": {
+        "source": "tool:formation.checkout",
+        "snippet": "Creates the founder's LLC or nonprofit formation order and a payment link — no API key, no Corpus sign-in. By default the link is a Stripe-hosted checkout link …"
+      },
+      "confidence": 0.4
+    },
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"formation.webhook\" references sensitive artifacts (secret). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:formation.webhook",
+        "snippet": "Registers an https endpoint on one LLC or nonprofit formation order, from its orderId and trackingToken, so Corpus POSTs each lifecycle step instead of the agen…"
+      },
+      "confidence": 0.65
+    },
+    {
       "id": "MCP-TOXIC-FLOW-001",
       "severity": "high",
       "category": "toxic-flow",
       "title": "Lethal trifecta: untrusted input + private data + external sink",
-      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: formation.status · Private data: account.status, formation.status, formation.checkout, formation.payment_status · Public sink: formation.checkout, formation.payment_status.",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: formation.status, formation.checkout · Private data: account.status, formation.status, formation.checkout, formation.webhook · Public sink: formation.checkout, formation.payment_status, formation.webhook · Destructive: formation.webhook.",
       "evidence": {
         "source": "server:mcp",
-        "snippet": "Untrusted content: formation.status · Private data: account.status, formation.status, formation.checkout, formation.payment_status · Public sink: formation.checkout, formation.payment_status"
+        "snippet": "Untrusted content: formation.status, formation.checkout · Private data: account.status, formation.status, formation.checkout, formation.webhook · Public sink: formation.checkout, formation.payment_status, formation.webhook · Destructive: formation.webhook"
       },
       "confidence": 0.6,
       "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"formation.checkout\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:formation.checkout",
+        "snippet": "before: \"Creates the founder's LLC or nonprofit formation order and a USDC (Solana) payment request — no API key, no Corpus sign-in. Payment is USDC on Solana ONLY. The first call takes the complete draft, the founder's contactEmail, an idempotencyKey (the same order is returned on retry), and consent { vers\" → after: \"Creates the founder's LLC or nonprofit formation order and a payment link — no API key, no Corpus sign-in. By default the link is a Stripe-hosted checkout link (cards, Apple Pay, Google Pay, Link and the other methods Stripe offers the payer). rail: \"usdc\" returns a USDC (Solana) payment request ins\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"formation.payment_status\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:formation.payment_status",
+        "snippet": "before: \"Reports the USDC payment state of an LLC or nonprofit formation order created by formation.checkout: awaiting, paid, expired, underpaid or held, plus whether the founder has confirmed by email (required within 48 hours of payment). Reading the chain also records a payment that just arrived. Free; do\" → after: \"Reports the payment state of an order created by formation.checkout: awaiting, processing (the payment method settles later, or Corpus is recording it), paid, expired, failed, underpaid, held (staff review, including a payment hold or dispute) or refunded (in full; formation.status separately report\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
     }
   ],
-  "score": 80,
+  "score": 42,
   "scoreBreakdown": {
+    "tool-poisoning": 38,
     "toxic-flow": 20
   },
   "errors": []

@@ -1,0 +1,125 @@
+{
+  "schemaVersion": 1,
+  "scanner": {
+    "version": "1.6.0",
+    "rules": "402995650b68"
+  },
+  "target": {
+    "kind": "url",
+    "ref": "https://api.person.tools/mcp"
+  },
+  "scannedAt": "2026-11-15T12:16:30.809Z",
+  "durationMs": 3916,
+  "layers": {
+    "metadata": true,
+    "static": false
+  },
+  "tools": [
+    {
+      "name": "ask_people_quote",
+      "descriptionHash": "81e142fccf37e39ffb0c1ddedec81b63f2e6376c78f9ed6bb9bbc80883ea5c45",
+      "description": "Prices a call without opening it: nobody is rung and nothing is spent. Takes the same fields as ask_people, without max_total_usd or idempotency_key. Nothing else is needed first: leave content out until your user gives you the material (the quote is priced from minutes), and leave pay out unless yo",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "ask_people",
+      "descriptionHash": "7768ada592f50fe45a04a415d60077dbf0274ced251fd83581387a9614bb3dd0",
+      "description": "Opens a call: one short task to several people. During the preview a test key or no key reaches simulated people: their answers are made up and marked simulated. Returns a call_id at once; ask_people_results gives each person's answers, whether each was typed or pasted, and an evidence level.\n\nUse i",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "ask_people_results",
+      "descriptionHash": "85f2def3b16070e52948b14d3eb52173df00d050ff7236697c567ea646e5aa7f",
+      "description": "Returns a call's answers so far, given the call_id from ask_people: first a summary (the state, a tally of each answer field, how many responses reached each evidence level), then one entry per person with their answers and whether each was typed or pasted, then the money (held_usd, spent_usd, retur",
+      "labels": [
+        "untrusted-content",
+        "private-data"
+      ]
+    },
+    {
+      "name": "ask_people_cancel",
+      "descriptionHash": "9f47ea884e244bf582ff18556a2ae285c7ec191f3fc4c7456817aeea68e188eb",
+      "description": "Stops a call. On cancel, nobody new is rung; people already in a seat may finish and are paid in full. Their pay is charged to the hold (test money in the preview: nobody receives real pay), so spent_usd can rise until ask_people_results shows complete: true; the unused hold returns. Returns the cal"
+    },
+    {
+      "name": "ask_people_send_outcome",
+      "descriptionHash": "0d3776ea2258999f586ba47eb2ce0b61a41aa34df118f10ada18a08a180bfa89",
+      "description": "Sends the people who answered a call one line (at most 280 characters, and up to three lines a call) saying what you did with their answers, for example \"Cut the intro from 40 to 12 seconds; most of you drifted there.\" The line is reviewed the way a call is and may be refused; if allowed, it appears",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "ask_people_panel",
+      "descriptionHash": "2d2d53995f06ce99e197e3c87ed45aec607e182e47df4d9879ac33b2528f3e13",
+      "description": "Makes a panel, a named group of people the account owner invites, and returns its panel_id and a join link for your user to share. Each person joins on their own phone, states that they are an adult, is told what is recorded while they answer (how much played, whether the page stayed in front, pause",
+      "labels": [
+        "public-sink"
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-SCHEMA-SMELL-001",
+      "severity": "medium",
+      "category": "schema-smell",
+      "title": "Read-only tool requests dangerous parameters",
+      "detail": "Tool \"ask_people_quote\" appears informational but accepts parameters (script) that enable code/file/secret access.",
+      "evidence": {
+        "source": "tool:ask_people_quote",
+        "snippet": "ask, kind, content, people, enough, pool, answer_fields, minutes, pay_per_person_usd, deadline_minutes, require, content_rating, may_train_on_answers, pace, script, max_total_usd, idempotency_key, wants_strangers, ext"
+      },
+      "confidence": 0.55
+    },
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"ask_people\" references sensitive artifacts (password). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:ask_people",
+        "snippet": "Opens a call: one short task to several people. During the preview a test key or no key reaches simulated people: their answers are made up and marked simulated…"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-SCHEMA-SMELL-001",
+      "severity": "medium",
+      "category": "schema-smell",
+      "title": "Read-only tool requests dangerous parameters",
+      "detail": "Tool \"ask_people\" appears informational but accepts parameters (script) that enable code/file/secret access.",
+      "evidence": {
+        "source": "tool:ask_people",
+        "snippet": "ask, kind, content, people, enough, pool, answer_fields, minutes, pay_per_person_usd, deadline_minutes, require, content_rating, may_train_on_answers, pace, script, max_total_usd, idempotency_key, wants_strangers, ext"
+      },
+      "confidence": 0.55
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: ask_people_quote, ask_people, ask_people_results · Private data: ask_people, ask_people_results · Public sink: ask_people, ask_people_send_outcome, ask_people_panel.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: ask_people_quote, ask_people, ask_people_results · Private data: ask_people, ask_people_results · Public sink: ask_people, ask_people_send_outcome, ask_people_panel"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 48,
+  "scoreBreakdown": {
+    "schema-smell": 12,
+    "tool-poisoning": 20,
+    "toxic-flow": 20
+  },
+  "errors": []
+}

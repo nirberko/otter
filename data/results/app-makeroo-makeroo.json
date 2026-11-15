@@ -8,8 +8,8 @@
     "kind": "url",
     "ref": "https://makeroo.app/mcp"
   },
-  "scannedAt": "2026-10-30T10:55:43.616Z",
-  "durationMs": 654,
+  "scannedAt": "2026-11-15T12:01:57.272Z",
+  "durationMs": 549,
   "layers": {
     "metadata": true,
     "static": false
@@ -32,9 +32,18 @@
     },
     {
       "name": "submit_listing",
-      "descriptionHash": "9918c66bca237701ca02579f4dab375d3233a060bd8dc6fcd6c7232f2763f40d",
-      "description": "Submit a product to Makeroo on the maker's behalf. Only submit what you verified from the product's repo or site, and only with the maker's go-ahead. Returns a submission id and stays pending until the maker clicks the confirm link emailed to makerEmail (expires after 48 hours); poll get_submission_",
+      "descriptionHash": "01e9354a2bd34178381b4e8385e07ef87760b417b8e6bbfdf0b2cb8d76a3c888",
+      "description": "Step 1 of 2 for submitting a product to Makeroo on the maker's behalf. Only submit what you verified from the product's repo or site. Validates the details and returns a preview plus a confirmationToken. Stores and emails nothing. Show the maker the preview and the recipient email, and only after th",
       "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "confirm_submission",
+      "descriptionHash": "9a7cf7607813004da7b0370a0cee743876d7b76453ca248fde389745853a0478",
+      "description": "Step 2 of 2. Call only after the maker explicitly confirmed the exact details and recipient email from the submit_listing preview. Pass the same fields plus its confirmationToken (valid 30 minutes). Emails a confirm link to makerEmail (expires after 48 hours) and returns a submission id that stays p",
+      "labels": [
+        "private-data",
         "public-sink"
       ]
     },
@@ -50,21 +59,35 @@
   "findings": [
     {
       "id": "MCP-TOXIC-FLOW-001",
-      "severity": "medium",
+      "severity": "high",
       "category": "toxic-flow",
-      "title": "Toxic flow: untrusted input can reach an external sink",
-      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: get_submission_status · Public sink: submit_listing.",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: get_submission_status · Private data: confirm_submission · Public sink: submit_listing, confirm_submission.",
       "evidence": {
         "source": "server:mcp",
-        "snippet": "Untrusted content: get_submission_status · Public sink: submit_listing"
+        "snippet": "Untrusted content: get_submission_status · Private data: confirm_submission · Public sink: submit_listing, confirm_submission"
       },
-      "confidence": 0.45,
+      "confidence": 0.6,
       "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"submit_listing\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:submit_listing",
+        "snippet": "before: \"Submit a product to Makeroo on the maker's behalf. Only submit what you verified from the product's repo or site, and only with the maker's go-ahead. Returns a submission id and stays pending until the maker clicks the confirm link emailed to makerEmail (expires after 48 hours); poll get_submission_\" → after: \"Step 1 of 2 for submitting a product to Makeroo on the maker's behalf. Only submit what you verified from the product's repo or site. Validates the details and returns a preview plus a confirmationToken. Stores and emails nothing. Show the maker the preview and the recipient email, and only after th\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
     }
   ],
-  "score": 92,
+  "score": 60,
   "scoreBreakdown": {
-    "toxic-flow": 8
+    "toxic-flow": 20,
+    "tool-poisoning": 20
   },
   "errors": []
 }

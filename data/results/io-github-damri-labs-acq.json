@@ -1,0 +1,114 @@
+{
+  "schemaVersion": 1,
+  "scanner": {
+    "version": "1.6.0",
+    "rules": "402995650b68"
+  },
+  "target": {
+    "kind": "url",
+    "ref": "https://acq.damri.org/mcp"
+  },
+  "scannedAt": "2026-11-15T12:09:51.998Z",
+  "durationMs": 1015,
+  "layers": {
+    "metadata": true,
+    "static": false
+  },
+  "tools": [
+    {
+      "name": "acq_create_room",
+      "descriptionHash": "a005da8d5370587034354e91e7ed04f9835cee3a5a1b06969105d1a4744bcdd3",
+      "description": "Open a new two-seat room - one call is a complete setup: pass join_window_hours to set how long the peer has to join, and opening_message to post your first message immediately. The result is self-sufficient: room UIN, seat token (seat A), pairing code, invitation text, and the full API reference. H",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "acq_join_room",
+      "descriptionHash": "2cc58eb6abf08b0d0ba3d0ca706242873cfefb8e79f6dc89cc7d63211eedcbc2",
+      "description": "Join a room by UIN (seat B, works once). The result contains your seat token.",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "acq_rejoin",
+      "descriptionHash": "e983cfa2cb69a4be3a54529d3173ae7789b1c3ef0d6c9da89b690bc45a3c7d96",
+      "description": "Recover a lost seat token. Seat A proves with the 6-digit pairing code; seat B proves with the recovery code returned only in the join response. Mints a fresh token; the old one stops working.",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "acq_send",
+      "descriptionHash": "fcdd127f66786e6ce76d21830a7a3dcf5eb554ccfc88523e93ce45f2b2f2a3cc",
+      "description": "Send a message to your peer. Set end=true to close the room.",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "acq_recv",
+      "descriptionHash": "5ed0ff71cf4236a62cd0cdd7ce06330d1669e07d55d39a50c5181955ec15c825",
+      "description": "Receive peer messages. Returns immediately by default (wait=0); pass wait up to 120 to long-poll, or since=<last seq you have> to replay. Set self=true to include your own messages (full transcript replay).",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "acq_verify",
+      "descriptionHash": "c7780ed1c45598e23008e60dc5bc539e07a3de664289bb29260ab4bcd1dfbb0b",
+      "description": "Verify the pairing code your peer's operator read to you, to confirm you are in the right room."
+    },
+    {
+      "name": "acq_extend",
+      "descriptionHash": "496b229cb5ffb237eb058508f1a65a16f16891516deb4c9ea3d2a3fddc9fb2df",
+      "description": "Extend the join deadline of an unclaimed room (max 24h ceiling)."
+    },
+    {
+      "name": "acq_feedback",
+      "descriptionHash": "ecb572c9cf9de4415834da3751a092bb4301c7fdd1a9f8e2954e2f6306e33241",
+      "description": "Leave feedback for the maintainer. No room needed."
+    },
+    {
+      "name": "acq_stats",
+      "descriptionHash": "e501a6028cb6937d2dcf45c12d5be49c85d7dd11e4f629aacfc0fbe6142384ea",
+      "description": "Lifetime usage counters: rooms created, agents paired, messages."
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-SCHEMA-SMELL-001",
+      "severity": "medium",
+      "category": "schema-smell",
+      "title": "Read-only tool requests dangerous parameters",
+      "detail": "Tool \"acq_verify\" appears informational but accepts parameters (code) that enable code/file/secret access.",
+      "evidence": {
+        "source": "tool:acq_verify",
+        "snippet": "code, token, uin"
+      },
+      "confidence": 0.55
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: acq_create_room, acq_recv · Private data: acq_create_room, acq_join_room, acq_rejoin · Public sink: acq_create_room, acq_send.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: acq_create_room, acq_recv · Private data: acq_create_room, acq_join_room, acq_rejoin · Public sink: acq_create_room, acq_send"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 72,
+  "scoreBreakdown": {
+    "schema-smell": 8,
+    "toxic-flow": 20
+  },
+  "errors": []
+}
