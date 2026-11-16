@@ -8,8 +8,8 @@
     "kind": "url",
     "ref": "https://aideprecations--89b1777ed29f11f1a12e1607ee4eb77e.web.val.run/mcp"
   },
-  "scannedAt": "2026-10-30T11:11:01.628Z",
-  "durationMs": 902,
+  "scannedAt": "2026-11-16T13:07:50.693Z",
+  "durationMs": 1200,
   "layers": {
     "metadata": true,
     "static": false
@@ -37,8 +37,8 @@
     },
     {
       "name": "get_changes_since",
-      "descriptionHash": "f4cd1a6ac7dad40c471474d15b09de8fbb20d4111489c50112cfe6d52f8bcb5a",
-      "description": "List tracked AI model records whose status, deprecation/shutdown date, replacement or source changed since an ISO 8601 time. Poll this to stay current.",
+      "descriptionHash": "88eda4601e4977f6f44517824dbf6d37e2f9417c680b810d204f7cd57c5d45fe",
+      "description": "List tracked AI model records whose status, deprecation/shutdown date, replacement or source changed since an ISO 8601 time. Poll this to stay current: on later calls pass the previous response's checked_at. History starts at tracking_since; an earlier since returns a warning (count 0 then does not ",
       "labels": [
         "private-data"
       ]
@@ -60,10 +60,48 @@
         "private-data",
         "public-sink"
       ]
+    },
+    {
+      "name": "get_coverage",
+      "descriptionHash": "2735be90c71d5d08b3c7de48b2474fceaa27bd2c1b4448bbea521e2339ca8d13",
+      "description": "Per-provider coverage today: rows with a known shutdown date, rows where the vendor page gives no date, rows not verified today, and official pages that could not be read today. Also returns manual source reviews (a person checking a page the parser could not read; empty until one is recorded) and t",
+      "labels": [
+        "untrusted-content"
+      ]
     }
   ],
-  "findings": [],
-  "score": 100,
-  "scoreBreakdown": {},
+  "findings": [
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: get_coverage · Private data: get_changes_since, subscribe_alerts, unsubscribe · Public sink: subscribe_alerts, unsubscribe.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: get_coverage · Private data: get_changes_since, subscribe_alerts, unsubscribe · Public sink: subscribe_alerts, unsubscribe"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"get_changes_since\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:get_changes_since",
+        "snippet": "before: \"List tracked AI model records whose status, deprecation/shutdown date, replacement or source changed since an ISO 8601 time. Poll this to stay current.\" → after: \"List tracked AI model records whose status, deprecation/shutdown date, replacement or source changed since an ISO 8601 time. Poll this to stay current: on later calls pass the previous response's checked_at. History starts at tracking_since; an earlier since returns a warning (count 0 then does not \""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    }
+  ],
+  "score": 60,
+  "scoreBreakdown": {
+    "toxic-flow": 20,
+    "tool-poisoning": 20
+  },
   "errors": []
 }

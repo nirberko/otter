@@ -8,24 +8,82 @@
     "kind": "url",
     "ref": "https://sibidz.io/mcp"
   },
-  "scannedAt": "2026-11-01T11:34:23.243Z",
-  "durationMs": 2652,
+  "scannedAt": "2026-11-16T13:06:37.554Z",
+  "durationMs": 3060,
   "layers": {
     "metadata": true,
     "static": false
   },
   "tools": [
     {
+      "name": "list_inbox",
+      "descriptionHash": "b469e7389aa4bd911e9e4dcdcfcf6e7bd542dd490eab883454e85310977355f9",
+      "description": "List your private item, Support and Wanted conversations shared with the website. Filters: all, buying, selling, wanted, support. Support appears in all/support only. Pass a row’s conversation_id to read_thread; id remains the website selection key. needs_you is a boolean; listing does not acknowled",
+      "labels": [
+        "untrusted-content",
+        "private-data"
+      ]
+    },
+    {
+      "name": "read_thread",
+      "descriptionHash": "ef81bb6f52d4f1fc3a2eb8d5d82a6064de20b01ed723a07a9ab3a5b73c4a41e0",
+      "description": "Read the private ordered message, offer and sale history, plus current allowed actions. Acknowledges only the visible returned events across website and MCP. Reading is free and never approves an offer.",
+      "labels": [
+        "untrusted-content",
+        "private-data"
+      ]
+    },
+    {
+      "name": "reply",
+      "descriptionHash": "b327c4ae7bdbfbac8c5a08d0d45f72f2a8950dff15dd35962e99c15f02302445",
+      "description": "Send a private message in your item, Support or Wanted conversation; recipients may receive notifications. Support and Wanted replies are free; use their explicit thread_kind. A message never makes or accepts an offer. Approve max_fee; exact request_id retries do not duplicate messages or fees.",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "offer",
+      "descriptionHash": "59e86fc319c308432f309100b4f34c909656bb2b6f7b93b62b1d9889ad51553b",
+      "description": "Send an explicit binding offer or counter to the other participant. Approve exact amount and currency, frozen terms, pricing and max_fee. Counter names offerId/offerHash; conversion is advisory. An optional note is correspondence, not additional trading authority.",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "respond",
+      "descriptionHash": "5cff6781e3691e7af6fbf7ee5c017aab2b8aab0ef18238ce562dadbaf0274993",
+      "description": "Explicitly accept, decline or withdraw the exact current offerId/offerHash. The decision changes the proposal and can notify its participants. Acceptance binds the agreed amount and currency. Use the proposal’s frozen acceptance pricing and fee.",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
       "name": "account",
-      "descriptionHash": "6bfca156d4d3ad93ebb3af81462ac49a5979d2762ffee614a6cd8cc532793cf3",
-      "description": "Connect, verify and manage account details or agreements. Paid actions require request_id and max_fee; status and verification are free. See auction://reference."
+      "descriptionHash": "6d409f137cd6da54da559924ddb1079acda24713d86cefc6d61ca5f9a91b8ddc",
+      "description": "Read or update the connected identity and send approved invitations. Free read views expose buying (active, won, lost), selling (all, active, reserved, sold), credits, feedback_owed, connections and agreements with the same owner-scoped state and pagination as the website. Reads never approve an act",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink"
+      ]
     },
     {
       "name": "browse",
-      "descriptionHash": "e4b5a32c86949de23aea43945f4ea7867bed5e7deffcb505e8085a245866fd91",
-      "description": "Read exact records or search. Paid searches and private pages require request_id and max_fee; public reads are free. Use detail=full for terms. See auction://reference.",
+      "descriptionHash": "e27eda9b2217fc624d7a3c8a351b2e20c47e3afd4ebae8e2661f0f8c918cc981",
+      "description": "Read account, participant, private listing and evidence records. ref.kind=profile is a paid inspection with a recorded request receipt; preserve its request_id on retry. Discover sales and runs through trade.",
       "labels": [
         "private-data"
+      ]
+    },
+    {
+      "name": "sell",
+      "descriptionHash": "656b99298ea643404813ce50b215719dcdfbc2852a66e2c21d7ebe3bbeb8cb91",
+      "description": "Create or edit private listing drafts, upload photos, check moderation and maintain private stock. Publish through trade after approving the exact native sale.",
+      "labels": [
+        "private-data",
+        "public-sink"
       ]
     }
   ],
@@ -41,11 +99,52 @@
         "snippet": "browse"
       },
       "confidence": 0.4
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: list_inbox, read_thread, reply, account · Private data: list_inbox, read_thread, reply, account, browse, sell · Public sink: reply, offer, respond, account, sell.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: list_inbox, read_thread, reply, account · Private data: list_inbox, read_thread, reply, account, browse, sell · Public sink: reply, offer, respond, account, sell"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"account\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:account",
+        "snippet": "before: \"Connect, verify and manage account details or agreements. Paid actions require request_id and max_fee; status and verification are free. See auction://reference.\" → after: \"Read or update the connected identity and send approved invitations. Free read views expose buying (active, won, lost), selling (all, active, reserved, sold), credits, feedback_owed, connections and agreements with the same owner-scoped state and pagination as the website. Reads never approve an act\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"browse\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:browse",
+        "snippet": "before: \"Read exact records or search. Paid searches and private pages require request_id and max_fee; public reads are free. Use detail=full for terms. See auction://reference.\" → after: \"Read account, participant, private listing and evidence records. ref.kind=profile is a paid inspection with a recorded request receipt; preserve its request_id on retry. Discover sales and runs through trade.\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
     }
   ],
-  "score": 92,
+  "score": 42,
   "scoreBreakdown": {
-    "shadowing": 8
+    "shadowing": 8,
+    "toxic-flow": 20,
+    "tool-poisoning": 30
   },
   "errors": []
 }

@@ -8,8 +8,8 @@
     "kind": "url",
     "ref": "https://golfdata.online/mcp"
   },
-  "scannedAt": "2026-10-27T10:05:40.706Z",
-  "durationMs": 2058,
+  "scannedAt": "2026-11-16T13:07:27.753Z",
+  "durationMs": 1430,
   "layers": {
     "metadata": true,
     "static": false
@@ -17,16 +17,20 @@
   "tools": [
     {
       "name": "search_clubs",
-      "descriptionHash": "ddec08284a670bfdc8c50c36b0adf5496bdbe66baeb9439499536d9b8e80d85f",
-      "description": "Search approved golf clubs/courses in Spain (Canary Islands first, mainland Spain being added). Returns summary records (last_verified; no sources[]); call get_club or list_sources_for for provenance before citing.",
+      "descriptionHash": "e71174ab0f6a70127be41035dd1443491088388bb5f162311ab37aecf2477136",
+      "description": "Search verified golf clubs and courses across Europe (e.g. GB, DE, FR, ES, SE, IE, NL, IT, PT) by a free-text fragment (matches name, island, municipality or region), and/or ISO country code, island, region and municipality filters. Returns summary records (country, island, region, holes, green fee ",
       "labels": [
+        "untrusted-content",
         "private-data"
       ]
     },
     {
       "name": "get_club",
-      "descriptionHash": "a59f055e01c660ecaaaff4451e190c2ee1caaee864e5098ae808547155279bd1",
-      "description": "Get one approved club by UUID or slug, with all facts, sources[] (max 200; sources_truncated: true if cut) and club_facts: what the club itself published from its verified account (green fee, visitor rules, booking link, hours, buggies, dress code, languages), or null."
+      "descriptionHash": "89db5e44275c7e096e51b64fd81e680eb731e6e4cc62735538dd85de758a9272",
+      "description": "Get one approved club by UUID or slug, with all facts, sources[] (max 200; sources_truncated: true if cut) and club_facts: what the club itself published from its verified account (green fee, visitor rules, booking link, hours, buggies, dress code, languages), or null. phone is in E.164 (e.g. +44137",
+      "labels": [
+        "untrusted-content"
+      ]
     },
     {
       "name": "list_sources_for",
@@ -35,9 +39,43 @@
       "labels": [
         "untrusted-content"
       ]
+    },
+    {
+      "name": "request_booking",
+      "descriptionHash": "7402e1d679fa7732c929eaabf14b5bec89397f474e2eb36d5ab5dfe34b696bfe",
+      "description": "Send a booking request to a club whose card says booking.requests_enabled is true. golfdata only FORWARDS the request to the club (by email, or a WhatsApp click-to-chat link) and does NOT confirm the booking. Returns a request id and, for the whatsapp channel, a tracked link. For a club that is not ",
+      "labels": [
+        "public-sink"
+      ]
     }
   ],
   "findings": [
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: search_clubs, get_club, list_sources_for · Private data: search_clubs · Public sink: request_booking.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: search_clubs, get_club, list_sources_for · Private data: search_clubs · Public sink: request_booking"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"search_clubs\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:search_clubs",
+        "snippet": "before: \"Search approved golf clubs/courses in Spain (Canary Islands first, mainland Spain being added). Returns summary records (last_verified; no sources[]); call get_club or list_sources_for for provenance before citing.\" → after: \"Search verified golf clubs and courses across Europe (e.g. GB, DE, FR, ES, SE, IE, NL, IT, PT) by a free-text fragment (matches name, island, municipality or region), and/or ISO country code, island, region and municipality filters. Returns summary records (country, island, region, holes, green fee \""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
     {
       "id": "MCP-RUGPULL-001",
       "severity": "high",
@@ -46,15 +84,16 @@
       "detail": "Tool \"get_club\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
       "evidence": {
         "source": "tool:get_club",
-        "snippet": "before: \"Get one approved club by UUID or slug, with all facts and sources[] (max 200; sources_truncated: true if cut).\" → after: \"Get one approved club by UUID or slug, with all facts, sources[] (max 200; sources_truncated: true if cut) and club_facts: what the club itself published from its verified account (green fee, visitor rules, booking link, hours, buggies, dress code, languages), or null.\""
+        "snippet": "before: \"Get one approved club by UUID or slug, with all facts, sources[] (max 200; sources_truncated: true if cut) and club_facts: what the club itself published from its verified account (green fee, visitor rules, booking link, hours, buggies, dress code, languages), or null.\" → after: \"Get one approved club by UUID or slug, with all facts, sources[] (max 200; sources_truncated: true if cut) and club_facts: what the club itself published from its verified account (green fee, visitor rules, booking link, hours, buggies, dress code, languages), or null. phone is in E.164 (e.g. +44137\""
       },
       "confidence": 0.8,
       "remediation": "Re-review the tool before continuing to trust it."
     }
   ],
-  "score": 80,
+  "score": 50,
   "scoreBreakdown": {
-    "tool-poisoning": 20
+    "toxic-flow": 20,
+    "tool-poisoning": 30
   },
   "errors": []
 }

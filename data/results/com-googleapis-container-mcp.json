@@ -141,4 +141,92 @@
   "score": 100,
   "scoreBreakdown": {},
   "errors": []
+}_k8s_workload",
+      "descriptionHash": "f777a100c1cd5634d7baa4a11bb98868b834dc0fe3d8e4658482a3c15efb0e4d",
+      "description": "Collects a correlated incident snapshot for a Kubernetes workload (Deployment, StatefulSet, DaemonSet), verifying referenced ConfigMaps, Secrets, and PVCs, warning events, and automatically deduplicating container error logs.",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "get_k8s_cluster_health",
+      "descriptionHash": "739ab0d2bc407c173a36e5a8df254f88abfad096bfc6638eea2b4d6c21776693",
+      "description": "Computes a high-level health scorecard across nodes, workloads, system pods, and control-plane components (GKE cluster state, admission webhooks, and API Priority and Fairness)."
+    },
+    {
+      "name": "get_k8s_log_summary",
+      "descriptionHash": "44043225ee627a26eeebc7e50ccfc1760352896a755ca823a41ac0c081def3eb",
+      "description": "Fetches and deduplicates container logs using pattern fingerprinting to reduce token usage. Prefer this over get_k8s_logs when triaging crashes or noisy logs.",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "list_k8s_cluster_issues",
+      "descriptionHash": "5edb2d28572e62a18e3831019785c3b66d2b14f94e45610f5ff2c9a445618fc8",
+      "description": "Scans a cluster or namespace for abnormal pods (CrashLoopBackOff, OOMKilled, ImagePullBackOff), node pressure, stalled rollouts, quota exhaustion, PDB blocks, admission webhook risks, and API Priority and Fairness issues.",
+      "labels": [
+        "untrusted-content",
+        "public-sink"
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOOL-POISON-006",
+      "severity": "low",
+      "category": "tool-poisoning",
+      "title": "Anomalously long tool description",
+      "detail": "Description of \"create_cluster\" is 890 chars, far longer than this server's median (99). Overlong descriptions are a common place to bury instructions.",
+      "evidence": {
+        "source": "tool:create_cluster",
+        "snippet": "Creates a new GKE cluster in a given project and location. It's recommended to read the [GKE documentation](https://docs.cloud.google.com/kubernetes-engine/docs…"
+      },
+      "confidence": 0.4
+    },
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"diagnose_k8s_workload\" references sensitive artifacts (secret). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:diagnose_k8s_workload",
+        "snippet": "Collects a correlated incident snapshot for a Kubernetes workload (Deployment, StatefulSet, DaemonSet), verifying referenced ConfigMaps, Secrets, and PVCs, warn…"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: list_k8s_cluster_issues · Private data: diagnose_k8s_workload, get_k8s_log_summary · Public sink: list_k8s_cluster_issues · Destructive: get_k8s_resource, create_cluster, delete_k8s_resource.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: list_k8s_cluster_issues · Private data: diagnose_k8s_workload, get_k8s_log_summary · Public sink: list_k8s_cluster_issues · Destructive: get_k8s_resource, create_cluster, delete_k8s_resource"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"create_cluster\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:create_cluster",
+        "snippet": "before: \"Creates a new GKE cluster in a given project and location. It's recommended to read the [GKE documentation](https://docs.cloud.google.com/kubernetes-engine/docs/concepts/configuration-overview) to understand cluster configuration options. Cluster creation will default to Autopilot mode, as recommend\" → after: \"Creates a new GKE cluster in a given project and location. It's recommended to read the [GKE documentation](https://docs.cloud.google.com/kubernetes-engine/docs/concepts/configuration-overview) to understand cluster configuration options. For regional locations, cluster creation will default to Auto\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    }
+  ],
+  "score": 49,
+  "scoreBreakdown": {
+    "tool-poisoning": 31,
+    "toxic-flow": 20
+  },
+  "errors": []
 }

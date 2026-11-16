@@ -8,19 +8,110 @@
     "kind": "url",
     "ref": "https://nsd.sg/mcp"
   },
-  "scannedAt": "2026-10-27T09:58:51.484Z",
-  "durationMs": 545,
+  "scannedAt": "2026-11-16T12:58:36.278Z",
+  "durationMs": 1625,
   "layers": {
-    "metadata": false,
+    "metadata": true,
     "static": false
   },
-  "findings": [],
-  "score": 100,
-  "scoreBreakdown": {},
-  "errors": [
+  "tools": [
     {
-      "scanner": "metadata",
-      "message": "Streamable HTTP error: Error POSTing to endpoint: {\"jsonrpc\":\"2.0\",\"id\":null,\"error\":{\"code\":-32001,\"message\":\"Unauthorized. Create a token at https://nsd.sg/connect and use https://nsd.sg/mcp/<token>\"}}"
+      "name": "nsd_publish",
+      "descriptionHash": "5a5a308759b187151a31c73d3a0c8c381640643e10194d40933a2245dd2f2256",
+      "description": "Put a page online at <name>.nsd.sg. Give a site name and either the full HTML of the page or a list of files. Creates the site if you do not have it yet; on a site you already own it adds or replaces the given files and keeps the rest. Returns the live URL. IMPORTANT: if any file contains <script>, ",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "nsd_update",
+      "descriptionHash": "ef826880db0e1354a0da99a1016ec233961e5199df458d8fa416c71f0d2f41a1",
+      "description": "Replace ALL files of an existing site with the given HTML or files. Older versions are kept and can be restored from the dashboard. Same rule as nsd_publish: anything containing <script>, on*= attributes or javascript: must be sent as files with encoding \"base64\", or the hosting firewall refuses it ",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "nsd_list_sites",
+      "descriptionHash": "945d879425f1c1273c7bb64b3a86a75307a56598401f9a27e387ed259559cccb",
+      "description": "List the caller's sites: id, name, live URL, status, plan and days of free period left.",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "nsd_get_site",
+      "descriptionHash": "c2be2191356aec1903b8223f95c3516e6549fe832485a73605e5e5fa402b767f",
+      "description": "One site: URL, status, files, storage used and the plan's limits.",
+      "labels": [
+        "untrusted-content",
+        "private-data"
+      ]
+    },
+    {
+      "name": "nsd_read_file",
+      "descriptionHash": "a1efdfabd4ab7674005376f65e67c086c5fc2317f0b9c85db1fc2bad222dc45f",
+      "description": "Read one file of a live site, exactly as it is online now. Use it before a small change (\"change the price\", \"fix the date\") in a chat that does not have the page yet: read the file, change only what the user asked, then send it back with nsd_publish under the same name. Text files come back as text",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "nsd_delete_site",
+      "descriptionHash": "892714cabc978e946443e72a724dfb0ba3194578139e92475fb2c5985bc730a1",
+      "description": "Delete a site and all its versions. Requires the site id (never a name). The address becomes free for anyone.",
+      "labels": [
+        "destructive"
+      ]
     }
-  ]
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOOL-POISON-006",
+      "severity": "low",
+      "category": "tool-poisoning",
+      "title": "Anomalously long tool description",
+      "detail": "Description of \"nsd_publish\" is 1236 chars, far longer than this server's median (209). Overlong descriptions are a common place to bury instructions.",
+      "evidence": {
+        "source": "tool:nsd_publish",
+        "snippet": "Put a page online at <name>.nsd.sg. Give a site name and either the full HTML of the page or a list of files. Creates the site if you do not have it yet; on a s…"
+      },
+      "confidence": 0.4
+    },
+    {
+      "id": "MCP-TOOL-POISON-007",
+      "severity": "low",
+      "category": "tool-poisoning",
+      "title": "Description uses pressure/override language",
+      "detail": "Description of \"nsd_publish\" stacks urgency/override words (important, always, never). Legitimate tool descriptions rarely pressure the model to act or ignore prior guidance.",
+      "evidence": {
+        "source": "tool:nsd_publish",
+        "snippet": "Put a page online at <name>.nsd.sg. Give a site name and either the full HTML of the page or a list of files. Creates the site if you do not have it yet; on a s…"
+      },
+      "confidence": 0.3
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: nsd_publish, nsd_list_sites, nsd_get_site, nsd_read_file · Private data: nsd_publish, nsd_update, nsd_get_site, nsd_read_file · Public sink: nsd_publish, nsd_read_file · Destructive: nsd_delete_site.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: nsd_publish, nsd_list_sites, nsd_get_site, nsd_read_file · Private data: nsd_publish, nsd_update, nsd_get_site, nsd_read_file · Public sink: nsd_publish, nsd_read_file · Destructive: nsd_delete_site"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 76,
+  "scoreBreakdown": {
+    "tool-poisoning": 5,
+    "toxic-flow": 20
+  },
+  "errors": []
 }

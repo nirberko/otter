@@ -8,19 +8,76 @@
     "kind": "url",
     "ref": "https://mcp.weewilds.com/mcp/"
   },
-  "scannedAt": "2026-10-28T10:48:08.768Z",
-  "durationMs": 349,
+  "scannedAt": "2026-11-16T12:58:04.292Z",
+  "durationMs": 1798,
   "layers": {
-    "metadata": false,
+    "metadata": true,
     "static": false
   },
-  "findings": [],
-  "score": 100,
-  "scoreBreakdown": {},
-  "errors": [
+  "tools": [
     {
-      "scanner": "metadata",
-      "message": "Streamable HTTP error: Error POSTing to endpoint: {\"error\":\"unauthorized\"}"
+      "name": "get_availability",
+      "descriptionHash": "7aca8267dd2f1d253417962e2fba376c8b6a3ff11124a371bef27687a1dffdd8",
+      "description": "Check whether a WEE WiLDS unit is available for a date range.\n\n    Args:\n        unit: One of \"muckle-meadow-pod\", \"cosie-coorie-pod\", \"bb\".\n              The \"bb\" slug returns per-room availability across all 4 B&B rooms.\n        check_in: Arrival date in YYYY-MM-DD format. Must not be in the past.",
+      "labels": [
+        "untrusted-content",
+        "destructive"
+      ]
+    },
+    {
+      "name": "get_pricing",
+      "descriptionHash": "f340cf75de707730a42770d7da4f697adc3613663d29325c58f2b72f0c272007",
+      "description": "Get the price range for a WEE WiLDS unit.\n\n    Returns a static min/max GBP range. Dynamic per-night quotes are not yet\n    available — for an exact quote, use send_inquiry.\n\n    Args:\n        unit: One of \"muckle-meadow-pod\", \"cosie-coorie-pod\", \"bb\".\n        check_in: Ignored for now (kept for for",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "get_unit_details",
+      "descriptionHash": "8455723c7f219855aba4dc4666a1f54bbce27dfe10098e854afbc50a45a2ba26",
+      "description": "Get full description, amenities, access notes, and policies for a unit.\n\n    Args:\n        unit: One of \"muckle-meadow-pod\", \"cosie-coorie-pod\", \"bb\".\n              For \"bb\", returns the 4 rooms plus shared amenities.\n\n    Returns:\n        {unit, details: {name, type, size_sqm, amenities, rooms?, .."
+    },
+    {
+      "name": "send_inquiry",
+      "descriptionHash": "2371a68a31172747150e9cb957b81e0c617f30c0d52622db0c7fffd8ecb0ce23",
+      "description": "Email a booking inquiry to hello@weewilds.com on behalf of a guest.\n\n    Requires an access token (Authorization: Bearer header). Without one this\n    tool sends nothing and returns the direct booking URL instead — send the\n    guest there, or to hello@weewilds.com.\n\n    Does NOT create an OwnerRez ",
+      "labels": [
+        "private-data",
+        "public-sink"
+      ]
     }
-  ]
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"send_inquiry\" references sensitive artifacts (authorization, bearer). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:send_inquiry",
+        "snippet": "Email a booking inquiry to hello@weewilds.com on behalf of a guest. Requires an access token (Authorization: Bearer header). Without one this tool sends nothing…"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: get_availability · Private data: send_inquiry · Public sink: get_pricing, send_inquiry · Destructive: get_availability.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: get_availability · Private data: send_inquiry · Public sink: get_pricing, send_inquiry · Destructive: get_availability"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 60,
+  "scoreBreakdown": {
+    "tool-poisoning": 20,
+    "toxic-flow": 20
+  },
+  "errors": []
 }

@@ -6,10 +6,10 @@
   },
   "target": {
     "kind": "url",
-    "ref": "https://www.pressmark.dev/mcp"
+    "ref": "https://pressmark.dev/api/v1/mcp"
   },
-  "scannedAt": "2026-10-28T10:49:11.113Z",
-  "durationMs": 259,
+  "scannedAt": "2026-11-16T12:58:47.788Z",
+  "durationMs": 718,
   "layers": {
     "metadata": true,
     "static": false
@@ -17,54 +17,89 @@
   "tools": [
     {
       "name": "generate_document",
-      "descriptionHash": "d59e4811c02bb5574ec2811f8a1a91d6992d18d02f31998595eba5d16b259266",
-      "description": "Statelessly synthesize a vector PDF document (invoice, receipt, contract, NDA, or lease) in <25ms without mutating server records. Example: doc_type='invoice', generate_document({\"doc_type\":\"invoice\",\"from\":{\"name\":\"Acme\"},\"to\":{\"name\":\"Client\"}})",
+      "descriptionHash": "e00cebb4edc60f951a0dff7baeee3f456a4a7906c8a3b695e985cc9f98479ea2",
+      "description": "Generate a vector PDF from document details. HTTP calls can return a temporary download link. Configured customer sync can save contact details and start follow-up. See https://pressmark.dev/privacy.",
       "labels": [
         "private-data"
       ]
     },
     {
       "name": "preview_document",
-      "descriptionHash": "435a83e92c23a7bf7d6cf4e2fc7db00fde8f431efb622f242529c2426ffab8e4",
-      "description": "Statelessly render a 144-PPI PNG preview of a document as a Base64 data URI without mutating server records. Example: doc_type='invoice' or preview_document({\"doc_type\":\"invoice\",\"from\":{\"name\":\"Acme\"},\"to\":{\"name\":\"Client\"}})",
+      "descriptionHash": "065f1dbf539dedd5b5537c4171194c14b07610397d46e9a935a2b58da664c6e8",
+      "description": "Render a PNG preview from supplied document details. HTTP calls can return a temporary image link.",
       "labels": [
         "private-data"
       ]
     },
     {
       "name": "calculate_totals",
-      "descriptionHash": "40b1e298a77121dd9ab843922ec55cebd370e75fb8014972c82d0ab6fc417033",
-      "description": "Statelessly compute subtotal, tax, discount, grand total, and balance due for a document payload without mutating server records. Example: tax_rate=8.25 or calculate_totals({\"document\":{\"items\":[{\"quantity\":2,\"unit_price\":50}]}})",
-      "labels": [
-        "private-data"
-      ]
-    },
-    {
-      "name": "get_pricing",
-      "descriptionHash": "39f382e7517357b3aa3ee55b16cca1e67e8af36a0d8af22f850ca8873dcd4289",
-      "description": "Read static subscription tiers, single-pass unlocks, and checkout links without mutating server records. Example: currency='USD' or get_pricing({})",
+      "descriptionHash": "c22d956dad5f80a779050bb2f3e4d75acfbe056abdda50840a05133e0f12eb88",
+      "description": "Compute subtotal, tax, discount, grand total, and balance due from document items. Stateless.",
       "labels": [
         "private-data"
       ]
     },
     {
       "name": "convert_document",
-      "descriptionHash": "50e3685509b04c70cdc07044999f36d3583e5133fd7da59808dbd672f11a47c8",
-      "description": "Stateless in-memory conversion and PDF synthesis from Estimate/Quote JSON to Invoice, Receipt, or Credit Note without mutating server records. Example: target_type='invoice', convert_document({\"document\":{},\"target_type\":\"invoice\"})",
+      "descriptionHash": "64bf38fe852c9a5c4c2de2e4bd378e9f032b14500565e5099a08c920a488f992",
+      "description": "Convert document details to an invoice, estimate, receipt, credit note, or refund PDF. HTTP calls can return a temporary download link.",
       "labels": [
         "private-data"
       ]
     },
     {
       "name": "record_payment",
-      "descriptionHash": "8b1e6e4ca3f0f3771fc573a8cedcbec83d290fb6955411cd1276666675355c68",
-      "description": "Stateless in-memory payment calculation and PDF synthesis returning a Receipt or partial-payment Invoice without mutating server records. Example: amount_paid=100, record_payment({\"document\":{},\"amount_paid\":100})",
+      "descriptionHash": "ff44abe3ac1faedff46de0c98800291536f857b2f2cc3dcc2a23aad418c779d4",
+      "description": "Create a receipt or updated invoice from supplied payment details. Does not charge or verify payment. HTTP calls can return a temporary download link.",
       "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "submit_feedback",
+      "descriptionHash": "170249eabb16d96909e54506e2644a4c9058bed759a796a3c90fbbbe32146ad1",
+      "description": "Send a bug report, feature request, or general feedback to the private Pressmark inbox when the user asks. Include only details they choose to share; omit documents, passwords, and tokens.",
+      "labels": [
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "get_feedback_status",
+      "descriptionHash": "3c94977720961c1c760dcca988128d474baa27bb1a02b882f7254d5f98722b5a",
+      "description": "Check one Pressmark report using its report ID and private access key. Returns its review status without exposing the report text or contact details.",
+      "labels": [
+        "untrusted-content",
         "private-data"
       ]
     }
   ],
   "findings": [
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"submit_feedback\" references sensitive artifacts (password). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:submit_feedback",
+        "snippet": "Send a bug report, feature request, or general feedback to the private Pressmark inbox when the user asks. Include only details they choose to share; omit docum…"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: get_feedback_status · Private data: generate_document, preview_document, calculate_totals, convert_document, record_payment, submit_feedback, get_feedback_status · Public sink: submit_feedback.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: get_feedback_status · Private data: generate_document, preview_document, calculate_totals, convert_document, record_payment, submit_feedback, get_feedback_status · Public sink: submit_feedback"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    },
     {
       "id": "MCP-RUGPULL-001",
       "severity": "high",
@@ -73,7 +108,7 @@
       "detail": "Tool \"generate_document\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
       "evidence": {
         "source": "tool:generate_document",
-        "snippet": "before: \"Statelessly synthesize a publication-grade vector PDF document (invoice, estimate, receipt, credit note, contract, NDA, or real estate agreement) in under 25ms without mutating external server records.\" → after: \"Statelessly synthesize a vector PDF document (invoice, receipt, contract, NDA, or lease) in <25ms without mutating server records. Example: doc_type='invoice', generate_document({\"doc_type\":\"invoice\",\"from\":{\"name\":\"Acme\"},\"to\":{\"name\":\"Client\"}})\""
+        "snippet": "before: \"Statelessly synthesize a vector PDF document (invoice, receipt, contract, NDA, or lease) in <25ms without mutating server records. Example: doc_type='invoice', generate_document({\"doc_type\":\"invoice\",\"from\":{\"name\":\"Acme\"},\"to\":{\"name\":\"Client\"}})\" → after: \"Generate a vector PDF from document details. HTTP calls can return a temporary download link. Configured customer sync can save contact details and start follow-up. See https://pressmark.dev/privacy.\""
       },
       "confidence": 0.8,
       "remediation": "Re-review the tool before continuing to trust it."
@@ -86,7 +121,7 @@
       "detail": "Tool \"preview_document\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
       "evidence": {
         "source": "tool:preview_document",
-        "snippet": "before: \"Statelessly render a 144-PPI PNG preview of the input document as a Base64 Data URI for visual inspection in chat without mutating server state.\" → after: \"Statelessly render a 144-PPI PNG preview of a document as a Base64 data URI without mutating server records. Example: doc_type='invoice' or preview_document({\"doc_type\":\"invoice\",\"from\":{\"name\":\"Acme\"},\"to\":{\"name\":\"Client\"}})\""
+        "snippet": "before: \"Statelessly render a 144-PPI PNG preview of a document as a Base64 data URI without mutating server records. Example: doc_type='invoice' or preview_document({\"doc_type\":\"invoice\",\"from\":{\"name\":\"Acme\"},\"to\":{\"name\":\"Client\"}})\" → after: \"Render a PNG preview from supplied document details. HTTP calls can return a temporary image link.\""
       },
       "confidence": 0.8,
       "remediation": "Re-review the tool before continuing to trust it."
@@ -99,23 +134,22 @@
       "detail": "Tool \"calculate_totals\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
       "evidence": {
         "source": "tool:calculate_totals",
-        "snippet": "before: \"Statelessly compute subtotal, tax amounts, discounts, grand total, and balance due for a document JSON payload without PDF synthesis or server state mutation.\" → after: \"Statelessly compute subtotal, tax, discount, grand total, and balance due for a document payload without mutating server records. Example: tax_rate=8.25 or calculate_totals({\"document\":{\"items\":[{\"quantity\":2,\"unit_price\":50}]}})\""
+        "snippet": "before: \"Statelessly compute subtotal, tax, discount, grand total, and balance due for a document payload without mutating server records. Example: tax_rate=8.25 or calculate_totals({\"document\":{\"items\":[{\"quantity\":2,\"unit_price\":50}]}})\" → after: \"Compute subtotal, tax, discount, grand total, and balance due from document items. Stateless.\""
       },
       "confidence": 0.8,
       "remediation": "Re-review the tool before continuing to trust it."
     },
     {
       "id": "MCP-RUGPULL-001",
-      "severity": "high",
+      "severity": "medium",
       "category": "tool-poisoning",
-      "title": "Tool description changed since last scan",
-      "detail": "Tool \"get_pricing\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "title": "Tool removed since last scan",
+      "detail": "Tool \"get_pricing\" is no longer advertised. Removal can precede a shadowing replacement from another server.",
       "evidence": {
         "source": "tool:get_pricing",
-        "snippet": "before: \"Read static subscription tiers, single-pass microtransactions, and checkout links.\" → after: \"Read static subscription tiers, single-pass unlocks, and checkout links without mutating server records. Example: currency='USD' or get_pricing({})\""
+        "snippet": "removed: get_pricing"
       },
-      "confidence": 0.8,
-      "remediation": "Re-review the tool before continuing to trust it."
+      "confidence": 0.5
     },
     {
       "id": "MCP-RUGPULL-001",
@@ -125,7 +159,7 @@
       "detail": "Tool \"convert_document\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
       "evidence": {
         "source": "tool:convert_document",
-        "snippet": "before: \"Perform stateless in-memory document transformation and PDF synthesis (converting an Estimate or Quote JSON into a new Tax Invoice, Receipt, or Credit Note JSON + Base64 PDF without mutating external server records).\" → after: \"Stateless in-memory conversion and PDF synthesis from Estimate/Quote JSON to Invoice, Receipt, or Credit Note without mutating server records. Example: target_type='invoice', convert_document({\"document\":{},\"target_type\":\"invoice\"})\""
+        "snippet": "before: \"Stateless in-memory conversion and PDF synthesis from Estimate/Quote JSON to Invoice, Receipt, or Credit Note without mutating server records. Example: target_type='invoice', convert_document({\"document\":{},\"target_type\":\"invoice\"})\" → after: \"Convert document details to an invoice, estimate, receipt, credit note, or refund PDF. HTTP calls can return a temporary download link.\""
       },
       "confidence": 0.8,
       "remediation": "Re-review the tool before continuing to trust it."
@@ -138,15 +172,16 @@
       "detail": "Tool \"record_payment\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
       "evidence": {
         "source": "tool:record_payment",
-        "snippet": "before: \"Perform stateless in-memory payment calculation and PDF synthesis (applying a full or partial payment to an input invoice JSON and returning a new synthesized Receipt or updated Invoice JSON + Base64 PDF without mutating external server records).\" → after: \"Stateless in-memory payment calculation and PDF synthesis returning a Receipt or partial-payment Invoice without mutating server records. Example: amount_paid=100, record_payment({\"document\":{},\"amount_paid\":100})\""
+        "snippet": "before: \"Stateless in-memory payment calculation and PDF synthesis returning a Receipt or partial-payment Invoice without mutating server records. Example: amount_paid=100, record_payment({\"document\":{},\"amount_paid\":100})\" → after: \"Create a receipt or updated invoice from supplied payment details. Does not charge or verify payment. HTTP calls can return a temporary download link.\""
       },
       "confidence": 0.8,
       "remediation": "Re-review the tool before continuing to trust it."
     }
   ],
-  "score": 60,
+  "score": 40,
   "scoreBreakdown": {
-    "tool-poisoning": 40
+    "tool-poisoning": 41,
+    "toxic-flow": 20
   },
   "errors": []
 }

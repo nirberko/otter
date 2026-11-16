@@ -8,8 +8,8 @@
     "kind": "url",
     "ref": "https://waitapp.online/api/mcp/"
   },
-  "scannedAt": "2026-10-27T10:05:41.104Z",
-  "durationMs": 3332,
+  "scannedAt": "2026-11-16T13:07:29.184Z",
+  "durationMs": 2229,
   "layers": {
     "metadata": true,
     "static": false
@@ -17,8 +17,8 @@
   "tools": [
     {
       "name": "search_venues",
-      "descriptionHash": "1bade2449cb3493d3dc6110cf664731b453dd4081e09da57f8e06b7b54a555ce",
-      "description": "Search WaitApp venues (restaurants, hotels, lodges) by name, city and/or country, and filter them: takesDelivery, venueType (restaurant, hotel, event_organizer, ...) and openNow. Empty query lists venues. Name matching is forgiving (case, '&' vs 'and', small typos); if nothing matches closely, the c"
+      "descriptionHash": "6bd74074022c2a8b08ad0baf4417fa879e8d66276dd0f53838c9a302d171b7f7",
+      "description": "Search WaitApp venues (restaurants, hotels, lodges, bakeries and bookable venues such as pitches, courts and halls) by name, city and/or country, and filter them: takesDelivery, venueType (restaurant, hotel, event_organizer, ...) and openNow. A venue with takesBookableSpaces true hires out spaces by"
     },
     {
       "name": "search_menu",
@@ -49,14 +49,32 @@
       ]
     },
     {
+      "name": "list_spaces",
+      "descriptionHash": "34edd83020cd40fbce2bfdbf368a9e8a5a8c90781c22ef1360d5781c2d480170",
+      "description": "List the pitches, courts and halls a BOOKABLE VENUE hires out by the hour or session (search_venues shows takesBookableSpaces: true for these). Each space has its price per hour or session, capacity, and bookingMode: \"instant\" (the person pays and the time is theirs at once) or \"request\" (the venue "
+    },
+    {
+      "name": "check_space_availability",
+      "descriptionHash": "0150558aad08da430ecba0c79e7d499982eeb3e5acd0282e4bf6f2f2dd5e1ba9",
+      "description": "The free start times of one bookable space (from list_spaces) on one day, in the venue's own time, with the longest booking that fits from each start (maxHours). The venue's opening hours and its existing bookings are already applied, so every time returned can be booked."
+    },
+    {
+      "name": "book_space",
+      "descriptionHash": "593dd5f55cdff3001065cc7705e1e03d5576931b0a8d380b21b7968179bab3e1",
+      "description": "Book a pitch, court or hall for a real person — check_space_availability first. The venue prices and checks it exactly as it does on its own page. If the space's bookingMode is \"instant\", the time is held for the person for a few minutes and the result carries a paymentLink: give it to them to pay, "
+    },
+    {
       "name": "list_events",
       "descriptionHash": "33ecf3629799fad780a6518bd1bf0ee7c813f23123ea3366315e6352f52eec63",
       "description": "List upcoming, published events (ticketed or free) for a venue, or across all venues if restaurantId is omitted."
     },
     {
       "name": "check_event_availability",
-      "descriptionHash": "abb6ef9b568c88f5d07793478eb3577404f48a3580a6eb2dc06a6a45e866323c",
-      "description": "Check remaining capacity for a specific event."
+      "descriptionHash": "c2181d642f1e3da0b988083b1eb85dd5c1e0aebc61edde534ab34fc8e93a3566",
+      "description": "Check remaining capacity for a specific event: places left overall, and for each ticket type (tierId) its price, places left and any dates of its own, plus its optional add-ons (for example bus transport or tent hire) with the price and how many are left. Use the tierId and add-on ids with get_ticke",
+      "labels": [
+        "untrusted-content"
+      ]
     },
     {
       "name": "draft_delivery_order",
@@ -199,18 +217,44 @@
       "severity": "medium",
       "category": "toxic-flow",
       "title": "Toxic flow: untrusted input can reach an external sink",
-      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: get_ticket_checkout_link · Public sink: book_room, draft_delivery_order · Destructive: track_order, delete_saved_location.",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: check_event_availability, get_ticket_checkout_link · Public sink: book_room, draft_delivery_order · Destructive: track_order, delete_saved_location.",
       "evidence": {
         "source": "server:mcp",
-        "snippet": "Untrusted content: get_ticket_checkout_link · Public sink: book_room, draft_delivery_order · Destructive: track_order, delete_saved_location"
+        "snippet": "Untrusted content: check_event_availability, get_ticket_checkout_link · Public sink: book_room, draft_delivery_order · Destructive: track_order, delete_saved_location"
       },
       "confidence": 0.45,
       "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"search_venues\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:search_venues",
+        "snippet": "before: \"Search WaitApp venues (restaurants, hotels, lodges) by name, city and/or country, and filter them: takesDelivery, venueType (restaurant, hotel, event_organizer, ...) and openNow. Empty query lists venues. Name matching is forgiving (case, '&' vs 'and', small typos); if nothing matches closely, the c\" → after: \"Search WaitApp venues (restaurants, hotels, lodges, bakeries and bookable venues such as pitches, courts and halls) by name, city and/or country, and filter them: takesDelivery, venueType (restaurant, hotel, event_organizer, ...) and openNow. A venue with takesBookableSpaces true hires out spaces by\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"check_event_availability\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:check_event_availability",
+        "snippet": "before: \"Check remaining capacity for a specific event.\" → after: \"Check remaining capacity for a specific event: places left overall, and for each ticket type (tierId) its price, places left and any dates of its own, plus its optional add-ons (for example bus transport or tent hire) with the price and how many are left. Use the tierId and add-on ids with get_ticke\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
     }
   ],
-  "score": 89,
+  "score": 61,
   "scoreBreakdown": {
-    "tool-poisoning": 3,
+    "tool-poisoning": 31,
     "toxic-flow": 8
   },
   "errors": []

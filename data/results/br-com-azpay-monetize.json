@@ -8,8 +8,8 @@
     "kind": "url",
     "ref": "https://mcp.agents.trydak.com/mcp-monetize"
   },
-  "scannedAt": "2026-11-14T11:35:32.201Z",
-  "durationMs": 814,
+  "scannedAt": "2026-11-16T12:53:15.574Z",
+  "durationMs": 1059,
   "layers": {
     "metadata": true,
     "static": false
@@ -17,16 +17,16 @@
   "tools": [
     {
       "name": "search_resources",
-      "descriptionHash": "bdead8b676d1d96cb89cb3044387ba644f70f29e8f0c4d840f283dcf7a311c4b",
-      "description": "Use this to find a resource id before get_quote or negotiate_price. Optional input: query, words from the name, path, or address; omit it to list what is for sale. Returns matching Sepolia resources with id, title, and URL. Does not quote, negotiate, or pay.",
+      "descriptionHash": "2bd89891aaff0efce4b596fcff503ac8531ff3bd5a9375d0a4ffc4a10290dc80",
+      "description": "Use this to find a resource id before get_quote or negotiate_price. Optional input: query, words from the name, path, address, or seller description; omit it to list what is for sale. Returns matching Sepolia resources with id, title, and URL. When the seller wrote one, each result also includes des",
       "labels": [
         "untrusted-content"
       ]
     },
     {
       "name": "get_quote",
-      "descriptionHash": "b6c60f46d0b5deda57dd709f079045ce26facbf6987f5aa74e6354b1402a862b",
-      "description": "Use this when you already have a resource_id and need the list price, floor, volume tiers, and URL. Use negotiate_price to propose a different price. Required input: resource_id from search_resources. Returns the quote. Does not change the price or pay.",
+      "descriptionHash": "44631a80d3cee96bf5e6e5661fed5a9b2adf7bb2deb225371a9181267550bba1",
+      "description": "Use this when you already have a resource_id and need the list price, floor, volume tiers, and URL. Optional quantity from 1 to 100 returns that quantity's unit price and total, with the same volume discount as negotiate_price. Required input: resource_id from search_resources. Returns the quote, in",
       "labels": [
         "untrusted-content"
       ]
@@ -38,29 +38,36 @@
     },
     {
       "name": "prepare_checkout",
-      "descriptionHash": "0c3223d0906eeeae38ead29ae4d95485287cedf7a8923d7015e5d0f33cb130b1",
-      "description": "Use this after an accepted offer to review the amount and get a single-use confirmation. Use pay_and_access to spend; this tool never pays. Input: offer_id, or resource_id with optional quantity for the list price. Returns the checkout summary, confirmation, total, expiry, and paymentOptions. The fi",
+      "descriptionHash": "563daa7275e518734aa0364bef44f2b1b5667d091cd56faf186c9b90fe526782",
+      "description": "Use this after an accepted offer to review the amount and get a single-use confirmation. Use pay_and_access to spend; this tool never pays. Input: offer_id, or resource_id with optional quantity for the list price. Returns the checkout summary, confirmation, total, expiry, and paymentOptions. When t",
       "labels": [
-        "untrusted-content"
+        "untrusted-content",
+        "public-sink"
       ]
     },
     {
       "name": "pay_and_access",
-      "descriptionHash": "970bac45289b5951d07d4745b45d72caa9df91d12934fbe34c90fb3d90f2fd59",
-      "description": "Use this only after the person agrees to pay. It is the only tool that spends on Sepolia. prepare_checkout never pays, and get_receipt never charges. Input: offer_id, the confirmation from prepare_checkout, and confirm=true. Pass confirm=false to decline. Pass method pix for the test-only Pix option",
+      "descriptionHash": "f64df82cb3afeb3353029d957f817d03a8ae53026cc44f825f3458fe3d8854d7",
+      "description": "To deliver a paid origin tool, pass origin_tool with origin_arguments and idempotency_key; that call does not charge again. If the client schema has no origin_tool, pass method tool:<origin_tool> on an already-paid offer and put the origin arguments as a JSON object in confirmation. Use this only af",
       "labels": [
-        "private-data"
+        "untrusted-content",
+        "private-data",
+        "public-sink",
+        "destructive"
       ]
     },
     {
       "name": "get_receipt",
-      "descriptionHash": "506022628328da553bf41dc53f2776574ca7d65d01d0889773fa3214a12dc7fa",
-      "description": "Use this to deliver an already-paid resource, or to finish a payment that is still confirming. Use get_checkout_status to read state without consuming a unit. Input: tx_hash, or offer_id, or intent_id. Returns the receipt and consumes one paid unit. It never charges."
+      "descriptionHash": "e78391d51f267542b451e70c0f5dfd23fbc115d2b1132a5ce93b70a176406f35",
+      "description": "To deliver a paid origin tool, pass origin_tool with origin_arguments and idempotency_key; a call without origin_tool reads the receipt and does not consume a unit. Use this to read an already-paid resource, or to finish a payment that is still confirming. A call without origin_tool returns the rece",
+      "labels": [
+        "destructive"
+      ]
     },
     {
       "name": "get_checkout_status",
-      "descriptionHash": "0c74f65c14d5cb29e76dd4c974d6f0e4b26d75736f8ca14a6d013a912452341b",
-      "description": "Use this to read whether a checkout is pending, paid, consumed, expired, or cancelled. When the checkout has a Pix test option, the result also includes pix.status of pending, paid, expired, or consumed. Use get_receipt to deliver a Sepolia purchase, and cancel_checkout to invalidate an unused confi"
+      "descriptionHash": "e31f5399f7f40a9dac9b53989fc24241b685c50d9435b9fc3abc8fad2edb73f1",
+      "description": "Use this when the person says they paid, and to read whether a checkout is pending, paid, consumed, expired, or cancelled. If checkout_state is paid, immediately call pay_and_access or get_receipt with origin_tool and origin_arguments to deliver the tool result. The result also reports checkout_stat"
     },
     {
       "name": "cancel_checkout",
@@ -70,111 +77,59 @@
   ],
   "findings": [
     {
-      "id": "MCP-RUGPULL-001",
+      "id": "MCP-TOOL-POISON-003",
       "severity": "high",
       "category": "tool-poisoning",
-      "title": "Tool description changed since last scan",
-      "detail": "Tool \"prepare_checkout\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"prepare_checkout\" references sensitive artifacts (authorization). A tool description has no reason to mention credentials.",
       "evidence": {
         "source": "tool:prepare_checkout",
-        "snippet": "before: \"Use this after an accepted offer to review the amount and get a single-use confirmation. Use pay_and_access to spend; this tool never pays. Input: offer_id, or resource_id with optional quantity for the list price. Returns the checkout summary, confirmation, total, and expiry.\" → after: \"Use this after an accepted offer to review the amount and get a single-use confirmation. Use pay_and_access to spend; this tool never pays. Input: offer_id, or resource_id with optional quantity for the list price. Returns the checkout summary, confirmation, total, expiry, and paymentOptions. The fi\""
+        "snippet": "Use this after an accepted offer to review the amount and get a single-use confirmation. Use pay_and_access to spend; this tool never pays. Input: offer_id, or …"
       },
-      "confidence": 0.8,
-      "remediation": "Re-review the tool before continuing to trust it."
+      "confidence": 0.65
     },
     {
-      "id": "MCP-RUGPULL-001",
-      "severity": "high",
+      "id": "MCP-TOOL-POISON-007",
+      "severity": "low",
       "category": "tool-poisoning",
-      "title": "Tool description changed since last scan",
-      "detail": "Tool \"pay_and_access\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "title": "Description uses pressure/override language",
+      "detail": "Description of \"prepare_checkout\" stacks urgency/override words (immediately, never). Legitimate tool descriptions rarely pressure the model to act or ignore prior guidance.",
+      "evidence": {
+        "source": "tool:prepare_checkout",
+        "snippet": "Use this after an accepted offer to review the amount and get a single-use confirmation. Use pay_and_access to spend; this tool never pays. Input: offer_id, or …"
+      },
+      "confidence": 0.3
+    },
+    {
+      "id": "MCP-TOOL-POISON-007",
+      "severity": "low",
+      "category": "tool-poisoning",
+      "title": "Description uses pressure/override language",
+      "detail": "Description of \"pay_and_access\" stacks urgency/override words (immediately, never). Legitimate tool descriptions rarely pressure the model to act or ignore prior guidance.",
       "evidence": {
         "source": "tool:pay_and_access",
-        "snippet": "before: \"Use this only after the person agrees to pay. It is the only tool that spends. prepare_checkout never pays, and get_receipt never charges. Input: offer_id, the confirmation from prepare_checkout, and confirm=true. Pass confirm=false to decline. Public callers get x402 payment requirements instead of\" → after: \"Use this only after the person agrees to pay. It is the only tool that spends on Sepolia. prepare_checkout never pays, and get_receipt never charges. Input: offer_id, the confirmation from prepare_checkout, and confirm=true. Pass confirm=false to decline. Pass method pix for the test-only Pix option\""
+        "snippet": "To deliver a paid origin tool, pass origin_tool with origin_arguments and idempotency_key; that call does not charge again. If the client schema has no origin_t…"
       },
-      "confidence": 0.8,
-      "remediation": "Re-review the tool before continuing to trust it."
+      "confidence": 0.3
     },
     {
-      "id": "MCP-RUGPULL-001",
+      "id": "MCP-TOXIC-FLOW-001",
       "severity": "high",
-      "category": "tool-poisoning",
-      "title": "Tool description changed since last scan",
-      "detail": "Tool \"get_checkout_status\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp-monetize\" exposes tools that together enable an exfiltration flow. Untrusted content: search_resources, get_quote, prepare_checkout, pay_and_access · Private data: pay_and_access · Public sink: prepare_checkout, pay_and_access · Destructive: pay_and_access, get_receipt.",
       "evidence": {
-        "source": "tool:get_checkout_status",
-        "snippet": "before: \"Use this to read whether a checkout is pending, paid, consumed, expired, or cancelled. Use get_receipt to deliver content, and cancel_checkout to invalidate an unused confirmation. Input: confirmation or offer_id. Returns the state, amount, units remaining, and expiry. It does not pay or cancel.\" → after: \"Use this to read whether a checkout is pending, paid, consumed, expired, or cancelled. When the checkout has a Pix test option, the result also includes pix.status of pending, paid, expired, or consumed. Use get_receipt to deliver a Sepolia purchase, and cancel_checkout to invalidate an unused confi\""
+        "source": "server:mcp-monetize",
+        "snippet": "Untrusted content: search_resources, get_quote, prepare_checkout, pay_and_access · Private data: pay_and_access · Public sink: prepare_checkout, pay_and_access · Destructive: pay_and_access, get_receipt"
       },
-      "confidence": 0.8,
-      "remediation": "Re-review the tool before continuing to trust it."
-    }
-  ],
-  "score": 65,
-  "scoreBreakdown": {
-    "tool-poisoning": 35
-  },
-  "errors": []
-}e pay_and_access to spend; this tool never pays. Input: offer_id, or resource_id with optional quantity for the list price. Returns the checkout summary, confirmation, total, and expiry.\""
-      },
-      "confidence": 0.8,
-      "remediation": "Re-review the tool before continuing to trust it."
-    },
-    {
-      "id": "MCP-RUGPULL-001",
-      "severity": "high",
-      "category": "tool-poisoning",
-      "title": "Tool description changed since last scan",
-      "detail": "Tool \"pay_and_access\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
-      "evidence": {
-        "source": "tool:pay_and_access",
-        "snippet": "before: \"Pays an accepted offer with its single-use confirmation, or returns x402 payment requirements for a public caller. This is the only tool that spends. The server wallet signs only for the owner key on Sepolia testnet.\" → after: \"Use this only after the person agrees to pay. It is the only tool that spends. prepare_checkout never pays, and get_receipt never charges. Input: offer_id, the confirmation from prepare_checkout, and confirm=true. Pass confirm=false to decline. Public callers get x402 payment requirements instead of\""
-      },
-      "confidence": 0.8,
-      "remediation": "Re-review the tool before continuing to trust it."
-    },
-    {
-      "id": "MCP-RUGPULL-001",
-      "severity": "high",
-      "category": "tool-poisoning",
-      "title": "Tool description changed since last scan",
-      "detail": "Tool \"get_receipt\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
-      "evidence": {
-        "source": "tool:get_receipt",
-        "snippet": "before: \"Redeems or retrieves an already-paid Sepolia purchase by transaction hash. Use it to deliver a paid resource. It never charges.\" → after: \"Use this to deliver an already-paid resource, or to finish a payment that is still confirming. Use get_checkout_status to read state without consuming a unit. Input: tx_hash, or offer_id, or intent_id. Returns the receipt and consumes one paid unit. It never charges.\""
-      },
-      "confidence": 0.8,
-      "remediation": "Re-review the tool before continuing to trust it."
-    },
-    {
-      "id": "MCP-RUGPULL-001",
-      "severity": "high",
-      "category": "tool-poisoning",
-      "title": "Tool description changed since last scan",
-      "detail": "Tool \"get_checkout_status\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
-      "evidence": {
-        "source": "tool:get_checkout_status",
-        "snippet": "before: \"Reports whether a checkout is pending, paid, consumed, expired, or cancelled. Use it to read the amount, units remaining, and expiry. It does not pay or cancel.\" → after: \"Use this to read whether a checkout is pending, paid, consumed, expired, or cancelled. Use get_receipt to deliver content, and cancel_checkout to invalidate an unused confirmation. Input: confirmation or offer_id. Returns the state, amount, units remaining, and expiry. It does not pay or cancel.\""
-      },
-      "confidence": 0.8,
-      "remediation": "Re-review the tool before continuing to trust it."
-    },
-    {
-      "id": "MCP-RUGPULL-001",
-      "severity": "high",
-      "category": "tool-poisoning",
-      "title": "Tool description changed since last scan",
-      "detail": "Tool \"cancel_checkout\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
-      "evidence": {
-        "source": "tool:cancel_checkout",
-        "snippet": "before: \"Invalidates an unused single-use confirmation so it cannot be paid. Calling it again is safe. It cannot cancel a payment that has already settled.\" → after: \"Use this to invalidate an unused confirmation so pay_and_access cannot spend it. Use get_checkout_status to read the state first. Required input: confirmation from prepare_checkout. Returns the cancelled checkout. It cannot cancel a payment that has already settled.\""
-      },
-      "confidence": 0.8,
-      "remediation": "Re-review the tool before continuing to trust it."
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
     }
   ],
   "score": 58,
   "scoreBreakdown": {
-    "tool-poisoning": 43
+    "tool-poisoning": 22,
+    "toxic-flow": 20
   },
   "errors": []
 }

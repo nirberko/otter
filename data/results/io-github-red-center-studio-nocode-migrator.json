@@ -1,0 +1,183 @@
+{
+  "schemaVersion": 1,
+  "scanner": {
+    "version": "1.6.0",
+    "rules": "402995650b68"
+  },
+  "target": {
+    "kind": "url",
+    "ref": "https://nc.redcenterstudio.com/mcp"
+  },
+  "scannedAt": "2026-11-16T13:03:40.338Z",
+  "durationMs": 1304,
+  "layers": {
+    "metadata": true,
+    "static": false
+  },
+  "tools": [
+    {
+      "name": "nc_ping",
+      "descriptionHash": "714474e309576fa8d66e55ba659416bea03c6e6548d2eda41ef6b2430ca8adf0",
+      "description": "Works without an API key. Checks that the migrator is reachable, and that the API key works if one is sent. Returns the server name, version and time.",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "nc_audit",
+      "descriptionHash": "5a4927ba20b2edf99444253e4d844fb2e61ff76c5b2320b3add90419a67ac983",
+      "description": "Read-only inventory of a Bubble® app before moving its data to Cloudflare D1 and R2: data types, fields, relations, option sets, record counts, types the Data API does not expose, and a risk list with the estimated workload the export would use. Nothing is written to the app. Pass app_spec (app-spec",
+      "labels": [
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "nc_plan",
+      "descriptionHash": "8b25bcb812dc72536a304f563c103aa0c972d74ccf8aa87ce31f9db008b3cfbf",
+      "description": "Mapping plan for a job from nc_audit: one D1 table per data type (wide types split into linked tables, lists as join tables), a SQL preview of the first three tables, slim-down suggestions (empty types, logs, chat history) and an effort tier. Nothing is created. Skip lists are decisions for the owne"
+    },
+    {
+      "name": "nc_connect",
+      "descriptionHash": "9dddde646a1fe803b2d69badb43bf00c1c550014173d5945ca3cca090de85c6b",
+      "description": "Returns a one-time link to a page on this server where the owner types the Cloudflare token, the R2 keys and the source app's Data API token, and can upload the editor catalog file. They are checked, sealed in the job and never pass through the chat. Use it instead of putting tokens in tool calls. G",
+      "labels": [
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "nc_schema",
+      "descriptionHash": "2e03d5efd120885705b51292899a92c82938d4b9e421f8b8777c28c3999bd810",
+      "description": "Generates numbered D1 migration SQL files and a Drizzle schema from the agreed plan (nc_plan), and writes them to the customer's R2 under nc/<job>/schema/. With apply: true it creates the D1 database in the customer's account and runs the migrations. Safe to repeat: every statement is idempotent. Ru",
+      "labels": [
+        "private-data",
+        "destructive"
+      ]
+    },
+    {
+      "name": "nc_export",
+      "descriptionHash": "83d9b3a9a0f6d7373ddb2a0b8a023606b6d952003e277dcbe4a491113deaacd2",
+      "description": "Pages through the source app's records (read only) into NDJSON objects in the customer's R2 bucket. Resumable: progress is saved after every page, so a stopped run continues where it stopped. Each call does a bounded slice and returns status partial until every type is done; call it again. Pass sinc",
+      "labels": [
+        "private-data",
+        "destructive"
+      ]
+    },
+    {
+      "name": "nc_load",
+      "descriptionHash": "7c703661dbc719b40ad29d10a935c8e091c80c33a38dc815dc3a3e9bb8ad07ea",
+      "description": "Loads the staged records into the customer's D1 database by upsert on id. A second run changes zero rows. References to records that do not exist are set to null and logged (orphans), never dropped silently. Each call does a bounded slice and returns status partial until done. truncate_first empties",
+      "labels": [
+        "private-data",
+        "destructive"
+      ]
+    },
+    {
+      "name": "nc_files",
+      "descriptionHash": "c703ae83860449937170a991a2c809bef2036306f79f7d37a87c8bd3c9d1c14d",
+      "description": "Copies every file and image the loaded data points at from the source's storage into the customer's R2 bucket, stored under its content hash (the same file is stored once). Records old URL to new key in the file_map table, fills each file field's key column, and keeps the old URL in its legacy colum",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "nc_users",
+      "descriptionHash": "00f582927924776e595b2c26980ed1277a38a5046c4a40d5b3584a4ecbf16f28",
+      "description": "Turns the loaded users into login identities (email, created date, and the verified flag as exported) and writes the recipient list to the customer's R2. Passwords are not migrated: Bubble® does not export password hashes, so every user signs in with a magic link or sets a new password by email. Ret",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "nc_access",
+      "descriptionHash": "4467f9d5ee2bc316e308eb65419ea534572417a284e4b5d80e39ed26902c90f2",
+      "description": "Converts the app's privacy rules into policy.ts (per-table read and write rules, default deny) and a generated test file with allow and deny cases. Rules it cannot translate with certainty are listed as MANUAL with their original text, never guessed. Reads the rules saved by nc_audit when it was giv",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "nc_verify",
+      "descriptionHash": "00de50735cd7e2305bc3c62621fa0709cfe5def3a916ccb0903c12915406e055",
+      "description": "Checks the loaded data and says pass or fail: row counts per type against the source's count now, a checksum sample (default 500 records per type, sha256 of the canonical JSON of the mapped columns, read back from D1), broken foreign keys, and that every copied file exists in R2. Writes verification",
+      "labels": [
+        "private-data",
+        "destructive"
+      ]
+    },
+    {
+      "name": "nc_redirects",
+      "descriptionHash": "a2d46057c5e0cab3e2f4e183d1c15dc850516f16b627e9a5a86c90719e9a9e4e",
+      "description": "Builds redirects.json (301s from old Bubble® paths and query forms to the new routes), a redirects.ts module for the new Worker, an _redirects file for exact paths, and a curl script that tests every URL. Old URLs come from a sitemap (a sitemap index is followed) or url_list. A URL whose route does ",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "nc_cutover",
+      "descriptionHash": "bb885456ec9e87255fc78bc11e3a5755ae1184de7f19ff3c2bf15995482157ef",
+      "description": "Refuses to run unless the last nc_verify passed and nothing was exported, loaded, copied or imported after it. Then returns the exact steps: freeze the old app, the final delta (nc_export with since, nc_load, nc_files, nc_users, nc_verify again), publish the redirects, the DNS change to make in Clou",
+      "labels": [
+        "private-data",
+        "public-sink",
+        "destructive"
+      ]
+    },
+    {
+      "name": "nc_account",
+      "descriptionHash": "02f7ab3ccbd126adf1d6439f4fa0c5b989a24861f543d3d485f7277f39febb49",
+      "description": "Free, and works without an API key: with no key it says what is free, what the free trial covers and what each pass costs; with a key it shows the credit balance, the passes paid for (which app, until when, record and file limits), recent credit changes, usage in the last 30 days and where to add cr",
+      "labels": [
+        "private-data"
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOOL-POISON-002",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description tells the model to hide behavior",
+      "detail": "Description of \"nc_load\" instructs the model to conceal actions from the user.",
+      "evidence": {
+        "source": "tool:nc_load",
+        "snippet": "Loads the staged records into the customer's D1 database by upsert on id. A second run changes zero rows. References to records that do not exist are set to nul…"
+      },
+      "confidence": 0.75
+    },
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"nc_users\" references sensitive artifacts (password). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:nc_users",
+        "snippet": "Turns the loaded users into login identities (email, created date, and the verified flag as exported) and writes the recipient list to the customer's R2. Passwo…"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: nc_users · Private data: nc_ping, nc_audit, nc_connect, nc_schema, nc_export, nc_load, nc_files, nc_users, nc_access, nc_verify, nc_redirects, nc_cutover, nc_account · Public sink: nc_audit, nc_connect, nc_users, nc_cutover · Destructive: nc_schema, nc_export, nc_load, nc_verify, nc_cutover.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: nc_users · Private data: nc_ping, nc_audit, nc_connect, nc_schema, nc_export, nc_load, nc_files, nc_users, nc_access, nc_verify, nc_redirects, nc_cutover, nc_account · Public sink: nc_audit, nc_connect, nc_users, nc_cutover · Destructive: nc_schema, nc_export, nc_load, nc_verify, nc_cutover"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 50,
+  "scoreBreakdown": {
+    "tool-poisoning": 30,
+    "toxic-flow": 20
+  },
+  "errors": []
+}

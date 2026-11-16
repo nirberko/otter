@@ -8,19 +8,124 @@
     "kind": "url",
     "ref": "https://slipstack.dev/api/mcp"
   },
-  "scannedAt": "2026-10-28T10:49:16.037Z",
-  "durationMs": 367,
+  "scannedAt": "2026-11-16T12:58:51.478Z",
+  "durationMs": 1002,
   "layers": {
-    "metadata": false,
+    "metadata": true,
     "static": false
   },
-  "findings": [],
-  "score": 100,
-  "scoreBreakdown": {},
-  "errors": [
+  "tools": [
     {
-      "scanner": "metadata",
-      "message": "fetch failed"
+      "name": "create_invoice_pdf",
+      "descriptionHash": "7645aaae9076858646f53e2584ea6391e48cf5c17c3cd43e48b764b58406ec7f",
+      "description": "Generate a professional invoice PDF from structured JSON (parties, line items, tax, discount). Returns a download URL valid for 24 hours plus computed totals. No account needed for up to 10 documents/day; pass api_key or an Authorization header for plan quotas.",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "create_receipt_pdf",
+      "descriptionHash": "24053a31098f783f7d3efabe82ac5483b6c2322facd54ddc3ec7519b02656835",
+      "description": "Generate a payment receipt PDF from structured JSON. Same schema as invoices (use `number` for the receipt number). Returns a 24-hour download URL and computed totals."
+    },
+    {
+      "name": "create_einvoice_xml",
+      "descriptionHash": "d489107084718e13c4fede10ec0b750074e992e5d751027bfa7591ec9bd3427c",
+      "description": "Generate an EN 16931 e-invoice as UN/CEFACT Cross-Industry Invoice (CII) XML — the format behind France's Factur-X and Germany's XRechnung mandates. Same JSON shape as create_invoice_pdf plus a few extra fields: from/to countryCode (required), from.vatId (required when taxRate > 0), optional payment",
+      "labels": [
+        "destructive"
+      ]
+    },
+    {
+      "name": "parse_einvoice",
+      "descriptionHash": "3d711a332b568980574031d01514a1d41fb22f448db56eb71c66a325c3646409",
+      "description": "Parse EN 16931 e-invoice XML — UN/CEFACT CII (Factur-X, ZUGFeRD, XRechnung) or UBL Invoice/CreditNote (Peppol BIS) — into normalized invoice JSON: parties, line items, totals, VAT ids, payment details. Pass the XML document as a string.",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "get_document_schema",
+      "descriptionHash": "50e28b951915e18eb7fad34d9eecba29b253e70593470de388f993aef1a646ff",
+      "description": "Returns the JSON shape accepted by create_invoice_pdf / create_receipt_pdf / create_einvoice_xml, a complete example payload, and current plan limits. Call this first if you are unsure how to structure a document.",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "get_api_key",
+      "descriptionHash": "f3094926df0972156f47225d3d4d66a50213f3a7138ada682b2ece4bc14a12d6",
+      "description": "Issue a free Slipstack API key (50 documents/month) for an email address, returned directly in the response — no signup flow, no email verification step. Idempotent: the same email always gets the same key back. Use the key as api_key on other tools or as an Authorization: Bearer header. Paid plans ",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "get_account_usage",
+      "descriptionHash": "b4d82321f2c61143443f5c1de384a558de7c7fbf2e9180e2db8108cbac284923",
+      "description": "Returns the current month's document usage, quota, and plan for a Slipstack API key. Requires api_key (or an Authorization: Bearer header).",
+      "labels": [
+        "private-data"
+      ]
     }
-  ]
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"create_invoice_pdf\" references sensitive artifacts (api_key, authorization). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:create_invoice_pdf",
+        "snippet": "Generate a professional invoice PDF from structured JSON (parties, line items, tax, discount). Returns a download URL valid for 24 hours plus computed totals. N…"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"get_api_key\" references sensitive artifacts (api_key, authorization, bearer). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:get_api_key",
+        "snippet": "Issue a free Slipstack API key (50 documents/month) for an email address, returned directly in the response — no signup flow, no email verification step. Idempo…"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"get_account_usage\" references sensitive artifacts (api_key, authorization, bearer). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:get_account_usage",
+        "snippet": "Returns the current month's document usage, quota, and plan for a Slipstack API key. Requires api_key (or an Authorization: Bearer header)."
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: get_api_key · Private data: create_invoice_pdf, parse_einvoice, get_document_schema, get_api_key, get_account_usage · Public sink: get_api_key · Destructive: create_einvoice_xml.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: get_api_key · Private data: create_invoice_pdf, parse_einvoice, get_document_schema, get_api_key, get_account_usage · Public sink: get_api_key · Destructive: create_einvoice_xml"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 45,
+  "scoreBreakdown": {
+    "tool-poisoning": 35,
+    "toxic-flow": 20
+  },
+  "errors": []
 }
