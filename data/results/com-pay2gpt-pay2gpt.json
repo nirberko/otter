@@ -1,0 +1,126 @@
+{
+  "schemaVersion": 1,
+  "scanner": {
+    "version": "1.6.0",
+    "rules": "402995650b68"
+  },
+  "target": {
+    "kind": "url",
+    "ref": "https://pay2gpt.com/mcp"
+  },
+  "scannedAt": "2026-11-17T13:38:00.343Z",
+  "durationMs": 1738,
+  "layers": {
+    "metadata": true,
+    "static": false
+  },
+  "tools": [
+    {
+      "name": "list_plans",
+      "descriptionHash": "c4ac154628cff7bc425015b4bfcc068f920c74135c75bb217c0cbf0b4473bb7b",
+      "description": "List every Pay2GPT plan (ChatGPT Go, Plus, Pro, Codex credits and the rest) with its current price in US cents for each website payment method (card, alipay, crypto), whether it can be bought now, and its checkout URL. Card and Alipay include the card service fee; crypto pays the list price. Ruble m",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "list_articles",
+      "descriptionHash": "b31a2b5d3549759d481208f81cc670ee449d72009395814eb9eaef3c9edb0c7c",
+      "description": "List Pay2GPT's how-to guides (ordering, paying, connecting a ChatGPT account, renewing) and blog articles in one language, each with its title, page URL and Markdown URL. Pass a URL to read_page for the full text.",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "read_page",
+      "descriptionHash": "87e4019c69a1ceaeab03c40755a949c5df5c49d7f03dcbc880b97405b9d51c6e",
+      "description": "Read one public Pay2GPT page as Markdown: a guide or blog article from list_articles, the home page, help, about, terms, privacy, delivery status, business, business/api, codex-credits, codex-reset or codex-sms. Pass its full URL (https://pay2gpt.com/... or https://ru.pay2gpt.com/...) or its path, s",
+      "labels": [
+        "untrusted-content",
+        "public-sink",
+        "destructive"
+      ]
+    },
+    {
+      "name": "business_credits",
+      "descriptionHash": "86c41d73392c6ec2a3b19d513169ac3385c75d22ce7b4b0bf03f1cdf9362448b",
+      "description": "For a company with a Pay2GPT business API key (sent as Authorization: Bearer <key>): the remaining activation credits per product, how many openings are in progress against the limit, and the products it can order, by slug.",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "list_business_orders",
+      "descriptionHash": "3721c12e95ac70e3048f010258068760ca514565f1b948f52c5084c7255eb3fa",
+      "description": "For a company with a Pay2GPT business API key: its latest orders, newest first, each with its order number, product, status, redemption link and timestamps. Optionally only orders in one status.",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "get_business_order",
+      "descriptionHash": "824d348f078f63fc667edbcd8128831abb1d8c3a130c40c430fe90d3165c344a",
+      "description": "For a company with a Pay2GPT business API key: one of its orders by order number, with its current status.",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "place_business_orders",
+      "descriptionHash": "67b33a4bb18f796d079079bd9aac13eedcf03c792f7bf77018198492d0317f48",
+      "description": "For a company with a Pay2GPT business API key: open 1-100 orders of one product, each spending one of the company's credits for that product. Each order comes back with a redemption link for the end user. Reusing the same idempotency_key with the same arguments returns the same orders and spends not",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "cancel_business_order",
+      "descriptionHash": "4d476b6ff9d175e40ce966ceb064a98d4b396afa5bf172cc0091230d84d9e564",
+      "description": "For a company with a Pay2GPT business API key: cancel one of its orders that no ChatGPT account has been connected to yet; the credit goes back to the company's balance. A cancelled order cannot be reopened.",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "get_x402_checkout",
+      "descriptionHash": "f4d1b41efa5a0ee81c93c7b8571356c89814a7142e599e5ff55f012f53b2b93f",
+      "description": "For an agent that holds USDC on Base: returns the HTTP address where one Pay2GPT plan is bought with the x402 payment protocol, with the current price in US cents and in USDC atomic units. This tool pays nothing. A GET to the returned url answers 402 with the payment requirements; the same GET with ",
+      "labels": [
+        "untrusted-content"
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"business_credits\" references sensitive artifacts (authorization, bearer). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:business_credits",
+        "snippet": "For a company with a Pay2GPT business API key (sent as Authorization: Bearer <key>): the remaining activation credits per product, how many openings are in prog…"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: list_plans, list_articles, read_page, get_x402_checkout · Private data: business_credits, list_business_orders, get_business_order, place_business_orders, cancel_business_order · Public sink: read_page · Destructive: read_page.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: list_plans, list_articles, read_page, get_x402_checkout · Private data: business_credits, list_business_orders, get_business_order, place_business_orders, cancel_business_order · Public sink: read_page · Destructive: read_page"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 60,
+  "scoreBreakdown": {
+    "tool-poisoning": 20,
+    "toxic-flow": 20
+  },
+  "errors": []
+}

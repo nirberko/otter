@@ -1,0 +1,130 @@
+{
+  "schemaVersion": 1,
+  "scanner": {
+    "version": "1.6.0",
+    "rules": "402995650b68"
+  },
+  "target": {
+    "kind": "url",
+    "ref": "https://agentsla.io/mcp"
+  },
+  "scannedAt": "2026-11-17T13:42:08.669Z",
+  "durationMs": 1285,
+  "layers": {
+    "metadata": true,
+    "static": false
+  },
+  "tools": [
+    {
+      "name": "discover_monitored_apis",
+      "descriptionHash": "d30600ce45926e66543909aeac07a3df5b1378555b50f7be591727a51f60cd9a",
+      "description": "Searches the 21,175 APIs and MCP servers indexed by AgentSLA by keyword and/or category. Use it first to find candidate services; then get_api_details for one listing, or check_endpoint to test a URL live. Free, read-only, served from the index (no live probing). Returns totalIndexed, matchedCount a",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "get_api_details",
+      "descriptionHash": "0d7be9636ab9df9e924b734089059f6b57dd2faeee12dd16604d97015dcb2c32",
+      "description": "Returns one directory listing in full: its id, name, endpoint_url, category, link_type, current_sla_score, any verified USDC rank stake, and a summary of its signed check history (number of checks, pass rate, latest check with latency). Use it after discover_monitored_apis to judge a candidate, or t"
+    },
+    {
+      "name": "check_endpoint",
+      "descriptionHash": "ce380031f3f4f26a771fb4ac85dee4f43e1cef496e168e4ad679e47e55900875",
+      "description": "Probes any HTTP(S) URL once, right now, from Cloudflare's edge and reports httpStatus, edgeLatencyMs and meetsSla (true when the status is 2xx/3xx within maxLatencyMs; an endpoint that answers GET with 405 is retried as a JSON-RPC POST). Use it before calling or paying an unfamiliar endpoint. Free a",
+      "labels": [
+        "untrusted-content",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "verify_endpoint_sla",
+      "descriptionHash": "2c5ea8299cd2c04372493d6e039ff398671f553883d831b6ae248aa7129e0ca2",
+      "description": "Probes an endpoint (best of up to 3 tries) and returns an EIP-712 SLAAttestation signed by the AgentSLA oracle: httpStatus, latencyMs, slaMet, eip712Signature and oracleSigner, verifiable with ethers.verifyTypedData (domain and types: GET https://agentsla.io/v1/attestations). Use it when another par"
+    },
+    {
+      "name": "check_pass",
+      "descriptionHash": "52399eb7c0cf7c885d203addf0fbc1c37c8aa5967a676e88a1b3209158dfbf95",
+      "description": "Reads from Base Mainnet whether a wallet holds an active 7-day pass (needed by verify_endpoint_sla), its expiry (validUntil, secondsLeft), the price (5 USDC), and the wallet's USDC balance and existing allowance to the escrow contract. Use it before verify_endpoint_sla, and after buy_pass's transact",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "buy_pass",
+      "descriptionHash": "ad5746046e81044e7bf180252b36acea1e159e03753ca2031e7053f7acfdfbea",
+      "description": "Builds the unsigned Base Mainnet transactions that buy a 7-day pass (5 USDC) for a wallet: a USDC approve, only if its allowance is below 5 USDC, then paySubscription() on the escrow contract. Use it when check_pass shows no active pass. Calling it is free and changes nothing: the wallet signs and s",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "create_escrow_job",
+      "descriptionHash": "e22b79212052eb8d49bfbc77539279bc9309e8345ac9fb0c439444cbae69326a",
+      "description": "Builds the unsigned Base Mainnet transactions that lock USDC in escrow for one directory listing: the provider gets the price if the oracle finds the endpoint meets your latency limit; otherwise you get the price plus the 2% fee back. Use it to pay a provider conditionally; to check without paying, ",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "register_escrow_terms",
+      "descriptionHash": "d5e17e08ca9cbda868e62ec34557f00ac1992fd618444d7e04aafd6cac05cd7e",
+      "description": "Records the latency limit for an escrow job after its createJob transaction confirms, so the oracle knows the SLA to judge. Use it once per job, right after the create_escrow_job transactions. The job is read from the transaction on Base; only its creator's transaction is accepted, and the first reg",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "get_escrow_job",
+      "descriptionHash": "c078e8aa83ff80085553d7c4261965ed9b8cbe06799535bf9e0c76ec6f59bd7a",
+      "description": "Reads one escrow job from Base Mainnet and AgentSLA's records: status (active, settled or reclaimed), creator, provider, listing and endpoint, price, fee, registered latency limit, created time, and when the creator may reclaim it if the oracle has not settled it. Use it after register_escrow_terms ",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "get_usdc_escrow_contract",
+      "descriptionHash": "170dd30326774a2805911a07c70881b168c8469050ccfda316ee83b26d901004",
+      "description": "Returns the reference data for AgentSLA's escrow contract on Base Mainnet: contract and USDC token addresses, chain id, the pass price and period, the 2% escrow fee, the 7-day reclaim timeout, the human-readable ABI of the functions agents call, and a Basescan link. Use it to verify the addresses th",
+      "labels": [
+        "private-data"
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOOL-POISON-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description issues instructions to the model",
+      "detail": "Description of \"check_endpoint\" contains imperative instructions directed at the AI assistant rather than describing the tool. This is the core tool-poisoning technique.",
+      "evidence": {
+        "source": "tool:check_endpoint",
+        "snippet": "Probes any HTTP(S) URL once, right now, from Cloudflare's edge and reports httpStatus, edgeLatencyMs and meetsSla (true when the status is 2xx/3xx within maxLat…"
+      },
+      "confidence": 0.7,
+      "remediation": "Treat the server as untrusted; the model may obey embedded instructions."
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: discover_monitored_apis, check_endpoint · Private data: discover_monitored_apis, check_pass, buy_pass, create_escrow_job, register_escrow_terms, get_escrow_job, get_usdc_escrow_contract · Public sink: discover_monitored_apis, check_endpoint.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: discover_monitored_apis, check_endpoint · Private data: discover_monitored_apis, check_pass, buy_pass, create_escrow_job, register_escrow_terms, get_escrow_job, get_usdc_escrow_contract · Public sink: discover_monitored_apis, check_endpoint"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 60,
+  "scoreBreakdown": {
+    "tool-poisoning": 20,
+    "toxic-flow": 20
+  },
+  "errors": []
+}

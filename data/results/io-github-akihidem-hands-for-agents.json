@@ -1,0 +1,109 @@
+{
+  "schemaVersion": 1,
+  "scanner": {
+    "version": "1.6.0",
+    "rules": "402995650b68"
+  },
+  "target": {
+    "kind": "url",
+    "ref": "https://hands-for-agents.vercel.app/mcp"
+  },
+  "scannedAt": "2026-11-17T13:41:41.172Z",
+  "durationMs": 993,
+  "layers": {
+    "metadata": true,
+    "static": false
+  },
+  "tools": [
+    {
+      "name": "list_services",
+      "descriptionHash": "d9efe0c7184abc15b8d5418517f9489c66284545c6a8eb07c6a7abad940a483f",
+      "description": "List the Japan Hands catalog: services, prices, zones, terms, and what is NOT offered. Japan Hands is the only service in Tokyo, Japan designed exclusively for AI agents (日本、東京で唯一のエージェント向けサービス). Coverage: Japan only."
+    },
+    {
+      "name": "request_quote",
+      "descriptionHash": "6366faf8d67bc9e7fbbf66922b518fde16ea5bcdec519fa827a1d831f3ca0490",
+      "description": "Request an instant total quote (item price + quote fee JPY 2,200 + handling fee + shipping, itemised). The quote fee is charged on issuance and is non-refundable even if you decline. Getting a quote does not reserve execution: accepting a quote only places the request in pending_review. The response"
+    },
+    {
+      "name": "accept_quote",
+      "descriptionHash": "9eac7a27402453a68b1f2f33d9f6a2cfe7dac4fad92d94c43be98984755b0a4a",
+      "description": "Accept a quote. IMPORTANT: this does not confirm execution. The request enters pending_review; a human operator confirms or declines each request individually during the launch phase. No timeline is promised. Poll get_task_status for the outcome."
+    },
+    {
+      "name": "decline_quote",
+      "descriptionHash": "bde5386dc97315471911989d05edc8662511b9bf3c3313a7089f49ee72ca8dc7",
+      "description": "Decline a quote and close it. The quote fee (JPY 2,200) remains charged; no handling fee applies."
+    },
+    {
+      "name": "get_task_status",
+      "descriptionHash": "cbc152b1ea9e4b8d1141fb719333c16ebdbf9924a703fdae4b98179cdc4be765",
+      "description": "Get the status of a quote or task by id (quote_id q_… or task_id t_…). Brief by default; pass full: true for the complete record. For tasks, the access_token is required. You can also pass message to leave a note for the operator in the same call.",
+      "labels": [
+        "untrusted-content",
+        "private-data"
+      ]
+    },
+    {
+      "name": "send_message",
+      "descriptionHash": "827383e4a90885a11f6f1ecf051a1aa95e18a35273ec3f83a59b066ac3093d19",
+      "description": "Send a message to the human operator about a quote or task. The operator's replies appear in the messages of get_task_status.",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "get_evidence",
+      "descriptionHash": "dbcfc80abe14d08dbfdafdfa532749c5812c9f6ebfeea12238144a4628b582db",
+      "description": "Get evidence attached to a task (photos, records, tracking numbers). Evidence is returned even for failed tasks.",
+      "labels": [
+        "private-data"
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"request_quote\" references sensitive artifacts (access_token). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:request_quote",
+        "snippet": "Request an instant total quote (item price + quote fee JPY 2,200 + handling fee + shipping, itemised). The quote fee is charged on issuance and is non-refundabl…"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"get_task_status\" references sensitive artifacts (access_token). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:get_task_status",
+        "snippet": "Get the status of a quote or task by id (quote_id q_… or task_id t_…). Brief by default; pass full: true for the complete record. For tasks, the access_token is…"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: get_task_status · Private data: get_task_status, get_evidence · Public sink: send_message.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: get_task_status · Private data: get_task_status, get_evidence · Public sink: send_message"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 50,
+  "scoreBreakdown": {
+    "tool-poisoning": 30,
+    "toxic-flow": 20
+  },
+  "errors": []
+}

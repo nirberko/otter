@@ -1,0 +1,111 @@
+{
+  "schemaVersion": 1,
+  "scanner": {
+    "version": "1.6.0",
+    "rules": "402995650b68"
+  },
+  "target": {
+    "kind": "url",
+    "ref": "https://maru.senpinai.com/mcp"
+  },
+  "scannedAt": "2026-11-17T13:44:26.115Z",
+  "durationMs": 1234,
+  "layers": {
+    "metadata": true,
+    "static": false
+  },
+  "tools": [
+    {
+      "name": "list_services",
+      "descriptionHash": "a978aa6338040d374673186718c77ec020a562369766f5cc5cb686b5ecc3c178",
+      "description": "List the services MARU Japan Hands provides in Japan (Japanese phone calls, restaurant and golf reservations, shopping proxy, on-site checks, interpreting, Osaka stays, home search and property viewings, app development), with prices in JPY, limits and what is not offered."
+    },
+    {
+      "name": "check_availability",
+      "descriptionHash": "49a492cd324f2515ebae317094c44d0776a1d2d97e35f73bfe0dbb3716de7550",
+      "description": "Check whether a new request can be taken now. Remote work (calls, online reservations) has a daily limit; on-the-ground work takes one job at a time. Returns open or full and when it reopens."
+    },
+    {
+      "name": "request_service",
+      "descriptionHash": "34b65a516247d4f32106f9f74076882513f3897705e26c74aac396ad2cc3b30d",
+      "description": "Send a request for a service in Japan. Fixed-price services (phone_call JPY 1,500, restaurant_booking JPY 3,000, interpreting JPY 5,000 per 30 min) return the quote and payment details immediately. Other services get a fixed quote from a person within 2 hours (JST 09:00-21:00); requests sent outside",
+      "labels": [
+        "untrusted-content",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "get_request_status",
+      "descriptionHash": "57e1aa40930c8ec4a285ffc7dd03f40cf53b4407fa8f9d41b5b6de3b1afcb10b",
+      "description": "Get the status of a request: received, quoted (price and how to pay), paid, in_progress, done (with result), cancelled or refunded."
+    },
+    {
+      "name": "quote_purchase",
+      "descriptionHash": "437820e01c83171522062c344cc8fb84ed2c124f5abbd428e91db1b1fa02cdc0",
+      "description": "Instant cost estimate to buy an item sold in Japan and ship it: item price (from the shop page the user or agent found), our fee (10%, minimum JPY 2,000) and shipping estimated from Japan Post's official EMS table. Read-only: it does not order or charge anything.",
+      "labels": [
+        "untrusted-content",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "get_menu",
+      "descriptionHash": "5215a7fd7835b3e922b88f3156f5adb78d4eef886c7bbd70e96ed8d0c13c8eb4",
+      "description": "Get a MARU Order restaurant's menu: categories, items with tax-included JPY prices, options (size, toppings), allergens and sold-out flags. Use list shop slugs from the maru://order/shops resource."
+    },
+    {
+      "name": "check_open",
+      "descriptionHash": "58eef0804061c08153d3d2688eb53f0029a73594deb1b195e97f2fb6f5c4ffee",
+      "description": "Check whether a MARU Order restaurant is taking takeout orders now, its hours and whether it accepts JPYC with a discount."
+    },
+    {
+      "name": "place_takeout_order",
+      "descriptionHash": "8e44fe8e43a3e687a1abbc0da4d34cedc79332341c96cf0d3ff82b3a1ecb4442",
+      "description": "Place a takeout order. Returns an order number and a link. The customer pays at pickup at the counter, or opens the link to pay with JPYC (discounted). This tool never charges or moves money."
+    },
+    {
+      "name": "maru_wallet_connect",
+      "descriptionHash": "62928321557a013b8790a7a3d8cc2ddd7e447e528ff78f53c37b40c7ee23cef0",
+      "description": "Connect this AI to the user's MARU wallet (Japanese yen stablecoin, JPYC). The user creates a one-time pairing code in the MARU app (Security > Let AI pay > Add an AI) and tells it to you. Returns an agent token and a 4-symbol fingerprint: tell the user the fingerprint and ask them to approve this A",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "maru_wallet_request_payment",
+      "descriptionHash": "98489c0d556124a8be5f74eb4d5164f58547947d98aab93717aca6077216a8e3",
+      "description": "File a payment request in the user's MARU wallet. This does NOT pay. The user sees the amount and recipient in the MARU app and approves with Face ID or rejects. Use maru_wallet_request_status to see the outcome. Never tell the user a payment was made until the status is 'done'.",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "maru_wallet_request_status",
+      "descriptionHash": "5237c1f9a565ebb048efcd79c97c31b690d3b4d247f5f2664fc6cc1610fe9b30",
+      "description": "Status of a request made with maru_wallet_request_payment: pending (waiting for the owner), done (paid; includes the transaction link), rejected, or failed.",
+      "labels": [
+        "private-data"
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: request_service, quote_purchase · Private data: maru_wallet_connect, maru_wallet_request_payment, maru_wallet_request_status · Public sink: request_service, quote_purchase.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: request_service, quote_purchase · Private data: maru_wallet_connect, maru_wallet_request_payment, maru_wallet_request_status · Public sink: request_service, quote_purchase"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 80,
+  "scoreBreakdown": {
+    "toxic-flow": 20
+  },
+  "errors": []
+}
