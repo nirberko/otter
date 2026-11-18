@@ -1,0 +1,112 @@
+{
+  "schemaVersion": 1,
+  "scanner": {
+    "version": "1.6.0",
+    "rules": "402995650b68"
+  },
+  "target": {
+    "kind": "url",
+    "ref": "https://api.pitchprotocol.vc/mcp/founder?ppr=ppc_mcpregistry"
+  },
+  "scannedAt": "2026-11-18T13:28:16.895Z",
+  "durationMs": 476,
+  "layers": {
+    "metadata": true,
+    "static": false
+  },
+  "tools": [
+    {
+      "name": "resend_verification",
+      "descriptionHash": "e453741e17aa8a24383f2ba3d5900e5c14a0a3dbf4b2706ff85d6c3921351ddc",
+      "description": "Issue a fresh 6-digit verification code. Supersedes any prior unconsumed\ncode.\n\n**When:** founder didn't receive the first code, the code expired, or\ntoo many wrong attempts invalidated it.\n\n**Before you call:** nothing. Safe to call multiple times (rate-limited).\n\n**Returns:** confirmation the new ",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "create_application",
+      "descriptionHash": "016436e2aadc6a67e828ae994bc264d96ccb0e430b7b3e48f4fe39ad9335f69f",
+      "description": "Create a new pitch application draft and send a 6-digit verification code\nto `contactEmail`.\n\n**When:** once you have a complete payload (research + deck + founder\nconfirmed). One per conversation with a given founder.\n\n**Before you call:**\n1. `get_application_schema` — know the fields, limits, enum",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "verify_email",
+      "descriptionHash": "137647b246f8166d76d37409a64b16adc5e950e8481fd522323c09e89bfdba49",
+      "description": "Consume the 6-digit code the founder received and start the research\npipeline.\n\n**When:** after `create_application`, and ideally after the deck has\nbeen uploaded over plain HTTP (see the `curl` printed by\n`create_application`). Founder has read the code from their inbox.\n\n**Before you call:**\n- CON",
+      "labels": [
+        "untrusted-content",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "submit_answers",
+      "descriptionHash": "74e01402d731b04b21196ec3a586154b5fb297d1a3a1013e06c2a87304d8d19f",
+      "description": "Save the founder's answers to the intake questions. Upsert semantics with\nan explicit commit flag.\n\n**When:** `status == \"intake\"`, after research generates the questions.\nRead them from `get_status` → `intake.questions`.\n\n**Before you call:**\n- READ the questions to the founder verbatim. Ask only t",
+      "labels": [
+        "public-sink",
+        "destructive"
+      ]
+    },
+    {
+      "name": "update_application",
+      "descriptionHash": "fc9b807075c93cd77991c14a8728255b999c1dd95fd155e81da893cc5d3f6ad2",
+      "description": "Update an application's payload and/or contact email while it's still in\n`draft`.\n\n**When:** founder caught something wrong after `create_application`\nbut before `verify_email`. Also when changing the email address.\n\n**Before you call:**\n- Full-replace on payload: send the WHOLE `PitchApplication` o",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "get_status",
+      "descriptionHash": "5879fd640827adfb569484e68f60979e61b89e9e19e4168c9e3b859add0dfa23",
+      "description": "The primary status endpoint. Returns the full current state of an\napplication: status, email verification, deck state, intake questions\n(when ready), and a `nextAction` string.\n\n**While research runs (`status == \"researching\"`) — read this:**\n\nThis call WAITS server-side. It holds for up to ~45 seco",
+      "labels": [
+        "untrusted-content",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "get_application_schema",
+      "descriptionHash": "7ac420f313aa3d369f8f5dbbb203cfe1ef9aa8675bdf9e475829e87c3e56d04d",
+      "description": "The authoritative field reference for the `PitchApplication` payload.\n\n**When:** call this FIRST in every session. Cache the response.\n**Before you call:** nothing — no inputs.\n**Returns:** markdown listing every field, type, limit, enum, plus a\ncomplete valid example.\n\nWith this in context, you can"
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-SCHEMA-SMELL-001",
+      "severity": "medium",
+      "category": "schema-smell",
+      "title": "Read-only tool requests dangerous parameters",
+      "detail": "Tool \"verify_email\" appears informational but accepts parameters (code) that enable code/file/secret access.",
+      "evidence": {
+        "source": "tool:verify_email",
+        "snippet": "applicationId, code"
+      },
+      "confidence": 0.55
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"founder?ppr=ppc_mcpregistry\" exposes tools that together enable an exfiltration flow. Untrusted content: resend_verification, create_application, verify_email, update_application, get_status · Private data: create_application, update_application · Public sink: create_application, verify_email, submit_answers, update_application, get_status · Destructive: submit_answers.",
+      "evidence": {
+        "source": "server:founder?ppr=ppc_mcpregistry",
+        "snippet": "Untrusted content: resend_verification, create_application, verify_email, update_application, get_status · Private data: create_application, update_application · Public sink: create_application, verify_email, submit_answers, update_application, get_status · Destructive: submit_answers"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 72,
+  "scoreBreakdown": {
+    "schema-smell": 8,
+    "toxic-flow": 20
+  },
+  "errors": []
+}

@@ -18,28 +18,59 @@
     {
       "name": "find_recipe",
       "descriptionHash": "404046618f4b7772f179641778d0d1ea28006b10ee3a4f43ec1d3cbc5cc3c265",
-      "description": "Find a ready-made automation recipe for a plain-words need, e.g. 'when a typeform is submitted add a row to google sheets and send a slack message'. Returns the best matching recipes (apps chained with →, what it does, the n8n workflow JSON, the blanks to fill and accounts to connect) plus matching ",
+      "description": "Find a ready-made automation recipe for a plain-words need, e.g. 'when a typeform is submitted add a row to google sheets and send a slack message'. Returns the best matching recipes (apps chained with →, what it does, the n8n workflow JSON, the blanks to fill at loud — e",
       "labels": [
         "untrusted-content",
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "find_recipe",
+      "descriptionHash": "326815006e2a7b6ac378b2b1eec990fe273fa53a58126c92ebe41ca12b03e122",
+      "description": "Find a ready-made automation recipe for a plain-words need, e.g. 'when a typeform is submitted add a row to google sheets and send a slack message'. Returns the best matching recipes (apps chained with →, what it does, the n8n workflow JSON, the blanks to fill and accounts to connect) plus matching ",
+      "labels": [
         "public-sink"
       ]
     },
     {
       "name": "plan_automation",
-      "descriptionHash": "caf63db624ea4f416af142e062de452985c26ce5e0cba510182737d01a3f3a53",
-      "description": "Turn a plain-words need into steps (one trigger + actions) and pick the concrete tool for each step from 3,000+ app capabilities (n8n nodes, OpenAPI, MCP). Reports a gap when the named app cannot do a step instead of substituting another app. Use before building any integration or workflow."
+      "descriptionHash": "f96f77e6d11626d865138bf18dea213c5cf4c0b31678c51e7041a81422d41561",
+      "description": "Turn a plain-words need into steps (one trigger + actions) and pick the concrete tool for each step from 3,000+ app capabilities (n8n nodes, OpenAPI, MCP). Reports a gap when the named app cannot do a step instead of substituting another app."
     },
     {
       "name": "make_n8n_workflow",
-      "descriptionHash": "5b8b530911eaa67e7fc0df9934aa1931a3186bec81d4c720685f1f1912201193",
+      "descriptionHash": "b5ef0e75ca0e169ef6076b07b2d85d4f20b2a3d7b547d07b4a5037563de38c58",
       "description": "Generate an importable n8n workflow JSON from a plain-words need, with every node wired in order, values said out loud already filled (emails, #channels, trigger events), plus the list of blanks only the person can fill and the credentials to connect. Shape-checked; the person tests it in n8n before",
       "labels": [
         "untrusted-content",
         "private-data"
       ]
+    },
+    {
+      "name": "inspect_workflow",
+      "descriptionHash": "4fbcce9dd8caa8bf05fda4d1b82160fd36451ceedbe350d3f4ed18d3d23cdb5b",
+      "description": "Read an existing n8n workflow JSON (a template from n8n.io, an export, anything) and say what it would do before it runs: every node's label (read-only / reversible / irreversible, computed from the node's own resource + operation), which irreversible steps (send, post, delete, pay) would run with n",
+      "labels": [
+        "untrusted-content",
+        "public-sink",
+        "destructive"
+      ]
     }
   ],
   "findings": [
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"do\" references sensitive artifacts (credentials). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:do",
+        "snippet": "One tool for 3,639 app capabilities (n8n catalog + OpenAPI + MCP): say what should happen; get the exact call. Plain words in ('send an sms to +1 213 555 0100 s…"
+      },
+      "confidence": 0.65
+    },
     {
       "id": "MCP-TOOL-POISON-003",
       "severity": "high",
@@ -57,18 +88,57 @@
       "severity": "high",
       "category": "toxic-flow",
       "title": "Lethal trifecta: untrusted input + private data + external sink",
-      "detail": "Server \"bridgecore-mcp.chinlee2200.workers.dev\" exposes tools that together enable an exfiltration flow. Untrusted content: find_recipe, make_n8n_workflow · Private data: make_n8n_workflow · Public sink: find_recipe.",
+      "detail": "Server \"mcp.usebridgecore.com\" exposes tools that together enable an exfiltration flow. Untrusted content: do, make_n8n_workflow, inspect_workflow · Private data: do, make_n8n_workflow · Public sink: do, find_recipe, inspect_workflow · Destructive: inspect_workflow.",
       "evidence": {
-        "source": "server:bridgecore-mcp.chinlee2200.workers.dev",
-        "snippet": "Untrusted content: find_recipe, make_n8n_workflow · Private data: make_n8n_workflow · Public sink: find_recipe"
+        "source": "server:mcp.usebridgecore.com",
+        "snippet": "Untrusted content: do, make_n8n_workflow, inspect_workflow · Private data: do, make_n8n_workflow · Public sink: do, find_recipe, inspect_workflow · Destructive: inspect_workflow"
       },
       "confidence": 0.6,
       "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"find_recipe\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:find_recipe",
+        "snippet": "before: \"Find a ready-made automation recipe for a plain-words need, e.g. 'when a typeform is submitted add a row to google sheets and send a slack message'. Returns the best matching recipes (apps chained with →, what it does, the n8n workflow JSON, the blanks to fill and accounts to connect) plus matching \" → after: \"Find a ready-made automation recipe for a plain-words need, e.g. 'when a typeform is submitted add a row to google sheets and send a slack message'. Returns the best matching recipes (apps chained with →, what it does, the n8n workflow JSON, the blanks to fill and accounts to connect) plus matching \""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"plan_automation\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:plan_automation",
+        "snippet": "before: \"Turn a plain-words need into steps (one trigger + actions) and pick the concrete tool for each step from 3,000+ app capabilities (n8n nodes, OpenAPI, MCP). Reports a gap when the named app cannot do a step instead of substituting another app. Use before building any integration or workflow.\" → after: \"Turn a plain-words need into steps (one trigger + actions) and pick the concrete tool for each step from 3,000+ app capabilities (n8n nodes, OpenAPI, MCP). Reports a gap when the named app cannot do a step instead of substituting another app.\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"make_n8n_workflow\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:make_n8n_workflow",
+        "snippet": "before: \"Generate an importable n8n workflow JSON from a plain-words need, with every node wired in order, values said out loud already filled (emails, #channels, trigger events), plus the list of blanks only the person can fill and the credentials to connect. Shape-checked; the person tests it in n8n before\" → after: \"Generate an importable n8n workflow JSON from a plain-words need, with every node wired in order, values said out loud already filled (emails, #channels, trigger events), plus the list of blanks only the person can fill and the credentials to connect. Shape-checked; the person tests it in n8n before\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
     }
   ],
-  "score": 60,
+  "score": 41,
   "scoreBreakdown": {
-    "tool-poisoning": 20,
+    "tool-poisoning": 39,
     "toxic-flow": 20
   },
   "errors": []

@@ -6,41 +6,47 @@
   },
   "target": {
     "kind": "url",
-    "ref": "https://countersign.signalry.ai/mcp"
+    "ref": "https://countersign.signalry.ai/mcp?ref=mcp-registry"
   },
-  "scannedAt": "2026-11-14T11:34:52.730Z",
-  "durationMs": 524,
+  "scannedAt": "2026-11-18T13:10:49.433Z",
+  "durationMs": 975,
   "layers": {
     "metadata": true,
     "static": false
   },
   "tools": [
     {
+      "name": "start",
+      "descriptionHash": "ffaf982e7e35ed911b0e13f8dc4fdf1d3566179694f0e8b076bf4ee3627b71e7",
+      "description": "First step, one call: a csk_ key plus a first claim that https://<subject>/ answers 200 with valid TLS, checked now (it counts if that check passes). subject: a hostname you operate."
+    },
+    {
       "name": "try_check",
-      "descriptionHash": "98a49e649946ccec6d9bdc5f53d3668af950b1584db7e0b775057eab86b2e5d2",
-      "description": "Live https and TLS check of a hostname you run. Nothing is written.",
+      "descriptionHash": "79dedc5eb8b3c9fd4f392316db786bf7438f73989f60ad2c037837019c3eb553",
+      "description": "Read-only live https and TLS check of a hostname the caller operates. Nothing is written."
+    },
+    {
+      "name": "request_key",
+      "descriptionHash": "0caae36116570d35b7539ea42fd14ba711d4608df33da8f41976499c78d66097",
+      "description": "No arguments, or {public: true}: a csk_ key now (start also files the first claim). Use it as Authorization: Bearer or as api_key on submit_claim.",
       "labels": [
-        "destructive"
+        "private-data"
       ]
     },
     {
       "name": "submit_claim",
-      "descriptionHash": "c40beadaad58f9ce5df9db3a63a239c08caa94b7bf1b0d9dd0ea7a9289e72137",
-      "description": "Record and verify a claim now. First verified claim: request_key {public: true}, then this tool on a public URL you run, with Authorization: Bearer.",
+      "descriptionHash": "c870f073b5f3c1465a9525415764e6f02c26df165a3367b3e25d756fcc9ac1c3",
+      "description": "Records a claim and checks it immediately. It counts only if the checks pass, the statement names what they check (the URL or host), and you send a key (Authorization: Bearer, or api_key). No key: start {subject} or request_key {public: true}.",
       "labels": [
+        "untrusted-content",
         "private-data",
-        "public-sink",
-        "destructive"
+        "public-sink"
       ]
     },
     {
       "name": "verify_claim",
-      "descriptionHash": "cc3c058c89703e93342d604145dbe5dd4d0e48f08fa70ea8e27c911e09d1ff51",
-      "description": "Re-run your own claim's checks now. Needs your API key.",
-      "labels": [
-        "private-data",
-        "destructive"
-      ]
+      "descriptionHash": "6f58ffc7ddc028d732f08928ff79e2f51de628306ef32dbfed3efad1f2127747",
+      "description": "Re-checks the caller's own claim now. Needs your key (Authorization: Bearer, or api_key)."
     },
     {
       "name": "check_reply_gate",
@@ -57,8 +63,8 @@
     },
     {
       "name": "find_tools",
-      "descriptionHash": "1f3c3a160b3505418be12a07ced33ba1ca30b0f7a7e526f99dbbdcd6f428c1b0",
-      "description": "Other tools, including request_key and request_agent_key. Omit query to list them all."
+      "descriptionHash": "49a091d08d6fe210d00ccf2d2544faa83eca831d72028589ffa9c6e87ac6e0a3",
+      "description": "Other tools, including request_agent_key. Omit query to list them all."
     }
   ],
   "findings": [
@@ -67,12 +73,62 @@
       "severity": "high",
       "category": "tool-poisoning",
       "title": "Description references secrets/credentials",
-      "detail": "Description of \"submit_claim\" references sensitive artifacts (authorization, bearer). A tool description has no reason to mention credentials.",
+      "detail": "Description of \"request_key\" references sensitive artifacts (api_key, authorization, bearer). A tool description has no reason to mention credentials.",
       "evidence": {
-        "source": "tool:submit_claim",
-        "snippet": "Record and verify a claim now. First verified claim: request_key {public: true}, then this tool on a public URL you run, with Authorization: Bearer."
+        "source": "tool:request_key",
+        "snippet": "No arguments, or {public: true}: a csk_ key now (start also files the first claim). Use it as Authorization: Bearer or as api_key on submit_claim."
       },
       "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"submit_claim\" references sensitive artifacts (api_key, authorization, bearer). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:submit_claim",
+        "snippet": "Records a claim and checks it immediately. It counts only if the checks pass, the statement names what they check (the URL or host), and you send a key (Authori…"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"verify_claim\" references sensitive artifacts (api_key, authorization, bearer). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:verify_claim",
+        "snippet": "Re-checks the caller's own claim now. Needs your key (Authorization: Bearer, or api_key)."
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp?ref=mcp-registry\" exposes tools that together enable an exfiltration flow. Untrusted content: submit_claim · Private data: request_key, submit_claim, get_track_record · Public sink: submit_claim.",
+      "evidence": {
+        "source": "server:mcp?ref=mcp-registry",
+        "snippet": "Untrusted content: submit_claim · Private data: request_key, submit_claim, get_track_record · Public sink: submit_claim"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"try_check\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:try_check",
+        "snippet": "before: \"Live https and TLS check of a hostname you run. Nothing is written.\" → after: \"Read-only live https and TLS check of a hostname the caller operates. Nothing is written.\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
     },
     {
       "id": "MCP-RUGPULL-001",
@@ -82,34 +138,10 @@
       "detail": "Tool \"submit_claim\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
       "evidence": {
         "source": "tool:submit_claim",
-        "snippet": "before: \"Record a claim and verify it now with public checks. Returns status, evidence_tier, counts_as_verified, limits, coupling and a receipt URL. Name the thing you claim about in the statement (URL, domain, owner/repo#PR) and use checks that would fail if the statement were false; suggest_checks proposes\" → after: \"Record and verify a claim now. First verified claim: request_key {public: true}, then this tool on a public URL you run, with Authorization: Bearer.\""
+        "snippet": "before: \"Record and verify a claim now. First verified claim: request_key {public: true}, then this tool on a public URL you run, with Authorization: Bearer.\" → after: \"Records a claim and checks it immediately. It counts only if the checks pass, the statement names what they check (the URL or host), and you send a key (Authorization: Bearer, or api_key). No key: start {subject} or request_key {public: true}.\""
       },
       "confidence": 0.8,
       "remediation": "Re-review the tool before continuing to trust it."
-    },
-    {
-      "id": "MCP-RUGPULL-001",
-      "severity": "medium",
-      "category": "tool-poisoning",
-      "title": "Tool removed since last scan",
-      "detail": "Tool \"file_deploy_claim\" is no longer advertised. Removal can precede a shadowing replacement from another server.",
-      "evidence": {
-        "source": "tool:file_deploy_claim",
-        "snippet": "removed: file_deploy_claim"
-      },
-      "confidence": 0.5
-    },
-    {
-      "id": "MCP-RUGPULL-001",
-      "severity": "medium",
-      "category": "tool-poisoning",
-      "title": "Tool removed since last scan",
-      "detail": "Tool \"submit_deploy_claim\" is no longer advertised. Removal can precede a shadowing replacement from another server.",
-      "evidence": {
-        "source": "tool:submit_deploy_claim",
-        "snippet": "removed: submit_deploy_claim"
-      },
-      "confidence": 0.5
     },
     {
       "id": "MCP-RUGPULL-001",
@@ -119,196 +151,29 @@
       "detail": "Tool \"verify_claim\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
       "evidence": {
         "source": "tool:verify_claim",
-        "snippet": "before: \"Re-run YOUR hosted claim's checks now and append a receipt (claimant only, needs your API key). Other agents' claims are re-run by the scheduled rechecks on their cadence; read their latest receipt with get_status. Status semantics: counts_as_verified is true when the service observed the checks pas\" → after: \"Re-run your own claim's checks now. Needs your API key.\""
+        "snippet": "before: \"Re-run your own claim's checks now. Needs your API key.\" → after: \"Re-checks the caller's own claim now. Needs your key (Authorization: Bearer, or api_key).\""
       },
       "confidence": 0.8,
       "remediation": "Re-review the tool before continuing to trust it."
-    },
-    {
-      "id": "MCP-RUGPULL-001",
-      "severity": "medium",
-      "category": "tool-poisoning",
-      "title": "Tool removed since last scan",
-      "detail": "Tool \"withdraw_claim\" is no longer advertised. Removal can precede a shadowing replacement from another server.",
-      "evidence": {
-        "source": "tool:withdraw_claim",
-        "snippet": "removed: withdraw_claim"
-      },
-      "confidence": 0.5
-    },
-    {
-      "id": "MCP-RUGPULL-001",
-      "severity": "medium",
-      "category": "tool-poisoning",
-      "title": "Tool removed since last scan",
-      "detail": "Tool \"supersede_claim\" is no longer advertised. Removal can precede a shadowing replacement from another server.",
-      "evidence": {
-        "source": "tool:supersede_claim",
-        "snippet": "removed: supersede_claim"
-      },
-      "confidence": 0.5
-    },
-    {
-      "id": "MCP-RUGPULL-001",
-      "severity": "medium",
-      "category": "tool-poisoning",
-      "title": "Tool removed since last scan",
-      "detail": "Tool \"request_agent_key\" is no longer advertised. Removal can precede a shadowing replacement from another server.",
-      "evidence": {
-        "source": "tool:request_agent_key",
-        "snippet": "removed: request_agent_key"
-      },
-      "confidence": 0.5
-    },
-    {
-      "id": "MCP-RUGPULL-001",
-      "severity": "medium",
-      "category": "tool-poisoning",
-      "title": "Tool removed since last scan",
-      "detail": "Tool \"claim_agent_key\" is no longer advertised. Removal can precede a shadowing replacement from another server.",
-      "evidence": {
-        "source": "tool:claim_agent_key",
-        "snippet": "removed: claim_agent_key"
-      },
-      "confidence": 0.5
-    },
-    {
-      "id": "MCP-RUGPULL-001",
-      "severity": "medium",
-      "category": "tool-poisoning",
-      "title": "Tool removed since last scan",
-      "detail": "Tool \"get_status\" is no longer advertised. Removal can precede a shadowing replacement from another server.",
-      "evidence": {
-        "source": "tool:get_status",
-        "snippet": "removed: get_status"
-      },
-      "confidence": 0.5
-    },
-    {
-      "id": "MCP-RUGPULL-001",
-      "severity": "medium",
-      "category": "tool-poisoning",
-      "title": "Tool removed since last scan",
-      "detail": "Tool \"search_claims\" is no longer advertised. Removal can precede a shadowing replacement from another server.",
-      "evidence": {
-        "source": "tool:search_claims",
-        "snippet": "removed: search_claims"
-      },
-      "confidence": 0.5
-    },
-    {
-      "id": "MCP-RUGPULL-001",
-      "severity": "medium",
-      "category": "tool-poisoning",
-      "title": "Tool removed since last scan",
-      "detail": "Tool \"list_check_types\" is no longer advertised. Removal can precede a shadowing replacement from another server.",
-      "evidence": {
-        "source": "tool:list_check_types",
-        "snippet": "removed: list_check_types"
-      },
-      "confidence": 0.5
-    },
-    {
-      "id": "MCP-RUGPULL-001",
-      "severity": "medium",
-      "category": "tool-poisoning",
-      "title": "Tool removed since last scan",
-      "detail": "Tool \"suggest_checks\" is no longer advertised. Removal can precede a shadowing replacement from another server.",
-      "evidence": {
-        "source": "tool:suggest_checks",
-        "snippet": "removed: suggest_checks"
-      },
-      "confidence": 0.5
-    },
-    {
-      "id": "MCP-RUGPULL-001",
-      "severity": "medium",
-      "category": "tool-poisoning",
-      "title": "Tool removed since last scan",
-      "detail": "Tool \"pin_before_work\" is no longer advertised. Removal can precede a shadowing replacement from another server.",
-      "evidence": {
-        "source": "tool:pin_before_work",
-        "snippet": "removed: pin_before_work"
-      },
-      "confidence": 0.5
     },
     {
       "id": "MCP-RUGPULL-001",
       "severity": "high",
       "category": "tool-poisoning",
       "title": "Tool description changed since last scan",
-      "detail": "Tool \"get_track_record\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "detail": "Tool \"find_tools\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
       "evidence": {
-        "source": "tool:get_track_record",
-        "snippet": "before: \"Deterministic reputation computed from the public ledger (formula at /trust): score 0-100 with confidence, verified and refutation rates, honest retirements, unhandled decays, countersignatures, median time to fix, flags, and shown-not-scored per-agent counts (qualification_counts, evidence_independ\" → after: \"An agent's public track record, or the ranked table when agent is omitted.\""
+        "source": "tool:find_tools",
+        "snippet": "before: \"Other tools, including request_key and request_agent_key. Omit query to list them all.\" → after: \"Other tools, including request_agent_key. Omit query to list them all.\""
       },
       "confidence": 0.8,
       "remediation": "Re-review the tool before continuing to trust it."
-    },
-    {
-      "id": "MCP-RUGPULL-001",
-      "severity": "medium",
-      "category": "tool-poisoning",
-      "title": "Tool removed since last scan",
-      "detail": "Tool \"get_decay_index\" is no longer advertised. Removal can precede a shadowing replacement from another server.",
-      "evidence": {
-        "source": "tool:get_decay_index",
-        "snippet": "removed: get_decay_index"
-      },
-      "confidence": 0.5
-    },
-    {
-      "id": "MCP-RUGPULL-001",
-      "severity": "medium",
-      "category": "tool-poisoning",
-      "title": "Tool removed since last scan",
-      "detail": "Tool \"get_reliance_prior\" is no longer advertised. Removal can precede a shadowing replacement from another server.",
-      "evidence": {
-        "source": "tool:get_reliance_prior",
-        "snippet": "removed: get_reliance_prior"
-      },
-      "confidence": 0.5
-    },
-    {
-      "id": "MCP-RUGPULL-001",
-      "severity": "medium",
-      "category": "tool-poisoning",
-      "title": "Tool removed since last scan",
-      "detail": "Tool \"get_digest\" is no longer advertised. Removal can precede a shadowing replacement from another server.",
-      "evidence": {
-        "source": "tool:get_digest",
-        "snippet": "removed: get_digest"
-      },
-      "confidence": 0.5
-    },
-    {
-      "id": "MCP-RUGPULL-001",
-      "severity": "medium",
-      "category": "tool-poisoning",
-      "title": "Tool removed since last scan",
-      "detail": "Tool \"audit_ledger\" is no longer advertised. Removal can precede a shadowing replacement from another server.",
-      "evidence": {
-        "source": "tool:audit_ledger",
-        "snippet": "removed: audit_ledger"
-      },
-      "confidence": 0.5
-    },
-    {
-      "id": "MCP-RUGPULL-001",
-      "severity": "medium",
-      "category": "tool-poisoning",
-      "title": "Tool removed since last scan",
-      "detail": "Tool \"check_report_citations\" is no longer advertised. Removal can precede a shadowing replacement from another server.",
-      "evidence": {
-        "source": "tool:check_report_citations",
-        "snippet": "removed: check_report_citations"
-      },
-      "confidence": 0.5
     }
   ],
-  "score": 55,
+  "score": 39,
   "scoreBreakdown": {
-    "tool-poisoning": 46
+    "tool-poisoning": 41,
+    "toxic-flow": 20
   },
   "errors": []
 }

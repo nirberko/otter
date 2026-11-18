@@ -1,0 +1,116 @@
+{
+  "schemaVersion": 1,
+  "scanner": {
+    "version": "1.6.0",
+    "rules": "402995650b68"
+  },
+  "target": {
+    "kind": "url",
+    "ref": "https://thesplit.fit/mcp"
+  },
+  "scannedAt": "2026-11-18T13:16:33.083Z",
+  "durationMs": 1825,
+  "layers": {
+    "metadata": true,
+    "static": false
+  },
+  "tools": [
+    {
+      "name": "upload_activity",
+      "descriptionHash": "67326df1898839159e040ad48b5ef1349c23cb326e1e4b3ea61b3c65c73554c3",
+      "description": "Upload a FIT, TCX or GPX file (base64, at most 15 MB decoded) and get its activityId and expiresAt. Files are held in memory only and expire (30 minutes after last use, 2 hours at most); originals are never changed. Base64 costs a lot of context: an agent with a shell should upload with curl to POST",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "get_activity_summary",
+      "descriptionHash": "4f6dd2cb7e146a29f9b3c8614de541afa590b330a7a5ffd213f22d34e0a570eb",
+      "description": "What an uploaded or produced activity is: format, sport, start, duration, sessions, data streams, warnings, expiresAt, and figures (elapsed and moving time, distance, max and average heart rate, calories, per-session figures). Read-only.",
+      "labels": [
+        "destructive"
+      ]
+    },
+    {
+      "name": "export_activity",
+      "descriptionHash": "50dae006829e62f46f8063ae5ff857e95f0b2dbbc007ad81553f380e869c8b4f",
+      "description": "Get the download url of an activity as fit, tcx or gpx (the file itself is not returned; gpx needs GPS positions). Give the user the url; it works until expiresAt. The answer carries supportUrl and supportNote: you may mention the support link once, after delivering the file. Call delete_activity wh",
+      "labels": [
+        "untrusted-content",
+        "private-data"
+      ]
+    },
+    {
+      "name": "delete_activity",
+      "descriptionHash": "f952caff8c2aabf098026903c57c2777bbcbad9811777decd675255e49404c23",
+      "description": "Discard an activity from the server's memory now instead of waiting for it to expire. Do this for every activity you are done with, results included.",
+      "labels": [
+        "destructive"
+      ]
+    },
+    {
+      "name": "analyze_cleanup",
+      "descriptionHash": "e5b6805e8d591756e726f7f8e075cdb7b9e073e48d30c69cdb932f0c63ec223a",
+      "description": "Use when a recording opens fine but has wrong data in it (\"fix my run\", an odd heart-rate spike, the watch kept running at the start or end). It cleans up what is wrong inside a readable file; it does not fix a file that fails to open or is corrupt. Finds heart-rate spikes (one repair_hr step each; ",
+      "labels": [
+        "private-data",
+        "destructive"
+      ]
+    },
+    {
+      "name": "analyze_dual_recording",
+      "descriptionHash": "9f7ca20d08c723103e84720c9a7b90113b0dff1241b71c882b12f0e1ac24b3f6",
+      "description": "Use to combine two recordings of one workout: a watch or bike computer plus a heart-rate-only recording that overlaps it, or a device plus a virtual-platform recording of one indoor ride. Works out which file is the base and the clock offset (pass offsetSec only if the user knows it) and previews wh",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "analyze_multisport",
+      "descriptionHash": "595aabec3e595b1355ac56076a52253c446316b86fa896ac8fdd1c853c51a880",
+      "description": "Use for a triathlon or other multisport recording. Lists the legs, checks whether a separate recording (for example a bike computer file, legActivityIds) matches a leg and proposes splicing it in, and proposes moving transitions to official split times the user gives (officialBoundaries, elapsed sec",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "analyze_interrupted_workout",
+      "descriptionHash": "c8fa18c5793fa8f5a6017d1283232a9ba6738457b485217415f42fc089bd8220",
+      "description": "Use when the watch stopped and restarted and one workout is in 2 to 5 files. Orders the pieces by time, checks they follow each other, proposes trimming a piece that overlaps the one before (the join depends on it), and proposes one join; one recording lying inside another is refused (try analyze_du",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "apply_plan",
+      "descriptionHash": "a8662488ea609275550f2927e2eedee9b0e83178b945168be0686a5579d515f5",
+      "description": "Run exactly the steps of an analyze_* plan that the user confirmed (every step with needsUserConfirmation true must have been shown and agreed). The inputs are never changed: the result is a new activity with download urls and a before/after validation to relay. If the answer is an error with retryA",
+      "labels": [
+        "private-data",
+        "destructive"
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: upload_activity, export_activity · Private data: upload_activity, export_activity, analyze_cleanup, analyze_dual_recording, analyze_multisport, analyze_interrupted_workout, apply_plan · Public sink: upload_activity · Destructive: get_activity_summary, delete_activity, analyze_cleanup, apply_plan.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: upload_activity, export_activity · Private data: upload_activity, export_activity, analyze_cleanup, analyze_dual_recording, analyze_multisport, analyze_interrupted_workout, apply_plan · Public sink: upload_activity · Destructive: get_activity_summary, delete_activity, analyze_cleanup, apply_plan"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 80,
+  "scoreBreakdown": {
+    "toxic-flow": 20
+  },
+  "errors": []
+}

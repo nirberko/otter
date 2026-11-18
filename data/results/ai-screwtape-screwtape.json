@@ -8,13 +8,39 @@
     "kind": "url",
     "ref": "https://screwtape.ai/mcp"
   },
-  "scannedAt": "2026-11-14T11:34:51.358Z",
-  "durationMs": 970,
+  "scannedAt": "2026-11-18T13:10:47.781Z",
+  "durationMs": 1650,
   "layers": {
     "metadata": true,
     "static": false
   },
   "tools": [
+    {
+      "name": "payment_check",
+      "descriptionHash": "8e058f409be3fe0a5bdbe92ff426792561a71ff3b62a6eb9e7a5f87eb6681873",
+      "description": "Payment check: is this seller safe to pay, checked at the moment the agent pays. Compares the 402 price and payee with the seller's published listings when they can be fetched, screens the payee against a local denylist and the bundled OFAC SDN digital-currency address list, flags an over-price vers",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "trust_score",
+      "descriptionHash": "26f85c9aa7849066d4459284561ed09c4cf3d2f46d79febd777915623fbc7e5c",
+      "description": "Seller trust score: check whether a paying agent looks abusive or risky before you accept payment. Scores velocity, failed or refused payments, dispute-like patterns, and new versus established history across the Screwtape.ai seller network. Returns a 0–1 trust score, allow/review/block, risk and re",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "payment_guard_authorize",
+      "descriptionHash": "c3d26263421827b569c419dbbded7ac1ef6d8c1ea652a3e21eb22a6756a28cb3",
+      "description": "Payment Guard: enforce your own spend rules before an agent pays. Set rules once per API key (or an account default): max_per_call_usd, daily_budget_usd, period_budget_usd + period_hours, allowed_sellers, allowed_domains, max_calls_per_minute, max_calls_per_hour. Then send each payment intent to POS",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink"
+      ]
+    },
     {
       "name": "budget_ledger",
       "descriptionHash": "02e9467de9009eca206170897728439c61850810773bedaa0a1d209a7de1e4fe",
@@ -33,14 +59,6 @@
         "private-data",
         "public-sink",
         "destructive"
-      ]
-    },
-    {
-      "name": "payment_check",
-      "descriptionHash": "8e058f409be3fe0a5bdbe92ff426792561a71ff3b62a6eb9e7a5f87eb6681873",
-      "description": "Payment check: is this seller safe to pay, checked at the moment the agent pays. Compares the 402 price and payee with the seller's published listings when they can be fetched, screens the payee against a local denylist and the bundled OFAC SDN digital-currency address list, flags an over-price vers",
-      "labels": [
-        "untrusted-content"
       ]
     },
     {
@@ -90,6 +108,18 @@
     }
   ],
   "findings": [
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"payment_guard_authorize\" references sensitive artifacts (private key, authorization, bearer). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:payment_guard_authorize",
+        "snippet": "Payment Guard: enforce your own spend rules before an agent pays. Set rules once per API key (or an account default): max_per_call_usd, daily_budget_usd, period…"
+      },
+      "confidence": 0.65
+    },
     {
       "id": "MCP-TOOL-POISON-003",
       "severity": "high",
@@ -192,36 +222,22 @@
       "severity": "high",
       "category": "toxic-flow",
       "title": "Lethal trifecta: untrusted input + private data + external sink",
-      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: payment_check, get_api_key · Private data: budget_ledger, action_receipt, check_duplicate_invoice, get_api_key, publish_receipt · Public sink: budget_ledger, action_receipt, get_api_key, publish_receipt · Destructive: budget_ledger, action_receipt, judge.",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: payment_check, trust_score, payment_guard_authorize, get_api_key · Private data: payment_guard_authorize, budget_ledger, action_receipt, check_duplicate_invoice, get_api_key, publish_receipt · Public sink: payment_guard_authorize, budget_ledger, action_receipt, get_api_key, publish_receipt · Destructive: budget_ledger, action_receipt, judge.",
       "evidence": {
         "source": "server:mcp",
-        "snippet": "Untrusted content: payment_check, get_api_key · Private data: budget_ledger, action_receipt, check_duplicate_invoice, get_api_key, publish_receipt · Public sink: budget_ledger, action_receipt, get_api_key, publish_receipt · Destructive: budget_ledger, action_receipt, judge"
+        "snippet": "Untrusted content: payment_check, trust_score, payment_guard_authorize, get_api_key · Private data: payment_guard_authorize, budget_ledger, action_receipt, check_duplicate_invoice, get_api_key, publish_receipt · Public sink: payment_guard_authorize, budget_ledger, action_receipt, get_api_key, publish_receipt · Destructive: budget_ledger, action_receipt, judge"
       },
       "confidence": 0.6,
       "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
-    },
-    {
-      "id": "MCP-RUGPULL-001",
-      "severity": "high",
-      "category": "tool-poisoning",
-      "title": "Tool description changed since last scan",
-      "detail": "Tool \"judge\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
-      "evidence": {
-        "source": "tool:judge",
-        "snippet": "before: \"An independent pass/fail/retry verdict on ONE agent output. Call it before you return, store or act on a draft answer, especially when you have the evidence the answer should be based on. Do NOT call it to look up facts (it does no web search and only checks against the evidence you pass), to compar\" → after: \"A pass/fail/retry verdict on ONE agent output, from a service outside your agent, used as the go/no-go before an agent spends money or acts on that output. Call it before you pay on, return, store or act on a draft answer, especially when you have the evidence the answer should be based on. Do NOT c\""
-      },
-      "confidence": 0.8,
-      "remediation": "Re-review the tool before continuing to trust it."
-    },
-    {
-      "id": "MCP-RUGPULL-001",
-      "severity": "high",
-      "category": "tool-poisoning",
-      "title": "Tool description changed since last scan",
-      "detail": "Tool \"check_duplicate_invoice\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
-      "evidence": {
-        "source": "tool:check_duplicate_invoice",
-        "snippet": "before: \"Duplicate invoice check before an agent pays. Same as judge with one duplicate check: it compares this invoice with the invoices this API key recorded earlier and also judges it. Call it before an agent pays or approves an invoice or payment instruction. Inputs: the judge inputs (task, agent_output \" → after: \"Spend gate for invoices: decides whether an agent may pay this invoice, with a signed receipt as proof. Same as judge with one duplicate check: it compares this invoice with the invoices this caller recorded earlier and also judges it. Call it before an agent pays or approves an invoice or payment i\""
+    }
+  ],
+  "score": 37,
+  "scoreBreakdown": {
+    "tool-poisoning": 43,
+    "toxic-flow": 20
+  },
+  "errors": []
+}plicate check: it compares this invoice with the invoices this caller recorded earlier and also judges it. Call it before an agent pays or approves an invoice or payment i\""
       },
       "confidence": 0.8,
       "remediation": "Re-review the tool before continuing to trust it."

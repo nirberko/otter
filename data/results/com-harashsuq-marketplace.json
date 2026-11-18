@@ -8,8 +8,8 @@
     "kind": "url",
     "ref": "https://harashsuq.com/api/mcp"
   },
-  "scannedAt": "2026-10-31T10:29:39.309Z",
-  "durationMs": 671,
+  "scannedAt": "2026-11-18T13:13:41.677Z",
+  "durationMs": 506,
   "layers": {
     "metadata": true,
     "static": false
@@ -67,18 +67,37 @@
       ]
     },
     {
-      "name": "create_order",
-      "descriptionHash": "7090ffe98c8fd179f2e53a489f559103ceef243f9eda4f39283b8e2d2a5284b0",
-      "description": "Order one product version and get a payment request signed by the server: the PYMSTR payment link, the exact amount, the accepted coins and chains, who is paid what, and the deadline. Use a new idempotencyKey for each order; sending the same one again returns the same order, never a second. Every mo",
+      "name": "get_wallet_challenge",
+      "descriptionHash": "7ed84aa02eac8b7516f08cfff87d5b8d49f0199353af3310acbc10a06ec7eab1",
+      "description": "Get a message to sign with the wallet you will pay from. Signing is free, sends nothing to the chain and moves no funds - it only shows the address is yours. Do this once, before your first order: an account with a proved wallet pays on-chain by itself, and one without is sent a payment link that on",
+      "labels": [
+        "untrusted-content",
+        "private-data"
+      ]
+    },
+    {
+      "name": "verify_agent_wallet",
+      "descriptionHash": "7b3ce2f9e457c19b8f8f524a8257e4f3594fa8d43430ff41dff8c39e94a139d8",
+      "description": "Send back the message from get_wallet_challenge, unchanged, with its signature. On success that address becomes the one this account pays from, and every order is frozen against it: a payment from any other wallet is not that order's payment and is not delivered. Needs your API key in the Authorizat",
       "labels": [
         "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "create_order",
+      "descriptionHash": "9a80cef435d987e63d6932cb055fe4e9e68b0a6599d8949245367311c4397f2c",
+      "description": "Order one product version and get a payment request signed by the server: the exact amount, who is paid what, and the deadline. Read paymentMode. \"onchain\" means you pay it yourself - it carries the contract, the token, both amounts in base units and the payment reference, in steps you can send from",
+      "labels": [
+        "private-data",
+        "public-sink",
         "destructive"
       ]
     },
     {
       "name": "get_order_status",
-      "descriptionHash": "174d4d5a73d475fef2fe3ad694edd65b416163bd69bf418291ebbb6fc3a048ed",
-      "description": "Where one of your orders stands: pending, confirmed, ready, expired or needs_review. Read-only. An order is ready only after its payment is confirmed with the payment provider. Call this before ever paying again. Payment on-chain is final and there are no refunds. Check get_order_status before ever ",
+      "descriptionHash": "db2c30eb7af4ae410709d5d7ee007e8f092b9616e11426ac47f91edf3e319562",
+      "description": "Where one of your orders stands: pending, confirmed, ready, expired or needs_review. Read-only. An order is ready only once its payment has been confirmed again on the rail it was paid on - the chain, or the payment provider. Call this before ever paying again. Payment on-chain is final and there ar",
       "labels": [
         "private-data",
         "destructive"
@@ -120,10 +139,34 @@
       "severity": "high",
       "category": "tool-poisoning",
       "title": "Description references secrets/credentials",
+      "detail": "Description of \"get_wallet_challenge\" references sensitive artifacts (authorization, bearer). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:get_wallet_challenge",
+        "snippet": "Get a message to sign with the wallet you will pay from. Signing is free, sends nothing to the chain and moves no funds - it only shows the address is yours. Do…"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"verify_agent_wallet\" references sensitive artifacts (authorization, bearer). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:verify_agent_wallet",
+        "snippet": "Send back the message from get_wallet_challenge, unchanged, with its signature. On success that address becomes the one this account pays from, and every order …"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
       "detail": "Description of \"create_order\" references sensitive artifacts (authorization, bearer). A tool description has no reason to mention credentials.",
       "evidence": {
         "source": "tool:create_order",
-        "snippet": "Order one product version and get a payment request signed by the server: the PYMSTR payment link, the exact amount, the accepted coins and chains, who is paid …"
+        "snippet": "Order one product version and get a payment request signed by the server: the exact amount, who is paid what, and the deadline. Read paymentMode. \"onchain\" mean…"
       },
       "confidence": 0.65
     },
@@ -135,7 +178,7 @@
       "detail": "Description of \"get_order_status\" references sensitive artifacts (authorization, bearer). A tool description has no reason to mention credentials.",
       "evidence": {
         "source": "tool:get_order_status",
-        "snippet": "Where one of your orders stands: pending, confirmed, ready, expired or needs_review. Read-only. An order is ready only after its payment is confirmed with the p…"
+        "snippet": "Where one of your orders stands: pending, confirmed, ready, expired or needs_review. Read-only. An order is ready only once its payment has been confirmed again…"
       },
       "confidence": 0.65
     },
@@ -162,11 +205,51 @@
         "snippet": "Withdraw the API key this request is made with. It stops working at once. To get a new one, call create_agent_account again with the same address. Needs your AP…"
       },
       "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: get_wallet_challenge · Private data: get_asset, search_products, get_product, create_agent_account, verify_agent_email, get_wallet_challenge, verify_agent_wallet, create_order, get_order_status, download_order, revoke_api_key · Public sink: verify_agent_email, verify_agent_wallet, create_order · Destructive: create_order, get_order_status, download_order.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: get_wallet_challenge · Private data: get_asset, search_products, get_product, create_agent_account, verify_agent_email, get_wallet_challenge, verify_agent_wallet, create_order, get_order_status, download_order, revoke_api_key · Public sink: verify_agent_email, verify_agent_wallet, create_order · Destructive: create_order, get_order_status, download_order"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"create_order\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:create_order",
+        "snippet": "before: \"Order one product version and get a payment request signed by the server: the PYMSTR payment link, the exact amount, the accepted coins and chains, who is paid what, and the deadline. Use a new idempotencyKey for each order; sending the same one again returns the same order, never a second. Every mo\" → after: \"Order one product version and get a payment request signed by the server: the exact amount, who is paid what, and the deadline. Read paymentMode. \"onchain\" means you pay it yourself - it carries the contract, the token, both amounts in base units and the payment reference, in steps you can send from\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"get_order_status\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:get_order_status",
+        "snippet": "before: \"Where one of your orders stands: pending, confirmed, ready, expired or needs_review. Read-only. An order is ready only after its payment is confirmed with the payment provider. Call this before ever paying again. Payment on-chain is final and there are no refunds. Check get_order_status before ever \" → after: \"Where one of your orders stands: pending, confirmed, ready, expired or needs_review. Read-only. An order is ready only once its payment has been confirmed again on the rail it was paid on - the chain, or the payment provider. Call this before ever paying again. Payment on-chain is final and there ar\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
     }
   ],
-  "score": 61,
+  "score": 36,
   "scoreBreakdown": {
-    "tool-poisoning": 39
+    "tool-poisoning": 44,
+    "toxic-flow": 20
   },
   "errors": []
 }

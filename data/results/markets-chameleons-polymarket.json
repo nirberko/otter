@@ -8,8 +8,8 @@
     "kind": "url",
     "ref": "https://chameleons.markets/mcp"
   },
-  "scannedAt": "2026-11-12T13:07:46.035Z",
-  "durationMs": 306,
+  "scannedAt": "2026-11-18T13:27:20.179Z",
+  "durationMs": 480,
   "layers": {
     "metadata": true,
     "static": false
@@ -17,13 +17,13 @@
   "tools": [
     {
       "name": "find_traders",
-      "descriptionHash": "9d256da91a38fade37bff4f6604ad713ff230a63637eecbb9efc53c394920192",
-      "description": "Polymarket traders, filtered and sorted like the page; head lines say what applied and what the defaults hid. copyable: % of checked trades a follower could fill (n=checked); ret_lo: ROIC, profit per copy as % of stake, 80% low end (n=copy10_n; 4★+ needs a 90% one above 0); crowd: % copied within 2 "
+      "descriptionHash": "86e4a7534ac6275e87cf3e2b20ed82f707beecd757411efd7cfca71232c4f322",
+      "description": "Polymarket traders, filtered and sorted like the page; head lines say what applied and what the defaults hid. copyable: % of checked trades a follower could fill (n=checked); ret_lo: ROIC, profit per copy as % of stake, past window, 80% low end (n=copy10_n); 4★+ needs a 90% low end above 0: copy10_l"
     },
     {
       "name": "get_trader",
-      "descriptionHash": "7543243556670ad8a005febb583248249a62607bdc91ce00c2bd881fab0d2f34",
-      "description": "One trader: a row per category, rule check, radar with n, stars history, 5 newest trades. <=2 KB."
+      "descriptionHash": "2f4c097ff9073a91411c1d91e7952393f7ee710cf72672c9ec446bd9d689fa31",
+      "description": "One trader: a row per category, rule check, radar with n, stars history, 5 newest trades. <=3 KB."
     },
     {
       "name": "list_categories",
@@ -37,17 +37,102 @@
     },
     {
       "name": "get_copy_recipe",
-      "descriptionHash": "671416d89a5ac23b1b7395a2b3761afcb84033b33155673ea92aacb74b7a013f",
-      "description": "One trader's copy recipe for your own agent (/traders/<slug>/copy.md): watch, rules, costs, YAML. Not advice. <=5 KB."
+      "descriptionHash": "472cd7c096e4246684e30d6f7c93b4ebd39821c9ae4327a69da177920b1dc423",
+      "description": "One trader's copy recipe for your own agent (/traders/<slug>/copy.md): watch, rules, costs, YAML; format=json: copy.json. Not advice. <=5 KB.",
+      "labels": [
+        "destructive"
+      ]
     },
     {
       "name": "get_bot_guide",
       "descriptionHash": "6721d8c1e0cdd17e4a1062c47ea7e6a363a93cee5a58ac8cc41d0a943744ef91",
       "description": "How to build a copy bot and steer it with find_traders' filters (/bots.md). Not advice."
+    },
+    {
+      "name": "get_scorecard",
+      "descriptionHash": "822f149cdefa3318079fdc7ac06ed49b6db2fb2c7a104029906f9d306a94eae2",
+      "description": "Do 3★+ traders' signals, copied at $10, beat matched 2★ ones? The pre-registered forward test (/api/v1/scorecard); ready false until powered. <=1.5 KB.",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "watch_traders",
+      "descriptionHash": "7e1d13616974f240e9c0139e2e80a68d587cadf7a569801a759be801505b1543",
+      "description": "/api/v1/watch: the traders you copy, one call: stop_copy and stop_why per row, warnings, book_* stats, list changes since a cursor. TSV <=4 KB; json: the API body."
+    },
+    {
+      "name": "get_rating_changes",
+      "descriptionHash": "fbdeb7572938982f097067ed25aae93daeb65eb5566788086a450670ba6c78f4",
+      "description": "/api/v1/changes: list adds, drops and re-rates after a cursor. TSV <=4 KB; json: the API body."
+    },
+    {
+      "name": "get_recent_signals",
+      "descriptionHash": "d55cbc1b36d7c334745bb3d620dae75c9cd304a9acdb0a5033b9a270dad5c3e2",
+      "description": "/api/v1/feed: leader trades with gate and fill status; no since: the newest. TSV <=4 KB; json: the API body.",
+      "labels": [
+        "untrusted-content"
+      ]
     }
   ],
-  "findings": [],
-  "score": 100,
-  "scoreBreakdown": {},
+  "findings": [
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "medium",
+      "category": "toxic-flow",
+      "title": "Toxic flow: untrusted input can reach an external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: get_recent_signals · Public sink: get_scorecard · Destructive: get_copy_recipe.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: get_recent_signals · Public sink: get_scorecard · Destructive: get_copy_recipe"
+      },
+      "confidence": 0.45,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"find_traders\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:find_traders",
+        "snippet": "before: \"Polymarket traders, filtered and sorted like the page; head lines say what applied and what the defaults hid. copyable: % of checked trades a follower could fill (n=checked); ret_lo: ROIC, profit per copy as % of stake, 80% low end (n=copy10_n; 4★+ needs a 90% one above 0); crowd: % copied within 2 \" → after: \"Polymarket traders, filtered and sorted like the page; head lines say what applied and what the defaults hid. copyable: % of checked trades a follower could fill (n=checked); ret_lo: ROIC, profit per copy as % of stake, past window, 80% low end (n=copy10_n); 4★+ needs a 90% low end above 0: copy10_l\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"get_trader\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:get_trader",
+        "snippet": "before: \"One trader: a row per category, rule check, radar with n, stars history, 5 newest trades. <=2 KB.\" → after: \"One trader: a row per category, rule check, radar with n, stars history, 5 newest trades. <=3 KB.\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"get_copy_recipe\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:get_copy_recipe",
+        "snippet": "before: \"One trader's copy recipe for your own agent (/traders/<slug>/copy.md): watch, rules, costs, YAML. Not advice. <=5 KB.\" → after: \"One trader's copy recipe for your own agent (/traders/<slug>/copy.md): watch, rules, costs, YAML; format=json: copy.json. Not advice. <=5 KB.\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    }
+  ],
+  "score": 57,
+  "scoreBreakdown": {
+    "toxic-flow": 8,
+    "tool-poisoning": 35
+  },
   "errors": []
 }

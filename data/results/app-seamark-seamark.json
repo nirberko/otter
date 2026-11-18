@@ -25,16 +25,16 @@
     },
     {
       "name": "trip_read",
-      "descriptionHash": "f8f49296f1a1f15f30f10d167d079b13985c4097fc19862c9fa9301290f09585",
-      "description": "Read the caller's voyages: list (the caller's OWN log), list the trips others shared with the caller (list_shared), get one trip, get its combined map, and get its public share link (get_share). `get` composes trip metadata with its crew, charter, and legs (there is no separate crew or charter read)",
+      "descriptionHash": "ae53f7d7f4a5890137816653fd926707c9efe5793de270fdbae85d917efb6bd3",
+      "description": "Read the caller's voyages: list (the caller's OWN log), list the trips others shared with the caller (list_shared), get one trip, get its combined map, and get its public share link (get_share). `get` composes trip metadata with its crew, charter, legs and diary (there is no separate crew or charter",
       "labels": [
         "public-sink"
       ]
     },
     {
       "name": "trip_write",
-      "descriptionHash": "5365035e7fae404ee074cda6d4622b116b245936cefff6f38b310844d11fb8c6",
-      "description": "Change the caller's own voyages: create, update, delete, replace the full crew set (set_crew, PUT semantics), set or clear the charter (set_charter — a null charter clears it), announce the trip to its crew by email (announce), and turn its public link on or off (create_share, revoke_share). Charter",
+      "descriptionHash": "c921fa1b80f6b2553438228f6ca585718e178f6713de2015a2b234299bce9f94",
+      "description": "Change the caller's own voyages: create, update, delete, replace the full crew set (set_crew, PUT semantics), set or clear the charter (set_charter — a null charter clears it), announce the trip to its crew by email (announce), and turn its public link on or off (create_share, revoke_share). A trip ",
       "labels": [
         "untrusted-content",
         "public-sink",
@@ -80,10 +80,27 @@
     },
     {
       "name": "leg_write",
-      "descriptionHash": "823b6fbf06ed58dd27127c97aea62d91f9f7b919576a8029fdba7990a1a53d34",
+      "descriptionHash": "0b149d49c859340c057c9477be5195a74847d4b560616ad0a383e10ad6aab66a",
       "description": "Change a trip's ordered legs: create, update, delete, reorder (a full leg-id permutation, reassigning seq 1..N), and fill a leg's wind from a weather service (fetch_weather). A leg backed by a track (statsSource: 'track') rejects an update that touches any computed stats/coordinate/time field with a",
       "labels": [
         "private-data",
+        "destructive"
+      ]
+    },
+    {
+      "name": "diary_read",
+      "descriptionHash": "1f418c6a3c02b7a32ef6166861a29f19a72765aa6a24c0cd64fecf20548f5497",
+      "description": "Read a trip's diary: list its entries (by date, oldest first), or get one day's entry. Works on the caller's own trips and on trips shared with them as linked crew. A day without an entry is not_found. A trip's diary holds at most one entry per calendar day of the trip, addressed by the trip id and ",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "diary_write",
+      "descriptionHash": "4fea959c20d8c9fd322cb259248ea9fc45bb8e065030679ddcaf947ad8213ae6",
+      "description": "Write or remove one day's entry in a trip's diary; owner only. `put` creates the day's entry or replaces it whole: `entry.public` defaults to false when omitted, so leave it out only to take an entry off the public share page. A date outside the trip's dates is validation_failed. `delete` removes th",
+      "labels": [
+        "public-sink",
         "destructive"
       ]
     },
@@ -97,7 +114,7 @@
     },
     {
       "name": "track_write",
-      "descriptionHash": "5c04c7f5baed9406fb6b492f8587f66d9644e2f83e5877caffc6658bfad8e90c",
+      "descriptionHash": "b8e3609d792efc1393bf4fdde8ac27bbc3d41ce5681e27f93c1784556fea392e",
       "description": "Change a leg's GPX track: import raw GPX text (inline, capped at 5 Mi UTF-16 code units — that is what the schema counts, so it is roughly 5 MB for plain-ASCII GPX and no less for a file full of non-ASCII names; the server-side pipeline caps are separate: 32 MB of bytes AND at most 75,000 trackpoint",
       "labels": [
         "private-data",
@@ -125,10 +142,10 @@
       "severity": "high",
       "category": "toxic-flow",
       "title": "Lethal trifecta: untrusted input + private data + external sink",
-      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: trip_write, person_write · Private data: person_read, person_write, leg_write, track_write, resume · Public sink: whoami, trip_read, trip_write, person_write, track_write · Destructive: trip_write, ship_write, person_write, leg_write, track_read, track_write.",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: trip_write, person_write · Private data: person_read, person_write, leg_write, track_write, resume · Public sink: whoami, trip_read, trip_write, person_write, diary_read, diary_write, track_write · Destructive: trip_write, ship_write, person_write, leg_write, diary_write, track_read, track_write.",
       "evidence": {
         "source": "server:mcp",
-        "snippet": "Untrusted content: trip_write, person_write · Private data: person_read, person_write, leg_write, track_write, resume · Public sink: whoami, trip_read, trip_write, person_write, track_write · Destructive: trip_write, ship_write, person_write, leg_write, track_read, track_write"
+        "snippet": "Untrusted content: trip_write, person_write · Private data: person_read, person_write, leg_write, track_write, resume · Public sink: whoami, trip_read, trip_write, person_write, diary_read, diary_write, track_write · Destructive: trip_write, ship_write, person_write, leg_write, diary_write, track_read, track_write"
       },
       "confidence": 0.6,
       "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
@@ -139,20 +156,7 @@
     "toxic-flow": 20
   },
   "errors": []
-}ool-poisoning",
-      "title": "Tool description changed since last scan",
-      "detail": "Tool \"leg_write\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
-      "evidence": {
-        "source": "tool:leg_write",
-        "snippet": "before: \"Change a trip's ordered legs: create, update, delete, reorder (a full leg-id permutation, reassigning seq 1..N), and fill a leg's wind from a weather service (fetch_weather). A leg backed by a track (statsSource: 'track') rejects an update that touches any computed stats/coordinate/time field with a\" → after: \"Change a trip's ordered legs: create, update, delete, reorder (a full leg-id permutation, reassigning seq 1..N), and fill a leg's wind from a weather service (fetch_weather). A leg backed by a track (statsSource: 'track') rejects an update that touches any computed stats/coordinate/time field with a\""
-      },
-      "confidence": 0.8,
-      "remediation": "Re-review the tool before continuing to trust it."
-    }
-  ],
-  "score": 60,
-  "scoreBreakdown": {
-    "toxic-flow": 20,
+}-flow": 20,
     "tool-poisoning": 20
   },
   "errors": []

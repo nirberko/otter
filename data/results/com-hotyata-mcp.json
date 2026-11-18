@@ -8,8 +8,8 @@
     "kind": "url",
     "ref": "https://hotyata.com/mcp"
   },
-  "scannedAt": "2026-11-07T11:11:22.541Z",
-  "durationMs": 1394,
+  "scannedAt": "2026-11-18T13:13:46.141Z",
+  "durationMs": 1229,
   "layers": {
     "metadata": true,
     "static": false
@@ -17,11 +17,12 @@
   "tools": [
     {
       "name": "search_real_estate",
-      "descriptionHash": "a1fec90d38f1d747e843c04a29fbdbe5a1074431fd2a5e9d7a4a7ca961b11051",
+      "descriptionHash": "a7dfcf277c57b8e49cad65df5899acecc7e2535664d63b389f0a0103464f288b",
       "description": "Search verified real estate listings in Batumi and Tbilisi (apartments, houses, commercial).\n<hints>\n- Returns compact objects with price_usd, price_sqm_usd, area_sqm, rooms, renovation_status, construction_stage, seller_type, heating_type, gas_status, is_heritage_zone, cadastral_code, year_built, d",
       "labels": [
         "untrusted-content",
-        "private-data"
+        "private-data",
+        "public-sink"
       ]
     },
     {
@@ -63,7 +64,7 @@
     },
     {
       "name": "execute_code_mode",
-      "descriptionHash": "038880dd84d869a3a2b0779dded566d97e2e730ab2200c36a547feb1511f2a4e",
+      "descriptionHash": "11877d4e767b360c69897a4ea565fcbee4773b4d291ef71a550200e7652c608d",
       "description": "Execute a JavaScript snippet inside an isolated QuickJS WASM sandbox with direct synchronous/async access to the Hotyata SDK (`sdk`).\nUse this \"MCP Code Mode\" tool whenever you need to run multi-step queries, compare multiple categories/districts/stages, join complexes with properties, filter or agg",
       "labels": [
         "untrusted-content",
@@ -74,6 +75,16 @@
       "name": "report_issue",
       "descriptionHash": "b64d35fd682733bf31beb53ced796b6d71dd8feb466e872969031bfbe9e5a77a",
       "description": "Report an issue with data accuracy, stale or off-market listings, incorrect coordinates, spam, or tool usability limitations. AI agents should call this when finding inaccuracies or when human users report off-market listings."
+    },
+    {
+      "name": "create_telegram_alert",
+      "descriptionHash": "e51f437dbb91d402b7907602e72a37f1e1c3ad73d6719fe807e639e5c6a2d05c",
+      "description": "Generate a 1-click Telegram bot deep link (https://t.me/<bot>?start=sub_<token>) pre-loaded with search filters so a user can confirm instant Telegram notifications for new matching apartments or secondhand items in one tap.\n<hints>\n- Call this whenever a user asks to be notified / set up an alert /",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink"
+      ]
     }
   ],
   "findings": [
@@ -82,19 +93,7 @@
       "severity": "low",
       "category": "tool-poisoning",
       "title": "Anomalously long tool description",
-      "detail": "Description of \"search_real_estate\" is 1447 chars, far longer than this server's median (226). Overlong descriptions are a common place to bury instructions.",
-      "evidence": {
-        "source": "tool:search_real_estate",
-        "snippet": "Search verified real estate listings in Batumi and Tbilisi (apartments, houses, commercial). <hints> - Returns compact objects with price_usd, price_sqm_usd, ar…"
-      },
-      "confidence": 0.4
-    },
-    {
-      "id": "MCP-TOOL-POISON-006",
-      "severity": "low",
-      "category": "tool-poisoning",
-      "title": "Anomalously long tool description",
-      "detail": "Description of \"execute_code_mode\" is 2059 chars, far longer than this server's median (226). Overlong descriptions are a common place to bury instructions.",
+      "detail": "Description of \"execute_code_mode\" is 2186 chars, far longer than this server's median (399). Overlong descriptions are a common place to bury instructions.",
       "evidence": {
         "source": "tool:execute_code_mode",
         "snippet": "Execute a JavaScript snippet inside an isolated QuickJS WASM sandbox with direct synchronous/async access to the Hotyata SDK (`sdk`). Use this \"MCP Code Mode\" t…"
@@ -112,12 +111,52 @@
         "snippet": "code"
       },
       "confidence": 0.55
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: search_real_estate, get_property_details, get_item_details, execute_code_mode, create_telegram_alert · Private data: search_real_estate, get_property_details, create_telegram_alert · Public sink: search_real_estate, create_telegram_alert · Destructive: execute_code_mode.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: search_real_estate, get_property_details, get_item_details, execute_code_mode, create_telegram_alert · Private data: search_real_estate, get_property_details, create_telegram_alert · Public sink: search_real_estate, create_telegram_alert · Destructive: execute_code_mode"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"search_real_estate\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:search_real_estate",
+        "snippet": "before: \"Search verified real estate listings in Batumi and Tbilisi (apartments, houses, commercial).\n<hints>\n- Returns compact objects with price_usd, price_sqm_usd, area_sqm, rooms, renovation_status, construction_stage, seller_type, heating_type, gas_status, is_heritage_zone, cadastral_code, year_built, d\" → after: \"Search verified real estate listings in Batumi and Tbilisi (apartments, houses, commercial).\n<hints>\n- Returns compact objects with price_usd, price_sqm_usd, area_sqm, rooms, renovation_status, construction_stage, seller_type, heating_type, gas_status, is_heritage_zone, cadastral_code, year_built, d\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"execute_code_mode\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:execute_code_mode",
+        "snippet": "before: \"Execute a JavaScript snippet inside an isolated QuickJS WASM sandbox with direct synchronous/async access to the Hotyata SDK (`sdk`).\nUse this \"MCP Code Mode\" tool whenever you need to run multi-step queries, compare multiple categories/districts/stages, join complexes with properties, filter or agg\" → after: \"Execute a JavaScript snippet inside an isolated QuickJS WASM sandbox with direct synchronous/async access to the Hotyata SDK (`sdk`).\nUse this \"MCP Code Mode\" tool whenever you need to run multi-step queries, compare multiple categories/districts/stages, join complexes with properties, filter or agg\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
     }
   ],
-  "score": 88,
+  "score": 41,
   "scoreBreakdown": {
-    "tool-poisoning": 5,
-    "schema-smell": 8
+    "tool-poisoning": 31,
+    "schema-smell": 8,
+    "toxic-flow": 20
   },
   "errors": []
 }

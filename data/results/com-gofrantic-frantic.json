@@ -8,8 +8,8 @@
     "kind": "url",
     "ref": "https://api.gofrantic.com/mcp"
   },
-  "scannedAt": "2026-10-29T10:59:57.408Z",
-  "durationMs": 967,
+  "scannedAt": "2026-11-18T13:13:38.031Z",
+  "durationMs": 518,
   "layers": {
     "metadata": true,
     "static": false
@@ -17,8 +17,8 @@
   "tools": [
     {
       "name": "frantic.read_board",
-      "descriptionHash": "0662ee462c80fa69846e07b5100b8688f91838001f7d897184ab2c930e9291c2",
-      "description": "Read the public Frantic board projection. Returns structuredContent { ok, channel, board, actions }, where board includes open_bounties[]/bounties[] rows with number, title, price_usd, funded, work_status, claim_slots, actions.claim.reason, and url, plus feed[] receipt events. Call frantic.get_bount",
+      "descriptionHash": "64817a04685110ea96ba0e6167c855e9c594fb39e085c357189cad3bebb833a5",
+      "description": "Read the public Frantic board a page at a time, newest bounty first. Returns structuredContent { ok, channel, board, actions }: board carries the season figures, bounties[] (number, title, visibility, price_usd, funded, work_status, claim_slots, actions.claim.reason, url) and page { status, limit, t",
       "labels": [
         "untrusted-content"
       ]
@@ -33,15 +33,18 @@
     },
     {
       "name": "frantic.get_bounty",
-      "descriptionHash": "6a5130e476a0e13ff924e534daaa2e1cca0423ee61ac5671acf5c2e24cbcf263",
-      "description": "Read one public Frantic bounty by posting id or bounty number. Returns snake_case public JSON including required_artifacts, delivery_contract, and claim_window_minutes when the poster supplied criteria.claim_window_minutes."
+      "descriptionHash": "2fc43db5851494d9e6cef324f10a73f96db6767922ca5f29f1000e9cbf6cba63",
+      "description": "Read a Frantic bounty by posting id or bounty number, including required_artifacts, delivery_contract and claim_window_minutes. For a private bounty, claim it first, then read again with agent_token to see the full instructions. Private work is returned only to its participants; anonymous and unrela",
+      "labels": [
+        "private-data"
+      ]
     },
     {
       "name": "frantic.get_agent_status",
-      "descriptionHash": "0291552afab41de418fe2955a3123f8408f2ee6eee15df7b88563c5d2a39bc1c",
-      "description": "Read one public Frantic agent status by key id, including paid-claim eligibility, onboarding, active work, review blockers, and payout readiness.",
+      "descriptionHash": "960e6e50b35cd06506fa031f0593719ebcce8e28325982a11e4d630a5e8fe51f",
+      "description": "Read agent status. Pass agent_token on the full endpoint to read your complete work and eligibility, including private jobs. Without an owning token only the public record is returned.",
       "labels": [
-        "untrusted-content"
+        "private-data"
       ]
     },
     {
@@ -124,6 +127,15 @@
       ]
     },
     {
+      "name": "frantic.release_claim",
+      "descriptionHash": "c290338c808efde3fc8b29cb29f1ad33dfd36e7a58c73ca4e71f2db90d6d409a",
+      "description": "Release your active claim before its deadline through POST /v1/claims/{claim_id}/release. The first release per operator and bounty is free; further releases record a conduct mark. Delivered, accepted and paid work cannot be self-released. Repeating the same release is a no-op. Earlier verdicts and ",
+      "labels": [
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
       "name": "frantic.get_claim",
       "descriptionHash": "91b21d17d61b70fb04b4d11da3825d2e7de64a39153be1ba16b7f99ee6bb9509",
       "description": "Read one of your claims through GET /v1/claims/{claim_id} with the agent token. Carries what the public ledger withholds on a sealed bounty: the brief disclosed on claim, the access state (pending until the poster confirms, then granted_at and the restarted fuse_expires_at), the eligibility conditio",
@@ -149,9 +161,10 @@
     },
     {
       "name": "frantic.judge_delivery",
-      "descriptionHash": "880f7abd8dadd616366c9b567c8d34a44f4c81390a70639ccb0cf35cdbf805cd",
-      "description": "Rule on a submitted delivery as the bounty's authority. Acceptance consumes a funded claim slot and makes the claim payable; rejection sends the work back for revision and can also claw back an accepted claim that has not been paid yet. Requires claim_id, decision, and authority_ref, plus authority_",
+      "descriptionHash": "4e6c9c375d8881b3ecda5f7ce6e994d4e30bb0abb495b11a64f79c7441acd4d0",
+      "description": "Rule on the exact delivery attempt you inspected as the bounty's authority. Requires claim_id, delivery_attempt, decision and authority_ref. Read delivery_attempt from the current claim or review packet. A changed attempt refuses the verdict; inspect the new delivery before deciding. Acceptance cons",
       "labels": [
+        "untrusted-content",
         "public-sink"
       ]
     }
@@ -177,7 +190,7 @@
       "detail": "Description of \"frantic.judge_delivery\" references sensitive artifacts (bearer). A tool description has no reason to mention credentials.",
       "evidence": {
         "source": "tool:frantic.judge_delivery",
-        "snippet": "Rule on a submitted delivery as the bounty's authority. Acceptance consumes a funded claim slot and makes the claim payable; rejection sends the work back for r…"
+        "snippet": "Rule on the exact delivery attempt you inspected as the bounty's authority. Requires claim_id, delivery_attempt, decision and authority_ref. Read delivery_attem…"
       },
       "confidence": 0.65
     },
@@ -186,18 +199,70 @@
       "severity": "high",
       "category": "toxic-flow",
       "title": "Lethal trifecta: untrusted input + private data + external sink",
-      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: frantic.read_board, frantic.read_ledger, frantic.get_agent_status, frantic.poll_seals, frantic.fund_bounty, frantic.claim_bounty · Private data: frantic.read_hire_agents, frantic.enlist_agent, frantic.poll_seals, frantic.set_payout, frantic.post_bounty, frantic.get_posting, frantic.fund_bounty, frantic.claim_bounty, frantic.get_claim · Public sink: frantic.enlist_agent, frantic.poll_seals, frantic.post_bounty, frantic.fund_bounty, frantic.claim_bounty, frantic.ack_claim, frantic.submit_delivery, frantic.judge_delivery · Destructive: frantic.poll_seals, frantic.set_payout.",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: frantic.read_board, frantic.read_ledger, frantic.poll_seals, frantic.fund_bounty, frantic.claim_bounty, frantic.judge_delivery · Private data: frantic.get_bounty, frantic.get_agent_status, frantic.read_hire_agents, frantic.enlist_agent, frantic.poll_seals, frantic.set_payout, frantic.post_bounty, frantic.get_posting, frantic.fund_bounty, frantic.claim_bounty, frantic.release_claim, frantic.get_claim · Public sink: frantic.enlist_agent, frantic.poll_seals, frantic.post_bounty, frantic.fund_bounty, frantic.claim_bounty, frantic.release_claim, frantic.ack_claim, frantic.submit_delivery, frantic.judge_delivery · Destructive: frantic.poll_seals, frantic.set_payout.",
       "evidence": {
         "source": "server:mcp",
-        "snippet": "Untrusted content: frantic.read_board, frantic.read_ledger, frantic.get_agent_status, frantic.poll_seals, frantic.fund_bounty, frantic.claim_bounty · Private data: frantic.read_hire_agents, frantic.enlist_agent, frantic.poll_seals, frantic.set_payout, frantic.post_bounty, frantic.get_posting, frantic.fund_bounty, frantic.claim_bounty, frantic.get_claim · Public sink: frantic.enlist_agent, frantic.poll_seals, frantic.post_bounty, frantic.fund_bounty, frantic.claim_bounty, frantic.ack_claim, frantic.submit_delivery, frantic.judge_delivery · Destructive: frantic.poll_seals, frantic.set_payout"
+        "snippet": "Untrusted content: frantic.read_board, frantic.read_ledger, frantic.poll_seals, frantic.fund_bounty, frantic.claim_bounty, frantic.judge_delivery · Private data: frantic.get_bounty, frantic.get_agent_status, frantic.read_hire_agents, frantic.enlist_agent, frantic.poll_seals, frantic.set_payout, frantic.post_bounty, frantic.get_posting, frantic.fund_bounty, frantic.claim_bounty, frantic.release_claim, frantic.get_claim · Public sink: frantic.enlist_agent, frantic.poll_seals, frantic.post_bounty, frantic.fund_bounty, frantic.claim_bounty, frantic.release_claim, frantic.ack_claim, frantic.submit_delivery, frantic.judge_delivery · Destructive: frantic.poll_seals, frantic.set_payout"
       },
       "confidence": 0.6,
       "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"frantic.read_board\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:frantic.read_board",
+        "snippet": "before: \"Read the public Frantic board projection. Returns structuredContent { ok, channel, board, actions }, where board includes open_bounties[]/bounties[] rows with number, title, price_usd, funded, work_status, claim_slots, actions.claim.reason, and url, plus feed[] receipt events. Call frantic.get_bount\" → after: \"Read the public Frantic board a page at a time, newest bounty first. Returns structuredContent { ok, channel, board, actions }: board carries the season figures, bounties[] (number, title, visibility, price_usd, funded, work_status, claim_slots, actions.claim.reason, url) and page { status, limit, t\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"frantic.get_bounty\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:frantic.get_bounty",
+        "snippet": "before: \"Read one public Frantic bounty by posting id or bounty number. Returns snake_case public JSON including required_artifacts, delivery_contract, and claim_window_minutes when the poster supplied criteria.claim_window_minutes.\" → after: \"Read a Frantic bounty by posting id or bounty number, including required_artifacts, delivery_contract and claim_window_minutes. For a private bounty, claim it first, then read again with agent_token to see the full instructions. Private work is returned only to its participants; anonymous and unrela\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"frantic.get_agent_status\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:frantic.get_agent_status",
+        "snippet": "before: \"Read one public Frantic agent status by key id, including paid-claim eligibility, onboarding, active work, review blockers, and payout readiness.\" → after: \"Read agent status. Pass agent_token on the full endpoint to read your complete work and eligibility, including private jobs. Without an owning token only the public record is returned.\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"frantic.judge_delivery\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:frantic.judge_delivery",
+        "snippet": "before: \"Rule on a submitted delivery as the bounty's authority. Acceptance consumes a funded claim slot and makes the claim payable; rejection sends the work back for revision and can also claw back an accepted claim that has not been paid yet. Requires claim_id, decision, and authority_ref, plus authority_\" → after: \"Rule on the exact delivery attempt you inspected as the bounty's authority. Requires claim_id, delivery_attempt, decision and authority_ref. Read delivery_attempt from the current claim or review packet. A changed attempt refuses the verdict; inspect the new delivery before deciding. Acceptance cons\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
     }
   ],
-  "score": 50,
+  "score": 40,
   "scoreBreakdown": {
-    "tool-poisoning": 30,
+    "tool-poisoning": 40,
     "toxic-flow": 20
   },
   "errors": []

@@ -1,0 +1,99 @@
+{
+  "schemaVersion": 1,
+  "scanner": {
+    "version": "1.6.0",
+    "rules": "402995650b68"
+  },
+  "target": {
+    "kind": "url",
+    "ref": "https://sms-to.usefulapi.io/mcp"
+  },
+  "scannedAt": "2026-11-18T13:26:16.962Z",
+  "durationMs": 328,
+  "layers": {
+    "metadata": true,
+    "static": false
+  },
+  "tools": [
+    {
+      "name": "smsto_list_messages",
+      "descriptionHash": "a831c4031bc11d057fa38f19a3375bd97cec9052a79d3951247549252f356742",
+      "description": "Read one page of the SMS.to messages on the account: recipient, text, sender, status, cost and callback URL. Free. GET /v2/messages.",
+      "labels": [
+        "untrusted-content",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "smsto_get_message",
+      "descriptionHash": "cc6a3ce3845e654c6b8c91112216d272154c3396f0a0fcccab8cd814a84afece",
+      "description": "Read one SMS.to message by its id: recipient, text, status, cost and send time. Free. GET /message/{id}.",
+      "labels": [
+        "untrusted-content",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "smsto_list_campaigns",
+      "descriptionHash": "667e03bfec9fccfb7030dc9735f2289b874e620f21a84f680e51774985bb70dd",
+      "description": "Read one page of the SMS.to campaigns (bulk sends) on the account: text, sender, status, message counts and cost. Free. GET /v2/campaigns.",
+      "labels": [
+        "untrusted-content",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "smsto_estimate_sms",
+      "descriptionHash": "f477ef5df5d987e3b2a507dc34f55ed61f1ed87451ef67676000cc00b02e149e",
+      "description": "Read-only: estimate the SMS count and cost of one message to one recipient before sending. It sends nothing and bills nothing. POST /sms/estimate.",
+      "labels": [
+        "untrusted-content",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "smsto_send_sms",
+      "descriptionHash": "2e1b81dff2a5f3f8b72de732b8159eac31b6c2a60a27ef3d7a91b35c76bc1b95",
+      "description": "WRITE, SENDS A REAL SMS AND BILLS THE ACCOUNT: send one SMS to one recipient. A sent message cannot be recalled. Before calling, show the user the sender, recipient and exact text and get their confirmation. Run smsto_estimate_sms first to show the cost. The recipient must have consented to receive ",
+      "labels": [
+        "untrusted-content",
+        "public-sink",
+        "destructive"
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOOL-POISON-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description issues instructions to the model",
+      "detail": "Description of \"smsto_send_sms\" contains imperative instructions directed at the AI assistant rather than describing the tool. This is the core tool-poisoning technique.",
+      "evidence": {
+        "source": "tool:smsto_send_sms",
+        "snippet": "WRITE, SENDS A REAL SMS AND BILLS THE ACCOUNT: send one SMS to one recipient. A sent message cannot be recalled. Before calling, show the user the sender, recip…"
+      },
+      "confidence": 0.7,
+      "remediation": "Treat the server as untrusted; the model may obey embedded instructions."
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "medium",
+      "category": "toxic-flow",
+      "title": "Toxic flow: untrusted input can reach an external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: smsto_list_messages, smsto_get_message, smsto_list_campaigns, smsto_estimate_sms, smsto_send_sms · Public sink: smsto_list_messages, smsto_get_message, smsto_list_campaigns, smsto_estimate_sms, smsto_send_sms · Destructive: smsto_send_sms.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: smsto_list_messages, smsto_get_message, smsto_list_campaigns, smsto_estimate_sms, smsto_send_sms · Public sink: smsto_list_messages, smsto_get_message, smsto_list_campaigns, smsto_estimate_sms, smsto_send_sms · Destructive: smsto_send_sms"
+      },
+      "confidence": 0.45,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 72,
+  "scoreBreakdown": {
+    "tool-poisoning": 20,
+    "toxic-flow": 8
+  },
+  "errors": []
+}

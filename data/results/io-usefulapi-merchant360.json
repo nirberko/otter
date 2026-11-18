@@ -1,0 +1,112 @@
+{
+  "schemaVersion": 1,
+  "scanner": {
+    "version": "1.6.0",
+    "rules": "402995650b68"
+  },
+  "target": {
+    "kind": "url",
+    "ref": "https://merchant360.usefulapi.io/mcp"
+  },
+  "scannedAt": "2026-11-18T13:26:15.237Z",
+  "durationMs": 225,
+  "layers": {
+    "metadata": true,
+    "static": false
+  },
+  "tools": [
+    {
+      "name": "merchant360_check_key",
+      "descriptionHash": "6aecf3420ad894ab8c6f14610cf137138f98830f1cd4849f908240192da6bdc9",
+      "description": "Show the merchant the API key acts on, the key's name, its scopes and whether it is live or test. Use it first to confirm the connection. Merchant360 API: GET /me.",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "merchant360_list_staff",
+      "descriptionHash": "3e9fa87e618faffdbcf218a973414608f4c86ba50636fb2c7d5e0e3160861981",
+      "description": "List the staff roster (name, title, sort order, whether the person has a login). This list is read-only and not paginated. Shift workers use the roster key from merchant360_list_shifts. Merchant360 API: GET /staff."
+    },
+    {
+      "name": "merchant360_list_shifts",
+      "descriptionHash": "41bf2c180084298ae2b9fb09a941924763fb525490071dd68de3447676c272dc",
+      "description": "List team shifts that start in a window, draft and published, earliest first, with the roster of people who can be scheduled (roster[].key is the worker_key to use when writing a shift). Not paginated. The default window starts at Sunday midnight of the current week (server time zone) and lasts 14 d"
+    },
+    {
+      "name": "merchant360_get_shift",
+      "descriptionHash": "cbab6e990935a3afaf1dac796895d3ec736008dcec2c2d6eb00ff53904719df7",
+      "description": "Get one shift by id: worker, start and end, unpaid break, role, note, and whether it is a draft or published. Merchant360 API: GET /shifts/{id}."
+    },
+    {
+      "name": "merchant360_list_schedule_requests",
+      "descriptionHash": "2e5bc2836034cf84e77c844cf304a82637f34348f05ab9041f256e17ae5dc2aa",
+      "description": "List staff time-off requests and shift trade requests (drop, pickup, handoff), newest first. Filter by status when set. Not paginated. Old requests are left out by the vendor. Merchant360 API: GET /schedule-requests.",
+      "labels": [
+        "destructive"
+      ]
+    },
+    {
+      "name": "merchant360_create_shift",
+      "descriptionHash": "34a6ed11f173fa476029b5e3c06a70f7b64b10f28bd41c3f01f5d7b1648779e5",
+      "description": "WRITE: create a DRAFT shift. Staff do not see it and no text is sent until merchant360_publish_shifts publishes its window. Omit worker_key for an open shift. A shift lasts at most 24 hours. Merchant360 API: POST /shifts.",
+      "labels": [
+        "untrusted-content",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "merchant360_update_shift",
+      "descriptionHash": "e80398069bb5b74d8e6accefcda357645a56ea116ecb4c13f78926072bcb91a3",
+      "description": "WRITE: change one shift. Fields you omit keep their value. Send worker_key null to make the shift open, and role or note null (or empty) to clear them. A published shift shows the change to staff only after merchant360_publish_shifts runs again. Merchant360 API: PATCH /shifts/{id}.",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "merchant360_delete_shift",
+      "descriptionHash": "493b40d5e50140605b7d0ba5b181566547face1f1b68146707ef68cf9b209ce1",
+      "description": "WRITE: permanently delete one shift, draft or published. No text is sent. A deleted published shift leaves the staff schedule at the next publish. Merchant360 API: DELETE /shifts/{id}.",
+      "labels": [
+        "public-sink",
+        "destructive"
+      ]
+    },
+    {
+      "name": "merchant360_publish_shifts",
+      "descriptionHash": "a7125aff5704f4f8bd5572ef7f389f634f72a10637a340afce2ec0b16899ae00",
+      "description": "WRITE: publish every DRAFT shift that starts in the window, so staff can see it. Each worker with a published shift and a mobile number gets a text with a link to their schedule. Publishing an already-published window publishes nothing new. Merchant360 API: POST /shifts/publish.",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "merchant360_decide_schedule_request",
+      "descriptionHash": "fb507f73424f33f1e7cf97c2ad39e47d28abecf3804da3b524f1af70e6fa9704",
+      "description": "WRITE: approve or deny one staff time-off or shift trade request. The worker is texted the outcome, with the note when given. Approved time off also blocks those days on the public booking calendar. A decided request returns 409. Merchant360 API: POST /schedule-requests/{id}.",
+      "labels": [
+        "public-sink"
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: merchant360_create_shift · Private data: merchant360_check_key · Public sink: merchant360_create_shift, merchant360_update_shift, merchant360_delete_shift, merchant360_publish_shifts, merchant360_decide_schedule_request · Destructive: merchant360_list_schedule_requests, merchant360_delete_shift.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: merchant360_create_shift · Private data: merchant360_check_key · Public sink: merchant360_create_shift, merchant360_update_shift, merchant360_delete_shift, merchant360_publish_shifts, merchant360_decide_schedule_request · Destructive: merchant360_list_schedule_requests, merchant360_delete_shift"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 80,
+  "scoreBreakdown": {
+    "toxic-flow": 20
+  },
+  "errors": []
+}

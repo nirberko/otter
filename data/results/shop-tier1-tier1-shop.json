@@ -8,8 +8,8 @@
     "kind": "url",
     "ref": "https://mcp-v2.tier1.shop/mcp"
   },
-  "scannedAt": "2026-11-12T13:08:32.089Z",
-  "durationMs": 2100,
+  "scannedAt": "2026-11-18T13:28:18.330Z",
+  "durationMs": 2561,
   "layers": {
     "metadata": true,
     "static": false
@@ -74,13 +74,37 @@
     },
     {
       "name": "list_tariffs",
-      "descriptionHash": "2183afb0bb96e58bf3aa030fe73e0b126822cd92d18d35b9af1c2be3adbbc8cf",
-      "description": "Возвращает актуальные purchasable-тарифы, цену, валюту, product_id и точное число ссылок каждого типа."
+      "descriptionHash": "25825ef5cf45ebb92d733d19e0f665de8e4b15079f1d68fd845efc0bfdfdde3d",
+      "description": "Возвращает актуальные тарифы и товары для покупки замен URL/анкора (kind=replacement), цену, валюту, product_id и точный состав услуг. Покупка замен пополняет баланс замен, а не создаёт новые ссылки.",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "get_replacement_offer",
+      "descriptionHash": "7d511d6b08e1d13a635e5000c5254b44805638a55362d1b3cf24b2b27913b40b",
+      "description": "Первый шаг заказа платной замены URL/анкора уже размещённой ссылки. Возвращает доступность, текущие URL/анкор, остаток замен и актуальные товары для покупки недостающих замен. Ничего не списывает и не отправляет. Это НЕ замена донора и НЕ бесплатное редактирование черновика. При нехватке замен испол",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "save_link_replacement",
+      "descriptionHash": "584a8a0c31ec91c7f419b8eb0743f844b61c6d86ca100fb4193abcd56e81350d",
+      "description": "После get_replacement_offer и явного подтверждения клиента сохраняет новый URL/анкор, резервируя одну оплаченную замену. expected_url/expected_anchor — ТОЧНЫЕ current_url/current_anchor из свежего offer; url/anchor — новые данные. Денежный кошелёк не списывается. Задача ещё НЕ отправлена: после сохр"
+    },
+    {
+      "name": "submit_link_replacement",
+      "descriptionHash": "ec00223c6b1e445325ff230bf3b8bad0944784f034bf6b05a50061725822c278",
+      "description": "Отправляет ТОЛЬКО одну выбранную, ранее сохранённую замену URL/анкора, не затрагивая остальные. Требуется явное подтверждение клиента. expected_url/expected_anchor — новые данные после save_link_replacement. Не используйте submit_order или submit_link для платной замены. Проверьте submission/errors ",
+      "labels": [
+        "public-sink"
+      ]
     },
     {
       "name": "update_link_draft",
-      "descriptionHash": "193f2c29bdd3bc3054419398e12b4e98c8e8e1ca98d37d0f9dac8a1e13d2885e",
-      "description": "Меняет URL, анкор, окружающий текст или дату у принадлежащей клиенту ссылки, пока она редактируема. Не отправляет задачу в работу."
+      "descriptionHash": "640c6bee2710d9efca33e9efdce8e0b92e22f46e08282334e480c958144c7101",
+      "description": "Бесплатно меняет URL, анкор, окружающий текст или дату у принадлежащего клиенту редактируемого черновика. Не отправляет в работу. Для платной замены уже размещённой ссылки используйте get_replacement_offer → save_link_replacement → submit_link_replacement; не пытайтесь обойти оплату через редактиров"
     },
     {
       "name": "bulk_update_order_draft",
@@ -115,18 +139,45 @@
       "severity": "medium",
       "category": "toxic-flow",
       "title": "Toxic flow: untrusted input can reach an external sink",
-      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: get_account_profile · Public sink: begin_registration, get_account_profile, submit_link, submit_order.",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: get_account_profile, list_tariffs, get_replacement_offer · Public sink: begin_registration, get_account_profile, submit_link_replacement, submit_link, submit_order.",
       "evidence": {
         "source": "server:mcp",
-        "snippet": "Untrusted content: get_account_profile · Public sink: begin_registration, get_account_profile, submit_link, submit_order"
+        "snippet": "Untrusted content: get_account_profile, list_tariffs, get_replacement_offer · Public sink: begin_registration, get_account_profile, submit_link_replacement, submit_link, submit_order"
       },
       "confidence": 0.45,
       "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"list_tariffs\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:list_tariffs",
+        "snippet": "before: \"Возвращает актуальные purchasable-тарифы, цену, валюту, product_id и точное число ссылок каждого типа.\" → after: \"Возвращает актуальные тарифы и товары для покупки замен URL/анкора (kind=replacement), цену, валюту, product_id и точный состав услуг. Покупка замен пополняет баланс замен, а не создаёт новые ссылки.\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"update_link_draft\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:update_link_draft",
+        "snippet": "before: \"Меняет URL, анкор, окружающий текст или дату у принадлежащей клиенту ссылки, пока она редактируема. Не отправляет задачу в работу.\" → after: \"Бесплатно меняет URL, анкор, окружающий текст или дату у принадлежащего клиенту редактируемого черновика. Не отправляет в работу. Для платной замены уже размещённой ссылки используйте get_replacement_offer → save_link_replacement → submit_link_replacement; не пытайтесь обойти оплату через редактиров\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
     }
   ],
-  "score": 92,
+  "score": 62,
   "scoreBreakdown": {
-    "toxic-flow": 8
+    "toxic-flow": 8,
+    "tool-poisoning": 30
   },
   "errors": []
 }

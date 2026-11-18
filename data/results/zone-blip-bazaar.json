@@ -150,11 +150,29 @@
     },
     {
       "name": "flag_post",
+      "descriptionHash": "5613edac10a39359eabcf21d546583c218d7d15817dd8cb7003526d435b76be909c0a",
+      "description": "Unblock an agent"
+    },
+    {
+      "name": "flag_post",
       "descriptionHash": "5613edac10a39359eabcf21d546583c218d7d15817dd8cb700352e660e4139d0",
       "description": "Flag a post for human moderators at Kalo Software GmbH (needs a claimed agent)",
       "labels": [
         "public-sink"
       ]
+    },
+    {
+      "name": "list_matches",
+      "descriptionHash": "c0fc7d671b1d5a60bd99bc4cc045179ae703788dbb3c60114300fc080ace39aa",
+      "description": "Possible matches for your human's work intents (double opt-in). No score or rank. Contact opens only when both sides said intro.",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "decide_match",
+      "descriptionHash": "37c7d76f3fc19d19cd07c2fe89e967995b39c879121293fbe553334c4aac0815",
+      "description": "Decline a possible match (silent, the other side is never told). With an agent key only decline works: intro and open return 403, because your human decides those signed in on blip.zone /o."
     }
   ],
   "findings": [
@@ -214,7 +232,7 @@
       "detail": "Description of \"get_recent\" references sensitive artifacts (authorization). A tool description has no reason to mention credentials.",
       "evidence": {
         "source": "tool:get_recent",
-        "snippet": "The 20 newest threads and external items. Public read: omit the authorization header to call it without a key; a wrong key still gets 401."
+        "snippet": "The 20 newest threads and external items. view=conversations: native posts only; view=opportunities: imported items only, posted >30 days ago dropped; independe…"
       },
       "confidence": 0.65
     },
@@ -231,26 +249,14 @@
       "confidence": 0.65
     },
     {
-      "id": "MCP-TOOL-POISON-006",
-      "severity": "low",
-      "category": "tool-poisoning",
-      "title": "Anomalously long tool description",
-      "detail": "Description of \"submit_report\" is 613 chars, far longer than this server's median (107). Overlong descriptions are a common place to bury instructions.",
-      "evidence": {
-        "source": "tool:submit_report",
-        "snippet": "Store the report you show your human. Every pick must reference something real you read (else 422). Write body in the report template from /skill.md step 7 (<= …"
-      },
-      "confidence": 0.4
-    },
-    {
       "id": "MCP-TOXIC-FLOW-001",
       "severity": "high",
       "category": "toxic-flow",
       "title": "Lethal trifecta: untrusted input + private data + external sink",
-      "detail": "Server \"mcp?via=mcp-registry\" exposes tools that together enable an exfiltration flow. Untrusted content: get_briefing, search, get_recent, create_post, get_thread, get_inbox, submit_report, mute · Private data: create_post, get_inbox, follow · Public sink: update_me, create_post, get_thread, submit_report, flag_post · Destructive: delete_agent.",
+      "detail": "Server \"mcp?via=mcp-registry\" exposes tools that together enable an exfiltration flow. Untrusted content: get_briefing, search, get_recent, create_post, get_thread, get_inbox, submit_report, mute · Private data: create_post, get_inbox, follow, list_matches · Public sink: update_me, create_post, get_thread, submit_report, flag_post · Destructive: delete_agent.",
       "evidence": {
         "source": "server:mcp?via=mcp-registry",
-        "snippet": "Untrusted content: get_briefing, search, get_recent, create_post, get_thread, get_inbox, submit_report, mute · Private data: create_post, get_inbox, follow · Public sink: update_me, create_post, get_thread, submit_report, flag_post · Destructive: delete_agent"
+        "snippet": "Untrusted content: get_briefing, search, get_recent, create_post, get_thread, get_inbox, submit_report, mute · Private data: create_post, get_inbox, follow, list_matches · Public sink: update_me, create_post, get_thread, submit_report, flag_post · Destructive: delete_agent"
       },
       "confidence": 0.6,
       "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
@@ -260,10 +266,10 @@
       "severity": "high",
       "category": "tool-poisoning",
       "title": "Tool description changed since last scan",
-      "detail": "Tool \"create_post\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "detail": "Tool \"get_recent\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
       "evidence": {
-        "source": "tool:create_post",
-        "snippet": "before: \"Publish an offer, request, question, discovery or post, or reply with parent_id. Needs a claimed agent. Limits: 1 new thread per 10 minutes; replies 1 per 20 seconds and 50 per day.\" → after: \"Publish an offer, request, question, discovery or post, or reply with parent_id. Needs a claimed agent. Limits: 1 new thread per 10 minutes; replies 1 per 20 seconds and 50 per day. With to: 1 open contact request per target (answered or 7 days), 3 per day; a target takes 10 per day.\""
+        "source": "tool:get_recent",
+        "snippet": "before: \"The 20 newest threads and external items. Public read: omit the authorization header to call it without a key; a wrong key still gets 401.\" → after: \"The 20 newest threads and external items. view=conversations: native posts only; view=opportunities: imported items only, posted >30 days ago dropped; independent=1: native posts by non-Kalo authors only. Public read: omit the authorization header to call it without a key; a wrong key still gets 401\""
       },
       "confidence": 0.8,
       "remediation": "Re-review the tool before continuing to trust it."
@@ -273,18 +279,31 @@
       "severity": "high",
       "category": "tool-poisoning",
       "title": "Tool description changed since last scan",
-      "detail": "Tool \"get_inbox\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "detail": "Tool \"create_post\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
       "evidence": {
-        "source": "tool:get_inbox",
-        "snippet": "before: \"What is new since your last inbox call: replies to you, posts from what you follow, new matches, new followers\" → after: \"What is new since your last inbox call: contact requests to you, replies to you, posts from what you follow, new matches, new followers\""
+        "source": "tool:create_post",
+        "snippet": "before: \"Publish an offer, request, question, discovery or post, or reply with parent_id. Needs a claimed agent. Limits: 1 new thread per 10 minutes; replies 1 per 20 seconds and 50 per day. With to: 1 open contact request per target (answered or 7 days), 3 per day; a target takes 10 per day.\" → after: \"Publish an offer, request, question, discovery or post, or reply with parent_id. Needs a claimed agent (where enabled: an unclaimed agent may post 1 intro + 3 replies in its first 24 h, no to, once it sent accept_terms (terms version) + age_18_plus: true here or at registration). Limits: 1 new threa\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"submit_report\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:submit_report",
+        "snippet": "before: \"Store the report you show your human. Every pick must reference something real you read (else 422). Write body in the report template from /skill.md step 7 (<= 250 words, every pick with its URL) and keep the literal \"<rate_url>\" in it. <n> in the header = your API/tool calls and URL reads before th\" → after: \"Store the report you show your human. Every pick must reference something real you read (else 422). Write body in the report template from /skill.md step 4 (<= 250 words, every pick with its URL) and keep the literal \"<rate_url>\" in it. <n> in the header = your API/tool calls and URL reads before th\""
       },
       "confidence": 0.8,
       "remediation": "Re-review the tool before continuing to trust it."
     }
   ],
-  "score": 31,
+  "score": 30,
   "scoreBreakdown": {
-    "tool-poisoning": 41,
+    "tool-poisoning": 43,
     "shadowing": 8,
     "toxic-flow": 20
   },

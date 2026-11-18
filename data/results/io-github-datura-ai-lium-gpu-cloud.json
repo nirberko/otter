@@ -8,8 +8,8 @@
     "kind": "url",
     "ref": "https://docs.lium.io/mcp"
   },
-  "scannedAt": "2026-10-24T09:06:29.865Z",
-  "durationMs": 673,
+  "scannedAt": "2026-11-18T13:19:47.600Z",
+  "durationMs": 1125,
   "layers": {
     "metadata": true,
     "static": false
@@ -43,12 +43,17 @@
     },
     {
       "name": "estimate_provider_earnings",
-      "descriptionHash": "20dcf3ebb6c011f8ad26854d1e8a437465221cce9c0c998cd22a3e3b5d7436a9",
+      "descriptionHash": "3161dc205d6282ddfc9a1dcab506ffb140e62139dd7a2071e5364bb70b30f52a",
       "description": "Estimate what a provider earns per month on Lium by listing GPUs of a model, as the rewards calculator does: rental income (95% of the renter price) and rented extra at the last 30 days' utilisation, plus idle pay at the validator's rate for every unrented hour; with what those GPUs actually earned "
     },
     {
+      "name": "quote_rent",
+      "descriptionHash": "10016198210fa6f97df82a7703afba13149eb89672e7eeb35f6d2ecaec976dc5",
+      "description": "The price and billing terms of a rental before it is made, from the live nodes feed: GPU, count, USD per GPU-hour and per hour, and when billing starts and stops. Rents nothing. Returns quote_id, which rent_pod requires with the same arguments (valid 30 to 60 minutes)."
+    },
+    {
       "name": "rent_pod",
-      "descriptionHash": "10694a09bd6a7b3e1e31ff56e27166dc7f36f91ff6c7f90912fe6678e0e0cc1f",
+      "descriptionHash": "b071a422dcfeb87af0c1ccabae5f78ce721939afcbdaf82f8e73bf9664facdfb",
       "description": "Rent a GPU pod on Lium with your API key and wait until it runs; returns the pod id and the ssh command. Spends money from your Lium balance: the pod is billed per second until remove_pod, also when idle. Give gpu (and count, optional max_price_per_gpu_hour and country) to let Lium pick the cheapest",
       "labels": [
         "private-data"
@@ -71,17 +76,28 @@
       ]
     },
     {
+      "name": "prepare_removal",
+      "descriptionHash": "4cf2f06a69a863fbb87ae05d02a8c9510a734cb7fa9b398705f28b2aad019a93",
+      "description": "The pods a removal would delete: name, id, GPU, status, price per hour and spend so far, and each pod's removal_token for remove_pod (valid 30 to 60 minutes). Removes nothing. Up to 50 pod ids per call; list_pods gives the ids.",
+      "labels": [
+        "destructive"
+      ]
+    },
+    {
       "name": "remove_pod",
-      "descriptionHash": "6f7dc6ee028e2e4b66df5b065e5978450d3c3ba0da93ef3a2046d22bf5e45dc2",
-      "description": "Request pod deletion. Billing stops when accepted; deletion may finish asynchronously (get_pod shows DELETING). Data on the pod is lost.",
+      "descriptionHash": "8d0b8acefc12c2de7ccd01adf5b6b08cc9dbe7227451553b8004e6597eca4b02",
+      "description": "Request pod deletion. Billing stops when accepted; deletion may finish asynchronously (get_pod shows DELETING). Data on the pod is lost. Removes exactly one pod per call, and only with that pod's removal_token from prepare_removal (valid 30 to 60 minutes) and its current pod_name; otherwise nothing ",
       "labels": [
         "destructive"
       ]
     },
     {
       "name": "get_balance",
-      "descriptionHash": "fc8d0574219e964624ddcc3f2b736ae69e384df6ea1330bdb18be86073790004",
-      "description": "Your Lium balance in USD."
+      "descriptionHash": "cb2aad4ec933700d514a164adbaacd47d27ce185897d8e5d4f338627b8c6ad4f",
+      "description": "Your Lium balance in USD. This MCP app has no tool to send, transfer or withdraw TAO, other crypto or any funds. To transfer credit to another Lium account, use Billing → Transfer credits on lium.io.",
+      "labels": [
+        "public-sink"
+      ]
     },
     {
       "name": "list_templates",
@@ -101,11 +117,78 @@
         "snippet": "search"
       },
       "confidence": 0.4
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: read_page · Private data: search, rent_pod, list_pods, get_pod · Public sink: get_balance · Destructive: prepare_removal, remove_pod.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: read_page · Private data: search, rent_pod, list_pods, get_pod · Public sink: get_balance · Destructive: prepare_removal, remove_pod"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"estimate_provider_earnings\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:estimate_provider_earnings",
+        "snippet": "before: \"Estimate what a provider earns per month on Lium by listing GPUs of a model, as the rewards calculator does: rental income (95% of the renter price) and rented extra at the last 30 days' utilisation, plus idle pay at the validator's rate for every unrented hour; with what those GPUs actually earned \" → after: \"Estimate what a provider earns per month on Lium by listing GPUs of a model, as the rewards calculator does: rental income (95% of the renter price) and rented extra at the last 30 days' utilisation, plus idle pay at the validator's rate for every unrented hour; with what those GPUs actually earned \""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"rent_pod\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:rent_pod",
+        "snippet": "before: \"Rent a GPU pod on Lium with your API key and wait until it runs; returns the pod id and the ssh command. Spends money from your Lium balance: the pod is billed per second until remove_pod, also when idle. Give gpu (and count, optional max_price_per_gpu_hour and country) to let Lium pick the cheapest\" → after: \"Rent a GPU pod on Lium with your API key and wait until it runs; returns the pod id and the ssh command. Spends money from your Lium balance: the pod is billed per second until remove_pod, also when idle. Give gpu (and count, optional max_price_per_gpu_hour and country) to let Lium pick the cheapest\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"remove_pod\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:remove_pod",
+        "snippet": "before: \"Request pod deletion. Billing stops when accepted; deletion may finish asynchronously (get_pod shows DELETING). Data on the pod is lost.\" → after: \"Request pod deletion. Billing stops when accepted; deletion may finish asynchronously (get_pod shows DELETING). Data on the pod is lost. Removes exactly one pod per call, and only with that pod's removal_token from prepare_removal (valid 30 to 60 minutes) and its current pod_name; otherwise nothing \""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"get_balance\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:get_balance",
+        "snippet": "before: \"Your Lium balance in USD.\" → after: \"Your Lium balance in USD. This MCP app has no tool to send, transfer or withdraw TAO, other crypto or any funds. To transfer credit to another Lium account, use Billing → Transfer credits on lium.io.\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
     }
   ],
-  "score": 92,
+  "score": 35,
   "scoreBreakdown": {
-    "shadowing": 8
+    "shadowing": 8,
+    "toxic-flow": 20,
+    "tool-poisoning": 38
   },
   "errors": []
 }

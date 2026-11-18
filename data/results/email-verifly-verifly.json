@@ -8,8 +8,8 @@
     "kind": "url",
     "ref": "https://verifly.email/mcp"
   },
-  "scannedAt": "2026-10-27T09:58:11.385Z",
-  "durationMs": 1131,
+  "scannedAt": "2026-11-18T13:16:35.843Z",
+  "durationMs": 557,
   "layers": {
     "metadata": true,
     "static": false
@@ -44,8 +44,8 @@
     },
     {
       "name": "verify_batch",
-      "descriptionHash": "54af3ccc3fd3bd4abe77330a0cc2f7b31332851abc74692d1521e18a20127d97",
-      "description": "Synchronously verify a list of email addresses (best for up to a few hundred). Returns a per-address verdict for each email. For very large lists use the bulk async endpoint instead.",
+      "descriptionHash": "bf8f1a98471bc2e08fefeaba9a2cb5cd25dc3f494c42c0b4c71acb589bab8b42",
+      "description": "Synchronously verify a list of email addresses (up to 100 addresses). Returns a per-address verdict for each email. For very large lists use the bulk async endpoint instead.",
       "labels": [
         "untrusted-content",
         "public-sink"
@@ -140,16 +140,35 @@
     },
     {
       "name": "buy_credits",
-      "descriptionHash": "c4df96999ce869f64b047eb28cb6ebba6657cb25a210a280cb415feaf01dd1f2",
-      "description": "Start a purchase of a credit package and return a way to pay. This does NOT complete a payment by itself — it returns a payment link / address:\n• method 'stripe' → returns a checkout_url. Paying by card requires a HUMAN to open that link and enter card details; an agent cannot finish a card payment ",
-      "labels": [
-        "private-data"
-      ]
+      "descriptionHash": "ca811dc18ea2553511d62cbf792c0f1703d5f973d355b8ec5c05600c928994d9",
+      "description": "Create a credit-package checkout without completing payment. Read get_service_status first. Stripe returns a card checkout link. New crypto checkout is temporarily paused during the Plisio incident. Any actual charge or transfer requires user authorization."
     },
     {
       "name": "register_account",
-      "descriptionHash": "e95f4878bbf1ead62bc92d3159858ec3e19fa502d8250036c05989fb375e8160",
-      "description": "Programmatically create a brand-new Verifly account — this is how an agent self-onboards with no human in the loop. Requires only an email and a password (min 8 chars; disposable email domains are rejected). The new account starts with free credits. The response includes the new account id/email and",
+      "descriptionHash": "2b7a47467efcd05ed3d00df875958660283044d926a91709e241d25799de754f",
+      "description": "Programmatically create a brand-new Verifly account — this is how an agent self-onboards with no human in the loop. Requires only an email and a password (min 8 chars; disposable email domains are rejected). The new account starts with 100 immediately usable credits without inbox confirmation. Optio",
+      "labels": [
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "get_service_status",
+      "descriptionHash": "1b3c1dcfe21760d6bc5d07bf1406e0ac81a8d69bb21241bef809eb6c96ac0cbc",
+      "description": "Read live free-credit policy, trial confirmation requirements, card/crypto checkout availability, package prices and documentation links. Public, no key, no credits. Does not create an order or pay anything. Check this before offering crypto."
+    },
+    {
+      "name": "request_credit_bonus",
+      "descriptionHash": "2ba6785d6d502fd190c48d3e9131e757944091bbbeece2c31d45a582671e7508",
+      "description": "Send one email code to the authenticated account address to qualify for400additional credits (500total). Base100credits are already usable; this step is optional. Does not accept an arbitrary recipient. No credits charged. If the bonus is already claimed, returns its state without another email.",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "confirm_credit_bonus",
+      "descriptionHash": "11edf3dfcb55c7d64bf2849979a3b4f801b81853f08c22294b2bef693034193e",
+      "description": "Submit the code from request_credit_bonus. Grants400extra once to an eligible corporate account, never on provider auto-confirmation alone. Personal/free-provider emails receive100base credits. No payment or password change.",
       "labels": [
         "private-data",
         "public-sink"
@@ -157,6 +176,18 @@
     }
   ],
   "findings": [
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"buy_credits\" references sensitive artifacts (authorization). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:buy_credits",
+        "snippet": "Create a credit-package checkout without completing payment. Read get_service_status first. Stripe returns a card checkout link. New crypto checkout is temporar…"
+      },
+      "confidence": 0.65
+    },
     {
       "id": "MCP-TOOL-POISON-003",
       "severity": "high",
@@ -170,22 +201,73 @@
       "confidence": 0.65
     },
     {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"confirm_credit_bonus\" references sensitive artifacts (password). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:confirm_credit_bonus",
+        "snippet": "Submit the code from request_credit_bonus. Grants400extra once to an eligible corporate account, never on provider auto-confirmation alone. Personal/free-provid…"
+      },
+      "confidence": 0.65
+    },
+    {
       "id": "MCP-TOXIC-FLOW-001",
       "severity": "high",
       "category": "toxic-flow",
       "title": "Lethal trifecta: untrusted input + private data + external sink",
-      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: get_started, verify_batch, clean_email_list, check_domain_health, submit_bulk, get_job_results, get_usage, get_account · Private data: get_started, verify_email_demo, extract_emails, check_domain_health, get_credits, get_account, buy_credits, register_account · Public sink: get_started, verify_email_demo, verify_email, verify_batch, clean_email_list, extract_emails, check_domain_health, submit_bulk, get_job_results, get_account, register_account.",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: get_started, verify_batch, clean_email_list, check_domain_health, submit_bulk, get_job_results, get_usage, get_account · Private data: get_started, verify_email_demo, extract_emails, check_domain_health, get_credits, get_account, register_account, confirm_credit_bonus · Public sink: get_started, verify_email_demo, verify_email, verify_batch, clean_email_list, extract_emails, check_domain_health, submit_bulk, get_job_results, get_account, register_account, request_credit_bonus, confirm_credit_bonus.",
       "evidence": {
         "source": "server:mcp",
-        "snippet": "Untrusted content: get_started, verify_batch, clean_email_list, check_domain_health, submit_bulk, get_job_results, get_usage, get_account · Private data: get_started, verify_email_demo, extract_emails, check_domain_health, get_credits, get_account, buy_credits, register_account · Public sink: get_started, verify_email_demo, verify_email, verify_batch, clean_email_list, extract_emails, check_domain_health, submit_bulk, get_job_results, get_account, register_account"
+        "snippet": "Untrusted content: get_started, verify_batch, clean_email_list, check_domain_health, submit_bulk, get_job_results, get_usage, get_account · Private data: get_started, verify_email_demo, extract_emails, check_domain_health, get_credits, get_account, register_account, confirm_credit_bonus · Public sink: get_started, verify_email_demo, verify_email, verify_batch, clean_email_list, extract_emails, check_domain_health, submit_bulk, get_job_results, get_account, register_account, request_credit_bonus, confirm_credit_bonus"
       },
       "confidence": 0.6,
       "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"verify_batch\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:verify_batch",
+        "snippet": "before: \"Synchronously verify a list of email addresses (best for up to a few hundred). Returns a per-address verdict for each email. For very large lists use the bulk async endpoint instead.\" → after: \"Synchronously verify a list of email addresses (up to 100 addresses). Returns a per-address verdict for each email. For very large lists use the bulk async endpoint instead.\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"buy_credits\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:buy_credits",
+        "snippet": "before: \"Start a purchase of a credit package and return a way to pay. This does NOT complete a payment by itself — it returns a payment link / address:\n• method 'stripe' → returns a checkout_url. Paying by card requires a HUMAN to open that link and enter card details; an agent cannot finish a card payment \" → after: \"Create a credit-package checkout without completing payment. Read get_service_status first. Stripe returns a card checkout link. New crypto checkout is temporarily paused during the Plisio incident. Any actual charge or transfer requires user authorization.\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"register_account\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:register_account",
+        "snippet": "before: \"Programmatically create a brand-new Verifly account — this is how an agent self-onboards with no human in the loop. Requires only an email and a password (min 8 chars; disposable email domains are rejected). The new account starts with free credits. The response includes the new account id/email and\" → after: \"Programmatically create a brand-new Verifly account — this is how an agent self-onboards with no human in the loop. Requires only an email and a password (min 8 chars; disposable email domains are rejected). The new account starts with 100 immediately usable credits without inbox confirmation. Optio\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
     }
   ],
-  "score": 60,
+  "score": 40,
   "scoreBreakdown": {
-    "tool-poisoning": 20,
+    "tool-poisoning": 40,
     "toxic-flow": 20
   },
   "errors": []

@@ -8,8 +8,8 @@
     "kind": "url",
     "ref": "https://directmailamerica.com/api/mcp-narrow"
   },
-  "scannedAt": "2026-11-01T11:22:58.084Z",
-  "durationMs": 926,
+  "scannedAt": "2026-11-18T13:13:06.554Z",
+  "durationMs": 933,
   "layers": {
     "metadata": true,
     "static": false
@@ -30,7 +30,7 @@
     },
     {
       "name": "quote_product",
-      "descriptionHash": "c0ccdc87eca57661b50e87c37a36c042c82fa48ba7db1be9a75e0c77c3050b3a",
+      "descriptionHash": "b00d56e1ac15139f4fe0aa63f87797915bba0d4a56a661b2d1277a531e0caaaa",
       "description": "Hold a 36-hour expanded-product quote using a workspace key, print-ready PDF and 1–100 US recipients. Returns the exact expiration in expiresAt (UTC). Uploads artwork to DirectMailAmerica for live pricing; no charge or mailing. Each PDF page must match catalog dimensions; postcards require one lands"
     },
     {
@@ -45,7 +45,7 @@
     },
     {
       "name": "send_letter",
-      "descriptionHash": "8d16cf8763ad07f612a0171a6883aafcbce062b04a0f215fd03a8e7a8cc3c68b",
+      "descriptionHash": "474aabe9a9258a3d9fcf76f7ad88a63934f28567d2cc4e102c5eece78bdd9871",
       "description": "Release the immutable quoteId from quote_letter using an existing authenticated workspace balance. Requires confirmed=true, approvedTotalCents matching the saved quote and one idempotencyKey after review of the exact saved PDF, addresses and options. Changed content requires a new quote and fresh ap",
       "labels": [
         "public-sink"
@@ -109,9 +109,10 @@
     },
     {
       "name": "get_product_quote",
-      "descriptionHash": "d9a2e53f9d50a7eed0c454f221df13696a423994c74e3c6f9bf9de2f2980869f",
-      "description": "Recover an owned saved product quote, exact options, price, expiry and order state. Does not send, charge, renew or replace a quote. Reconcile pending results using the same quote ID. Workspace authentication required.",
+      "descriptionHash": "629ffa183757d2ed536e6c58b8d853b08bdc24179f8f7e3d6b0f3cf3ecdb1895",
+      "description": "Recover an owned saved product quote, exact options, price, expiry and order state. A ready fallback quote has a fixed total and fulfillmentPending=true; disclose the delay before approval. mailing_queued means payment/approval is recorded and fulfillment is pending; never pay again. A queued pricin",
       "labels": [
+        "untrusted-content",
         "public-sink"
       ]
     },
@@ -185,6 +186,18 @@
       "severity": "high",
       "category": "tool-poisoning",
       "title": "Description references secrets/credentials",
+      "detail": "Description of \"send_letter\" references sensitive artifacts (authorization). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:send_letter",
+        "snippet": "Release the immutable quoteId from quote_letter using an existing authenticated workspace balance. Requires confirmed=true, approvedTotalCents matching the save…"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
       "detail": "Description of \"get_workspace_settings\" references sensitive artifacts (credentials, secret). A tool description has no reason to mention credentials.",
       "evidence": {
         "source": "tool:get_workspace_settings",
@@ -221,18 +234,57 @@
       "severity": "high",
       "category": "toxic-flow",
       "title": "Lethal trifecta: untrusted input + private data + external sink",
-      "detail": "Server \"mcp-narrow\" exposes tools that together enable an exfiltration flow. Untrusted content: send_product_quote, save_cover_sheet, convert_postcard_image · Private data: get_connection_status, send_product_quote, get_workspace_settings, download_job_document, render_cover_sheet, quote_letter, get_letter_quote · Public sink: send_product_quote, send_letter, get_pricing, get_workspace_settings, download_job_document, get_product_quote, preview_letter, get_letter_quote · Destructive: list_cover_sheets, save_cover_sheet.",
+      "detail": "Server \"mcp-narrow\" exposes tools that together enable an exfiltration flow. Untrusted content: send_product_quote, get_product_quote, save_cover_sheet, convert_postcard_image · Private data: get_connection_status, send_product_quote, get_workspace_settings, download_job_document, render_cover_sheet, quote_letter, get_letter_quote · Public sink: send_product_quote, send_letter, get_pricing, get_workspace_settings, download_job_document, get_product_quote, preview_letter, get_letter_quote · Destructive: list_cover_sheets, save_cover_sheet.",
       "evidence": {
         "source": "server:mcp-narrow",
-        "snippet": "Untrusted content: send_product_quote, save_cover_sheet, convert_postcard_image · Private data: get_connection_status, send_product_quote, get_workspace_settings, download_job_document, render_cover_sheet, quote_letter, get_letter_quote · Public sink: send_product_quote, send_letter, get_pricing, get_workspace_settings, download_job_document, get_product_quote, preview_letter, get_letter_quote · Destructive: list_cover_sheets, save_cover_sheet"
+        "snippet": "Untrusted content: send_product_quote, get_product_quote, save_cover_sheet, convert_postcard_image · Private data: get_connection_status, send_product_quote, get_workspace_settings, download_job_document, render_cover_sheet, quote_letter, get_letter_quote · Public sink: send_product_quote, send_letter, get_pricing, get_workspace_settings, download_job_document, get_product_quote, preview_letter, get_letter_quote · Destructive: list_cover_sheets, save_cover_sheet"
       },
       "confidence": 0.6,
       "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"quote_product\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:quote_product",
+        "snippet": "before: \"Hold a 36-hour expanded-product quote using a workspace key, print-ready PDF and 1–100 US recipients. Returns the exact expiration in expiresAt (UTC). Uploads artwork to DirectMailAmerica for live pricing; no charge or mailing. Each PDF page must match catalog dimensions; postcards require one lands\" → after: \"Hold a 36-hour expanded-product quote using a workspace key, print-ready PDF and 1–100 US recipients. Returns the exact expiration in expiresAt (UTC). Uploads artwork to DirectMailAmerica for live pricing; no charge or mailing. Each PDF page must match catalog dimensions; postcards require one lands\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"send_letter\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:send_letter",
+        "snippet": "before: \"Release the immutable quoteId from quote_letter using an existing authenticated workspace balance. Requires confirmed=true, approvedTotalCents matching the saved quote and one idempotencyKey after review of the exact saved PDF, addresses and options. Changed content requires a new quote and fresh ap\" → after: \"Release the immutable quoteId from quote_letter using an existing authenticated workspace balance. Requires confirmed=true, approvedTotalCents matching the saved quote and one idempotencyKey after review of the exact saved PDF, addresses and options. Changed content requires a new quote and fresh ap\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"get_product_quote\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:get_product_quote",
+        "snippet": "before: \"Recover an owned saved product quote, exact options, price, expiry and order state. Does not send, charge, renew or replace a quote. Reconcile pending results using the same quote ID. Workspace authentication required.\" → after: \"Recover an owned saved product quote, exact options, price, expiry and order state. A ready fallback quote has a fixed total and fulfillmentPending=true; disclose the delay before approval. mailing_queued means payment/approval is recorded and fulfillment is pending; never pay again. A queued pricin\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
     }
   ],
-  "score": 45,
+  "score": 39,
   "scoreBreakdown": {
-    "tool-poisoning": 35,
+    "tool-poisoning": 41,
     "toxic-flow": 20
   },
   "errors": []

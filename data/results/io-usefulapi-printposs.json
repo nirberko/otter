@@ -1,0 +1,100 @@
+{
+  "schemaVersion": 1,
+  "scanner": {
+    "version": "1.6.0",
+    "rules": "402995650b68"
+  },
+  "target": {
+    "kind": "url",
+    "ref": "https://printposs.usefulapi.io/mcp"
+  },
+  "scannedAt": "2026-11-18T13:26:14.327Z",
+  "durationMs": 358,
+  "layers": {
+    "metadata": true,
+    "static": false
+  },
+  "tools": [
+    {
+      "name": "printposs_list_stores",
+      "descriptionHash": "91269304ed3779e0c5d810574c8c81105801b04a6fea9ea20689e3154d17f588",
+      "description": "List the seller's connected stores (for example Shopify or Etsy shops). Use a store id as store_id when creating an order. GET /api/v1/seller/stores."
+    },
+    {
+      "name": "printposs_list_products",
+      "descriptionHash": "2d12de5121c98a5923d22968579c1633a169bc403d98db901895cac2fd303abf",
+      "description": "List the print-on-demand products with their variants (device model, colour, product_variant_id). Use a product_variant_id from this list in printposs_create_order. GET /api/v1/seller/products."
+    },
+    {
+      "name": "printposs_list_orders",
+      "descriptionHash": "8a880bd2b2e02d8f9c82659fd7242e47b208179d529ab1895943451bc754833f",
+      "description": "List the seller's fulfillment orders with status (order_status, payment_status), external_order_id and totals. GET /api/v1/seller/orders."
+    },
+    {
+      "name": "printposs_get_order",
+      "descriptionHash": "09e587cba5b0cf7b24d87858592e5778cdf3f5492e30760a9e15edd1f79343c9",
+      "description": "Get one order by its PrintPoss order_number, with optional items, packages (tracking), costs and refunds. GET /api/v1/seller/orders/{order_number}."
+    },
+    {
+      "name": "printposs_list_wallet_transactions",
+      "descriptionHash": "2e5517bbc51ef650e5d6155def05ac78e2b37da60fa8af6c47ad5f70dcf2eb8f",
+      "description": "List wallet transactions (top-ups, order payments, refunds) with balance_after. Use it to check spend per order. GET /api/v1/seller/wallet-transactions.",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "printposs_get_webhook_setup",
+      "descriptionHash": "253eac4126773af4189722aefb6e11b4533227e64d8df12799d3d1135bfeeff8",
+      "description": "Read which webhook events (order.shipped, package.in_transit, package.delivered) are set up and their URLs. The header secret is not shown. GET /api/v1/seller/webhooks.",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "printposs_create_order",
+      "descriptionHash": "3be8f0388c3b7b513afc40d54c22954df503c3f48170cb10cb31ac3a21a968cf",
+      "description": "Create a print-on-demand order that PrintPoss prints and ships to the buyer. It charges the seller's PrintPoss wallet and cannot be cancelled by this tool. Use a unique external_order_id: a repeated id is rejected, so a retry cannot double-charge. Get product_variant_id from printposs_list_products ",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink"
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"printposs_get_webhook_setup\" references sensitive artifacts (secret). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:printposs_get_webhook_setup",
+        "snippet": "Read which webhook events (order.shipped, package.in_transit, package.delivered) are set up and their URLs. The header secret is not shown. GET /api/v1/seller/w…"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: printposs_get_webhook_setup, printposs_create_order · Private data: printposs_list_wallet_transactions, printposs_get_webhook_setup, printposs_create_order · Public sink: printposs_get_webhook_setup, printposs_create_order.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: printposs_get_webhook_setup, printposs_create_order · Private data: printposs_list_wallet_transactions, printposs_get_webhook_setup, printposs_create_order · Public sink: printposs_get_webhook_setup, printposs_create_order"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 60,
+  "scoreBreakdown": {
+    "tool-poisoning": 20,
+    "toxic-flow": 20
+  },
+  "errors": []
+}

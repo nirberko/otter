@@ -1,0 +1,101 @@
+{
+  "schemaVersion": 1,
+  "scanner": {
+    "version": "1.6.0",
+    "rules": "402995650b68"
+  },
+  "target": {
+    "kind": "url",
+    "ref": "https://appntmnts.usefulapi.io/mcp"
+  },
+  "scannedAt": "2026-11-18T13:26:52.358Z",
+  "durationMs": 319,
+  "layers": {
+    "metadata": true,
+    "static": false
+  },
+  "tools": [
+    {
+      "name": "appntmnts_whoami",
+      "descriptionHash": "443752983a544af353e7df2b4a6f07d16a3ace0e47ade4db81a3c399a47d96fb",
+      "description": "Return the Appntmnts account the API key belongs to: name, username, timezone and public booking URL. Good first call to confirm the connection. Appntmnts API: GET /api/v1/me.",
+      "labels": [
+        "untrusted-content",
+        "private-data"
+      ]
+    },
+    {
+      "name": "appntmnts_list_event_types",
+      "descriptionHash": "705c406df119d7cc444d4ce7ba5fe68a0ee3f0035dd26d3709cde867f2ac1703",
+      "description": "List the event types (meeting templates) on the account, with duration, kind, price and public booking URL. Use the id or slug from here in the other tools. Appntmnts API: GET /api/v1/event-types.",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "appntmnts_get_event_type",
+      "descriptionHash": "594ca67f88e158911a99857abf66101ee0838f9ad3600988206bde0eb95d9aad",
+      "description": "Get one event type by numeric id or slug, including duration, location and whether payment is required. Appntmnts API: GET /api/v1/event-types/{idOrSlug}."
+    },
+    {
+      "name": "appntmnts_get_slots",
+      "descriptionHash": "45b6b7a662a9fda8c83be9c9b47468712ddcf93c46cac5dedbd6752ad7fd585e",
+      "description": "List the open start times for one event type on one date, honoring its schedule, buffers and existing bookings. Appntmnts API: GET /api/v1/event-types/{idOrSlug}/slots."
+    },
+    {
+      "name": "appntmnts_list_availability",
+      "descriptionHash": "86ef85cf6fbea49b66358a717c76b70f22dbec026e9da3906e2bdde4092bc1b2",
+      "description": "List open start times for one event type across up to 31 days. Days with no availability are omitted. Appntmnts API: GET /api/v1/availability."
+    },
+    {
+      "name": "appntmnts_list_bookings",
+      "descriptionHash": "14e804eaec0af00b428d777dedecb3fba347ba74da7d09effb9c882dba22a271",
+      "description": "List bookings, most recent first, with optional filters for status, date range and event type. Returns one page plus meta (current_page, last_page, total). Appntmnts API: GET /api/v1/bookings."
+    },
+    {
+      "name": "appntmnts_get_booking",
+      "descriptionHash": "6f5b6da1d8761065d82a0075f9eefa4379375db0d99587dc1d3dc2e4652e32ac",
+      "description": "Get one booking by id: status, payment status, customer, scheduled time and meeting URL. Appntmnts API: GET /api/v1/bookings/{id}.",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "appntmnts_create_booking",
+      "descriptionHash": "3196604eaa6a14faf9727a265a20988c0e1e23792db44a3873027ad26540a857",
+      "description": "Book one open slot for an attendee. The slot must match an open start time from appntmnts_get_slots; otherwise the call fails with HTTP 422. This sends the attendee a confirmation. It is not idempotent: a retry can create a second booking. Appntmnts API: POST /api/v1/bookings.",
+      "labels": [
+        "untrusted-content",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "appntmnts_cancel_booking",
+      "descriptionHash": "546598de550ffbe30d055170d93b7150afba4f2b661bb90c1b865b3d4772105f",
+      "description": "Cancel a pending or confirmed booking by id. This sends the normal cancellation e-mails and triggers the account's workflows. It cannot be undone through this API. Appntmnts API: POST /api/v1/bookings/{id}/cancel.",
+      "labels": [
+        "public-sink"
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: appntmnts_whoami, appntmnts_list_event_types, appntmnts_get_booking, appntmnts_create_booking · Private data: appntmnts_whoami · Public sink: appntmnts_create_booking, appntmnts_cancel_booking.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: appntmnts_whoami, appntmnts_list_event_types, appntmnts_get_booking, appntmnts_create_booking · Private data: appntmnts_whoami · Public sink: appntmnts_create_booking, appntmnts_cancel_booking"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 80,
+  "scoreBreakdown": {
+    "toxic-flow": 20
+  },
+  "errors": []
+}

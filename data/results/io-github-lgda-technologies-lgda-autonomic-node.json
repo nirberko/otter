@@ -1,0 +1,101 @@
+{
+  "schemaVersion": 1,
+  "scanner": {
+    "version": "1.6.0",
+    "rules": "402995650b68"
+  },
+  "target": {
+    "kind": "url",
+    "ref": "https://lgda-music.fly.dev/mcp"
+  },
+  "scannedAt": "2026-11-18T13:40:20.526Z",
+  "durationMs": 64,
+  "layers": {
+    "metadata": true,
+    "static": false
+  },
+  "tools": [
+    {
+      "name": "list_catalog",
+      "descriptionHash": "cacba6df0cd5dae238a8345647c2d999b2e0c3279391ef4e0e21f535bdb1e7d2",
+      "description": "List all 9 albums and 27 wellness music tracks with prices ($5.99/track, $14.99/album) and per-track session evidence. No payment required."
+    },
+    {
+      "name": "get_track_evidence",
+      "descriptionHash": "61c32bc4289d5d7b171a60ad5aa119a1d8cfe89aa739a7633e2d31ebe163f692",
+      "description": "Get the History session evidence for one track: session count, mean/median/min/max RMSSD (ms), mean heart rate (bpm), and the underlying sessions. Tracks with no sessions report session_count 0. Wellness music; not a medical device; rPPG-derived HRV values are estimates."
+    },
+    {
+      "name": "purchase_track",
+      "descriptionHash": "3f861559e36492c286f8e4e98ab31507664b768c0c396d9a171ba2a285504538",
+      "description": "Purchase a single track ($5.99 USDC via x402 v2 or v1). Returns the stream URL and x402 payment requirements; GET the URL with a PAYMENT-SIGNATURE (v2) or X-PAYMENT (v1) header to receive the MP3 and an X-LGDA-Session token, then POST telemetry to /verify-session for a signed receipt.",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "purchase_album",
+      "descriptionHash": "877bef1692bdc3db34e168387cc715cc1d61a37437e33bc76cd5f9aaf7ff26fc",
+      "description": "Purchase a whole album ($14.99 USDC via x402 v2 or v1). One payment entitles the buyer to all 3 tracks on the album. Returns stream URLs and x402 payment requirements; pay once, then present the issued X-LGDA-Session token to /stream for each track.",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "verify_session",
+      "descriptionHash": "c2dbcc5042ca7faa300f20d190615a3c8d62b5fef13c6de938617ba26d58feed",
+      "description": "Submit pre/post HRV segments (RMSSD, IBI, source) for a paid session and receive an Ed25519-signed receipt. Not paywalled.",
+      "labels": [
+        "untrusted-content",
+        "public-sink"
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"purchase_track\" references sensitive artifacts (session token). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:purchase_track",
+        "snippet": "Purchase a single track ($5.99 USDC via x402 v2 or v1). Returns the stream URL and x402 payment requirements; GET the URL with a PAYMENT-SIGNATURE (v2) or X-PAY…"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"purchase_album\" references sensitive artifacts (session token). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:purchase_album",
+        "snippet": "Purchase a whole album ($14.99 USDC via x402 v2 or v1). One payment entitles the buyer to all 3 tracks on the album. Returns stream URLs and x402 payment requir…"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: purchase_track, verify_session · Private data: purchase_track, purchase_album · Public sink: purchase_track, verify_session.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: purchase_track, verify_session · Private data: purchase_track, purchase_album · Public sink: purchase_track, verify_session"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 50,
+  "scoreBreakdown": {
+    "tool-poisoning": 30,
+    "toxic-flow": 20
+  },
+  "errors": []
+}
