@@ -8,8 +8,8 @@
     "kind": "url",
     "ref": "https://api.wsystem.dev/mcp/"
   },
-  "scannedAt": "2026-10-27T10:03:35.104Z",
-  "durationMs": 1391,
+  "scannedAt": "2026-11-19T13:37:24.694Z",
+  "durationMs": 1166,
   "layers": {
     "metadata": true,
     "static": false
@@ -27,8 +27,11 @@
     },
     {
       "name": "lookup_company",
-      "descriptionHash": "a2ee191c554ad0476fb92765424d41de0523aaf5c74f9a82ff5a538772470cfd",
-      "description": "Look up a company in official European business registers by name or registry number.\ncountry: FR (SIREN), NO (org.nr), FI (Y-tunnus), CZ (ICO), PL (KRS number), EE, or any other ISO code / 'LEI' (GLEIF).\nReturns legal name, ID, status/active, address, VAT ID, activity code and official source link."
+      "descriptionHash": "2817c106af57f8a4a7db68dbfa28bf11052ec6554b66b33db0e0363c7585a2b4",
+      "description": "Look up a company in official European business registers by name or registry number.\ncountry: FR (SIREN), NO (org.nr), FI (Y-tunnus), CZ (ICO), PL (KRS number or name; names via GLEIF LEI index + KRS record), EE, SK (ICO or name), BE (enterprise number, BE VAT or name), or any other ISO code / 'LEI",
+      "labels": [
+        "private-data"
+      ]
     },
     {
       "name": "screen_sanctions",
@@ -58,7 +61,7 @@
     },
     {
       "name": "validate_einvoice",
-      "descriptionHash": "6dc27712f12ddd3cd72c5d93aa722192434a5a1340f566888b731697826b1c88",
+      "descriptionHash": "56b48d58d2ccd77968ccea40d0fe894d5ca5361a5bf962ba8714105b121304e2",
       "description": "Validate an EU e-invoice XML (UBL 2.1 Invoice/CreditNote or UN/CEFACT CII, e.g. XRechnung, Factur-X/ZUGFeRD XML) against the\nofficial CEN EN 16931 rules and, for XRechnung, the KoSIT XRechnung 3.0 rules. Returns valid, and every error with its rule ID\n(e.g. BR-CO-10), a plain-English message, XPath ",
       "labels": [
         "untrusted-content",
@@ -66,8 +69,13 @@
       ]
     },
     {
+      "name": "parse_einvoice",
+      "descriptionHash": "dcb3ea4c43b985be566d830e2640d1c14840c6c9f8dfad28af6a9aa3140b25d4",
+      "description": "Read an incoming EU e-invoice into one JSON shape: seller, buyer, dates, references, totals, VAT breakdown, payment/IBAN, lines and\nattachments. Accepts UBL 2.1 Invoice/CreditNote or UN/CEFACT CII XML (XRechnung, Peppol BIS 3, Factur-X XML) in xml, or a ZUGFeRD/Factur-X\nPDF as base64 in pdf_base64. "
+    },
+    {
       "name": "create_einvoice",
-      "descriptionHash": "6d87a5c4da94482d0d622ee850317dd38757baa1888af61b30f1d30325a3e47d",
+      "descriptionHash": "c6c9ab4a964676e74d3e37990a007561146b123eb219e5e4a4ccaa0c45bca1ce",
       "description": "Create a validated EU e-invoice (UBL 2.1) from simple JSON. invoice = {format: en16931|xrechnung|peppol-bis3, invoice_number,\nissue_date (YYYY-MM-DD), due_date?, tax_point_date?, delivery_date?, currency (EUR), buyer_reference?, seller: {name, vat_id, street, city,\npostal_code, country, email, phone",
       "labels": [
         "public-sink",
@@ -84,11 +92,12 @@
     },
     {
       "name": "send_einvoice_sandbox",
-      "descriptionHash": "c5782e0a1c3303190086effc090715ff8de92ea2026846d31e9b8aa14b1a6a9b",
-      "description": "SANDBOX ONLY - never reaches a real buyer. Runs the full send flow on an invoice (same JSON as create_einvoice): VIES check\nof the buyer VAT, sanctions screen of the buyer name, EN 16931 create + validate, route lookup (Peppol/mandate), transport\nhand-off and an Ed25519-signed evidence receipt (JWS)",
+      "descriptionHash": "8ab13b31f016f40353442c38e60bc8bac60c9740cd9d6f578a0cae5cb949d77a",
+      "description": "SANDBOX ONLY - never reaches a real buyer. Safe send: first checks the buyer VAT in VIES, whether the buyer can be\nreached on Peppol, and the buyer name against EU/UN/OFAC/UK sanctions lists, then creates + validates the EN 16931 invoice\n(same JSON as create_einvoice), and returns one preflight verd",
       "labels": [
-        "private-data",
-        "public-sink"
+        "untrusted-content",
+        "public-sink",
+        "destructive"
       ]
     },
     {
@@ -107,21 +116,86 @@
   ],
   "findings": [
     {
+      "id": "MCP-TOOL-POISON-007",
+      "severity": "low",
+      "category": "tool-poisoning",
+      "title": "Description uses pressure/override language",
+      "detail": "Description of \"send_einvoice_sandbox\" stacks urgency/override words (always, never). Legitimate tool descriptions rarely pressure the model to act or ignore prior guidance.",
+      "evidence": {
+        "source": "tool:send_einvoice_sandbox",
+        "snippet": "SANDBOX ONLY - never reaches a real buyer. Safe send: first checks the buyer VAT in VIES, whether the buyer can be reached on Peppol, and the buyer name against…"
+      },
+      "confidence": 0.3
+    },
+    {
       "id": "MCP-TOXIC-FLOW-001",
       "severity": "high",
       "category": "toxic-flow",
       "title": "Lethal trifecta: untrusted input + private data + external sink",
-      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: screen_sanctions, kyb_check, validate_einvoice, check_fr_pa_registry · Private data: send_einvoice_sandbox · Public sink: validate_einvoice, create_einvoice, send_einvoice_sandbox · Destructive: create_einvoice, einvoice_route.",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: screen_sanctions, kyb_check, validate_einvoice, send_einvoice_sandbox, check_fr_pa_registry · Private data: lookup_company · Public sink: validate_einvoice, create_einvoice, send_einvoice_sandbox · Destructive: create_einvoice, einvoice_route, send_einvoice_sandbox.",
       "evidence": {
         "source": "server:mcp",
-        "snippet": "Untrusted content: screen_sanctions, kyb_check, validate_einvoice, check_fr_pa_registry · Private data: send_einvoice_sandbox · Public sink: validate_einvoice, create_einvoice, send_einvoice_sandbox · Destructive: create_einvoice, einvoice_route"
+        "snippet": "Untrusted content: screen_sanctions, kyb_check, validate_einvoice, send_einvoice_sandbox, check_fr_pa_registry · Private data: lookup_company · Public sink: validate_einvoice, create_einvoice, send_einvoice_sandbox · Destructive: create_einvoice, einvoice_route, send_einvoice_sandbox"
       },
       "confidence": 0.6,
       "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"lookup_company\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:lookup_company",
+        "snippet": "before: \"Look up a company in official European business registers by name or registry number.\ncountry: FR (SIREN), NO (org.nr), FI (Y-tunnus), CZ (ICO), PL (KRS number), EE, or any other ISO code / 'LEI' (GLEIF).\nReturns legal name, ID, status/active, address, VAT ID, activity code and official source link.\" → after: \"Look up a company in official European business registers by name or registry number.\ncountry: FR (SIREN), NO (org.nr), FI (Y-tunnus), CZ (ICO), PL (KRS number or name; names via GLEIF LEI index + KRS record), EE, SK (ICO or name), BE (enterprise number, BE VAT or name), or any other ISO code / 'LEI\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"validate_einvoice\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:validate_einvoice",
+        "snippet": "before: \"Validate an EU e-invoice XML (UBL 2.1 Invoice/CreditNote or UN/CEFACT CII, e.g. XRechnung, Factur-X/ZUGFeRD XML) against the\nofficial CEN EN 16931 rules and, for XRechnung, the KoSIT XRechnung 3.0 rules. Returns valid, and every error with its rule ID\n(e.g. BR-CO-10), a plain-English message, XPath \" → after: \"Validate an EU e-invoice XML (UBL 2.1 Invoice/CreditNote or UN/CEFACT CII, e.g. XRechnung, Factur-X/ZUGFeRD XML) against the\nofficial CEN EN 16931 rules and, for XRechnung, the KoSIT XRechnung 3.0 rules. Returns valid, and every error with its rule ID\n(e.g. BR-CO-10), a plain-English message, XPath \""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"create_einvoice\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:create_einvoice",
+        "snippet": "before: \"Create a validated EU e-invoice (UBL 2.1) from simple JSON. invoice = {format: en16931|xrechnung|peppol-bis3, invoice_number,\nissue_date (YYYY-MM-DD), due_date?, tax_point_date?, delivery_date?, currency (EUR), buyer_reference?, seller: {name, vat_id, street, city,\npostal_code, country, email, phone\" → after: \"Create a validated EU e-invoice (UBL 2.1) from simple JSON. invoice = {format: en16931|xrechnung|peppol-bis3, invoice_number,\nissue_date (YYYY-MM-DD), due_date?, tax_point_date?, delivery_date?, currency (EUR), buyer_reference?, seller: {name, vat_id, street, city,\npostal_code, country, email, phone\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"send_einvoice_sandbox\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:send_einvoice_sandbox",
+        "snippet": "before: \"SANDBOX ONLY - never reaches a real buyer. Runs the full send flow on an invoice (same JSON as create_einvoice): VIES check\nof the buyer VAT, sanctions screen of the buyer name, EN 16931 create + validate, route lookup (Peppol/mandate), transport\nhand-off and an Ed25519-signed evidence receipt (JWS)\" → after: \"SANDBOX ONLY - never reaches a real buyer. Safe send: first checks the buyer VAT in VIES, whether the buyer can be\nreached on Peppol, and the buyer name against EU/UN/OFAC/UK sanctions lists, then creates + validates the EN 16931 invoice\n(same JSON as create_einvoice), and returns one preflight verd\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
     }
   ],
-  "score": 80,
+  "score": 42,
   "scoreBreakdown": {
+    "tool-poisoning": 38,
     "toxic-flow": 20
   },
   "errors": []

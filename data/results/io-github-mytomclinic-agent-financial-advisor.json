@@ -8,8 +8,8 @@
     "kind": "url",
     "ref": "https://agent-financial-advisor.agent-financial-advisor.workers.dev/mcp"
   },
-  "scannedAt": "2026-10-12T12:14:00.551Z",
-  "durationMs": 272,
+  "scannedAt": "2026-11-19T13:34:29.370Z",
+  "durationMs": 749,
   "layers": {
     "metadata": true,
     "static": false
@@ -59,25 +59,84 @@
         "private-data",
         "destructive"
       ]
+    },
+    {
+      "name": "options_risk_check",
+      "descriptionHash": "b184cf418eda29d6ade1baa8b77c5f9e616d9216e42bbb3599e5da7f3e5d602c",
+      "description": "Check an options book (existing or proposed legs) the way a broker's options desk would: covered, cash-secured, spread or naked; margin requirement under FINRA Rule 4210; cash-account limits; required approval level; early-assignment risk around ex-dividend dates; pin risk; auto-exercise of expiring"
+    },
+    {
+      "name": "advisor_memo",
+      "descriptionHash": "ca4ed1abeba6f5ea709238bc8adacdf6aad770962e3699386e506f295757258f",
+      "description": "Send a planned trade, options position or portfolio and get a written decision memo: proceed, proceed with changes, or do not proceed, with the risks, the exact changes to make, the rules that apply and a dated note for your audit file. Runs pre_trade_check, position_size, tax_lot_plan, options_risk",
+      "labels": [
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "get_api_key",
+      "descriptionHash": "4daaf76602fabfbfd376d8053dbe433b8f903114b4a55151e1ca4b9a7e8d1b36",
+      "description": "Free. Creates an API key for this agent (25 free calls a day, then prepaid credits) and attaches it to this MCP session, so the next calls use it automatically. Call this when the anonymous trial runs out. Save the key and add ?key=<key> to the MCP URL (or send Authorization: Bearer <key>) to keep u",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "my_account",
+      "descriptionHash": "38271b8fed5508cabefe6c56ea74f71db2acb3614cb38b40ae8b4e2b13ee6f4d",
+      "description": "Free. Shows the API key's free calls left today and when they reset, prepaid credit balance, whether its one free advisor_memo is still available, and how to add credits.",
+      "labels": [
+        "private-data",
+        "destructive"
+      ]
     }
   ],
   "findings": [
+    {
+      "id": "MCP-SCHEMA-SMELL-001",
+      "severity": "medium",
+      "category": "schema-smell",
+      "title": "Read-only tool requests dangerous parameters",
+      "detail": "Tool \"advisor_memo\" appears informational but accepts parameters (context) that enable code/file/secret access.",
+      "evidence": {
+        "source": "tool:advisor_memo",
+        "snippet": "context, trade, sizing, tax_lots, options, portfolio, api_key"
+      },
+      "confidence": 0.55
+    },
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"get_api_key\" references sensitive artifacts (authorization, bearer). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:get_api_key",
+        "snippet": "Free. Creates an API key for this agent (25 free calls a day, then prepaid credits) and attaches it to this MCP session, so the next calls use it automatically.…"
+      },
+      "confidence": 0.65
+    },
     {
       "id": "MCP-TOXIC-FLOW-001",
       "severity": "high",
       "category": "toxic-flow",
       "title": "Lethal trifecta: untrusted input + private data + external sink",
-      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: pre_trade_check, suitability_check · Private data: suitability_check · Public sink: pre_trade_check · Destructive: pre_trade_check, suitability_check.",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: pre_trade_check, suitability_check, get_api_key · Private data: suitability_check, advisor_memo, get_api_key, my_account · Public sink: pre_trade_check, advisor_memo, get_api_key · Destructive: pre_trade_check, suitability_check, my_account.",
       "evidence": {
         "source": "server:mcp",
-        "snippet": "Untrusted content: pre_trade_check, suitability_check · Private data: suitability_check · Public sink: pre_trade_check · Destructive: pre_trade_check, suitability_check"
+        "snippet": "Untrusted content: pre_trade_check, suitability_check, get_api_key · Private data: suitability_check, advisor_memo, get_api_key, my_account · Public sink: pre_trade_check, advisor_memo, get_api_key · Destructive: pre_trade_check, suitability_check, my_account"
       },
       "confidence": 0.6,
       "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
     }
   ],
-  "score": 80,
+  "score": 52,
   "scoreBreakdown": {
+    "schema-smell": 8,
+    "tool-poisoning": 20,
     "toxic-flow": 20
   },
   "errors": []

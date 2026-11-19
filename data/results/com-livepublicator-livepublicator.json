@@ -8,8 +8,8 @@
     "kind": "url",
     "ref": "https://livepublicator.com/api/mcp"
   },
-  "scannedAt": "2026-11-11T12:00:51.688Z",
-  "durationMs": 1253,
+  "scannedAt": "2026-11-19T13:25:07.370Z",
+  "durationMs": 1142,
   "layers": {
     "metadata": true,
     "static": false
@@ -26,7 +26,7 @@
     },
     {
       "name": "get_account",
-      "descriptionHash": "d3d784581c980f8bffc2ca615fa6d23d139fbe9889121ad6246e21586237c1b2",
+      "descriptionHash": "a8434726eb5e821e470697f76948c3632a47b8365154f8f3fb60897e02b375ed",
       "description": "Shows the signed-in LivePublicator account: the company, the saved press contact and spokesperson (create_release fills these in, so do not ask the user for them), what is still missing, the credits left, whether releases go live after the automatic checks or wait for a person, and for agencies the ",
       "labels": [
         "private-data"
@@ -51,7 +51,7 @@
     },
     {
       "name": "add_image",
-      "descriptionHash": "f24307c342fb223e2256659fee8ad8934482da6e73676a64609d0e3cca5b4f9e",
+      "descriptionHash": "570fe83c0308f44c6eed17d5e2dfe4ad5a015fd1148b499d7a68e6182d747127",
       "description": "Adds a cover image to a draft press release. Send an image URL, or a file the user attached in the chat. With neither, it returns a one-time upload link where the user can drop the image. An image 1200 px wide or more fills the page, and from 600 px it shows at its own size. Under 600 px, or without",
       "labels": [
         "private-data",
@@ -69,28 +69,113 @@
     },
     {
       "name": "get_release_status",
-      "descriptionHash": "6426bd95ad4a8619ce4fa7febf75691c703458934afc2c8c150389fc1eefa511",
-      "description": "Shows where a press release is: draft, waiting for a person to check it, scheduled or live, with the live link once it is published. Only when the user asks about a release later. Not needed after create_release or publish_release, whose answers already say this."
+      "descriptionHash": "f06c72f874f2a36ad732f68ff144f363deff6011ad004e4bbba1c31b1c6ff320",
+      "description": "Shows where a press release is: draft, waiting for a person to check it, scheduled or live, with the live link once it is published. Only when the user asks about a release later. Not needed after create_release or publish_release, whose answers already say this. Returns the status (draft, review, s",
+      "labels": [
+        "untrusted-content"
+      ]
     },
     {
       "name": "list_releases",
-      "descriptionHash": "e66f197a84e4c49f7b5a038ff32cf26d0f76d436975e6dde0eb581f5ba49ae5c",
-      "description": "Lists the account's earlier press releases with their status and links. Only when the user asks about their earlier releases. Not needed to draft or publish a new one.",
+      "descriptionHash": "7e84315cd5767f25a0aa94f52dee7052b3e5bfc0a45930718db9777a74f03816",
+      "description": "Lists the account's earlier press releases with their status and links. Only when the user asks about their earlier releases. Not needed to draft or publish a new one. Returns up to 50 releases, newest first, each with its id, headline, status and links.",
       "labels": [
         "public-sink"
       ]
     },
     {
       "name": "fix_live_release",
-      "descriptionHash": "33e83db1289acd3eb07240f46146ebf8f3f7ab440fb9b6d327c1e7a87e68e1ae",
+      "descriptionHash": "3e6f4a898734ab3b691f9cb4d555c9af677148c156bf4c454d8c878b52ec5313",
       "description": "Fixes the text of a published press release within 24 hours of it going live: a typo, a wrong date, a link, the quote. Send only the fields to change. The release keeps the same link and the earlier version is kept. The change is checked again before it shows. After 24 hours the text can't be change",
       "labels": [
         "public-sink"
       ]
     }
   ],
-  "findings": [],
-  "score": 100,
-  "scoreBreakdown": {},
+  "findings": [
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: get_release_status · Private data: preview_press_release, get_account, create_release, add_image · Public sink: preview_press_release, create_release, update_release, add_image, publish_release, list_releases, fix_live_release · Destructive: add_image.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: get_release_status · Private data: preview_press_release, get_account, create_release, add_image · Public sink: preview_press_release, create_release, update_release, add_image, publish_release, list_releases, fix_live_release · Destructive: add_image"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"get_account\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:get_account",
+        "snippet": "before: \"Shows the signed-in LivePublicator account: the company, the saved press contact and spokesperson (create_release fills these in, so do not ask the user for them), what is still missing, the credits left, whether releases go live after the automatic checks or wait for a person, and for agencies the \" → after: \"Shows the signed-in LivePublicator account: the company, the saved press contact and spokesperson (create_release fills these in, so do not ask the user for them), what is still missing, the credits left, whether releases go live after the automatic checks or wait for a person, and for agencies the \""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"add_image\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:add_image",
+        "snippet": "before: \"Adds a cover image to a draft press release. Send an image URL, or a file the user attached in the chat. With neither, it returns a one-time upload link where the user can drop the image. An image 1200 px wide or more fills the page, and from 600 px it shows at its own size. Under 600 px, or without\" → after: \"Adds a cover image to a draft press release. Send an image URL, or a file the user attached in the chat. With neither, it returns a one-time upload link where the user can drop the image. An image 1200 px wide or more fills the page, and from 600 px it shows at its own size. Under 600 px, or without\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"get_release_status\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:get_release_status",
+        "snippet": "before: \"Shows where a press release is: draft, waiting for a person to check it, scheduled or live, with the live link once it is published. Only when the user asks about a release later. Not needed after create_release or publish_release, whose answers already say this.\" → after: \"Shows where a press release is: draft, waiting for a person to check it, scheduled or live, with the live link once it is published. Only when the user asks about a release later. Not needed after create_release or publish_release, whose answers already say this. Returns the status (draft, review, s\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"list_releases\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:list_releases",
+        "snippet": "before: \"Lists the account's earlier press releases with their status and links. Only when the user asks about their earlier releases. Not needed to draft or publish a new one.\" → after: \"Lists the account's earlier press releases with their status and links. Only when the user asks about their earlier releases. Not needed to draft or publish a new one. Returns up to 50 releases, newest first, each with its id, headline, status and links.\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"fix_live_release\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:fix_live_release",
+        "snippet": "before: \"Fixes the text of a published press release within 24 hours of it going live: a typo, a wrong date, a link, the quote. Send only the fields to change. The release keeps the same link and the earlier version is kept. The change is checked again before it shows. After 24 hours the text can't be change\" → after: \"Fixes the text of a published press release within 24 hours of it going live: a typo, a wrong date, a link, the quote. Send only the fields to change. The release keeps the same link and the earlier version is kept. The change is checked again before it shows. After 24 hours the text can't be change\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    }
+  ],
+  "score": 41,
+  "scoreBreakdown": {
+    "toxic-flow": 20,
+    "tool-poisoning": 39
+  },
   "errors": []
 }

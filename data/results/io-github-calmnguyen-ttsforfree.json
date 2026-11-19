@@ -8,8 +8,8 @@
     "kind": "url",
     "ref": "https://api.ttsforfree.com/mcp"
   },
-  "scannedAt": "2026-10-24T09:04:42.691Z",
-  "durationMs": 2092,
+  "scannedAt": "2026-11-19T13:30:08.498Z",
+  "durationMs": 15903,
   "layers": {
     "metadata": true,
     "static": false
@@ -142,7 +142,7 @@
     },
     {
       "name": "localize_video",
-      "descriptionHash": "968d95971d82843ad60c7a6bcffcb1d90300ce710d7e8889ef0c0bfe251585f0",
+      "descriptionHash": "5ee9adb99e779be5f40957d5a41aaa0aa1c9bc2034a5fa3a020e8fc870724468",
       "description": "Full automatic dubbing of an uploaded video: transcribe once, translate, voice every target language with its own voice and render a dubbed video per language. Each language returns an audio_url (voice track aligned to the original timeline - upload it to YouTube Studio as a multi-language audio tra",
       "labels": [
         "public-sink"
@@ -150,8 +150,62 @@
     },
     {
       "name": "get_localization_status",
-      "descriptionHash": "9d74e678e027e1e57d47f28f664c21dfcc973735761c1ec691088e2900c91451",
-      "description": "Status of localize_video jobs: current step, and when Completed the dubbed audio_url, final_video_url and translated SRT for each language."
+      "descriptionHash": "34f4274a3dcb7d56adaa6fdfa22ecfc8f9efefea43827fb3b08fff65f7e3e144",
+      "description": "Status of localize_video jobs: current step, and when Completed the dubbed audio_url, final_video_url and translated SRT for each language. multi_speaker jobs waiting for voices have waiting_speaker_voices = true and a `speakers` list (lines, seconds, sample and translated sample lines) - then call "
+    },
+    {
+      "name": "set_speaker_voices",
+      "descriptionHash": "6fa69b274cc3b090d0d0ead918263b99873afbdfa387b32db18a84ab711810dd",
+      "description": "For a multi_speaker localize_video job waiting at WaitingSpeakerVoices: give each speaker (key = speaker label from get_localization_status, e.g. \"0\") a voice token for that job's language, then dubbing continues. Speakers you leave out use the job's main voice. Pick voices that fit each character (",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "get_speaker_lines",
+      "descriptionHash": "7838e98d111025611749bf966337d09f51cbb0b795f7d606308fb2c30414cc5c",
+      "description": "For a multi_speaker localize_video job: every source subtitle line with block_id, time, detected speaker and (after translation) the translated line. Use it when speaker detection looks wrong (fewer speakers than characters, a child merged with an adult, a line given to the wrong person): read the l"
+    },
+    {
+      "name": "set_speaker_lines",
+      "descriptionHash": "b7945e08b66494e43bc93ff1d66747ed06f01909f600255926f5822b874cb8da",
+      "description": "For a multi_speaker localize_video job that has not started voicing yet (e.g. WaitingSpeakerVoices): move lines to another speaker. Send only the lines to change; a new speaker number (e.g. \"2\" when only 0 and 1 exist) adds a character. Applies to every language of the same video that has not starte",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "get_publishing_status",
+      "descriptionHash": "bf799a211d250dc454ee0a352b9f8920ae1abd5d713a197e1e5019a4fc3c2447",
+      "description": "Check where the user can publish a finished video: which platforms this site offers (YouTube, X), which of the user's accounts are connected, today's YouTube limit, the credit cost of an X post and the user's credits. Call this before offering to publish and before publish_video. If nothing is conne",
+      "labels": [
+        "untrusted-content",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "publish_video",
+      "descriptionHash": "9a6fc376413280bbe4a093a77f1c9a699fbedbafc2f541b63ff8a0660aecd3a3",
+      "description": "Post a finished video to one of the user's connected accounts. Only call after the user explicitly agreed to publish and confirmed the title (YouTube) or post text (X): this posts publicly on their behalf. YouTube: posted right away, free, needs `title`; set `privacy` (default public). X: posted now",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "list_published_posts",
+      "descriptionHash": "571ca7c513267b9a97a0383883382dc9d10e002882f3686a728957984ce6acd8",
+      "description": "The user's recent YouTube / X posts made through TTSForFree, newest first: status (scheduled, uploading, posted, failed, cancelled), the live post_url once posted, the scheduled time and any error message. Use it after publish_video to report the live link.",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "cancel_scheduled_post",
+      "descriptionHash": "665a90c4dd9c58d44425f07971fcebdd2b58a2a1f4ec5b7cba9c3ad7105f8562",
+      "description": "Cancel a post that is still scheduled (or failed) so it will not be published. A post that is already uploading or posted cannot be cancelled. No credits are charged for cancelled posts.",
+      "labels": [
+        "public-sink"
+      ]
     }
   ],
   "findings": [
@@ -160,18 +214,45 @@
       "severity": "high",
       "category": "toxic-flow",
       "title": "Lethal trifecta: untrusted input + private data + external sink",
-      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: get_job_status, list_recent_jobs, create_upload_url · Private data: list_voices, get_voice_details, design_custom_voice, get_job_detail, create_upload_url, transcribe_media · Public sink: create_upload_url, localize_video · Destructive: remove_favorite_voice, create_upload_url.",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: get_job_status, list_recent_jobs, create_upload_url, get_publishing_status, list_published_posts · Private data: list_voices, get_voice_details, design_custom_voice, get_job_detail, create_upload_url, transcribe_media, set_speaker_voices · Public sink: create_upload_url, localize_video, set_speaker_lines, get_publishing_status, publish_video, cancel_scheduled_post · Destructive: remove_favorite_voice, create_upload_url.",
       "evidence": {
         "source": "server:mcp",
-        "snippet": "Untrusted content: get_job_status, list_recent_jobs, create_upload_url · Private data: list_voices, get_voice_details, design_custom_voice, get_job_detail, create_upload_url, transcribe_media · Public sink: create_upload_url, localize_video · Destructive: remove_favorite_voice, create_upload_url"
+        "snippet": "Untrusted content: get_job_status, list_recent_jobs, create_upload_url, get_publishing_status, list_published_posts · Private data: list_voices, get_voice_details, design_custom_voice, get_job_detail, create_upload_url, transcribe_media, set_speaker_voices · Public sink: create_upload_url, localize_video, set_speaker_lines, get_publishing_status, publish_video, cancel_scheduled_post · Destructive: remove_favorite_voice, create_upload_url"
       },
       "confidence": 0.6,
       "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"localize_video\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:localize_video",
+        "snippet": "before: \"Full automatic dubbing of an uploaded video: transcribe once, translate, voice every target language with its own voice and render a dubbed video per language. Each language returns an audio_url (voice track aligned to the original timeline - upload it to YouTube Studio as a multi-language audio tra\" → after: \"Full automatic dubbing of an uploaded video: transcribe once, translate, voice every target language with its own voice and render a dubbed video per language. Each language returns an audio_url (voice track aligned to the original timeline - upload it to YouTube Studio as a multi-language audio tra\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"get_localization_status\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:get_localization_status",
+        "snippet": "before: \"Status of localize_video jobs: current step, and when Completed the dubbed audio_url, final_video_url and translated SRT for each language.\" → after: \"Status of localize_video jobs: current step, and when Completed the dubbed audio_url, final_video_url and translated SRT for each language. multi_speaker jobs waiting for voices have waiting_speaker_voices = true and a `speakers` list (lines, seconds, sample and translated sample lines) - then call \""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
     }
   ],
-  "score": 80,
+  "score": 50,
   "scoreBreakdown": {
-    "toxic-flow": 20
+    "toxic-flow": 20,
+    "tool-poisoning": 30
   },
   "errors": []
 }

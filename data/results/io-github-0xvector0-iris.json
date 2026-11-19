@@ -8,8 +8,8 @@
     "kind": "url",
     "ref": "https://iriscan.app/mcp"
   },
-  "scannedAt": "2026-11-08T11:26:41.494Z",
-  "durationMs": 709,
+  "scannedAt": "2026-11-19T13:29:05.615Z",
+  "durationMs": 508,
   "layers": {
     "metadata": true,
     "static": false
@@ -17,7 +17,7 @@
   "tools": [
     {
       "name": "analyze_address",
-      "descriptionHash": "51cf914bb21649fe8dc1db1f258cad00469191661599d0879db85ea667c48a53",
+      "descriptionHash": "6318c306d44e2f8abc81138c80753595a4269faff2f809c1af958a8f1480b489",
       "description": "Analyze a wallet with Iris: on Solana (also a token mint or a program), Ethereum, Base, Arbitrum, Robinhood Chain, BNB Chain, Polygon, Bitcoin, Tron, dYdX or Noble. The chain is read from the address (0x is Ethereum unless chain says another EVM chain). Costs 1 credit (2 when depth is over 1000), or",
       "labels": [
         "private-data"
@@ -25,10 +25,11 @@
     },
     {
       "name": "trace_transfer",
-      "descriptionHash": "a0b8446c6daca77244d3945b8a6fb917d6f644a0ac9362130a6f1799d12a0c32",
-      "description": "Follow one transfer through the mixer (Privacy Cash, Cloak, Umbra, encrypt.trade, MagicBlock Private Payments, ShadowWire...), exchange, or instant-swap service (SideShift, ChangeNOW, FixedFloat, SimpleSwap, StealthEX, Changelly...) on its other side, by timing and amount: for a deposit, the withdra",
+      "descriptionHash": "d18ad80090e488973020ad29f6dd41679d428f5b483d6ca07263597822e66f15",
+      "description": "Follow one transfer through the mixer (Privacy Cash, Cloak, Umbra, encrypt.trade, MagicBlock Private Payments, ShadowWire, Solana Privacy Rings and Solflare Private Mode...), exchange, or instant-swap service (SideShift, ChangeNOW, FixedFloat, SimpleSwap, StealthEX, Changelly...) on its other side, ",
       "labels": [
-        "private-data"
+        "private-data",
+        "public-sink"
       ]
     },
     {
@@ -41,8 +42,25 @@
     },
     {
       "name": "scan_launch_tool",
-      "descriptionHash": "a3917fb26b607e221e7bdaf2e053cee140cae3c8896507cf31a84e63368deef6",
-      "description": "Whether a Solana wallet launched or traded memecoins with a launch kit, Proxima (proxima.tools) or BlockX, with the evidence. Proxima: its 5% sell fees (a separate bare transfer after each sell, built with it), its 5% cut of pump.fun creator-fee claims, its receipt round trips (895,880 lamports out,",
+      "descriptionHash": "1ea46ed43a57e49724cd676a79b85f8c739f76325f752b42e359cab838205258",
+      "description": "Whether a Solana wallet launched or traded memecoins with a launch kit, Proxima (proxima.tools) or BlockX, with the evidence. Proxima: its sell fees, its cut of pump.fun creator-fee claims and its receipt round trips. BlockX: its fee inside each trade, its nonce relay funding, its cash-outs through ",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "follow_funds",
+      "descriptionHash": "0cdb12b17fd9b8efd606431f710d025c0c705335cdfd37916318e8c3e98ddd68",
+      "description": "Follow the main stream of money out of one wallet, hop by hop, until a dead end: an exchange (with the deposit address), a bridge, a mixer, a swap (it names the asset bought, to follow next), a split, money at rest, or the hop limit. On Solana, an EVM chain, Bitcoin or Tron. Each hop says how the mo",
+      "labels": [
+        "untrusted-content",
+        "private-data"
+      ]
+    },
+    {
+      "name": "explain_transaction",
+      "descriptionHash": "43a331384050ef3107a33edb9450b746a98b77d45ec81e838f427a442c08e4e5",
+      "description": "One transaction read and explained in plain words: who moved what to whom, through which programs, the swap or bridge transfer it made, its parties with their labels, and (Solana) the acts that need a key and tie two wallets: control of a token account handed over, an account closed into another wal",
       "labels": [
         "private-data"
       ]
@@ -67,6 +85,19 @@
   ],
   "findings": [
     {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: follow_funds · Private data: analyze_address, trace_transfer, find_token_insiders, scan_launch_tool, follow_funds, explain_transaction, get_connections, get_credits · Public sink: trace_transfer · Destructive: get_connections.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: follow_funds · Private data: analyze_address, trace_transfer, find_token_insiders, scan_launch_tool, follow_funds, explain_transaction, get_connections, get_credits · Public sink: trace_transfer · Destructive: get_connections"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    },
+    {
       "id": "MCP-RUGPULL-001",
       "severity": "high",
       "category": "tool-poisoning",
@@ -74,15 +105,42 @@
       "detail": "Tool \"analyze_address\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
       "evidence": {
         "source": "tool:analyze_address",
-        "snippet": "before: \"Analyze a wallet with Iris: on Solana (also a token mint or a program), Ethereum, Base, Arbitrum, Robinhood Chain, BNB Chain, Bitcoin, Tron, dYdX or Noble. The chain is read from the address (0x is Ethereum unless chain says another EVM chain). Costs 1 credit (2 when depth is over 1000), or without \" → after: \"Analyze a wallet with Iris: on Solana (also a token mint or a program), Ethereum, Base, Arbitrum, Robinhood Chain, BNB Chain, Polygon, Bitcoin, Tron, dYdX or Noble. The chain is read from the address (0x is Ethereum unless chain says another EVM chain). Costs 1 credit (2 when depth is over 1000), or\""
+        "snippet": "before: \"Analyze a wallet with Iris: on Solana (also a token mint or a program), Ethereum, Base, Arbitrum, Robinhood Chain, BNB Chain, Polygon, Bitcoin, Tron, dYdX or Noble. The chain is read from the address (0x is Ethereum unless chain says another EVM chain). Costs 1 credit (2 when depth is over 1000), or\" → after: \"Analyze a wallet with Iris: on Solana (also a token mint or a program), Ethereum, Base, Arbitrum, Robinhood Chain, BNB Chain, Polygon, Bitcoin, Tron, dYdX or Noble. The chain is read from the address (0x is Ethereum unless chain says another EVM chain). Costs 1 credit (2 when depth is over 1000), or\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"trace_transfer\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:trace_transfer",
+        "snippet": "before: \"Follow one transfer through the mixer (Privacy Cash, Cloak, Umbra, encrypt.trade, MagicBlock Private Payments, ShadowWire...), exchange, or instant-swap service (SideShift, ChangeNOW, FixedFloat, SimpleSwap, StealthEX, Changelly...) on its other side, by timing and amount: for a deposit, the withdra\" → after: \"Follow one transfer through the mixer (Privacy Cash, Cloak, Umbra, encrypt.trade, MagicBlock Private Payments, ShadowWire, Solana Privacy Rings and Solflare Private Mode...), exchange, or instant-swap service (SideShift, ChangeNOW, FixedFloat, SimpleSwap, StealthEX, Changelly...) on its other side, \""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"scan_launch_tool\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:scan_launch_tool",
+        "snippet": "before: \"Whether a Solana wallet launched or traded memecoins with a launch kit, Proxima (proxima.tools) or BlockX, with the evidence. Proxima: its 5% sell fees (a separate bare transfer after each sell, built with it), its 5% cut of pump.fun creator-fee claims, its receipt round trips (895,880 lamports out,\" → after: \"Whether a Solana wallet launched or traded memecoins with a launch kit, Proxima (proxima.tools) or BlockX, with the evidence. Proxima: its sell fees, its cut of pump.fun creator-fee claims and its receipt round trips. BlockX: its fee inside each trade, its nonce relay funding, its cash-outs through \""
       },
       "confidence": 0.8,
       "remediation": "Re-review the tool before continuing to trust it."
     }
   ],
-  "score": 80,
+  "score": 45,
   "scoreBreakdown": {
-    "tool-poisoning": 20
+    "toxic-flow": 20,
+    "tool-poisoning": 35
   },
   "errors": []
 }

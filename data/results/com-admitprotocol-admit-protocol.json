@@ -1,0 +1,141 @@
+{
+  "schemaVersion": 1,
+  "scanner": {
+    "version": "1.6.0",
+    "rules": "402995650b68"
+  },
+  "target": {
+    "kind": "url",
+    "ref": "https://admitprotocol.com/mcp"
+  },
+  "scannedAt": "2026-11-19T13:43:29.316Z",
+  "durationMs": 1661,
+  "layers": {
+    "metadata": true,
+    "static": false
+  },
+  "tools": [
+    {
+      "name": "list_schools",
+      "descriptionHash": "44c07be2be970be4869f448a20a422dd678b5d377e5576a2b962266687369607",
+      "description": "Every school accepting applications through Admit Protocol, with its slug, what it admits, and where its instructions are. Start here when the family has not named a school, or to confirm a school is on the protocol."
+    },
+    {
+      "name": "get_school_instructions",
+      "descriptionHash": "82002a60852bb98782235e8ce2e141b90ebdbd7d3df997e76ea7db26ee586e14",
+      "description": "The school's skill file (its rules, prompts and flow, read this first) and its live schema (fields, enums, item types, checklist). Fetch once per session per school.",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "starter_folder",
+      "descriptionHash": "d6e740ec8b6a43c1f2de376ba129cc1cecd35e89eee33795e5df95122e4929fb",
+      "description": "The files a family's folder should hold for this school, with the question or instruction inside each. Offer to write them into the folder when it is empty or nearly so. Returns [{path, contents}].",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "start_application",
+      "descriptionHash": "498f96a23fc1507c184759fbcc3a6eb67b54313870a9300614fc12287002d667",
+      "description": "Creates a draft application at the named school and emails a 6-digit code to the parent or guardian. The application object must match that school's schema (get_school_instructions). Read the payload back to the family before calling this.",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "verify_email",
+      "descriptionHash": "39ad02b8dd72a49345a51ae2d687cd4e9ad107abd4f5ad8b9b6cc6ccfd50ad2b",
+      "description": "Checks the 6-digit code. Returns the application_token; store it in the family's folder as .admit-protocol/<school>.token and never print it.",
+      "labels": [
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "resend_code",
+      "descriptionHash": "58dbd1a5e27d3e14d7986e94485e345b054a72c24eeef0d30f68df5ed67531a1",
+      "description": "Sends a new 6-digit code to the parent's email.",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "update_application",
+      "descriptionHash": "2e9ad84e7fccaa8832298f2080f3e057104329aaca661d5b47b18711184086cf",
+      "description": "Changes student or entering details. The verified parent email cannot be changed.",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "add_item",
+      "descriptionHash": "1400e2c7b5157de116ef28043f56683a14352e13076602e8880443f93444e7ca",
+      "description": "Adds the student's writing (with its attestation and the school's prompt key) or any other item as text."
+    },
+    {
+      "name": "add_file",
+      "descriptionHash": "4e5360cd6271936bc6cba5177c60a171b7e11a27576977b12e84864dfadc0e54",
+      "description": "Uploads one PDF, JPG, PNG, HEIC or DOCX (base64, 20 MB max) as an item.",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "get_status",
+      "descriptionHash": "b0cab269c3f186dd5b93da384a07361aa0bfa3b8363586a005c1d4e372a1715a",
+      "description": "The checklist: what is received, what is missing, and the next action in plain words."
+    },
+    {
+      "name": "submit_application",
+      "descriptionHash": "e72f45d2da5f05c28fc35ba8ef8395d13513a574ab5020e9349a4158962f3712",
+      "description": "Hands the application to the school. Needs the student's identity and the required writing. Items can still be added afterwards.",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "withdraw",
+      "descriptionHash": "dbf40c1dddd2d695849f45897a406cf7d234914e9cadc48914a36f655371f90d",
+      "description": "Withdraws the application. Documents and personal details are deleted at once.",
+      "labels": [
+        "private-data"
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOOL-POISON-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description issues instructions to the model",
+      "detail": "Description of \"start_application\" contains imperative instructions directed at the AI assistant rather than describing the tool. This is the core tool-poisoning technique.",
+      "evidence": {
+        "source": "tool:start_application",
+        "snippet": "Creates a draft application at the named school and emails a 6-digit code to the parent or guardian. The application object must match that school's schema (get…"
+      },
+      "confidence": 0.7,
+      "remediation": "Treat the server as untrusted; the model may obey embedded instructions."
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: start_application · Private data: get_school_instructions, starter_folder, verify_email, add_file, withdraw · Public sink: verify_email, resend_code, update_application, submit_application.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: start_application · Private data: get_school_instructions, starter_folder, verify_email, add_file, withdraw · Public sink: verify_email, resend_code, update_application, submit_application"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 60,
+  "scoreBreakdown": {
+    "tool-poisoning": 20,
+    "toxic-flow": 20
+  },
+  "errors": []
+}

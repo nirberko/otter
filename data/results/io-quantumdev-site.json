@@ -1,0 +1,150 @@
+{
+  "schemaVersion": 1,
+  "scanner": {
+    "version": "1.6.0",
+    "rules": "402995650b68"
+  },
+  "target": {
+    "kind": "url",
+    "ref": "https://quantumdev.io/mcp"
+  },
+  "scannedAt": "2026-11-19T13:36:32.404Z",
+  "durationMs": 551,
+  "layers": {
+    "metadata": true,
+    "static": false
+  },
+  "tools": [
+    {
+      "name": "list_places",
+      "descriptionHash": "69de346db768530c65f25f98f3cc8f391eb77c5d7d5931cc04388028cc27de88",
+      "description": "The places that have upcoming quantum computing events: continents, countries, states where a country is searched by state, and cities, each with its number of events. Use the codes or names it returns as filters for list_events."
+    },
+    {
+      "name": "list_events",
+      "descriptionHash": "f2e1cfd857062786e63da1654eb9c3122b67d280e8a037f2fa0a6a78d2bdc48f",
+      "description": "Upcoming quantum computing events, soonest first, as summaries. Every filter is optional and they combine. Events are run by their own organisers; QDev checks each against its organiser's page. At most 50 a call; pass nextCursor back as cursor for more.",
+      "labels": [
+        "destructive"
+      ]
+    },
+    {
+      "name": "get_event",
+      "descriptionHash": "ac77d35b586f4b0ce4c45822a8db3a8d63deae485e578e8e5e9587de0a629deb",
+      "description": "One event in full: dates, time zone, venue and place, summary, what is not yet settled, deadlines, the organiser's page, its page on quantumdev.io, and the date QDev last checked it."
+    },
+    {
+      "name": "get_event_calendar",
+      "descriptionHash": "57ce9ff271ebe927b973fa19b2ed2f3f996398766fb5844a8ac356000ef8280c",
+      "description": "One event as an iCalendar (.ics) file, ready to add to a calendar. Returns the file's name, media type and text.",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "list_documents",
+      "descriptionHash": "7abc104444a74c34a52b627db24c5407ccce97a13a44230c5de832e240c94d25",
+      "description": "Every public page and blog post on quantumdev.io: id, title, address, description and date. Use get_document for the text of one.",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "get_document",
+      "descriptionHash": "e17582169e08cc9d9f0b234a5018c55aa77072d3987045e16b4bfb7722d6d30a",
+      "description": "One page or blog post of quantumdev.io as markdown, with its title, address and date. Pages include the home page (what QDev is and its products), the privacy policy and the terms.",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "search",
+      "descriptionHash": "dde91ab6cb4bb3967c27ca2dd831bedafb931b0964971ccebc1db7b6749ffe94",
+      "description": "Search the events, pages and blog posts of quantumdev.io by text. Returns matching results, best first, each with an id to pass to fetch.",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "fetch",
+      "descriptionHash": "f20f6a683c5bfb0376ba2c11afd329686f82f0208263b7c3b52cb4520fe3f4a0",
+      "description": "The full text of one search result, by its id: an event written out with its dates, place, deadlines and links, or a page or post as markdown.",
+      "labels": [
+        "untrusted-content",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "join_email_list",
+      "descriptionHash": "1a8db3edf8ec75fbc54f9cd410ad1d1661dd2db392779913249c8d69772f7b7b",
+      "description": "Starts a sign-up to QDev's email list for a person who asked to join. QDev emails that address a confirmation link, and the address joins the list only when its owner opens the email and presses Confirm. Before calling, show the person this text and get their yes: \"One email when each product opens ",
+      "labels": [
+        "untrusted-content",
+        "public-sink"
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-SHADOW-001",
+      "severity": "medium",
+      "category": "shadowing",
+      "title": "Generic tool name can shadow trusted tools",
+      "detail": "Tool \"search\" uses a generic high-value name. When multiple servers load together, this can intercept calls meant for a trusted server.",
+      "evidence": {
+        "source": "tool:search",
+        "snippet": "search"
+      },
+      "confidence": 0.4
+    },
+    {
+      "id": "MCP-SHADOW-001",
+      "severity": "medium",
+      "category": "shadowing",
+      "title": "Generic tool name can shadow trusted tools",
+      "detail": "Tool \"fetch\" uses a generic high-value name. When multiple servers load together, this can intercept calls meant for a trusted server.",
+      "evidence": {
+        "source": "tool:fetch",
+        "snippet": "fetch"
+      },
+      "confidence": 0.4
+    },
+    {
+      "id": "MCP-TOOL-POISON-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description issues instructions to the model",
+      "detail": "Description of \"join_email_list\" contains imperative instructions directed at the AI assistant rather than describing the tool. This is the core tool-poisoning technique.",
+      "evidence": {
+        "source": "tool:join_email_list",
+        "snippet": "Starts a sign-up to QDev's email list for a person who asked to join. QDev emails that address a confirmation link, and the address joins the list only when its…"
+      },
+      "confidence": 0.7,
+      "remediation": "Treat the server as untrusted; the model may obey embedded instructions."
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: list_documents, get_document, search, fetch, join_email_list · Private data: get_event_calendar, list_documents, get_document · Public sink: list_documents, get_document, fetch, join_email_list · Destructive: list_events.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: list_documents, get_document, search, fetch, join_email_list · Private data: get_event_calendar, list_documents, get_document · Public sink: list_documents, get_document, fetch, join_email_list · Destructive: list_events"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 48,
+  "scoreBreakdown": {
+    "shadowing": 12,
+    "tool-poisoning": 20,
+    "toxic-flow": 20
+  },
+  "errors": []
+}

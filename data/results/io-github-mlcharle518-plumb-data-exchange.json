@@ -8,8 +8,8 @@
     "kind": "url",
     "ref": "https://numba2witcheese.tail7d8d44.ts.net:10000/pde-mcp"
   },
-  "scannedAt": "2026-10-08T11:41:56.890Z",
-  "durationMs": 2790,
+  "scannedAt": "2026-11-19T13:33:44.954Z",
+  "durationMs": 817,
   "layers": {
     "metadata": true,
     "static": false
@@ -35,16 +35,19 @@
     },
     {
       "name": "verify_payment",
-      "descriptionHash": "83f0dcc7811d7c8ee53b1e45a8a021a373a2ba2e60453cb441f7b0100539ac6b",
-      "description": "Verify an on-chain payment without trusting any RPC: did this tx transfer at least this amount of a token (default USDC) to this payee, optionally from this payer? Proven by Plumb (Base via proof-backed L1 checkpoints, Ethereum via a light client). Bound to the exact transfer (log index); returns th",
+      "descriptionHash": "8f917741e3386db97b6c168513e3c3993fef64f6db2a641f132367be6ffe49f6",
+      "description": "Verify an on-chain payment without trusting any RPC: did this tx transfer at least this amount of a token (default USDC) to this payee, optionally from this payer? Proven by Plumb (Base via proof-backed L1 checkpoints, Ethereum via a light client, XRP Ledger via a quorum of Ripple's validator list: ",
       "labels": [
         "private-data"
       ]
     },
     {
       "name": "try_verify_payment",
-      "descriptionHash": "0c978bed704f9c8747ab74ac0d32076c390208bb954aa266c74e17aebacb72cd",
-      "description": "Free: the same verification as verify_payment, limited to 3 NEW claims per client per day (asking again about a claim already checked is always free)."
+      "descriptionHash": "fd7bccb711305f47e208c50345880adf7694d78f8387c2ad45be517c8fb4077f",
+      "description": "Free: the same verification as verify_payment, limited to 3 NEW claims per client per day (asking again about a claim already checked is always free). Holders of the exchange's on-ledger ProvenPayer credential get more: pass xrplProof (see credential_status).",
+      "labels": [
+        "private-data"
+      ]
     },
     {
       "name": "get_verification",
@@ -58,8 +61,8 @@
     },
     {
       "name": "verify_payments_batch",
-      "descriptionHash": "b22e82e6f85cad2c152dac06258500470e816d4a889e8f39de482b8043b6fc0e",
-      "description": "Verify up to 25 payments in one call for $0.25 USDC (x402): give `claims` (same fields as verify_payment) or `csv` (header: chain,txHash,payee,token,minAmountRaw,payer,logIndex). Claims already checked cost nothing; if all of them were, nothing is charged. Returns one row per claim (format \"csv\" add",
+      "descriptionHash": "170720d7d0e97f41217c0a62019b7e448c3bb6c9396a321800c18260b42a9d59",
+      "description": "Verify up to 25 payments in one call for $0.25 ($0.05 when every claim is on the XRP Ledger) USDC (x402): give `claims` (same fields as verify_payment) or `csv` (header: chain,txHash,payee,token,minAmountRaw,payer,logIndex,invoiceId). Claims already checked cost nothing; if all of them were, nothing",
       "labels": [
         "private-data",
         "destructive"
@@ -79,6 +82,31 @@
       "description": "Free. Cross-check a seller's signed x402 offer + receipt (offer-and-receipt extension): verifies the signatures (official x402 functions; pin the seller with sellerAddress for EIP-712 or sellerJwk for JWS), checks offer and receipt agree, and returns the exact `claim` to prove with verify_payment. P"
     },
     {
+      "name": "what_should_i_build",
+      "descriptionHash": "e1e7116f4f7d8050fc3c68f0b446bf32ade05e52ba9dc63299bf3e32600943cc",
+      "description": "What should I build? x402 agent demand by category from public chain data (Base USDC + XRPL), with fake demand removed (testers, sellers paying themselves, loops; wallet fleets counted as one buyer) and gaps ranked (repeat buyers per seller). Rolling 7 days, refreshed every 2 h. Signed answer with s",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "credential_status",
+      "descriptionHash": "ca0d4b323238ff4c8d4c99d18bc60d3695ff5c8c31742378cd237674f92474d8",
+      "description": "Free. The exchange's on-ledger ProvenPayer credential (XLS-70): issued to an XRPL account after 2 settled, Plumb-proven payments to the house; readable by any seller with ledger_entry. Returns the account's standing, the issued credential (with the CredentialCreate hash, provable with plumb-xrpl), h",
+      "labels": [
+        "private-data",
+        "destructive"
+      ]
+    },
+    {
+      "name": "prove_xrpl_transaction",
+      "descriptionHash": "3a7ce89e6b3dd1e5af8bf5af39324d172aa56e0f4fc6edc1c48d78fbec661485",
+      "description": "Prove any XRP Ledger transaction without trusting a server: validator-list quorum, hash links, rebuilt tx tree. Returns full fields, metadata (balances, escrows, channels, credentials as of the tx), quorum evidence and a signed receipt. Unvalidated tx keeps your payment.",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
       "name": "get_job",
       "descriptionHash": "2f5cfd4fb88f97bf017af4b4710d8d1c9ed6871c5d44fd8003f6561b09aa42f2",
       "description": "Free. Status and (once verified) the result of a paid job, using the accessToken its paid call returned."
@@ -86,21 +114,60 @@
   ],
   "findings": [
     {
-      "id": "MCP-TOOL-POISON-006",
-      "severity": "low",
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
       "category": "tool-poisoning",
-      "title": "Anomalously long tool description",
-      "detail": "Description of \"verify_payment\" is 756 chars, far longer than this server's median (129). Overlong descriptions are a common place to bury instructions.",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"prove_xrpl_transaction\" references sensitive artifacts (credentials). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:prove_xrpl_transaction",
+        "snippet": "Prove any XRP Ledger transaction without trusting a server: validator-list quorum, hash links, rebuilt tx tree. Returns full fields, metadata (balances, escrows…"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"verify_payment\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
       "evidence": {
         "source": "tool:verify_payment",
-        "snippet": "Verify an on-chain payment without trusting any RPC: did this tx transfer at least this amount of a token (default USDC) to this payee, optionally from this pay…"
+        "snippet": "before: \"Verify an on-chain payment without trusting any RPC: did this tx transfer at least this amount of a token (default USDC) to this payee, optionally from this payer? Proven by Plumb (Base via proof-backed L1 checkpoints, Ethereum via a light client). Bound to the exact transfer (log index); returns th\" → after: \"Verify an on-chain payment without trusting any RPC: did this tx transfer at least this amount of a token (default USDC) to this payee, optionally from this payer? Proven by Plumb (Base via proof-backed L1 checkpoints, Ethereum via a light client, XRP Ledger via a quorum of Ripple's validator list: \""
       },
-      "confidence": 0.4
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"try_verify_payment\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:try_verify_payment",
+        "snippet": "before: \"Free: the same verification as verify_payment, limited to 3 NEW claims per client per day (asking again about a claim already checked is always free).\" → after: \"Free: the same verification as verify_payment, limited to 3 NEW claims per client per day (asking again about a claim already checked is always free). Holders of the exchange's on-ledger ProvenPayer credential get more: pass xrplProof (see credential_status).\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"verify_payments_batch\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:verify_payments_batch",
+        "snippet": "before: \"Verify up to 25 payments in one call for $0.25 USDC (x402): give `claims` (same fields as verify_payment) or `csv` (header: chain,txHash,payee,token,minAmountRaw,payer,logIndex). Claims already checked cost nothing; if all of them were, nothing is charged. Returns one row per claim (format \"csv\" add\" → after: \"Verify up to 25 payments in one call for $0.25 ($0.05 when every claim is on the XRP Ledger) USDC (x402): give `claims` (same fields as verify_payment) or `csv` (header: chain,txHash,payee,token,minAmountRaw,payer,logIndex,invoiceId). Claims already checked cost nothing; if all of them were, nothing\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
     }
   ],
-  "score": 97,
+  "score": 63,
   "scoreBreakdown": {
-    "tool-poisoning": 3
+    "tool-poisoning": 38
   },
   "errors": []
 }

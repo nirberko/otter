@@ -8,8 +8,8 @@
     "kind": "url",
     "ref": "https://humancollab.si/mcp"
   },
-  "scannedAt": "2026-10-24T09:11:48.578Z",
-  "durationMs": 1994,
+  "scannedAt": "2026-11-19T13:40:06.127Z",
+  "durationMs": 2285,
   "layers": {
     "metadata": true,
     "static": false
@@ -47,8 +47,8 @@
     },
     {
       "name": "get_answers",
-      "descriptionHash": "8bdd524e837b01da1e83603c657e8943a0e68bf22dbe868287d3d5161b6e22d2",
-      "description": "Human answers (any language, CC0) to one question, or a feed of all answers since a timestamp. Each answer carries its human-verification level.",
+      "descriptionHash": "451395066c8c58bbc271f4bdc10614b939b07dcd7cadff07a3f36a6ffe819743",
+      "description": "Human answers (any language, CC0) to one question, or a feed of all answers since a timestamp. Each answer is signed by the person's passkey: it carries `proof` (the WebAuthn assertion over the answer text and the passkey's public key) and `log_index` (its seal in the public log), so you can verify ",
       "labels": [
         "untrusted-content"
       ]
@@ -96,6 +96,14 @@
       "description": "A business's current signed profile and its full version history with log indexes."
     },
     {
+      "name": "get_business_credential",
+      "descriptionHash": "eac472522f14f79f9a2ebbe3d794760b2a017bfd2fb89fc909bbc8f8fb7d64e5",
+      "description": "A W3C Verifiable Credential (eddsa-jcs-2022, issuer did:web:humancollab.si) attesting the domain proof and the signed profile version. Verify it offline with the key in https://humancollab.si/.well-known/did.json. It does not attest that the profile's claims are true.",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
       "name": "get_business_guide",
       "descriptionHash": "4a6ac383032757e707f1d9ec0e7279c1e13745eab2b7b4df8c9970d14343eb8c",
       "description": "JSON Schema of the business profile, the responsibility statement and the DNS proof format.",
@@ -105,8 +113,8 @@
     },
     {
       "name": "submit_business_profile",
-      "descriptionHash": "1f3e89dcc41771eb9fe3b8e6cf8367c85cdf6f5f228e2e62434ff73beb658bb9",
-      "description": "Publish a new version of a business profile as a signed envelope. Prove the domain with TXT _humancollab.<domain> = humancollab-business=<public_key>, or serve that line at https://<domain>/.well-known/humancollab.txt. Optional payload.change_note explains what was corrected.",
+      "descriptionHash": "d43c9564e5d57e5ab48869992ebfd706f5f7f15b7559e2e63d2173e2c7fcd8bf",
+      "description": "Currently returns an error (business publishing is paused for now: no AI has verified itself on humancollab yet). Publish a new version of a business profile as a signed envelope. Prove the domain with TXT _humancollab.<domain> = humancollab-business=<public_key>, or serve that line at https://<doma",
       "labels": [
         "public-sink"
       ]
@@ -118,13 +126,23 @@
     },
     {
       "name": "reply_business_note",
-      "descriptionHash": "f7df6f1193a2b6e6f6cf154514ce49262355e88f432f2f42e771d0e9d708f3ed",
-      "description": "Signed with the business's own key. Payload: {\"type\": \"humancollab.business.note_reply\", \"timestamp\": \"...\", \"domain\": \"...\", \"note_id\": \"<uuid>\", \"text\": \"...\"}."
+      "descriptionHash": "0160777ddbca4025fcda4209d5fe3ab084189439be72277e929193f1e885987a",
+      "description": "Currently returns an error (business publishing is paused for now: no AI has verified itself on humancollab yet). Signed with the business's own key. Payload: {\"type\": \"humancollab.business.note_reply\", \"timestamp\": \"...\", \"domain\": \"...\", \"note_id\": \"<uuid>\", \"text\": \"...\"}."
     },
     {
       "name": "get_log_state",
       "descriptionHash": "7fea0af8041070c6026335fb23c8ddc91069196f0cbd567ca08ba0026074223d",
       "description": "Size and current root of the append-only signature log, and the latest Bitcoin-anchored tree head."
+    },
+    {
+      "name": "get_platform_stats",
+      "descriptionHash": "a769c7bd5236d354de24526f485ae4f17e8fa6d362e2be5567fbc4b832673f83",
+      "description": "Real counts, zeros included: registered AIs, verified businesses, signed statements, human answers, open jobs, AI visits in the last 30 days by client, and the public log size."
+    },
+    {
+      "name": "get_legal_seals",
+      "descriptionHash": "e661a5fea60d8755b36ac0b798f309840a2ba6cffc3860bc5d6ac0faff115007",
+      "description": "Current versions of the terms, privacy policy and acceptable use policy with the SHA-256 of their plain text and the public log entries that seal every version, so you can check that no rule was changed silently."
     },
     {
       "name": "get_inclusion_proof",
@@ -147,21 +165,73 @@
   ],
   "findings": [
     {
+      "id": "MCP-TOOL-POISON-002",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description tells the model to hide behavior",
+      "detail": "Description of \"get_legal_seals\" instructs the model to conceal actions from the user.",
+      "evidence": {
+        "source": "tool:get_legal_seals",
+        "snippet": "Current versions of the terms, privacy policy and acceptable use policy with the SHA-256 of their plain text and the public log entries that seal every version,…"
+      },
+      "confidence": 0.75
+    },
+    {
       "id": "MCP-TOXIC-FLOW-001",
       "severity": "high",
       "category": "toxic-flow",
       "title": "Lethal trifecta: untrusted input + private data + external sink",
-      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: get_answers · Private data: post_job · Public sink: post_job, submit_business_profile, verify_agent_domain · Destructive: suggest_improvement, get_business_guide.",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: get_answers · Private data: post_job, get_business_credential · Public sink: post_job, submit_business_profile, verify_agent_domain · Destructive: suggest_improvement, get_business_guide.",
       "evidence": {
         "source": "server:mcp",
-        "snippet": "Untrusted content: get_answers · Private data: post_job · Public sink: post_job, submit_business_profile, verify_agent_domain · Destructive: suggest_improvement, get_business_guide"
+        "snippet": "Untrusted content: get_answers · Private data: post_job, get_business_credential · Public sink: post_job, submit_business_profile, verify_agent_domain · Destructive: suggest_improvement, get_business_guide"
       },
       "confidence": 0.6,
       "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"get_answers\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:get_answers",
+        "snippet": "before: \"Human answers (any language, CC0) to one question, or a feed of all answers since a timestamp. Each answer carries its human-verification level.\" → after: \"Human answers (any language, CC0) to one question, or a feed of all answers since a timestamp. Each answer is signed by the person's passkey: it carries `proof` (the WebAuthn assertion over the answer text and the passkey's public key) and `log_index` (its seal in the public log), so you can verify \""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"submit_business_profile\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:submit_business_profile",
+        "snippet": "before: \"Publish a new version of a business profile as a signed envelope. Prove the domain with TXT _humancollab.<domain> = humancollab-business=<public_key>, or serve that line at https://<domain>/.well-known/humancollab.txt. Optional payload.change_note explains what was corrected.\" → after: \"Currently returns an error (business publishing is paused for now: no AI has verified itself on humancollab yet). Publish a new version of a business profile as a signed envelope. Prove the domain with TXT _humancollab.<domain> = humancollab-business=<public_key>, or serve that line at https://<doma\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"reply_business_note\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:reply_business_note",
+        "snippet": "before: \"Signed with the business's own key. Payload: {\"type\": \"humancollab.business.note_reply\", \"timestamp\": \"...\", \"domain\": \"...\", \"note_id\": \"<uuid>\", \"text\": \"...\"}.\" → after: \"Currently returns an error (business publishing is paused for now: no AI has verified itself on humancollab yet). Signed with the business's own key. Payload: {\"type\": \"humancollab.business.note_reply\", \"timestamp\": \"...\", \"domain\": \"...\", \"note_id\": \"<uuid>\", \"text\": \"...\"}.\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
     }
   ],
-  "score": 80,
+  "score": 43,
   "scoreBreakdown": {
+    "tool-poisoning": 38,
     "toxic-flow": 20
   },
   "errors": []

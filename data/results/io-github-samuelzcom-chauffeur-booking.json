@@ -6,10 +6,10 @@
   },
   "target": {
     "kind": "url",
-    "ref": "https://platform-api.samuelz.com/api/v1/mcp/chauffeur/samuelz-chauffeur"
+    "ref": "https://platform.samuelz.com/api/v1/mcp/chauffeur/samuelz-chauffeur"
   },
-  "scannedAt": "2026-10-24T09:09:09.076Z",
-  "durationMs": 2015,
+  "scannedAt": "2026-11-19T13:36:16.048Z",
+  "durationMs": 20404,
   "layers": {
     "metadata": true,
     "static": false
@@ -27,8 +27,8 @@
     },
     {
       "name": "quote_ride",
-      "descriptionHash": "007ccdc22047355ba19f493a906b11e052ccd02ab34114ced96d82a11643c1b5",
-      "description": "Use this when pricing a complete anonymous Samuelz Chauffeur ride. Do not use for discovery (use get_service_options instead); check terms with get_customer_policy. Keep offerKey across these calls; it determines the local calendar/time zone. Return pickup must follow outbound pickup; hourly service",
+      "descriptionHash": "0c679bca406e91b72d0e823a5d5e19b08c678af5dca47e0cf1c940ac72b78b0a",
+      "description": "Use this when pricing a complete anonymous Samuelz Chauffeur ride. Do not use for discovery (use get_service_options); check terms with get_customer_policy. Keep offerKey and local time zone across calls; omit unknown optional fields. Return follows outbound; hourly has no return. vehiclePreference ",
       "labels": [
         "untrusted-content",
         "private-data",
@@ -37,7 +37,7 @@
     },
     {
       "name": "prepare_offer",
-      "descriptionHash": "c938fcb088a3fab053af3f05a804528a8e5d4b559ac55d48649bb24310958e69",
+      "descriptionHash": "c5805e34efc86f66067c686ca9ca38dcefe686041c9ab92dc225cce376d74161",
       "description": "Use this when preparing a customer-requested unpaid Samuelz Chauffeur offer (offerRequested=true). Do not use for prices (use quote_ride instead). Supply email or E.164 phone. Bind submissionId/resumeToken to unchanged ride, contact, locale, offerKey and partner context. Intake and unpaid state may ",
       "labels": [
         "private-data",
@@ -46,23 +46,45 @@
     },
     {
       "name": "get_offer_status",
-      "descriptionHash": "20c2c0112ff9d3b1e6c3c4fa1a470ee70fa7befeea9b0f1af2e22ddcc2bb99ee",
-      "description": "Use this when reading a submitted offer's stored status. Do not use for new requests (use prepare_offer instead). Reuse the original submissionId/resumeToken: this provider's proof expires 24 hours after the first submission. prepared returns private checkout/terms links; available returns recorded ",
+      "descriptionHash": "a3d50859ef867f4dcbb310dfd89961970d9f0fbfacc92ce0faf9a844447afcad",
+      "description": "Use this when recovering a submitted offer after a timeout or on return. Do not use for new requests (use prepare_offer instead).\n\nFor rides A then B, pair A's submissionId with A's resumeToken to read A, even after B. Recovery preserves the original language: there is no locale override.\n\npending: ",
       "labels": [
         "private-data"
+      ]
+    },
+    {
+      "name": "resolve_offer_attempt",
+      "descriptionHash": "7018297d0ca1c3fb0521fa25fda72459eef6a8c669c16a57e1753b5e099a0377",
+      "description": "Use this when the customer explicitly asks to resolve an earlier offer attempt and continue safely. Do not use for a first request, automatic status polling or retrying an existing execution. Supply resolveRequested=true and the original submissionId/resumeToken pair. This mutating, idempotent opera",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "destructive"
       ]
     }
   ],
   "findings": [
     {
+      "id": "MCP-TOOL-POISON-007",
+      "severity": "low",
+      "category": "tool-poisoning",
+      "title": "Description uses pressure/override language",
+      "detail": "Description of \"get_offer_status\" stacks urgency/override words (never, override). Legitimate tool descriptions rarely pressure the model to act or ignore prior guidance.",
+      "evidence": {
+        "source": "tool:get_offer_status",
+        "snippet": "Use this when recovering a submitted offer after a timeout or on return. Do not use for new requests (use prepare_offer instead). For rides A then B, pair A's s…"
+      },
+      "confidence": 0.3
+    },
+    {
       "id": "MCP-TOXIC-FLOW-001",
       "severity": "high",
       "category": "toxic-flow",
       "title": "Lethal trifecta: untrusted input + private data + external sink",
-      "detail": "Server \"samuelz-chauffeur\" exposes tools that together enable an exfiltration flow. Untrusted content: quote_ride · Private data: quote_ride, prepare_offer, get_offer_status · Public sink: quote_ride, prepare_offer.",
+      "detail": "Server \"samuelz-chauffeur\" exposes tools that together enable an exfiltration flow. Untrusted content: quote_ride, resolve_offer_attempt · Private data: quote_ride, prepare_offer, get_offer_status, resolve_offer_attempt · Public sink: quote_ride, prepare_offer · Destructive: resolve_offer_attempt.",
       "evidence": {
         "source": "server:samuelz-chauffeur",
-        "snippet": "Untrusted content: quote_ride · Private data: quote_ride, prepare_offer, get_offer_status · Public sink: quote_ride, prepare_offer"
+        "snippet": "Untrusted content: quote_ride, resolve_offer_attempt · Private data: quote_ride, prepare_offer, get_offer_status, resolve_offer_attempt · Public sink: quote_ride, prepare_offer · Destructive: resolve_offer_attempt"
       },
       "confidence": 0.6,
       "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
@@ -72,36 +94,10 @@
       "severity": "high",
       "category": "tool-poisoning",
       "title": "Tool description changed since last scan",
-      "detail": "Tool \"get_service_options\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
-      "evidence": {
-        "source": "tool:get_service_options",
-        "snippet": "before: \"Use first to learn this provider's service scope, required ride facts and local timeZone. Read current published facts; do not assume additional locations. Language defaults to English; pass locale=de for German, without changing timeZone. It gives no price or availability confirmation. Use get_cust\" → after: \"Use this when discovering Samuelz Chauffeur services, areas and time zones. Do not use for terms (use get_customer_policy instead). Keep offerKey and locale across policy/price calls so location and language agree; omit the key for discovery. Returns available or unavailable. Anonymous stored read; \""
-      },
-      "confidence": 0.8,
-      "remediation": "Re-review the tool before continuing to trust it."
-    },
-    {
-      "id": "MCP-RUGPULL-001",
-      "severity": "high",
-      "category": "tool-poisoning",
-      "title": "Tool description changed since last scan",
-      "detail": "Tool \"get_customer_policy\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
-      "evidence": {
-        "source": "tool:get_customer_policy",
-        "snippet": "before: \"Use after get_service_options and before prepare_offer to retrieve current account, guest-booking and minimum-lead-time rules. Returns observedAt and revalidationRequired: refresh the rules before preparing an offer; no terms-validity window is promised. Review bound waiting and cancellation terms o\" → after: \"Use this when checking Samuelz Chauffeur lead time, account requirements and booking confirmation terms. Do not use for service coverage (use get_service_options instead). Returns available with observedAt and terms, or unavailable. Lead time is in minutes; interpret dates in the returned time zone \""
-      },
-      "confidence": 0.8,
-      "remediation": "Re-review the tool before continuing to trust it."
-    },
-    {
-      "id": "MCP-RUGPULL-001",
-      "severity": "high",
-      "category": "tool-poisoning",
-      "title": "Tool description changed since last scan",
       "detail": "Tool \"quote_ride\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
       "evidence": {
         "source": "tool:quote_ride",
-        "snippet": "before: \"Use after get_service_options to calculate an anonymous price preview for complete ride facts in the provider timeZone. No contact is needed. Resolve missing return or hourly facts before quoting. The calculatedAt preview requires revalidation; no price-validity window is guaranteed. For rate_limite\" → after: \"Use this when pricing a complete anonymous Samuelz Chauffeur ride. Do not use for discovery (use get_service_options instead); check terms with get_customer_policy. Keep offerKey across these calls; it determines the local calendar/time zone. Return pickup must follow outbound pickup; hourly service\""
+        "snippet": "before: \"Use this when pricing a complete anonymous Samuelz Chauffeur ride. Do not use for discovery (use get_service_options instead); check terms with get_customer_policy. Keep offerKey across these calls; it determines the local calendar/time zone. Return pickup must follow outbound pickup; hourly service\" → after: \"Use this when pricing a complete anonymous Samuelz Chauffeur ride. Do not use for discovery (use get_service_options); check terms with get_customer_policy. Keep offerKey and local time zone across calls; omit unknown optional fields. Return follows outbound; hourly has no return. vehiclePreference \""
       },
       "confidence": 0.8,
       "remediation": "Re-review the tool before continuing to trust it."
@@ -114,7 +110,7 @@
       "detail": "Tool \"prepare_offer\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
       "evidence": {
         "source": "tool:prepare_offer",
-        "snippet": "before: \"Use only for an explicit offer request with offerRequested=true, complete ride facts and email OR E.164 phone. Creates one unpaid draft and an offer link; the customer reviews bound terms and confirms via checkoutUrl. No charge or booking confirmation. Use quote_ride for price-only questions. Keep s\" → after: \"Use this when preparing a customer-requested unpaid Samuelz Chauffeur offer (offerRequested=true). Do not use for prices (use quote_ride instead). Supply email or E.164 phone. Bind submissionId/resumeToken to unchanged ride, contact, locale, offerKey and partner context. Intake and unpaid state may \""
+        "snippet": "before: \"Use this when preparing a customer-requested unpaid Samuelz Chauffeur offer (offerRequested=true). Do not use for prices (use quote_ride instead). Supply email or E.164 phone. Bind submissionId/resumeToken to unchanged ride, contact, locale, offerKey and partner context. Intake and unpaid state may \" → after: \"Use this when preparing a customer-requested unpaid Samuelz Chauffeur offer (offerRequested=true). Do not use for prices (use quote_ride instead). Supply email or E.164 phone. Bind submissionId/resumeToken to unchanged ride, contact, locale, offerKey and partner context. Intake and unpaid state may \""
       },
       "confidence": 0.8,
       "remediation": "Re-review the tool before continuing to trust it."
@@ -127,16 +123,16 @@
       "detail": "Tool \"get_offer_status\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
       "evidence": {
         "source": "tool:get_offer_status",
-        "snippet": "before: \"Use to read one existing request with its original submissionId/resumeToken pair within the original 24-hour window. Returns offer state or recorded booking/payment/fulfillment after payment; no pricing call or new business action. For pending, wait retryAfterSeconds and retry that pair. For ambiguo\" → after: \"Use this when reading a submitted offer's stored status. Do not use for new requests (use prepare_offer instead). Reuse the original submissionId/resumeToken: this provider's proof expires 24 hours after the first submission. prepared returns private checkout/terms links; available returns recorded \""
+        "snippet": "before: \"Use this when reading a submitted offer's stored status. Do not use for new requests (use prepare_offer instead). Reuse the original submissionId/resumeToken: this provider's proof expires 24 hours after the first submission. prepared returns private checkout/terms links; available returns recorded \" → after: \"Use this when recovering a submitted offer after a timeout or on return. Do not use for new requests (use prepare_offer instead).\n\nFor rides A then B, pair A's submissionId with A's resumeToken to read A, even after B. Recovery preserves the original language: there is no locale override.\n\npending: \""
       },
       "confidence": 0.8,
       "remediation": "Re-review the tool before continuing to trust it."
     }
   ],
-  "score": 41,
+  "score": 45,
   "scoreBreakdown": {
-    "toxic-flow": 20,
-    "tool-poisoning": 39
+    "tool-poisoning": 35,
+    "toxic-flow": 20
   },
   "errors": []
 }

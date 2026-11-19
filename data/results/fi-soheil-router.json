@@ -8,8 +8,8 @@
     "kind": "url",
     "ref": "https://api.soheil.fi/v1/mcp"
   },
-  "scannedAt": "2026-11-11T12:04:01.200Z",
-  "durationMs": 2044,
+  "scannedAt": "2026-11-19T13:28:30.992Z",
+  "durationMs": 2449,
   "layers": {
     "metadata": true,
     "static": false
@@ -17,10 +17,11 @@
   "tools": [
     {
       "name": "get_networks",
-      "descriptionHash": "99d6a999222868658a94c2ec258604cb56d845714fbb7c56b77b2ce024d2fae3",
-      "description": "The EVM networks where Soheil Router is live: chain id, name, our contract, its fee and fee wallet, and the contracts a trade may call. No API key needed.",
+      "descriptionHash": "a97b93470f8ea35a8b43c00d9c3615fa2c2f17a20cd900f0769a40eadb3df839",
+      "description": "Where Soheil Router trades. \"networks\": the EVM networks with our contract (chain id, name, contract, fee, the contracts a trade may call). \"otherNetworks\": Solana, Bitcoin, TON, Tron, Sui, Hyperliquid, Cosmos networks and the networks paid by deposit, each with its chainId, how its addresses look (",
       "labels": [
-        "private-data"
+        "private-data",
+        "public-sink"
       ]
     },
     {
@@ -33,22 +34,58 @@
     },
     {
       "name": "get_quote",
-      "descriptionHash": "8e58a97255ebc64330e96de3f0a7697f22db389d0dadf3344e7547ae21169c9d",
-      "description": "The best price for a token swap on one network, or a transfer to another network (bridge), and the transaction that makes it, through our contract. Returns toAmount, toAmountMin (enforced on-chain), the fees, approvalAddress (approve it for exactly fromAmount first unless fromToken is the coin) and ",
+      "descriptionHash": "f067f00c041cb29c3f36da9f8ed57ed45dff6b5aacde0b011e3ffd59df6ad407",
+      "description": "The best price for a token swap on one network, or a transfer to another network (bridge), and what the sender signs to make it. Works on every network in get_networks. Returns toAmount, toAmountMin (the least the recipient gets), the fees, and one of: transactionRequest (EVM: approve approvalAddres",
+      "labels": [
+        "untrusted-content",
+        "private-data"
+      ]
+    },
+    {
+      "name": "get_signing_guide",
+      "descriptionHash": "50760668b242fff473c4c4add2139e576730afe8d457f330aa1fc65c3a4274fe",
+      "description": "The exact steps to turn a quote into a sent trade on the network it starts on, and how to follow it afterwards: what to approve, what to sign, in which order, and which of txHash and id get_trade_status needs. Give the quote's fromChainId. No API key needed.",
       "labels": [
         "private-data"
       ]
     },
     {
       "name": "get_trade_status",
-      "descriptionHash": "33c74705d88cf8da028f2123451504795f15adc91b27c7f134a161117cd5b974",
-      "description": "Where a sent trade stands, from its transaction on chain: PENDING, DONE (with what was paid and received; for a bridge, once paid on the destination), REFUNDED (a bridge transfer paid back on the source network), FAILED, NOT_FOUND or NOT_OURS. Needs an API key.",
+      "descriptionHash": "ba4e44c029cc55d6004dd253fbe6b4a64435a496b79f409d608d4b607bce08ea",
+      "description": "Where a sent trade stands: PENDING, DONE (with what was paid and received; for a bridge, once paid on the destination), REFUNDED (paid back on the source network; when refundBox is set, the refund waits in the user's own refund box: anyone may call its release(token) to send it to them), FAILED, NOT",
       "labels": [
-        "private-data"
+        "private-data",
+        "public-sink"
       ]
     }
   ],
   "findings": [
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: get_quote · Private data: get_networks, get_api_info, get_quote, get_signing_guide, get_trade_status · Public sink: get_networks, get_trade_status.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: get_quote · Private data: get_networks, get_api_info, get_quote, get_signing_guide, get_trade_status · Public sink: get_networks, get_trade_status"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"get_networks\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:get_networks",
+        "snippet": "before: \"The EVM networks where Soheil Router is live: chain id, name, our contract, its fee and fee wallet, and the contracts a trade may call. No API key needed.\" → after: \"Where Soheil Router trades. \"networks\": the EVM networks with our contract (chain id, name, contract, fee, the contracts a trade may call). \"otherNetworks\": Solana, Bitcoin, TON, Tron, Sui, Hyperliquid, Cosmos networks and the networks paid by deposit, each with its chainId, how its addresses look (\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
     {
       "id": "MCP-RUGPULL-001",
       "severity": "high",
@@ -57,7 +94,7 @@
       "detail": "Tool \"get_quote\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
       "evidence": {
         "source": "tool:get_quote",
-        "snippet": "before: \"The best price for a token swap on one network and the transaction that makes it, through our contract. Returns toAmount, toAmountMin (enforced on-chain), the fees, approvalAddress (approve it for exactly fromAmount first unless fromToken is the coin) and transactionRequest for the user to sign. Nee\" → after: \"The best price for a token swap on one network, or a transfer to another network (bridge), and the transaction that makes it, through our contract. Returns toAmount, toAmountMin (enforced on-chain), the fees, approvalAddress (approve it for exactly fromAmount first unless fromToken is the coin) and \""
+        "snippet": "before: \"The best price for a token swap on one network, or a transfer to another network (bridge), and the transaction that makes it, through our contract. Returns toAmount, toAmountMin (enforced on-chain), the fees, approvalAddress (approve it for exactly fromAmount first unless fromToken is the coin) and \" → after: \"The best price for a token swap on one network, or a transfer to another network (bridge), and what the sender signs to make it. Works on every network in get_networks. Returns toAmount, toAmountMin (the least the recipient gets), the fees, and one of: transactionRequest (EVM: approve approvalAddres\""
       },
       "confidence": 0.8,
       "remediation": "Re-review the tool before continuing to trust it."
@@ -70,15 +107,16 @@
       "detail": "Tool \"get_trade_status\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
       "evidence": {
         "source": "tool:get_trade_status",
-        "snippet": "before: \"Where a sent trade stands, from its transaction on chain: PENDING, DONE (with what was paid and received), FAILED, NOT_FOUND or NOT_OURS. Needs an API key.\" → after: \"Where a sent trade stands, from its transaction on chain: PENDING, DONE (with what was paid and received; for a bridge, once paid on the destination), REFUNDED (a bridge transfer paid back on the source network), FAILED, NOT_FOUND or NOT_OURS. Needs an API key.\""
+        "snippet": "before: \"Where a sent trade stands, from its transaction on chain: PENDING, DONE (with what was paid and received; for a bridge, once paid on the destination), REFUNDED (a bridge transfer paid back on the source network), FAILED, NOT_FOUND or NOT_OURS. Needs an API key.\" → after: \"Where a sent trade stands: PENDING, DONE (with what was paid and received; for a bridge, once paid on the destination), REFUNDED (paid back on the source network; when refundBox is set, the refund waits in the user's own refund box: anyone may call its release(token) to send it to them), FAILED, NOT\""
       },
       "confidence": 0.8,
       "remediation": "Re-review the tool before continuing to trust it."
     }
   ],
-  "score": 70,
+  "score": 45,
   "scoreBreakdown": {
-    "tool-poisoning": 30
+    "toxic-flow": 20,
+    "tool-poisoning": 35
   },
   "errors": []
 }

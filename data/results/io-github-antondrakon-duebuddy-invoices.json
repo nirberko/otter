@@ -8,8 +8,8 @@
     "kind": "url",
     "ref": "https://duebuddy.work/mcp"
   },
-  "scannedAt": "2026-10-09T11:35:35.265Z",
-  "durationMs": 1762,
+  "scannedAt": "2026-11-19T13:29:35.683Z",
+  "durationMs": 1858,
   "layers": {
     "metadata": true,
     "static": false
@@ -17,34 +17,113 @@
   "tools": [
     {
       "name": "parse_invoice",
-      "descriptionHash": "0e4566b4cc52247e7022c5b21a144a2a461c0ed896115f7ae5859d28c0e53d68",
-      "description": "Read one incoming invoice. Pass the API key, a publicly reachable file URL and the country code (de, fr, it, pl, ru, kz, by, us, ae, sa, ua, ge). Returns a job id and status. Electronic invoices (XML, QR) are free; scans cost 0.07 EUR per page.",
+      "descriptionHash": "c4989dda1dd15d17c8819c338b07ab3afabb344a4c6df3dc3ef3fa294cc395fb",
+      "description": "Reads ONE incoming supplier invoice and returns a job id for polling.\n\nUse when: the user has a single invoice (PDF, photo, scan, XML e-invoice or QR bill) and wants supplier, invoice number, dates, amounts, VAT or line items extracted.\nDo not use when: the user asks to ISSUE an invoice, to send a p",
+      "labels": [
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "get_result",
+      "descriptionHash": "d01267f4d443c6dcc5aeb4f10036f96340497ef76e55f24c4704d9fff6079b36",
+      "description": "Returns the result of a parse job started by parse_invoice: structured fields (supplier, invoice number, dates, net/VAT/gross, currency, line items) plus export links for accounting systems.\n\nUse when: you already have a job_id and want its status or its extracted data.\nDo not use when: you have no ",
       "labels": [
         "untrusted-content",
         "private-data"
       ]
     },
     {
-      "name": "get_result",
-      "descriptionHash": "f22a82b88524375039934f3d8bd21f3e9ce080d548e05a500af874e191d3dd82",
-      "description": "Fetch the result of a parse job: structured fields plus export links for accounting."
-    },
-    {
       "name": "get_balance",
-      "descriptionHash": "a88728eecf7548ba6668617c4f5e8cbf3ac08e6838c3938aa5a49e3b5b391bc1",
-      "description": "How many scanned pages are left on this API key before the next top-up.",
+      "descriptionHash": "4c4406acba0daf13b6d8db5484d7440b2644027944d0b2a19573661cb74daf78",
+      "description": "Shows how many scanned pages are left on the prepaid balance for this API key.\n\nUse when: before a batch of scans or photos, or when parse_invoice answered insufficient_balance and the remaining amount must be confirmed.\nDo not use when: the user asks about invoice content — that is get_result.\n\nSid",
       "labels": [
-        "private-data"
+        "private-data",
+        "public-sink",
+        "destructive"
       ]
     },
     {
       "name": "topup_link",
-      "descriptionHash": "6a337b7994cf2cd6caa31b797c82f2ca1a581fc51e6608b9b1cb4a3cf7cc50c4",
-      "description": "Where to top up the API balance. Lava is the seller; the minimum top-up is 8 EUR."
+      "descriptionHash": "b5e07efbec2dcaa3e6f40456123da377c08aa7130ee3b46686d330148a9b38d3",
+      "description": "Returns the page where the prepaid balance can be topped up, plus the minimum amount.\n\nUse when: the balance is empty or too low for the documents the user wants to process.\nDo not use when: the balance is sufficient — check it with get_balance first.\n\nSide effects and cost: none. The call only buil",
+      "labels": [
+        "untrusted-content",
+        "private-data"
+      ]
     }
   ],
-  "findings": [],
-  "score": 100,
-  "scoreBreakdown": {},
+  "findings": [
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: get_result, topup_link · Private data: parse_invoice, get_result, get_balance, topup_link · Public sink: parse_invoice, get_balance · Destructive: get_balance.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: get_result, topup_link · Private data: parse_invoice, get_result, get_balance, topup_link · Public sink: parse_invoice, get_balance · Destructive: get_balance"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"parse_invoice\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:parse_invoice",
+        "snippet": "before: \"Read one incoming invoice. Pass the API key, a publicly reachable file URL and the country code (de, fr, it, pl, ru, kz, by, us, ae, sa, ua, ge). Returns a job id and status. Electronic invoices (XML, QR) are free; scans cost 0.07 EUR per page.\" → after: \"Reads ONE incoming supplier invoice and returns a job id for polling.\n\nUse when: the user has a single invoice (PDF, photo, scan, XML e-invoice or QR bill) and wants supplier, invoice number, dates, amounts, VAT or line items extracted.\nDo not use when: the user asks to ISSUE an invoice, to send a p\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"get_result\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:get_result",
+        "snippet": "before: \"Fetch the result of a parse job: structured fields plus export links for accounting.\" → after: \"Returns the result of a parse job started by parse_invoice: structured fields (supplier, invoice number, dates, net/VAT/gross, currency, line items) plus export links for accounting systems.\n\nUse when: you already have a job_id and want its status or its extracted data.\nDo not use when: you have no \""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"get_balance\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:get_balance",
+        "snippet": "before: \"How many scanned pages are left on this API key before the next top-up.\" → after: \"Shows how many scanned pages are left on the prepaid balance for this API key.\n\nUse when: before a batch of scans or photos, or when parse_invoice answered insufficient_balance and the remaining amount must be confirmed.\nDo not use when: the user asks about invoice content — that is get_result.\n\nSid\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"topup_link\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:topup_link",
+        "snippet": "before: \"Where to top up the API balance. Lava is the seller; the minimum top-up is 8 EUR.\" → after: \"Returns the page where the prepaid balance can be topped up, plus the minimum amount.\n\nUse when: the balance is empty or too low for the documents the user wants to process.\nDo not use when: the balance is sufficient — check it with get_balance first.\n\nSide effects and cost: none. The call only buil\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    }
+  ],
+  "score": 43,
+  "scoreBreakdown": {
+    "toxic-flow": 20,
+    "tool-poisoning": 38
+  },
   "errors": []
 }

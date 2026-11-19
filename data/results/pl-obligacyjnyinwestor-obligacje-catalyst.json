@@ -8,8 +8,8 @@
     "kind": "url",
     "ref": "https://www.obligacyjnyinwestor.pl/wp-json/oi/v1/mcp"
   },
-  "scannedAt": "2026-11-12T13:08:47.487Z",
-  "durationMs": 2982,
+  "scannedAt": "2026-11-19T13:39:39.998Z",
+  "durationMs": 2962,
   "layers": {
     "metadata": true,
     "static": false
@@ -41,10 +41,88 @@
       "name": "get_calendar",
       "descriptionHash": "83ffe1fa8da8153ea706aabec44a8d59af7810188a594d95eb5322255bcea24a",
       "description": "Calendar of the Catalyst corporate bond market for a date range: maturities (redemptions), interest payments and open public offers. Default range: next 30 days; maximum 366 days and 100 rows per call. Kalendarz wykupów, wypłat odsetek i zapisów na emisje."
+    },
+    {
+      "name": "search_etfs",
+      "descriptionHash": "b2dab05b68b62109abd62d768f073d49eece565956fa197d5b0631c31e6f1dfa",
+      "description": "List of all ETFs, ETCs and ETNs listed on the Warsaw Stock Exchange (GPW), with asset class, index, ongoing cost (TER) from the KID, distribution policy, replication and provider, each with a link to the KID. Filters: name/ticker/ISIN, asset class (equity, government bonds, corporate bonds, commodit"
+    },
+    {
+      "name": "get_etf",
+      "descriptionHash": "ace4cb88655e72cd44cc07d72add091eb3df35d61be9cf2a09e7976f985bb716",
+      "description": "Details of one ETF/ETC/ETN by ticker or ISIN (e.g. \"ETFBTBSP\", \"PLBTBSP00012\", \"IEAC\"): index, ongoing cost, distribution, replication, base currency, currency hedging, first listing date, fund assets, legal form, domicile, launch date, KID; for bond ETFs also duration, number of bonds, fund assets,",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "calculate_yield",
+      "descriptionHash": "54d4cc5bef67d7372c5b06db67b5081ac8e710ebddd02c694dd1b8e2f9457f1e",
+      "description": "What-if calculator for one Catalyst bond series. Give the series code and EITHER a clean price you saw at your broker (price_pct, % of face value, e.g. \"101.5\") OR a yield (yield_pct, % per year, annual effective) and get: accrued interest, dirty price, yield to maturity (annual effective and compou",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "report_gap",
+      "descriptionHash": "30bf679d9ad662cf705fa073bf4295acf62a6b940cc063556aff59efe0c0ff92",
+      "description": "Tell the editors of obligacyjnyinwestor.pl about a problem with this server: missing data, a value that looks wrong, a tool or field you needed but could not find, or a confusing tool description. Use it at most once per problem in a conversation. Describe only the data problem: no personal data and"
+    },
+    {
+      "name": "request_bond",
+      "descriptionHash": "faa2761b493ef7774d5bb7281c6eaff20167ef949474e0a03a863ba89817db71",
+      "description": "Ask the editors to add a bond series listed on GPW Catalyst that get_bond did not find. Call it only after the user agrees. If the series is already in our data, the tool says so and records nothing. Only a confirmation is returned. Prośba o dodanie serii z Catalyst, której nie mamy.",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "screen_bonds",
+      "descriptionHash": "813ca94141052174135c41d78ded1255b1393a262288d6ea6bc9e1f7c8a9d890",
+      "description": "Screen all corporate bond series listed on GPW Catalyst by their terms: margin, current coupon, maturity range, fixed or floating coupon, base rate, currency, collateral, minimum issue value, financial covenant in our data, sector or issuer. Returns compact rows (code, issuer, maturity, margin, coup"
+    },
+    {
+      "name": "portfolio_cashflows",
+      "descriptionHash": "011da45a0cf1779d12574da04e390d2badad512428aeb89ad5484a92747d491c",
+      "description": "Cash flow plan for bonds the user holds: give series codes with the face value held and get coupons and redemptions month by month for up to 120 months, before and after the 19% tax (or another rate, e.g. 0 for IKE/IKZE), totals per currency and each payment. Floating coupons after the current perio"
+    },
+    {
+      "name": "compare_with_treasury",
+      "descriptionHash": "d01b1df460bb28d49faf4791886ac7def7bf85bf3a338436e8603314d435d899",
+      "description": "Compare one PLN Catalyst series held to maturity with each Polish retail treasury savings bond of the current offer (OTS, ROR, DOR, TOS, COI, EDO, ROS, ROD) held to its maturity: amount invested, interest, tax, net payout, gross and net annual yield, with the series closest in term marked. Treasury "
     }
   ],
-  "findings": [],
-  "score": 100,
-  "scoreBreakdown": {},
+  "findings": [
+    {
+      "id": "MCP-SCHEMA-SMELL-001",
+      "severity": "medium",
+      "category": "schema-smell",
+      "title": "Read-only tool requests dangerous parameters",
+      "detail": "Tool \"calculate_yield\" appears informational but accepts parameters (code) that enable code/file/secret access.",
+      "evidence": {
+        "source": "tool:calculate_yield",
+        "snippet": "code, price_pct, yield_pct, settlement_date, face_value"
+      },
+      "confidence": 0.55
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: get_issuer_bonds, get_bond · Private data: get_bond, request_bond · Public sink: get_etf, calculate_yield.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: get_issuer_bonds, get_bond · Private data: get_bond, request_bond · Public sink: get_etf, calculate_yield"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 72,
+  "scoreBreakdown": {
+    "schema-smell": 8,
+    "toxic-flow": 20
+  },
   "errors": []
 }

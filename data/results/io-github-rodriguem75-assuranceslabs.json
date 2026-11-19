@@ -8,13 +8,38 @@
     "kind": "url",
     "ref": "https://www.assuranceslabs.com/mcp"
   },
-  "scannedAt": "2026-11-10T12:56:58.818Z",
-  "durationMs": 920,
+  "scannedAt": "2026-11-19T13:35:50.742Z",
+  "durationMs": 1873,
   "layers": {
     "metadata": true,
     "static": false
   },
   "tools": [
+    {
+      "name": "search_insurance_facts",
+      "descriptionHash": "ed8a164d911f4b37048f19893577993fce9f437fca8ee7ea68891c67bace9034",
+      "description": "Search already-publishable French home-insurance documentary facts with explicit domain synonyms (theft/burglary, leak detection, pipe repairs, etc.). All remaining meaningful terms must match; interpretation is returned and an ambiguous plumber/leak question asks for clarification. Start with query",
+      "labels": [
+        "untrusted-content",
+        "private-data"
+      ]
+    },
+    {
+      "name": "compare_public_insurance_formulas",
+      "descriptionHash": "a945b2f8e9a465422b638df30b5ac7567c921f911d55511e05f626e85a7cfded",
+      "description": "Compare two or three exact public home-insurance formulas on the same documentary criteria, with conditions, limits, deductibles and source citations. Start with no arguments to discover available formula_ids and coverage_ids. IDs include the document version. Missing cells never inherit product-lev",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "get_insurance_fact",
+      "descriptionHash": "4937198a4c7dbab90e8c3db1888e79653c8874c22b771a334352f805721c3b6a",
+      "description": "Retrieve one already-publishable documentary fact using an exact fact_id returned by search_insurance_facts. Preserves formula, edition, conditions, uncertainty and source citations. Not found means unavailable in the public corpus, never an exclusion. Cannot access private or unpublished facts.",
+      "labels": [
+        "private-data"
+      ]
+    },
     {
       "name": "get_habitation_leak_search",
       "descriptionHash": "0eb7d9dd59abc1b958ea673aa5eb84cae9140e08568456f746c970b30d2ef7b3",
@@ -29,6 +54,32 @@
       "description": "Returns the AssurancesLabs citation-oriented sources map (same payload as GET /api/ai/sources)."
     },
     {
+      "name": "get_quote_requirements",
+      "descriptionHash": "44f5019adfac552832b49e67e695b77b89a603aabf0db0f0b8d4209a24f245f0",
+      "description": "Discover questionnaire fields, conditional rules, accepted values and the internal AssurancesLabs recipient for native LLM intake across insurance types (MRH, PNO, auto, moto, santé, emprunteur, professional, animaux, etc.). No lead creation and no partner handoff."
+    },
+    {
+      "name": "prepare_quote_request",
+      "descriptionHash": "a32514337667a0e38850874e03fd36a67953d8b199fa88278bc2ee3ced91e828",
+      "description": "Validate a quote draft against the native questionnaire and return missing/invalid questions and the canonical consent prompt. Before asking the user again, inspect any prior explicit instruction in the SAME conversation and supply its EXACT verbatim text as prior_user_message. The server indicates "
+    },
+    {
+      "name": "render_pet_quote_consent",
+      "descriptionHash": "47a3f3649663fb606aa38f004fc2f537c97ce500ae79eb673f99ce8f79bf1d85",
+      "description": "Use this AFTER prepare_quote_request returns ready_to_submit=true for a pet insurance quote. Display the review and exact consent question in an interactive card inside ChatGPT, without opening AssurancesLabs. The user can explicitly accept or refuse. This tool only renders UI, it never creates a le",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "render_quote_consent",
+      "descriptionHash": "7cebdb9662e9564187c330fb5e11c5d83b3ca9d69dea4667130c1272ed5b691e",
+      "description": "After prepare_quote_request returns ready_to_submit=true for any supported insurance type (MRH, auto, health, loan, professional, etc.), render an interactive consent review within ChatGPT, without Acheel/Assurland redirects. Read-only: it never writes or delivers a lead. The user reviews and answer",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
       "name": "resolve_quote_intent",
       "descriptionHash": "f640959dcfbdbf337a865d7c239ef4382787aba9e6f0946bb15306ca1f40df91",
       "description": "Maps an insurance type to the canonical questionnaire deep link and required fields (same as POST /api/ai/quote-intent).",
@@ -37,8 +88,37 @@
       ]
     }
   ],
-  "findings": [],
-  "score": 100,
-  "scoreBreakdown": {},
+  "findings": [
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"render_quote_consent\" references sensitive artifacts (authorization). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:render_quote_consent",
+        "snippet": "After prepare_quote_request returns ready_to_submit=true for any supported insurance type (MRH, auto, health, loan, professional, etc.), render an interactive c…"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: search_insurance_facts, render_quote_consent · Private data: search_insurance_facts, compare_public_insurance_formulas, get_insurance_fact, get_habitation_leak_search, render_pet_quote_consent · Public sink: resolve_quote_intent.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: search_insurance_facts, render_quote_consent · Private data: search_insurance_facts, compare_public_insurance_formulas, get_insurance_fact, get_habitation_leak_search, render_pet_quote_consent · Public sink: resolve_quote_intent"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 60,
+  "scoreBreakdown": {
+    "tool-poisoning": 20,
+    "toxic-flow": 20
+  },
   "errors": []
 }

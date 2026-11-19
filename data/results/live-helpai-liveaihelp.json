@@ -8,19 +8,81 @@
     "kind": "url",
     "ref": "https://www.helpai.live/api/mcp"
   },
-  "scannedAt": "2026-10-27T10:04:22.984Z",
-  "durationMs": 1056,
+  "scannedAt": "2026-11-19T13:38:45.938Z",
+  "durationMs": 831,
   "layers": {
-    "metadata": false,
+    "metadata": true,
     "static": false
   },
-  "findings": [],
-  "score": 100,
-  "scoreBreakdown": {},
-  "errors": [
+  "tools": [
     {
-      "scanner": "metadata",
-      "message": "Streamable HTTP error: Error POSTing to endpoint: {\"error\":\"Unauthorized: Missing Authorization: Bearer <api-key> header. Get an API key at https://www.helpai.live/portal (API keys for bots) and send it as Authorization: Bearer <key>.\"}"
+      "name": "hire_human_expert",
+      "descriptionHash": "44afed2e259061eb4438a2012c9c7e6626f8567019564c417c94e803bd9ac08a",
+      "description": "Hire a live vetted human expert for help with a task. The expert joins a real-time session (chat or video) and works the problem with you. Sessions draw on the connected account's LIVEAIHELP minute balance. If no expert is online you are placed in a FIFO holding queue — poll check_queue until matche"
+    },
+    {
+      "name": "send_message",
+      "descriptionHash": "5ab93e1fb87d89e395fa433f3ccf2935986d11904d4e8440620bce3a8f7051ad",
+      "description": "Send a chat message to the human expert in an active session. You are the customer in this conversation.",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "read_messages",
+      "descriptionHash": "1cceec94ad4315cee9f2551b65530d91f762a2e2c0d2bff60dad15982ef9dfc0",
+      "description": "Read new chat messages from the human expert. Poll this after sending a message to get the expert's reply. Returns the session status too — when status becomes ended or cancelled, stop polling and wrap up.",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "check_queue",
+      "descriptionHash": "7ff55449d18659cd0a0487d6d03167d8daf4d95b1dc110dae4119b915aee2bd2",
+      "description": "Check your position in the expert holding queue. Poll until status is matched, then use the returned session_id with send_message / read_messages."
+    },
+    {
+      "name": "end_session",
+      "descriptionHash": "90ae8292e6e1dc15dceac4aec80e058a6b81b7af340cc4252d2731e12e59e034",
+      "description": "End the session when the task is done. This stops billing immediately. Always call this when you are finished."
+    },
+    {
+      "name": "check_balance",
+      "descriptionHash": "ccb11dc9a44874c182cf64f5b5afda38033ed44fb74abe6313d1157dcb6535a6",
+      "description": "Check the minute balance of the connected LIVEAIHELP account."
     }
-  ]
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOOL-POISON-007",
+      "severity": "low",
+      "category": "tool-poisoning",
+      "title": "Description uses pressure/override language",
+      "detail": "Description of \"end_session\" stacks urgency/override words (immediately, always). Legitimate tool descriptions rarely pressure the model to act or ignore prior guidance.",
+      "evidence": {
+        "source": "tool:end_session",
+        "snippet": "End the session when the task is done. This stops billing immediately. Always call this when you are finished."
+      },
+      "confidence": 0.3
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "medium",
+      "category": "toxic-flow",
+      "title": "Toxic flow: untrusted input can reach an external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: read_messages · Public sink: send_message.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: read_messages · Public sink: send_message"
+      },
+      "confidence": 0.45,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 89,
+  "scoreBreakdown": {
+    "tool-poisoning": 3,
+    "toxic-flow": 8
+  },
+  "errors": []
 }

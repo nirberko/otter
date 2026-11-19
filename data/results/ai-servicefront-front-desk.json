@@ -1,0 +1,115 @@
+{
+  "schemaVersion": 1,
+  "scanner": {
+    "version": "1.6.0",
+    "rules": "402995650b68"
+  },
+  "target": {
+    "kind": "url",
+    "ref": "https://servicefront.ai/api/mcp/read"
+  },
+  "scannedAt": "2026-11-19T13:21:33.769Z",
+  "durationMs": 689,
+  "layers": {
+    "metadata": true,
+    "static": false
+  },
+  "tools": [
+    {
+      "name": "searchBusinesses",
+      "descriptionHash": "d128bc1ba3b19801231a7e8204bbccab48b583e30a505493ea789d85e27cca6f",
+      "description": "Find a verified ServiceFront business by name (or part of it) and get its businessId for the other tools. Returns up to 5 matches with name, trade, and front-desk URL.",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "getBusinessInfo",
+      "descriptionHash": "f2e50ccdfb7ef587f8dbb1288543a9454059da924e440ec189f8f1e2652fe37a",
+      "description": "Owner-verified facts for one business: trade, service area, hours, contact, services with confirmed prices. Absent fields are NOT owner-confirmed — don't state them as facts. No tool on this address takes a customer's contact details. To be called back or to ask for a time, the customer goes to the ",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "getQuote",
+      "descriptionHash": "cd241dc1fc46ac9406d27e5dfa2afa7ea5ffdaef59ab2dab79344785dfb72fb1",
+      "description": "The owner-confirmed price for one of a business's services, by service name (ideally a name from getBusinessInfo). grounded:false means no confirmed price exists — never invent one; for an exact quote the customer asks the business on its front desk page (origin in getBusinessInfo) or calls its conf"
+    },
+    {
+      "name": "aboutServiceFront",
+      "descriptionHash": "f1b579c57379905f45742c764e0f006ce828cd0bbc14b67efa3cf47b42020774",
+      "description": "What ServiceFront is, for a service business owner (or their AI assistant) looking for an AI front desk: who it's for, how setup works, what it answers, and what it doesn't do yet. No input. For prices call getPricing; for a demo call sampleConversation."
+    },
+    {
+      "name": "getPricing",
+      "descriptionHash": "2f6f14bb82a8288bd094ad91f86c02e216c8d84b6123ee6584bbf6d281810997",
+      "description": "ServiceFront's own plans and limits (Free $0, Basic $59): what each includes and what's never charged for. No input. The same content as https://servicefront.ai/pricing.md."
+    },
+    {
+      "name": "howToSetUp",
+      "descriptionHash": "99f0909a408ec9a705bce9c31bcd74b7c3819951b13b9043188d68306abf2458",
+      "description": "How a service business owner sets up their own ServiceFront front desk: the steps, the <slug>.servicefront.ai address it goes live at, and the one-line widget for their website. No input. The owner signs up themselves; no tool creates an account."
+    },
+    {
+      "name": "sampleConversation",
+      "descriptionHash": "a79a4ecf5440e2bbbd6d15d00b5431c8877b06f87af470986602115391ec5c6e",
+      "description": "A sample conversation between a homeowner and a ServiceFront front desk in one trade: the question, the answer, urgency triage, and the captured lead. The business in it is a made-up example. Ready trades: plumbing; any other trade says it isn't ready yet and returns a ready trade's sample as a labe"
+    },
+    {
+      "name": "tryFrontDesk",
+      "descriptionHash": "f498d518d8b5d6a8729c6b4a923ec904ba35f9742bf84973fa30e10a9049b1da",
+      "description": "A live demo for a service business owner: you play a homeowner and chat with a ServiceFront front desk for a made-up example business in one trade, so the owner sees it answer, flag an urgent job and take a lead. Send the homeowner's message; on later turns also send history, the history field of th",
+      "labels": [
+        "untrusted-content",
+        "public-sink"
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOOL-POISON-007",
+      "severity": "low",
+      "category": "tool-poisoning",
+      "title": "Description uses pressure/override language",
+      "detail": "Description of \"tryFrontDesk\" stacks urgency/override words (urgent, never). Legitimate tool descriptions rarely pressure the model to act or ignore prior guidance.",
+      "evidence": {
+        "source": "tool:tryFrontDesk",
+        "snippet": "A live demo for a service business owner: you play a homeowner and chat with a ServiceFront front desk for a made-up example business in one trade, so the owner…"
+      },
+      "confidence": 0.3
+    },
+    {
+      "id": "MCP-SCHEMA-SMELL-001",
+      "severity": "medium",
+      "category": "schema-smell",
+      "title": "Read-only tool requests dangerous parameters",
+      "detail": "Tool \"tryFrontDesk\" appears informational but accepts parameters (history) that enable code/file/secret access.",
+      "evidence": {
+        "source": "tool:tryFrontDesk",
+        "snippet": "trade, message, history"
+      },
+      "confidence": 0.55
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"read\" exposes tools that together enable an exfiltration flow. Untrusted content: searchBusinesses, tryFrontDesk · Private data: getBusinessInfo · Public sink: tryFrontDesk.",
+      "evidence": {
+        "source": "server:read",
+        "snippet": "Untrusted content: searchBusinesses, tryFrontDesk · Private data: getBusinessInfo · Public sink: tryFrontDesk"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 69,
+  "scoreBreakdown": {
+    "tool-poisoning": 3,
+    "schema-smell": 8,
+    "toxic-flow": 20
+  },
+  "errors": []
+}

@@ -8,19 +8,123 @@
     "kind": "url",
     "ref": "https://mainnet.agent.chain.tokyo/mcp"
   },
-  "scannedAt": "2026-10-28T10:52:21.888Z",
-  "durationMs": 787,
+  "scannedAt": "2026-11-19T13:40:21.930Z",
+  "durationMs": 1062,
   "layers": {
-    "metadata": false,
+    "metadata": true,
     "static": false
   },
-  "findings": [],
-  "score": 100,
-  "scoreBreakdown": {},
-  "errors": [
+  "tools": [
     {
-      "scanner": "metadata",
-      "message": "Streamable HTTP error: Error POSTing to endpoint: {\"error\":\"unauthorized\",\"message\":\"Invalid Agent access token\"}"
+      "name": "list_locations",
+      "descriptionHash": "d4fbd557b6804395d38bf44c8fce98cc4501f4087b765095fd990f00dd4ed086",
+      "description": "List safe Location summaries and virtual floor ranges using the connected Google OAuth account. Exact addresses are never included in this catalog."
+    },
+    {
+      "name": "get_floor_availability",
+      "descriptionHash": "6f605feacded06a7907af881b424f4e1063f5857fc3c121fab01bbf1fa10801e",
+      "description": "Check a virtual floor for the authenticated owner without disclosing another owner's identity."
+    },
+    {
+      "name": "list_contracts",
+      "descriptionHash": "76e2edc315f6aac7b15a1b8361594df360d7bd6b6e2dd5e0c3eac105263da079",
+      "description": "List the authenticated owner's contracts. Only current active paid contracts with valid assent include their snapshotted mailbox address. Private forwarding destinations are omitted.",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "list_events",
+      "descriptionHash": "5116accd1791af40e7199d7289c5df2e0a5f580d3a258c42500bbca92bf2aa67",
+      "description": "Read the authenticated owner's durable event Inbox after an optional cursor.",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "create_payment_intent",
+      "descriptionHash": "31f196c6261e48f7fcf7aa84afbe557a693c2e9632976900b34e8e46a07de4cc",
+      "description": "Reserve one Location floor for the authenticated owner and create a fixed 55 USDC native-USDC x402 exact Payment Intent."
+    },
+    {
+      "name": "create_wallet_handoff",
+      "descriptionHash": "8523af41c3aeae40918c5c57f1f5b7c58916063f8381ca4732ecfaa210db124e",
+      "description": "Create a short-lived owner login link for an existing 55 USDC Intent. Show the URL to the owner; wait for their Phantom wallet connection before preparing. Never request a token or private key. Do not automatically retry.",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "prepare_wallet_signature",
+      "descriptionHash": "1f498e99c4b8924693fbb825a3748c534b89f5cb90d48bc262743c4311325900",
+      "description": "After the owner connects Phantom, prepare the immutable transaction for this handoff. Then ask the owner to review and sign in the existing owner page. This does not sign or send. Do not automatically retry or request a replacement after expiry.",
+      "labels": [
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "submit_wallet_payment",
+      "descriptionHash": "ce717bc218ad324f532c049d25de135d68e75caef5fb765c3e9233041ff0b357",
+      "description": "Only after the owner explicitly signs the 55 USDC payment in Phantom, submit the server-saved proof once. Acknowledgement is not settlement. Always follow with get_wallet_payment_status; never automatically retry submission, including after a timeout.",
+      "labels": [
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "get_wallet_payment_status",
+      "descriptionHash": "e4ed81ee1acbc2c65e6bf9c332dfcde8f9e5d6ef120c6fbe508752f11065eae1",
+      "description": "Read server-recorded settlement evidence for this handoff without sending, observing the chain or repairing a payment. settlement_recorded is historical evidence, not proof of currently active service. Unknown/review results require operator review. Never resend automatically.",
+      "labels": [
+        "untrusted-content",
+        "private-data"
+      ]
     }
-  ]
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"create_wallet_handoff\" references sensitive artifacts (private key). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:create_wallet_handoff",
+        "snippet": "Create a short-lived owner login link for an existing 55 USDC Intent. Show the URL to the owner; wait for their Phantom wallet connection before preparing. Neve…"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOOL-POISON-007",
+      "severity": "low",
+      "category": "tool-poisoning",
+      "title": "Description uses pressure/override language",
+      "detail": "Description of \"submit_wallet_payment\" stacks urgency/override words (always, never). Legitimate tool descriptions rarely pressure the model to act or ignore prior guidance.",
+      "evidence": {
+        "source": "tool:submit_wallet_payment",
+        "snippet": "Only after the owner explicitly signs the 55 USDC payment in Phantom, submit the server-saved proof once. Acknowledgement is not settlement. Always follow with …"
+      },
+      "confidence": 0.3
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: list_events, get_wallet_payment_status · Private data: list_contracts, create_wallet_handoff, prepare_wallet_signature, submit_wallet_payment, get_wallet_payment_status · Public sink: prepare_wallet_signature, submit_wallet_payment.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: list_events, get_wallet_payment_status · Private data: list_contracts, create_wallet_handoff, prepare_wallet_signature, submit_wallet_payment, get_wallet_payment_status · Public sink: prepare_wallet_signature, submit_wallet_payment"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 59,
+  "scoreBreakdown": {
+    "tool-poisoning": 22,
+    "toxic-flow": 20
+  },
+  "errors": []
 }
