@@ -1,0 +1,100 @@
+{
+  "schemaVersion": 1,
+  "scanner": {
+    "version": "1.6.0",
+    "rules": "402995650b68"
+  },
+  "target": {
+    "kind": "url",
+    "ref": "https://certifiedmailsender.com/mcp"
+  },
+  "scannedAt": "2026-11-20T13:04:35.678Z",
+  "durationMs": 1593,
+  "layers": {
+    "metadata": true,
+    "static": false
+  },
+  "tools": [
+    {
+      "name": "quote_letter",
+      "descriptionHash": "c67a745c38495e7e18988566e3bffae3500c37c340e149cac82f412d7c77754c",
+      "description": "Get an itemized price for 1-10 pages or count a base64 PDF. Quoting is free. Unknown input fields are rejected with invalid_request; error.fix names each unknown field and the accepted fields. For a return receipt, use service certified_err. One page costs $9.04 for certified or $12.24 with an elect"
+    },
+    {
+      "name": "create_letter",
+      "descriptionHash": "d3bf4c5a944f46440342ffcf8937587eb35fac44c1cd474517ce81dcad58e330",
+      "description": "Create a US domestic letter draft from exactly one of text, pdf_base64 or pdf_url. Creating a draft is free. Drafts cannot be edited. To change the text, an address or the service: create_letter with a new idempotency_key, give the person the new approval_url, then cancel_letter the old draft so the",
+      "labels": [
+        "public-sink",
+        "destructive"
+      ]
+    },
+    {
+      "name": "get_letter",
+      "descriptionHash": "17976c6ffa8c5e212f7b72cd795edd3ec97a47a61cfd2a2cf080928654a3b56e",
+      "description": "Read a letter's state, timeline, tracking, proof_of_mailing, acceptance_expected_by, cancel_until, send_now, refund and next step. proof_of_mailing gives the USPS acceptance record; cite its local date as the mailing date. acceptance_expected_by gives the Eastern deadline while waiting, and is null ",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "list_letters",
+      "descriptionHash": "0b18f2d4aa8e251821e49fc3c6f4356a83b2378dcebf263db524c68aba6174cf",
+      "description": "List this API key's letters newest first, with cursor pagination. Listing is free and requires the creating API key; it changes nothing. first_usps_scan identifies the earliest individual-letter scan, not shipment receipt; only proof_of_mailing establishes acceptance. partner_checked_at is the last ",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "send_letter_now",
+      "descriptionHash": "21f46f9c18e10749d6305eab205b6a6692c9bfb7990137283266dd4cd3900d2f",
+      "description": "Skip a paid letter's 30-minute cancellation hold when the person asks to send it right away. This never bypasses screening and does not submit immediately. Idempotent while paid, screening or held for review; refused before payment or after submission or cancellation. Cancellation stays possible unt",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "cancel_letter",
+      "descriptionHash": "6681fdb947a4bd75688245b31569fe8a90e39edd6645edda25cbf77c7808a333",
+      "description": "Cancel before submission to the printing partner and refund any payment in full. Read refund.state, refund.amount_cents and refund.destination in the result; do not claim a refund succeeded unless its state is accepted. Card refunds go back to the card paid with and usually show within 5 to 10 busin",
+      "labels": [
+        "private-data"
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOOL-POISON-007",
+      "severity": "low",
+      "category": "tool-poisoning",
+      "title": "Description uses pressure/override language",
+      "detail": "Description of \"send_letter_now\" stacks urgency/override words (immediately, never). Legitimate tool descriptions rarely pressure the model to act or ignore prior guidance.",
+      "evidence": {
+        "source": "tool:send_letter_now",
+        "snippet": "Skip a paid letter's 30-minute cancellation hold when the person asks to send it right away. This never bypasses screening and does not submit immediately. Idem…"
+      },
+      "confidence": 0.3
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: send_letter_now · Private data: get_letter, list_letters, send_letter_now, cancel_letter · Public sink: create_letter, send_letter_now · Destructive: create_letter.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: send_letter_now · Private data: get_letter, list_letters, send_letter_now, cancel_letter · Public sink: create_letter, send_letter_now · Destructive: create_letter"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 77,
+  "scoreBreakdown": {
+    "tool-poisoning": 3,
+    "toxic-flow": 20
+  },
+  "errors": []
+}

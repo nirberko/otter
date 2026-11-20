@@ -1,0 +1,111 @@
+{
+  "schemaVersion": 1,
+  "scanner": {
+    "version": "1.6.0",
+    "rules": "402995650b68"
+  },
+  "target": {
+    "kind": "url",
+    "ref": "https://loyaltie.com/api/ucp/mcp"
+  },
+  "scannedAt": "2026-11-20T13:26:00.277Z",
+  "durationMs": 985,
+  "layers": {
+    "metadata": true,
+    "static": false
+  },
+  "tools": [
+    {
+      "name": "search_catalog",
+      "descriptionHash": "d2f8bdc29eb588f8dcffc0f9fbb48417a03501081d25ff4072c26c49e244241f",
+      "description": "Search everyday products from independent brands on Loyaltie. Put the product words from the person's request in catalog.query, a short phrase such as \"hot sauce\" (every word must match a product, so never a whole sentence); put the rest of their task in context.intent and hard requirements in filte",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "lookup_catalog",
+      "descriptionHash": "616b7f7d08e61964701551f5e7c372dbe7f234f348a3d92f836742519c341c3b",
+      "description": "Full products for 1 to 50 known ids or loyaltie.com product URLs, exactly as other calls returned them. Unknown ids are reported in messages; when none is found the call fails with not_found. Amounts are cents."
+    },
+    {
+      "name": "get_product",
+      "descriptionHash": "f1d6380d35ef4d970b85bda4edec881ebcf007d745d42cf16cd4403a3a3493f4",
+      "description": "One full product by id or URL: price, conditional offers with terms, variants, availability, rating, ships-from, the verbatim Agent Context, and allergen and safety disclosures as warning messages. Skip it when earlier results already answer. An unknown id fails with not_found.",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "get_maker",
+      "descriptionHash": "f8621c54863e892f19d49c925ffe3c1ebd7839ab1b1c222968d18f85c3320159",
+      "description": "A maker's profile (story, city and state, shipping policy) and its listed products, by maker id or store link. The products are short references (id, title, price, availability, at most one photo) with no link or warnings: call lookup_catalog for links and warnings before showing any product."
+    },
+    {
+      "name": "build_cart_link",
+      "descriptionHash": "6c09b844db2ad25b11b3364ac0c2f53a789766160033c4b9bc1c60d3968710ed",
+      "description": "A loyaltie.com cart link for 1 to 20 listed products (quantity 1 to 99, each id once, one-time purchase). It places no order and takes no payment: give the link to the person; they pay on loyaltie.com with their email, shipping address and payment; checkout creates their account, no separate sign-up",
+      "labels": [
+        "untrusted-content",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "create_cart",
+      "descriptionHash": "7a37d6ac5ae61581dfbcb66aab6aaa7a68d784f8b9a408b721178cb7044cc49c",
+      "description": "Create a cart on loyaltie.com for 1 to 20 listed products from any number of makers (quantity 1 to 99, each id once, one-time purchase). Prices and stock come from our catalog, never from the request. Returns id, line items with prices, totals for the items only (shipping, any discount and any Loyal",
+      "labels": [
+        "untrusted-content",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "get_cart",
+      "descriptionHash": "5e394308d3a7ea931857cf45831c410fa6bffa27f6a13262c215e1328037de68",
+      "description": "A cart create_cart returned, by id, with current prices, quantities and availability, totals for the items only (shipping, any discount and any Loyaltie+ membership in the cart are added at checkout), and the same continue_url cart. When you give the person continue_url, ask them to check the total "
+    },
+    {
+      "name": "share_feedback",
+      "descriptionHash": "145cc970b68e57488dc9febe9d831c619557af932e0555db4f3427be70736f37",
+      "description": "Tell Loyaltie why a shopping task did not end in a purchase: nothing fit, something was missing, or the person decided not to buy. Send feedback.stage (search, product or leaving) and a short reason in feedback.why or feedback.what_was_missing, a few words each, plus the product ids or the cart id i",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink"
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOOL-POISON-007",
+      "severity": "low",
+      "category": "tool-poisoning",
+      "title": "Description uses pressure/override language",
+      "detail": "Description of \"create_cart\" stacks urgency/override words (never, warning). Legitimate tool descriptions rarely pressure the model to act or ignore prior guidance.",
+      "evidence": {
+        "source": "tool:create_cart",
+        "snippet": "Create a cart on loyaltie.com for 1 to 20 listed products from any number of makers (quantity 1 to 99, each id once, one-time purchase). Prices and stock come f…"
+      },
+      "confidence": 0.3
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: search_catalog, get_product, build_cart_link, create_cart, share_feedback · Private data: share_feedback · Public sink: build_cart_link, create_cart, share_feedback.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: search_catalog, get_product, build_cart_link, create_cart, share_feedback · Private data: share_feedback · Public sink: build_cart_link, create_cart, share_feedback"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 77,
+  "scoreBreakdown": {
+    "tool-poisoning": 3,
+    "toxic-flow": 20
+  },
+  "errors": []
+}

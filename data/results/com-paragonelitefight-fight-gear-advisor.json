@@ -8,8 +8,8 @@
     "kind": "url",
     "ref": "https://paragonelitefight.com/api/mcp"
   },
-  "scannedAt": "2026-11-15T12:22:48.157Z",
-  "durationMs": 328,
+  "scannedAt": "2026-11-20T13:24:20.398Z",
+  "durationMs": 480,
   "layers": {
     "metadata": true,
     "static": false
@@ -22,8 +22,8 @@
     },
     {
       "name": "paragon_compare_products",
-      "descriptionHash": "cb448614bd51dfc0ea8636bd8bae8e7e78ebc1a0e1da96ee256e2ef27c55ff7a",
-      "description": "Compare 2 to 4 known Paragon product handles through the existing read-only Paragon catalog connection. Returns store-provided descriptions and minimum product prices with currency. Does not verify all variants, size-specific prices or full stock. Obtain handles from native Shopify catalog tools or ",
+      "descriptionHash": "f3873443c6d34929351d2f5fd846b32887ec4f3023616ea0d60cf4666c097667",
+      "description": "Compare 2 to 4 known Paragon product handles through the existing read-only Paragon catalog connection. Returns store-provided descriptions, per-variant prices, options and availableForSale with complete bounded pagination. Optional country and language select API context; no physical stock or reser",
       "labels": [
         "untrusted-content"
       ]
@@ -50,10 +50,56 @@
       "labels": [
         "private-data"
       ]
+    },
+    {
+      "name": "paragon_prepare_purchase",
+      "descriptionHash": "126a5cee1cb975085864abda8aedc1df5293d87366b739a474f55d0e8d7b4577",
+      "description": "After an explicit customer request, validate exact known variants and prepare cart/checkout links. No cart is created until a link is opened. Never charge, place an order, guess sizes or claim quantities are reserved. No customer email, address or payment details accepted. The customer reviews and c",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "paragon_create_cart",
+      "descriptionHash": "af5e9fb15e926d63ef433eb944978c281bc7ea743019736757548f50e46f022f",
+      "description": "Create a real Shopify cart through the existing Paragon catalog adapter, only after an explicit customer request for exact variants and quantities. Returns a customer-reviewed checkout URL, NOT an order or a payment. No card, email or address accepted. Do not automatically retry a timeout or uncerta",
+      "labels": [
+        "public-sink"
+      ]
     }
   ],
-  "findings": [],
-  "score": 100,
-  "scoreBreakdown": {},
+  "findings": [
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: paragon_compare_products · Private data: verify_merchant_identity · Public sink: paragon_prepare_purchase, paragon_create_cart.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: paragon_compare_products · Private data: verify_merchant_identity · Public sink: paragon_prepare_purchase, paragon_create_cart"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"paragon_compare_products\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:paragon_compare_products",
+        "snippet": "before: \"Compare 2 to 4 known Paragon product handles through the existing read-only Paragon catalog connection. Returns store-provided descriptions and minimum product prices with currency. Does not verify all variants, size-specific prices or full stock. Obtain handles from native Shopify catalog tools or \" → after: \"Compare 2 to 4 known Paragon product handles through the existing read-only Paragon catalog connection. Returns store-provided descriptions, per-variant prices, options and availableForSale with complete bounded pagination. Optional country and language select API context; no physical stock or reser\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    }
+  ],
+  "score": 60,
+  "scoreBreakdown": {
+    "toxic-flow": 20,
+    "tool-poisoning": 20
+  },
   "errors": []
 }

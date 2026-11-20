@@ -8,8 +8,8 @@
     "kind": "url",
     "ref": "https://octopost.ink/mcp"
   },
-  "scannedAt": "2026-11-15T12:25:29.143Z",
-  "durationMs": 668,
+  "scannedAt": "2026-11-20T13:27:02.536Z",
+  "durationMs": 339,
   "layers": {
     "metadata": true,
     "static": false
@@ -17,7 +17,7 @@
   "tools": [
     {
       "name": "create_post",
-      "descriptionHash": "5ba474699a300f5fbb9ade253b3fe1410d94bf8d3b291fbaaba29183e8b17258",
+      "descriptionHash": "ac02e177d4e13f9620d5cdf6dc456dcae9cfeb61607732babe175e7c52d2a544",
       "description": "Create and publish a post to one or more social media platforms immediately.\n\nOctopost handles formatting, auth and uploads. Which networks work today is in the server instructions (and get_guide topic \"platforms\").\n\nPLATFORM CONTENT LIMITS (checked before anything is published: if the text or any s",
       "labels": [
         "untrusted-content",
@@ -53,8 +53,8 @@
     },
     {
       "name": "get_post",
-      "descriptionHash": "7cc0faae7a9db0ca3c79721498885b9d44950e7c0e883abb27cd0fe8ac801197",
-      "description": "Get everything about one post: status, full text, thread segments, per-network variants, media (with alt text), queue status and position, which account posts on each network, per-network results with links, and the last error. Use it to check whether a post went out everywhere.",
+      "descriptionHash": "72b3417a630f060e7c3cbeaa0c5fc2232d7bc00f6148c28da09ec1edd1dd184a",
+      "description": "Get everything about one post: status, full text, approval state and reviewer feedback, thread segments, per-network variants, media (with alt text), queue status and position, which account posts on each network, per-network results with links, and the last error. Use it to check whether a post wen",
       "labels": [
         "untrusted-content",
         "public-sink"
@@ -120,7 +120,7 @@
     },
     {
       "name": "queue_post",
-      "descriptionHash": "f78077df93d6494fc01ce6210e9e939b06ee0fe3318bb03b9ffa2432fa84427d",
+      "descriptionHash": "38eab856667320869fdd46c8c18b8fea08931dcef6cdbb683dded1239569d5f9",
       "description": "Add a post to your publishing queue. It will be published automatically during your active hours. Posts require platforms to be specified.\n\nHUMAN APPROVAL: set needs_approval=true when a person should review the post first (anything the user hasn't seen word for word). The post is held as \"pending\" ",
       "labels": [
         "untrusted-content",
@@ -198,6 +198,14 @@
       ]
     },
     {
+      "name": "resubmit_post",
+      "descriptionHash": "73508d0b4aff5e24e15524216f93b3f0d20601b378187fab1ffbd61db8b7e2f7",
+      "description": "After a reviewer clicked \"Ask for changes\" (get_post: approval.state \"changes_requested\", approval.feedback says what to fix), revise the post with update_post, then call this to send it back for approval. It returns to its earlier time if still ahead, else the next queue slot after approval.",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
       "name": "reorder_queue",
       "descriptionHash": "62740e7489d936491cff5e3f81f79246816e1b738b28c5e7884b41a5e0657e3f",
       "description": "Set the order queued posts publish in. The posts you list go first, in that order; queued posts you leave out keep their current order after them. Pending-approval posts can be listed too: their place applies once approved. Call list_posts with status \"queued\" to see the queue.",
@@ -256,20 +264,25 @@
     },
     {
       "name": "list_youtube_comments",
-      "descriptionHash": "e895c6808861b652120860476baa1b2786f45558d415920cc445a8b56e8a75ce",
-      "description": "Read the comments on a YouTube video: each top-level comment with its author, text, likes, date, reply count and up to 5 replies, and by_you on comments the connected channel wrote. YouTube is in platform review: this only works for an account with a YouTube channel connected (list_accounts). Pass n",
+      "descriptionHash": "d150eceb92476ef68f885d82127fde367014c1741d911605ea20da79d4ee0c55",
+      "description": "Read the comments on a YouTube video: each top-level comment with its author, text, likes, date, reply count and up to 5 replies, and by_you on comments the connected channel wrote. This only works for an account with a YouTube channel connected (list_accounts). Pass next_page_token back as page_tok",
       "labels": [
         "untrusted-content"
       ]
     },
     {
       "name": "reply_to_youtube_comment",
-      "descriptionHash": "e5a911a0f7c563fbc1d13f209a00b38932c754d7d5ef2134c5ec34e1720fe1e4",
-      "description": "Post a public reply to a YouTube comment as the connected channel; it goes live right away. Get comment_id from list_youtube_comments. YouTube is in platform review: this only works for an account with a YouTube channel connected (list_accounts). Show the user the reply before posting it. Refused wh",
+      "descriptionHash": "7cab079274b0f52746f1b641392a5717632d5ad93973c4f2ceefb244b3e86058",
+      "description": "Post a public reply to a YouTube comment as the connected channel; it goes live right away. Get comment_id from list_youtube_comments. This only works for an account with a YouTube channel connected (list_accounts). Show the user the reply before posting it. Refused when the account holds agent post",
       "labels": [
         "untrusted-content",
         "public-sink"
       ]
+    },
+    {
+      "name": "create_connect_link",
+      "descriptionHash": "6c75eb4af872aa7d67db551e229979afac110f1af7c4bb8ddae50cddc8acd98f",
+      "description": "Make a link that lets someone else (a client, a teammate) connect their own social account to THIS Octopost account with no Octopost login. Give them the url; each account they connect shows up in list_accounts. Works 7 days by default, for up to 5 accounts. The url is shown once."
     }
   ],
   "findings": [
@@ -290,18 +303,83 @@
       "severity": "high",
       "category": "toxic-flow",
       "title": "Lethal trifecta: untrusted input + private data + external sink",
-      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: create_post, list_posts, list_accounts, get_post, get_guide, queue_post, approve_queued_post, get_queue_status, get_analytics, get_usage, reorder_queue, list_feeds, add_feed, remove_feed, list_youtube_comments, reply_to_youtube_comment · Private data: schedule_post, delete_post, retry_failed, queue_post, create_upload · Public sink: create_post, schedule_post, list_posts, list_accounts, get_post, update_post, delete_post, retry_failed, cancel_scheduled, reschedule_post, queue_post, approve_queued_post, update_queue_settings, get_analytics, publish_draft, preview_post, get_usage, reject_queued_post, reorder_queue, create_upload, add_feed, set_evergreen, reply_to_youtube_comment · Destructive: get_guide, update_post, delete_post, preview_post, reject_queued_post, remove_feed.",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: create_post, list_posts, list_accounts, get_post, get_guide, queue_post, approve_queued_post, get_queue_status, get_analytics, get_usage, reorder_queue, list_feeds, add_feed, remove_feed, list_youtube_comments, reply_to_youtube_comment · Private data: schedule_post, delete_post, retry_failed, queue_post, create_upload · Public sink: create_post, schedule_post, list_posts, list_accounts, get_post, update_post, delete_post, retry_failed, cancel_scheduled, reschedule_post, queue_post, approve_queued_post, update_queue_settings, get_analytics, publish_draft, preview_post, get_usage, reject_queued_post, resubmit_post, reorder_queue, create_upload, add_feed, set_evergreen, reply_to_youtube_comment · Destructive: get_guide, update_post, delete_post, preview_post, reject_queued_post, remove_feed.",
       "evidence": {
         "source": "server:mcp",
-        "snippet": "Untrusted content: create_post, list_posts, list_accounts, get_post, get_guide, queue_post, approve_queued_post, get_queue_status, get_analytics, get_usage, reorder_queue, list_feeds, add_feed, remove_feed, list_youtube_comments, reply_to_youtube_comment · Private data: schedule_post, delete_post, retry_failed, queue_post, create_upload · Public sink: create_post, schedule_post, list_posts, list_accounts, get_post, update_post, delete_post, retry_failed, cancel_scheduled, reschedule_post, queue_post, approve_queued_post, update_queue_settings, get_analytics, publish_draft, preview_post, get_usage, reject_queued_post, reorder_queue, create_upload, add_feed, set_evergreen, reply_to_youtube_comment · Destructive: get_guide, update_post, delete_post, preview_post, reject_queued_post, remove_feed"
+        "snippet": "Untrusted content: create_post, list_posts, list_accounts, get_post, get_guide, queue_post, approve_queued_post, get_queue_status, get_analytics, get_usage, reorder_queue, list_feeds, add_feed, remove_feed, list_youtube_comments, reply_to_youtube_comment · Private data: schedule_post, delete_post, retry_failed, queue_post, create_upload · Public sink: create_post, schedule_post, list_posts, list_accounts, get_post, update_post, delete_post, retry_failed, cancel_scheduled, reschedule_post, queue_post, approve_queued_post, update_queue_settings, get_analytics, publish_draft, preview_post, get_usage, reject_queued_post, resubmit_post, reorder_queue, create_upload, add_feed, set_evergreen, reply_to_youtube_comment · Destructive: get_guide, update_post, delete_post, preview_post, reject_queued_post, remove_feed"
       },
       "confidence": 0.6,
       "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"create_post\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:create_post",
+        "snippet": "before: \"Create and publish a post to one or more social media platforms immediately.\n\nOctopost handles formatting, auth and uploads. Which networks work today is in the server instructions (and get_guide topic \"platforms\").\n\nPLATFORM CONTENT LIMITS (checked before anything is published: if the text or any s\" → after: \"Create and publish a post to one or more social media platforms immediately.\n\nOctopost handles formatting, auth and uploads. Which networks work today is in the server instructions (and get_guide topic \"platforms\").\n\nPLATFORM CONTENT LIMITS (checked before anything is published: if the text or any s\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"get_post\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:get_post",
+        "snippet": "before: \"Get everything about one post: status, full text, thread segments, per-network variants, media (with alt text), queue status and position, which account posts on each network, per-network results with links, and the last error. Use it to check whether a post went out everywhere.\" → after: \"Get everything about one post: status, full text, approval state and reviewer feedback, thread segments, per-network variants, media (with alt text), queue status and position, which account posts on each network, per-network results with links, and the last error. Use it to check whether a post wen\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"queue_post\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:queue_post",
+        "snippet": "before: \"Add a post to your publishing queue. It will be published automatically during your active hours. Posts require platforms to be specified.\n\nHUMAN APPROVAL: set needs_approval=true when a person should review the post first (anything the user hasn't seen word for word). The post is held as \"pending\" \" → after: \"Add a post to your publishing queue. It will be published automatically during your active hours. Posts require platforms to be specified.\n\nHUMAN APPROVAL: set needs_approval=true when a person should review the post first (anything the user hasn't seen word for word). The post is held as \"pending\" \""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"list_youtube_comments\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:list_youtube_comments",
+        "snippet": "before: \"Read the comments on a YouTube video: each top-level comment with its author, text, likes, date, reply count and up to 5 replies, and by_you on comments the connected channel wrote. YouTube is in platform review: this only works for an account with a YouTube channel connected (list_accounts). Pass n\" → after: \"Read the comments on a YouTube video: each top-level comment with its author, text, likes, date, reply count and up to 5 replies, and by_you on comments the connected channel wrote. This only works for an account with a YouTube channel connected (list_accounts). Pass next_page_token back as page_tok\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"reply_to_youtube_comment\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:reply_to_youtube_comment",
+        "snippet": "before: \"Post a public reply to a YouTube comment as the connected channel; it goes live right away. Get comment_id from list_youtube_comments. YouTube is in platform review: this only works for an account with a YouTube channel connected (list_accounts). Show the user the reply before posting it. Refused wh\" → after: \"Post a public reply to a YouTube comment as the connected channel; it goes live right away. Get comment_id from list_youtube_comments. This only works for an account with a YouTube channel connected (list_accounts). Show the user the reply before posting it. Refused when the account holds agent post\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
     }
   ],
-  "score": 77,
+  "score": 41,
   "scoreBreakdown": {
-    "tool-poisoning": 3,
+    "tool-poisoning": 39,
     "toxic-flow": 20
   },
   "errors": []

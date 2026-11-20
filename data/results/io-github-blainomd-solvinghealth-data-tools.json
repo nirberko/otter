@@ -1,0 +1,118 @@
+{
+  "schemaVersion": 1,
+  "scanner": {
+    "version": "1.6.0",
+    "rules": "402995650b68"
+  },
+  "target": {
+    "kind": "url",
+    "ref": "https://solvinghealth.com/api/data-mcp"
+  },
+  "scannedAt": "2026-11-20T13:09:37.606Z",
+  "durationMs": 242,
+  "layers": {
+    "metadata": true,
+    "static": false
+  },
+  "tools": [
+    {
+      "name": "find_providers",
+      "descriptionHash": "98087304967334db16d196cf70c4a3192417c82dcb47ac63a80e49af9a770fc2",
+      "description": "Search the CMS NPPES NPI registry for clinicians or organizations. Use for \"find orthopedic surgeons in Colorado\", \"orthopaedic surgeons in ZIP 80303\", verifying a practice name, or listing a taxonomy in a city. Returns NPI, name, credential, taxonomies with state licenses, addresses and secondary p",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "get_provider",
+      "descriptionHash": "ceca0d672420ad181746046459b6c178e29ee691b826b5607346a4c7777434fd",
+      "description": "Look up one provider by 10-digit NPI. Use to verify an NPI is real, active, and matches the specialty you expect."
+    },
+    {
+      "name": "search_clearances",
+      "descriptionHash": "21984819daa553566c2f0a15bd7ff56893623ec00b8d13137384983db6b5b8aa",
+      "description": "Search FDA 510(k) device clearances (openFDA). Use to check whether a device type has been cleared, who cleared it, and when — e.g. \"is there a cleared knee goniometer\", \"what did Stryker clear since 2024\"."
+    },
+    {
+      "name": "search_device_recalls",
+      "descriptionHash": "b18c7ec37cf86530a8c9ab2e3d26f31ebbd8357ee1b073d8a5b42896ec9d41c2",
+      "description": "Search FDA device recall records. Use for safety history on an implant or device family before citing it.",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "search_adverse_events",
+      "descriptionHash": "535cca72c22886d213b1ff2a896199c9a9792a7b58a2e4499b2a517a9b8fef22",
+      "description": "Search FDA MAUDE device adverse event reports. Use for real-world failure modes reported for a device type."
+    },
+    {
+      "name": "search_drug_labels",
+      "descriptionHash": "c956362ceab4919e02017b512e609cf6611b33c80ddfcf9a4efe38da2872db6c",
+      "description": "Search FDA structured drug labeling (SPL) for indications and boxed warnings. Use to check what a drug is labeled for."
+    },
+    {
+      "name": "search_trials",
+      "descriptionHash": "929070bf4c8badfdd2d9ddb6b27ddba278f6b5ed78c6428aa40452e8c0c60534",
+      "description": "Search ClinicalTrials.gov (API v2) for registered studies. Use for \"what is recruiting for knee OA\", evidence landscape questions, or checking whether a claimed trial exists."
+    },
+    {
+      "name": "search_hospitals",
+      "descriptionHash": "51b437cc039b2d3690e9b7781fc8b70b71eb3f883f91aabfbbc928a488a7a4a6",
+      "description": "Search the CMS Hospital General Information file: ownership, type, emergency services, and overall star rating.",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "suspension_deadlines",
+      "descriptionHash": "4014f1ae41e512a690db842c94eb6166ddc57d478d7696cba53460a1d946fdcd",
+      "description": "Medicare payment suspension: the 15-day rebuttal deadline and the CMS determination deadline from the date on the notice, with the 42 CFR 405.370-405.375 rules quoted from eCFR. A pure calculation; nothing is stored."
+    },
+    {
+      "name": "list_endpoints",
+      "descriptionHash": "fbee8f2eaa84e3a5cd20591f8dab3104a6e3316442c464f1d00fa1a921632163",
+      "description": "List every API endpoint, whether it is live, and which government dataset it reads. Call this first if unsure what data is available — it also names what is deliberately NOT implemented and why, and lists open endpoints that run elsewhere, such as the family caregiver navigator.",
+      "labels": [
+        "destructive"
+      ]
+    },
+    {
+      "name": "caregiver_questionnaire",
+      "descriptionHash": "060b576d31b790a099472bbecc4f2d4a8413a911d8d156fee77ff4ae7920eeb1",
+      "description": "Get the questions for ClinicalSwipe's family caregiver navigator: who is being cared for, their coverage, family doctor, what is going on, military service, money and state. Returns each question with its answer codes, plus the full resource catalog, each resource with its official source URL and th",
+      "labels": [
+        "untrusted-content",
+        "destructive"
+      ]
+    },
+    {
+      "name": "caregiver_plan",
+      "descriptionHash": "606d510d1187b0187f9cfe8f0f83619f5210a2c8eb00dfb98148287a92315b87",
+      "description": "Build a family caregiver's plan with ClinicalSwipe's navigator: public programs first, then what to ask the family doctor, then neighbor help, then what is not open yet, labeled as such. Every step names its source page and the date it was checked. A step that needs a clinician says who, what and wh",
+      "labels": [
+        "public-sink"
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"data-mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: caregiver_questionnaire · Private data: find_providers, search_device_recalls, search_hospitals · Public sink: caregiver_plan · Destructive: list_endpoints, caregiver_questionnaire.",
+      "evidence": {
+        "source": "server:data-mcp",
+        "snippet": "Untrusted content: caregiver_questionnaire · Private data: find_providers, search_device_recalls, search_hospitals · Public sink: caregiver_plan · Destructive: list_endpoints, caregiver_questionnaire"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 80,
+  "scoreBreakdown": {
+    "toxic-flow": 20
+  },
+  "errors": []
+}

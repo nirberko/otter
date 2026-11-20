@@ -8,8 +8,8 @@
     "kind": "url",
     "ref": "https://carimage.dev/api/mcp/catalog"
   },
-  "scannedAt": "2026-11-15T12:24:36.636Z",
-  "durationMs": 1035,
+  "scannedAt": "2026-11-20T13:26:10.431Z",
+  "durationMs": 377,
   "layers": {
     "metadata": true,
     "static": false
@@ -22,13 +22,22 @@
     },
     {
       "name": "search_vehicles",
-      "descriptionHash": "20b0eb950b02ad9ed5979f3a0eb310ee08a3a5e9acab53e98648f38d96173210",
-      "description": "Free. Browse the open vehicle catalog (1,608 makes, 42,349 models, 1990-2027) by make and/or model with typo tolerance. Returns canonical make/model names, the years each model exists and match kind; a model hit carries a stable vehicle id per year (ids, and id when the query names one year) to pass"
+      "descriptionHash": "86c8e1b347b9f940523e1a881bff693df0a0cdcb8f0a2a1d8db8091fbd3ea1ed",
+      "description": "Free. Browse the open vehicle catalog (1,608 makes, 42,357 models, 1990-2027) by make and/or model with typo tolerance. Returns canonical make/model names, the years each model exists and match kind; a model hit carries a stable vehicle id per year (ids, and id when the query names one year) to pass"
+    },
+    {
+      "name": "check_vehicles",
+      "descriptionHash": "f7c0c8f07fc11bdbedc9a63a3ac3ddcfd766bfd3551ae800901f096dab3a1c5d",
+      "description": "Free. Check a list of up to 100 vehicles in one call before rendering any: which ones the catalog carries and under which vehicle id. Send each as the list spells it ({make, model, year}) or as a stored id ({vehicle}), with an optional ref that is echoed back. Each entry is read exactly as get_car_i",
+      "labels": [
+        "private-data",
+        "public-sink"
+      ]
     },
     {
       "name": "preview_car_image",
-      "descriptionHash": "fe65f0cc3bef94c57d7810b4c2f7830f017129d88d517e7eeeff5eb406fd551b",
-      "description": "Free, no account needed. The picture of a catalog vehicle that its public page on carimage.dev already shows, when one is stored: a 600 px WebP with ready-to-paste markdown, the view and paint it is in, and every stored view and paint. Never renders: another view, paint or size, or a vehicle with no"
+      "descriptionHash": "5391b6042e41e00ddbce98e58ebdf4a8cf949ff7a5d5a02b0ff5a17d562e0830",
+      "description": "Free, no account needed. The picture of a catalog vehicle that its public page on carimage.dev already shows, when one is stored: a 600 px WebP with ready-to-paste markdown, the view and paint it is in, and every stored view and paint (preview: false marks the ones that load only from an account). F"
     },
     {
       "name": "list_image_options",
@@ -60,14 +69,27 @@
   ],
   "findings": [
     {
+      "id": "MCP-TOOL-POISON-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description issues instructions to the model",
+      "detail": "Description of \"check_vehicles\" contains imperative instructions directed at the AI assistant rather than describing the tool. This is the core tool-poisoning technique.",
+      "evidence": {
+        "source": "tool:check_vehicles",
+        "snippet": "Free. Check a list of up to 100 vehicles in one call before rendering any: which ones the catalog carries and under which vehicle id. Send each as the list spel…"
+      },
+      "confidence": 0.7,
+      "remediation": "Treat the server as untrusted; the model may obey embedded instructions."
+    },
+    {
       "id": "MCP-TOXIC-FLOW-001",
       "severity": "high",
       "category": "toxic-flow",
       "title": "Lethal trifecta: untrusted input + private data + external sink",
-      "detail": "Server \"catalog\" exposes tools that together enable an exfiltration flow. Untrusted content: search_help · Private data: get_pricing · Public sink: search_help.",
+      "detail": "Server \"catalog\" exposes tools that together enable an exfiltration flow. Untrusted content: search_help · Private data: check_vehicles, get_pricing · Public sink: check_vehicles, search_help.",
       "evidence": {
         "source": "server:catalog",
-        "snippet": "Untrusted content: search_help · Private data: get_pricing · Public sink: search_help"
+        "snippet": "Untrusted content: search_help · Private data: check_vehicles, get_pricing · Public sink: check_vehicles, search_help"
       },
       "confidence": 0.6,
       "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
@@ -80,16 +102,29 @@
       "detail": "Tool \"search_vehicles\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
       "evidence": {
         "source": "tool:search_vehicles",
-        "snippet": "before: \"Free. Browse the open vehicle catalog (1,608 makes, 42,336 models, 1990-2027) by make and/or model with typo tolerance. Returns canonical make/model names, the years each model exists and match kind; a model hit carries a stable vehicle id per year (ids, and id when the query names one year) to pass\" → after: \"Free. Browse the open vehicle catalog (1,608 makes, 42,349 models, 1990-2027) by make and/or model with typo tolerance. Returns canonical make/model names, the years each model exists and match kind; a model hit carries a stable vehicle id per year (ids, and id when the query names one year) to pass\""
+        "snippet": "before: \"Free. Browse the open vehicle catalog (1,608 makes, 42,349 models, 1990-2027) by make and/or model with typo tolerance. Returns canonical make/model names, the years each model exists and match kind; a model hit carries a stable vehicle id per year (ids, and id when the query names one year) to pass\" → after: \"Free. Browse the open vehicle catalog (1,608 makes, 42,357 models, 1990-2027) by make and/or model with typo tolerance. Returns canonical make/model names, the years each model exists and match kind; a model hit carries a stable vehicle id per year (ids, and id when the query names one year) to pass\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"preview_car_image\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:preview_car_image",
+        "snippet": "before: \"Free, no account needed. The picture of a catalog vehicle that its public page on carimage.dev already shows, when one is stored: a 600 px WebP with ready-to-paste markdown, the view and paint it is in, and every stored view and paint. Never renders: another view, paint or size, or a vehicle with no\" → after: \"Free, no account needed. The picture of a catalog vehicle that its public page on carimage.dev already shows, when one is stored: a 600 px WebP with ready-to-paste markdown, the view and paint it is in, and every stored view and paint (preview: false marks the ones that load only from an account). F\""
       },
       "confidence": 0.8,
       "remediation": "Re-review the tool before continuing to trust it."
     }
   ],
-  "score": 60,
+  "score": 45,
   "scoreBreakdown": {
-    "toxic-flow": 20,
-    "tool-poisoning": 20
+    "tool-poisoning": 35,
+    "toxic-flow": 20
   },
   "errors": []
 }

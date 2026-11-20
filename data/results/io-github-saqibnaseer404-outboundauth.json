@@ -1,0 +1,132 @@
+{
+  "schemaVersion": 1,
+  "scanner": {
+    "version": "1.6.0",
+    "rules": "402995650b68"
+  },
+  "target": {
+    "kind": "url",
+    "ref": "https://outboundauth.com/mcp"
+  },
+  "scannedAt": "2026-11-20T13:34:13.146Z",
+  "durationMs": 674,
+  "layers": {
+    "metadata": true,
+    "static": false
+  },
+  "tools": [
+    {
+      "name": "check_spf",
+      "descriptionHash": "7e168c0d7d553319b58053bb19a01754f64776a8df2d150ba366d30950819679",
+      "description": "Look up the live SPF TXT record for a domain and evaluate it: version tag, default policy (-all vs ~all), the 10-DNS-lookup limit, PTR use. Returns a scored verdict with findings.",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "check_dmarc",
+      "descriptionHash": "007cb052483c6152f2987e4f63bb56cac8c7a79232839d8ca4d9cffc5bd63b19",
+      "description": "Look up the live DMARC TXT record at _dmarc.<domain> and evaluate it: policy (none/quarantine/reject), aggregate reporting (rua). Returns a scored verdict with findings.",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "check_dkim",
+      "descriptionHash": "2a6667d1314a8c93c8b87f62799c56970270cfe444964d719d433bb8359879fa",
+      "description": "Look up the live DKIM TXT record for a selector (<selector>._domainkey.<domain>) and evaluate the key: version, key type, public key presence. Follows CNAMEs (e.g. Microsoft 365 / Google selectors).",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "check_email_auth",
+      "descriptionHash": "c48cced3e34cc5216cb11cb7e916ea4a55843a00bc7d5c10aa4e65aba45687ab",
+      "description": "Run the complete deliverability authentication check for a domain: SPF, DMARC, DKIM (probes common selectors), and MX records. Returns a scored verdict per area plus an overall summary.",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink",
+        "destructive"
+      ]
+    },
+    {
+      "name": "analyze_bounce",
+      "descriptionHash": "f15ccc25238c9f8b80de4388ae6bd4f5105e99947347fb971843c0deb64e4278",
+      "description": "Explain an email bounce in plain English: paste the full bounce message or just the error (e.g. \"550 5.7.1\"). Returns whether it is a hard or soft bounce, what happened, the likely cause (list quality, reputation, policy, authentication, temporary), and the fix.",
+      "labels": [
+        "untrusted-content",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "check_blacklists",
+      "descriptionHash": "e043fb1fd1db9a63c5eb201cca3dc0b5fcd71118c7cb6ab9181cb53276ecbf61",
+      "description": "Check a domain's sending IPs (resolved from its mail servers) and/or a specific IP against 7 major DNS blacklists (Spamhaus ZEN, SpamCop, PSBL, UCEPROTECT, Mailspike, DroneBL, UBL). Reports listed or clean per list, per IP."
+    },
+    {
+      "name": "check_mx_health",
+      "descriptionHash": "d0e5f5b54691063152d585ec4176c09d68a52477f4cb52d37cd9059a3a02651a",
+      "description": "Look up a domain's MX records and evaluate them: priorities, whether each mail server resolves, the likely mail provider (Google Workspace, Microsoft 365, …), and obvious misconfigurations. Returns a scored verdict with findings.",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "analyze_email_headers",
+      "descriptionHash": "6e39af3e0ff1e753ca27b192aef33265fb61404ef9fb2ba0fdd532fab4399b92",
+      "description": "Explain raw email headers in plain English: the Authentication-Results verdicts for SPF, DKIM and DMARC (with the domains each check covered), From vs Return-Path alignment, and the Received hop count. Paste the full headers (\"Show original\" in Gmail).",
+      "labels": [
+        "untrusted-content",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "get_domain_health",
+      "descriptionHash": "3a69df71d7f8074cc6a702763c3d742e5d814f6aceded48ccd549cfe34cbcc57",
+      "description": "One combined health report for a domain: SPF, DKIM (common selectors), DMARC, MX and blacklist status, with an overall score out of 100, the top problems, and the recommended fix order."
+    },
+    {
+      "name": "analyze_dmarc_report",
+      "descriptionHash": "ef56363a4249f3ebb58b466c67cbcff05c1a8763dd06a9239fe9ceb1d89e833b",
+      "description": "Explain a DMARC aggregate report in plain English: paste the report XML (the files sent to your rua address; several reports pasted together also work). Returns the reporting organisation and domain, total and passing message counts, a per-source breakdown (source IP, messages, SPF/DKIM verdicts, di",
+      "labels": [
+        "untrusted-content",
+        "private-data"
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-SCHEMA-SMELL-001",
+      "severity": "medium",
+      "category": "schema-smell",
+      "title": "Read-only tool requests dangerous parameters",
+      "detail": "Tool \"analyze_bounce\" appears informational but accepts parameters (code) that enable code/file/secret access.",
+      "evidence": {
+        "source": "tool:analyze_bounce",
+        "snippet": "bounce_text, code"
+      },
+      "confidence": 0.55
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: check_email_auth, analyze_bounce, analyze_email_headers, analyze_dmarc_report · Private data: check_spf, check_dmarc, check_dkim, check_email_auth, check_mx_health, analyze_dmarc_report · Public sink: check_email_auth, analyze_bounce, analyze_email_headers · Destructive: check_email_auth.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: check_email_auth, analyze_bounce, analyze_email_headers, analyze_dmarc_report · Private data: check_spf, check_dmarc, check_dkim, check_email_auth, check_mx_health, analyze_dmarc_report · Public sink: check_email_auth, analyze_bounce, analyze_email_headers · Destructive: check_email_auth"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 72,
+  "scoreBreakdown": {
+    "schema-smell": 8,
+    "toxic-flow": 20
+  },
+  "errors": []
+}

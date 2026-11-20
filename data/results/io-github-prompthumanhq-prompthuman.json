@@ -1,0 +1,108 @@
+{
+  "schemaVersion": 1,
+  "scanner": {
+    "version": "1.6.0",
+    "rules": "402995650b68"
+  },
+  "target": {
+    "kind": "url",
+    "ref": "https://prompthuman-api.prompthumanhq.workers.dev/mcp"
+  },
+  "scannedAt": "2026-11-20T13:15:52.906Z",
+  "durationMs": 270,
+  "layers": {
+    "metadata": true,
+    "static": false
+  },
+  "tools": [
+    {
+      "name": "get_prompthuman_info",
+      "descriptionHash": "f02341d9216c9f2a94761b22b1adab6731d7c3b27e9a9e61a8837a31a87e9cf5",
+      "description": "Get PromptHuman's tiers, prices, word limits, turnaround times, refund rules, out-of-scope list and sensitive-data rules. Call this before your first ask_human."
+    },
+    {
+      "name": "ask_human",
+      "descriptionHash": "1b45597b451c47d11f7494fd0412e92c8a13e9603339e58be866a7ecc5d3cdc7",
+      "description": "Ask a real person for human judgment when you need it: a gut check, how something will read to a person, whether a plan is plausible, local or cultural context, or a tie-breaking call. Paid and asynchronous: we review within 24 hours, you pay only after we accept, and the first reply arrives within ",
+      "labels": [
+        "untrusted-content",
+        "private-data"
+      ]
+    },
+    {
+      "name": "check_status",
+      "descriptionHash": "2cb036ac1b530277c94f550694c68be06b46c3f39012bfa2631f5e541111c99c",
+      "description": "Get the status of a PromptHuman request: whether it was accepted, the payment link, reply deadlines, the full message thread, and how many words and replies remain. Poll at most once every 10 minutes.",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "send_followup",
+      "descriptionHash": "ae99e3dc2ff280d16764547db848ce3cf1cb54c87afd95d5c871d078e287c9e6",
+      "description": "Send a follow-up message in a PromptHuman conversation after a human has replied. Only works when check_status shows can_send_followup: true. Max 300 words; no sensitive data.",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "request_refund",
+      "descriptionHash": "55a9116f3767f85c5c2363d61f6b8b57d88cd3a9165fbb5af588294feb2eb31f",
+      "description": "Ask for a refund on a paid PromptHuman conversation, for example because a reply deadline was missed. Explain why in reason."
+    },
+    {
+      "name": "send_feedback",
+      "descriptionHash": "b6e746d5544d6e025b1be5b0a43d8f2b2dcd73a39456f360b75967688126bfb9",
+      "description": "Tell us whether a PromptHuman answer helped and whether it changed what you did next. Takes seconds and helps us improve.",
+      "labels": [
+        "public-sink"
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"ask_human\" references sensitive artifacts (password, access_token). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:ask_human",
+        "snippet": "Ask a real person for human judgment when you need it: a gut check, how something will read to a person, whether a plan is plausible, local or cultural context,…"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-SCHEMA-SMELL-001",
+      "severity": "medium",
+      "category": "schema-smell",
+      "title": "Read-only tool requests dangerous parameters",
+      "detail": "Tool \"ask_human\" appears informational but accepts parameters (context) that enable code/file/secret access.",
+      "evidence": {
+        "source": "tool:ask_human",
+        "snippet": "question, tier, accept_terms, context, category, agent_name, operator_name, operator_contact, operator_type, agent_platform, found_via, agent_note"
+      },
+      "confidence": 0.55
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: ask_human, check_status · Private data: ask_human · Public sink: send_followup, send_feedback.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: ask_human, check_status · Private data: ask_human · Public sink: send_followup, send_feedback"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 52,
+  "scoreBreakdown": {
+    "tool-poisoning": 20,
+    "schema-smell": 8,
+    "toxic-flow": 20
+  },
+  "errors": []
+}

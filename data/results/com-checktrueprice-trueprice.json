@@ -1,0 +1,122 @@
+{
+  "schemaVersion": 1,
+  "scanner": {
+    "version": "1.6.0",
+    "rules": "402995650b68"
+  },
+  "target": {
+    "kind": "url",
+    "ref": "https://checktrueprice.com/api/mcp/shopping"
+  },
+  "scannedAt": "2026-11-20T13:04:23.530Z",
+  "durationMs": 746,
+  "layers": {
+    "metadata": true,
+    "static": false
+  },
+  "tools": [
+    {
+      "name": "lookup_price",
+      "descriptionHash": "34f1bd0a4d197a18f7a3e8e4e19fbb56147a783d52d34e4e1a7ba82c42b38b02",
+      "description": "True price (the lowest price the product really sold at that we know of, from daily checks and archived snapshots: `true_price`), price history, deal score, checked promo code and product spec (description, tags, options, SKUs, weights, images) for a product page URL of a Shopify store Trueprice tra",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "search_products",
+      "descriptionHash": "32ca479d069f1c34a48315bd7d0a0f3ad16e0e4c7949e50d5b1e2eb3d66f9521",
+      "description": "Find products by title words across every store Trueprice tracks. Returns store domain and handle for product_history."
+    },
+    {
+      "name": "find_products",
+      "descriptionHash": "7749f820bec044f01679398ba28e25c0d40d7d5e72cffac2014e480305b2e150",
+      "description": "Filter every product Trueprice tracks across its Shopify stores, like the Product Finder at /product-finder (same filters, same results as GET /api/v1/finder). Drops are % below the product's highest in-stock price in the last 7 or 30 days (daily history starts 2026-11-13). new_days = listed by the ",
+      "labels": [
+        "untrusted-content",
+        "destructive"
+      ]
+    },
+    {
+      "name": "product_history",
+      "descriptionHash": "06885918c1dba08a3b9a6b4b90c7c50dfcb33e925325804578e8dcb0163bbc7d",
+      "description": "True price (`true_price`: lowest price it really sold at, from daily checks and archived snapshots), Stats per 30/90/180/365-day and all-time window (`stats.windows`: low/high with dates, average, price at window start, out-of-stock %, drop count, is_lowest, last_price_change), star rating and revie",
+      "labels": [
+        "destructive"
+      ]
+    },
+    {
+      "name": "lookup_gtin",
+      "descriptionHash": "46a2e2214f392fb094722d4e13fc6bdc388dd7b5a9fef9e0b99804c8e87a7403",
+      "description": "Every tracked Shopify listing with this barcode (GTIN / UPC / EAN), across stores: domain, handle, title, price and stock of that option, and its Trueprice URL. Barcodes come from the stores' own product data; coverage grows as products are read.",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "store_codes",
+      "descriptionHash": "3b25becd73afb87c9370ef94d190cfebd4ba0656d6bd80491b381ebb2783a262",
+      "description": "Promo codes for a store that Trueprice applied in a real cart and the store accepted."
+    },
+    {
+      "name": "cheapest_path",
+      "descriptionHash": "df75674a150e3c3813f9941f3352321d9f69c01f983361ae4ce58b426427b80d",
+      "description": "The cheapest way to buy a product Trueprice tracks (same as POST /api/v1/prices/optimize): the exact steps (sale, each code, shipping, tax, rewards) with each step's amount, source_id (the code's deals id or the product URL), confidence and checked_at, then checkout_total = items − eligible discount",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "find_store",
+      "descriptionHash": "75cf66473d68c6548c304e9c41ae752528bb53cd5682a5f0cb8a211c5a858c79",
+      "description": "Store domains for a brand or site name (e.g. \"Nike\", \"allbirds\"): `with_codes` = domains with promo codes a real cart accepted (count in working_codes; read them with store_codes), `tracked_prices` = domains whose product prices Trueprice reads daily (product count). Empty lists mean Trueprice doesn"
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOOL-POISON-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description issues instructions to the model",
+      "detail": "Description of \"lookup_price\" contains imperative instructions directed at the AI assistant rather than describing the tool. This is the core tool-poisoning technique.",
+      "evidence": {
+        "source": "tool:lookup_price",
+        "snippet": "True price (the lowest price the product really sold at that we know of, from daily checks and archived snapshots: `true_price`), price history, deal score, che…"
+      },
+      "confidence": 0.7,
+      "remediation": "Treat the server as untrusted; the model may obey embedded instructions."
+    },
+    {
+      "id": "MCP-TOOL-POISON-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description issues instructions to the model",
+      "detail": "Description of \"find_products\" contains imperative instructions directed at the AI assistant rather than describing the tool. This is the core tool-poisoning technique.",
+      "evidence": {
+        "source": "tool:find_products",
+        "snippet": "Filter every product Trueprice tracks across its Shopify stores, like the Product Finder at /product-finder (same filters, same results as GET /api/v1/finder). …"
+      },
+      "confidence": 0.7,
+      "remediation": "Treat the server as untrusted; the model may obey embedded instructions."
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "medium",
+      "category": "toxic-flow",
+      "title": "Toxic flow: untrusted input can reach an external sink",
+      "detail": "Server \"shopping\" exposes tools that together enable an exfiltration flow. Untrusted content: lookup_price, find_products, lookup_gtin · Public sink: cheapest_path · Destructive: find_products, product_history.",
+      "evidence": {
+        "source": "server:shopping",
+        "snippet": "Untrusted content: lookup_price, find_products, lookup_gtin · Public sink: cheapest_path · Destructive: find_products, product_history"
+      },
+      "confidence": 0.45,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 62,
+  "scoreBreakdown": {
+    "tool-poisoning": 30,
+    "toxic-flow": 8
+  },
+  "errors": []
+}

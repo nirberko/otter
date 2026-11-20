@@ -8,8 +8,8 @@
     "kind": "url",
     "ref": "https://api.tolk2go.com/api/v1/mcp"
   },
-  "scannedAt": "2026-11-15T12:23:48.897Z",
-  "durationMs": 1250,
+  "scannedAt": "2026-11-20T13:25:25.352Z",
+  "durationMs": 755,
   "layers": {
     "metadata": true,
     "static": false
@@ -61,6 +61,15 @@
       "description": "List this account’s interpreter bookings, optionally returning only changes after a timestamp or cursor."
     },
     {
+      "name": "tolk2go_interpreting_list_pending_actions",
+      "descriptionHash": "a0b060b745604abc78be8fcf1a86d6ae6c6bfc2d77309db5ef9c92a911613d1e",
+      "description": "List what needs the customer across their open bookings, one entry per action: choose_interpreter (interpreters responded as available; next tolk2go_interpreting_get_responses and tolk2go_interpreting_preview_selection), pay (give the customer payment_url) or review_extra_cost (the interpreter propo",
+      "labels": [
+        "untrusted-content",
+        "public-sink"
+      ]
+    },
+    {
       "name": "tolk2go_interpreting_get_booking",
       "descriptionHash": "1c61ff2ea21b787d2e702c942eb6b224a8d549f15300846d787e73c26f56277d",
       "description": "Read the authoritative owner-scoped booking, payment, change and next-action state."
@@ -80,8 +89,8 @@
     },
     {
       "name": "tolk2go_interpreting_preview_selection",
-      "descriptionHash": "caf4334b531fb93c6f5878e2d7e7799de078990851f2780ac17c5de377e4eb35",
-      "description": "Read-only. The exact proposal that tolk2go_interpreting_select_interpreter would commit to for this interpreter: time, phone/video or on-site location, price incl. VAT, payment terms (deposit, deadline) and cancellation terms. Show it to the customer and get explicit approval before selecting."
+      "descriptionHash": "85d4774b6170e9c336cb292bb5acc0ac5dc453ea4b49afb9521ab4c852fc8c4c",
+      "description": "Read-only. The exact proposal that tolk2go_interpreting_select_interpreter would commit to for this interpreter: time, phone/video or on-site location, price incl. VAT, payment terms (upfront amount, refundable security deposit, deadline) and cancellation terms. When payment.deposit_terms is set, te"
     },
     {
       "name": "tolk2go_interpreting_select_interpreter",
@@ -90,16 +99,13 @@
     },
     {
       "name": "tolk2go_interpreting_request_change",
-      "descriptionHash": "59cecfdc309d0879b0704173d235649f2f42755cf0242f180db45f1e09272d98",
-      "description": "Submit supported changes through the existing customer approval flow.",
-      "labels": [
-        "public-sink"
-      ]
+      "descriptionHash": "687b6ac5d9f7975e7e966cb509ee8eb5094938368dfc6ae8da44d37b9e0e4367",
+      "description": "Request a change to one of the signed-in customer's bookings. Put the new values in changes, using the create_booking field names: start, end, bookingTimezone, delivery_mode, location, description, situation_id or language_pair_id. The change goes through Tolk2Go's change approval flow, so it is not"
     },
     {
       "name": "tolk2go_interpreting_cancel_booking",
-      "descriptionHash": "a321e7b2c4b0f5bcc778531f67238fa385333c6293b88d890a3d55c2137e82c6",
-      "description": "Cancel an owned interpreter booking."
+      "descriptionHash": "f40f442c844559176cea34fd60c21759b1169e8cf098c1fe8d7b2f671a3de608",
+      "description": "Cancel one of the signed-in customer's booking requests or bookings; this cannot be undone, so confirm with the customer first. A request that is still searching is withdrawn; a confirmed booking is cancelled under the cancellation terms shown by tolk2go_interpreting_preview_selection, so a late can"
     }
   ],
   "findings": [
@@ -115,11 +121,64 @@
       },
       "confidence": 0.7,
       "remediation": "Treat the server as untrusted; the model may obey embedded instructions."
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "medium",
+      "category": "toxic-flow",
+      "title": "Toxic flow: untrusted input can reach an external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: tolk2go_interpreting_list_pending_actions · Public sink: tolk2go_interpreting_list_pending_actions · Destructive: tolk2go_interpreting_create_booking.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: tolk2go_interpreting_list_pending_actions · Public sink: tolk2go_interpreting_list_pending_actions · Destructive: tolk2go_interpreting_create_booking"
+      },
+      "confidence": 0.45,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"tolk2go_interpreting_preview_selection\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:tolk2go_interpreting_preview_selection",
+        "snippet": "before: \"Read-only. The exact proposal that tolk2go_interpreting_select_interpreter would commit to for this interpreter: time, phone/video or on-site location, price incl. VAT, payment terms (deposit, deadline) and cancellation terms. Show it to the customer and get explicit approval before selecting.\" → after: \"Read-only. The exact proposal that tolk2go_interpreting_select_interpreter would commit to for this interpreter: time, phone/video or on-site location, price incl. VAT, payment terms (upfront amount, refundable security deposit, deadline) and cancellation terms. When payment.deposit_terms is set, te\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"tolk2go_interpreting_request_change\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:tolk2go_interpreting_request_change",
+        "snippet": "before: \"Submit supported changes through the existing customer approval flow.\" → after: \"Request a change to one of the signed-in customer's bookings. Put the new values in changes, using the create_booking field names: start, end, bookingTimezone, delivery_mode, location, description, situation_id or language_pair_id. The change goes through Tolk2Go's change approval flow, so it is not\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"tolk2go_interpreting_cancel_booking\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:tolk2go_interpreting_cancel_booking",
+        "snippet": "before: \"Cancel an owned interpreter booking.\" → after: \"Cancel one of the signed-in customer's booking requests or bookings; this cannot be undone, so confirm with the customer first. A request that is still searching is withdrawn; a confirmed booking is cancelled under the cancellation terms shown by tolk2go_interpreting_preview_selection, so a late can\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
     }
   ],
-  "score": 80,
+  "score": 55,
   "scoreBreakdown": {
-    "tool-poisoning": 20
+    "tool-poisoning": 38,
+    "toxic-flow": 8
   },
   "errors": []
 }

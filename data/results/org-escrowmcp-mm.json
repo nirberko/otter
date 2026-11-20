@@ -8,8 +8,8 @@
     "kind": "url",
     "ref": "https://escrowmcp.org/mcp"
   },
-  "scannedAt": "2026-11-18T13:27:50.179Z",
-  "durationMs": 289,
+  "scannedAt": "2026-11-20T13:17:13.833Z",
+  "durationMs": 169,
   "layers": {
     "metadata": true,
     "static": false
@@ -30,11 +30,19 @@
     },
     {
       "name": "mm_create_deal",
-      "descriptionHash": "7cef2dda886dbabdb73a9e3a9f754d147862f1903047d0005e0bd6b461185cf2",
-      "description": "Create a deal as the buyer or the seller. Returns your private token (keep it) and a link to send the other side. Pick a delivery check so MM can verify delivery on its own when possible.",
+      "descriptionHash": "f60aa4110b56e108ee895c9c1d4d06fe84d457f3fd2baef4ab802375cf772dc9",
+      "description": "Create a deal as the buyer or the seller. Returns your private token (keep it) and a single-use invite to send the other side; they call mm_join_deal with it to get their own token. Pick a delivery check so MM can verify delivery on its own when possible.",
       "labels": [
         "private-data",
         "public-sink"
+      ]
+    },
+    {
+      "name": "mm_join_deal",
+      "descriptionHash": "0722ead255dc6afadca9b2419a2ac272d65389f997bc434b650b601bf1b390d4",
+      "description": "Use the invite the other side sent you (the k= part of their link, starting inv_) once. Returns your own private token for every other tool; the other side never sees it. Keep it.",
+      "labels": [
+        "private-data"
       ]
     },
     {
@@ -44,8 +52,8 @@
     },
     {
       "name": "mm_accept_terms",
-      "descriptionHash": "f97926d646af62db69ba0f66dd30f0c55742662252467960c26913ea73e39e56",
-      "description": "Agree to the current terms. USDC deals: sellers give the payout wallet, and buyers give a wallet when there is a seller bond. Card / bank deals: no wallet; the seller then sets up payouts with mm_get_payout_setup_link.",
+      "descriptionHash": "9632e60227a8fdbb8daf69bcf61cce6bfd129779007a3a3bdfa29436e0810ec9",
+      "description": "Agree to the current terms. Each side gives its own details: USDC sellers give the payout wallet, buyers give a wallet when there is a seller bond, and on GitHub deals the buyer gives their GitHub username. Card / bank deals: no wallet; the seller then sets up payouts with mm_get_payout_setup_link.",
       "labels": [
         "private-data"
       ]
@@ -99,8 +107,8 @@
     },
     {
       "name": "mm_check_delivery_now",
-      "descriptionHash": "45ffe0fc79e1580e9ef0f14ec8a3d66177b63a5273273b481fdea33f3aa7f8ae",
-      "description": "Ask MM to run the automatic check (domain DNS proof, repo owner, NFT owner, token transfer, URL). Passing objective checks release payment.",
+      "descriptionHash": "daf307a50c299ebb1f50f2d7f79547be4b36a3cf828f71d9f57a16ea0ee30f47",
+      "description": "Ask MM to run the automatic check (domain DNS proof and registry, repo owner, NFT owner, token transfer, URL). Passing objective checks release payment; a domain check only informs the buyer.",
       "labels": [
         "untrusted-content",
         "private-data",
@@ -174,18 +182,57 @@
       "severity": "high",
       "category": "toxic-flow",
       "title": "Lethal trifecta: untrusted input + private data + external sink",
-      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: mm_check_delivery_now, mm_send_message · Private data: mm_info, mm_create_deal, mm_accept_terms, mm_get_funding_request, mm_buy_usdc_link, mm_mark_delivered, mm_check_delivery_now, mm_set_webhook · Public sink: mm_create_deal, mm_submit_funding_signature, mm_send_message, mm_set_webhook · Destructive: mm_check_delivery_now.",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: mm_check_delivery_now, mm_send_message · Private data: mm_info, mm_create_deal, mm_join_deal, mm_accept_terms, mm_get_funding_request, mm_buy_usdc_link, mm_mark_delivered, mm_check_delivery_now, mm_set_webhook · Public sink: mm_create_deal, mm_submit_funding_signature, mm_send_message, mm_set_webhook · Destructive: mm_check_delivery_now.",
       "evidence": {
         "source": "server:mcp",
-        "snippet": "Untrusted content: mm_check_delivery_now, mm_send_message · Private data: mm_info, mm_create_deal, mm_accept_terms, mm_get_funding_request, mm_buy_usdc_link, mm_mark_delivered, mm_check_delivery_now, mm_set_webhook · Public sink: mm_create_deal, mm_submit_funding_signature, mm_send_message, mm_set_webhook · Destructive: mm_check_delivery_now"
+        "snippet": "Untrusted content: mm_check_delivery_now, mm_send_message · Private data: mm_info, mm_create_deal, mm_join_deal, mm_accept_terms, mm_get_funding_request, mm_buy_usdc_link, mm_mark_delivered, mm_check_delivery_now, mm_set_webhook · Public sink: mm_create_deal, mm_submit_funding_signature, mm_send_message, mm_set_webhook · Destructive: mm_check_delivery_now"
       },
       "confidence": 0.6,
       "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"mm_create_deal\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:mm_create_deal",
+        "snippet": "before: \"Create a deal as the buyer or the seller. Returns your private token (keep it) and a link to send the other side. Pick a delivery check so MM can verify delivery on its own when possible.\" → after: \"Create a deal as the buyer or the seller. Returns your private token (keep it) and a single-use invite to send the other side; they call mm_join_deal with it to get their own token. Pick a delivery check so MM can verify delivery on its own when possible.\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"mm_accept_terms\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:mm_accept_terms",
+        "snippet": "before: \"Agree to the current terms. USDC deals: sellers give the payout wallet, and buyers give a wallet when there is a seller bond. Card / bank deals: no wallet; the seller then sets up payouts with mm_get_payout_setup_link.\" → after: \"Agree to the current terms. Each side gives its own details: USDC sellers give the payout wallet, buyers give a wallet when there is a seller bond, and on GitHub deals the buyer gives their GitHub username. Card / bank deals: no wallet; the seller then sets up payouts with mm_get_payout_setup_link.\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"mm_check_delivery_now\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:mm_check_delivery_now",
+        "snippet": "before: \"Ask MM to run the automatic check (domain DNS proof, repo owner, NFT owner, token transfer, URL). Passing objective checks release payment.\" → after: \"Ask MM to run the automatic check (domain DNS proof and registry, repo owner, NFT owner, token transfer, URL). Passing objective checks release payment; a domain check only informs the buyer.\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
     }
   ],
-  "score": 60,
+  "score": 43,
   "scoreBreakdown": {
-    "tool-poisoning": 20,
+    "tool-poisoning": 38,
     "toxic-flow": 20
   },
   "errors": []

@@ -1,0 +1,122 @@
+{
+  "schemaVersion": 1,
+  "scanner": {
+    "version": "1.6.0",
+    "rules": "402995650b68"
+  },
+  "target": {
+    "kind": "url",
+    "ref": "https://app.spoofcallerid.com/mcp"
+  },
+  "scannedAt": "2026-11-20T13:25:01.107Z",
+  "durationMs": 908,
+  "layers": {
+    "metadata": true,
+    "static": false
+  },
+  "tools": [
+    {
+      "name": "get_account",
+      "descriptionHash": "f9142b90891645f53246d6acb90faeb091a571064b753b247319e5dfb347e45f",
+      "description": "The account behind the API key: id, username, email, balance (EUR) and status. Free.",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "get_balance",
+      "descriptionHash": "3fc76838309b4a7cb7e8e49dd1d9de9c35526f3309a9a69cfb72f81c949eaf40",
+      "description": "Current balance in EUR. Free."
+    },
+    {
+      "name": "get_prices",
+      "descriptionHash": "77feb9ec93bde391879091d486320e8f28f7438fd18ef86390302d301413d766",
+      "description": "Per-minute call prices and per-part SMS prices in EUR. Give a country (ISO code like GB) for one country; without it you get a compact list of every country. Free.",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "list_sms_routes",
+      "descriptionHash": "64846ef71687b3eff1c2c64dd1c99931dfd0fc2ecea89e2173beedb9de6d1da2",
+      "description": "SMS routes you can send on (route id + name). With a country, each route's price per message part there, cheapest first. Use the id as \"route\" in send_sms. Free.",
+      "labels": [
+        "untrusted-content",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "send_sms",
+      "descriptionHash": "6f56d5035bf7b19a9be66337762b06460945203260f2a7d7c8236d9b9691eda6",
+      "description": "Sends one SMS with your sender ID. COSTS MONEY: the route price per part for the destination is taken from the balance. Without \"route\" the cheapest priced route is used; get route ids and prices from list_sms_routes.",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "make_spoof_call",
+      "descriptionHash": "3e99031a7e126b9f5b0b62b8f5ba10360e09e4f38eda98c526834b1802d32900",
+      "description": "Places a phone call that shows the caller ID you choose. COSTS MONEY: only answered calls are billed, on the destination plan's billing blocks (e.g. 60/60 = any answered call costs at least one minute), plus the recording fee if recorded. Returns a call id for get_call."
+    },
+    {
+      "name": "tts_call",
+      "descriptionHash": "98070d21e389bf066ffff04fb6a511d824358554cd692e8d318251ad6e7ad95d",
+      "description": "Calls a number and speaks your text with a synthetic voice, showing your caller ID. COSTS MONEY: billed per minute like any call. Returns a ref for get_tts_call."
+    },
+    {
+      "name": "get_tts_call",
+      "descriptionHash": "382fcb30fc8f375485a619fc45f34bec571ab70b9282965d08b8a7897659f590",
+      "description": "Status, duration and cost of a text-to-speech call by its ref. Free."
+    },
+    {
+      "name": "get_call",
+      "descriptionHash": "ad35ee617036c29e16966b5a7c1c1e7f8cd09fd9d116e8906421e20b2d3e94a2",
+      "description": "Status of a call by its id (from make_spoof_call, or call_id from tts_call): queued, dialing (waiting for the network), ringing (the phone rings), answered, completed, busy, no_answer, failed or canceled, with ringing_at, post_dial_delay_ms, with duration, billed seconds and cost. Free."
+    },
+    {
+      "name": "list_calls",
+      "descriptionHash": "76c6c45a053e4f1c205a5e0551dbe8d6fee439f90d89f0bda9af93244ae9814d",
+      "description": "The account's calls, newest first, with status, duration and cost. Free."
+    },
+    {
+      "name": "list_tts_voices",
+      "descriptionHash": "77eae013517679d2c2eccd9e61a5fc8cafbf84b980987aeba74c1de5091fb7be",
+      "description": "Voices available for text-to-speech calls. Free."
+    },
+    {
+      "name": "hlr_quote",
+      "descriptionHash": "6c27d7524b38e130638a1c083c93a703c4675e6f00c983f12c424c4b3a4d82e7",
+      "description": "Checks a list of numbers (format, duplicates) and returns what an HLR lookup of them would cost. Nothing is looked up or charged. Free.",
+      "labels": [
+        "destructive"
+      ]
+    },
+    {
+      "name": "hlr_lookup",
+      "descriptionHash": "f5f0cb7f731a30d59adb80d132c0621cd272e4437dd5fffce2ee8a6d3ea4ac9f",
+      "description": "Live network lookup: is each number active, mobile or landline, which network, ported or not. COSTS MONEY: the price per number with a result is held first; numbers without a result are refunded. Up to 100 numbers per call."
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: get_account, list_sms_routes · Private data: get_account · Public sink: get_account, get_prices, list_sms_routes, send_sms · Destructive: hlr_quote.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: get_account, list_sms_routes · Private data: get_account · Public sink: get_account, get_prices, list_sms_routes, send_sms · Destructive: hlr_quote"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 80,
+  "scoreBreakdown": {
+    "toxic-flow": 20
+  },
+  "errors": []
+}

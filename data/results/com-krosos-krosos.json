@@ -8,8 +8,8 @@
     "kind": "url",
     "ref": "https://app.krosos.com/api/mcp"
   },
-  "scannedAt": "2026-11-15T12:22:13.099Z",
-  "durationMs": 874,
+  "scannedAt": "2026-11-20T13:23:37.592Z",
+  "durationMs": 707,
   "layers": {
     "metadata": true,
     "static": false
@@ -32,8 +32,8 @@
     },
     {
       "name": "get_reference_data",
-      "descriptionHash": "9c8a6af816a2e20a4227c51a5bc9ee865e8fe067818f58899033ef4052c9ae76",
-      "description": "Valid accounts, providers, tickers, asset classes and categories. Read this before writing: trades and adjustments must use these values unless allow_new_values is set."
+      "descriptionHash": "2b4204d3c5d23f472f253a7f322f3402cfad82d5ee9284c857d18b7edde99f03",
+      "description": "Valid accounts, providers, tickers, asset classes and categories. Also base_currency, the currency every amount is stated in. Read this before writing: trades and adjustments must use these values unless allow_new_values is set."
     },
     {
       "name": "get_tax_report",
@@ -88,6 +88,22 @@
         "private-data",
         "public-sink"
       ]
+    },
+    {
+      "name": "propose_holdings_import",
+      "descriptionHash": "dfaed0f5ef66208e29061f5bee6931d909a0c85f8d5bd0949b493d10f8da101e",
+      "description": "Prepare an import of what the user owns and owes: one row per current holding, not their transaction history. Saves a draft only. Nothing is added until the user reviews and imports it in Krosos, so this works on a read-only connection. asset is one of the asset classes in get_reference_data. Amount",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "propose_net_worth_history_import",
+      "descriptionHash": "1ecc69102defd7b4a025aced591060475c396cec655ec0752bcb853cdc72462a",
+      "description": "Prepare an import of the user's past net worth: one total per date, from old statements or another tracker's export. Saves a draft only. Nothing is added until the user reviews and imports it in Krosos, so this works on a read-only connection. total_value_eur is the whole net worth that day in base_",
+      "labels": [
+        "untrusted-content"
+      ]
     }
   ],
   "findings": [
@@ -96,18 +112,32 @@
       "severity": "high",
       "category": "toxic-flow",
       "title": "Lethal trifecta: untrusted input + private data + external sink",
-      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: list_connections · Private data: list_connections, record_balance_adjustment · Public sink: get_tax_report, log_trade, record_balance_adjustment.",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: list_connections, propose_holdings_import, propose_net_worth_history_import · Private data: list_connections, record_balance_adjustment · Public sink: get_tax_report, log_trade, record_balance_adjustment.",
       "evidence": {
         "source": "server:mcp",
-        "snippet": "Untrusted content: list_connections · Private data: list_connections, record_balance_adjustment · Public sink: get_tax_report, log_trade, record_balance_adjustment"
+        "snippet": "Untrusted content: list_connections, propose_holdings_import, propose_net_worth_history_import · Private data: list_connections, record_balance_adjustment · Public sink: get_tax_report, log_trade, record_balance_adjustment"
       },
       "confidence": 0.6,
       "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"get_reference_data\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:get_reference_data",
+        "snippet": "before: \"Valid accounts, providers, tickers, asset classes and categories. Read this before writing: trades and adjustments must use these values unless allow_new_values is set.\" → after: \"Valid accounts, providers, tickers, asset classes and categories. Also base_currency, the currency every amount is stated in. Read this before writing: trades and adjustments must use these values unless allow_new_values is set.\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
     }
   ],
-  "score": 80,
+  "score": 60,
   "scoreBreakdown": {
-    "toxic-flow": 20
+    "toxic-flow": 20,
+    "tool-poisoning": 20
   },
   "errors": []
 }
