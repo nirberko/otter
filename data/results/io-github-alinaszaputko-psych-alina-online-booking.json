@@ -1,0 +1,90 @@
+{
+  "schemaVersion": 1,
+  "scanner": {
+    "version": "1.6.0",
+    "rules": "402995650b68"
+  },
+  "target": {
+    "kind": "url",
+    "ref": "https://booking-backend-kappa-drab.vercel.app/api/mcp"
+  },
+  "scannedAt": "2026-11-21T12:52:13.131Z",
+  "durationMs": 3644,
+  "layers": {
+    "metadata": true,
+    "static": false
+  },
+  "tools": [
+    {
+      "name": "get_professional_profile",
+      "descriptionHash": "1b4472be55678c4103467e1d517423be70e3800a482b89470f366267b46d7a09",
+      "description": "Read-only. Retrieve Alina Szaputko’s public professional profile, qualifications, services, languages, consultation price, booking rules and policy links. This tool cannot create or change appointments or payments."
+    },
+    {
+      "name": "list_available_slots",
+      "descriptionHash": "cd4fd4b43159e6cb11b7f1a91763e7a9d9ed08f9f27b45a2760f3e0afabdc4b1",
+      "description": "Read-only. Retrieve current free 60-minute online consultation slots for a date range in Europe/Warsaw. Provide from as a YYYY-MM-DD date and days from 1 to 14 (defaults to 14). Only free slots are returned; no calendar event details or other clients’ information are exposed. This tool cannot reserv"
+    },
+    {
+      "name": "request_client_consent",
+      "descriptionHash": "f0224e716546223cb0269112c66f521c1f5a8d93bbe9b1980e5492ae891e683f",
+      "description": "Sends a confirmation email to the client with the exact proposed online consultation details, booking rules and privacy notice. The client must open the link, review the details and personally confirm consent. This tool does not reserve a slot or initiate payment. Collect no clinical history.",
+      "labels": [
+        "untrusted-content",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "create_checkout_session",
+      "descriptionHash": "b9d5012a1b8fe8ed3ecc10620217d314332618f77165cf23be577233b5fd2a93",
+      "description": "Creates a temporary booking hold and Stripe Checkout session; it does NOT confirm an appointment. Invoke only after request_client_consent has sent the client an email, the client has opened the confirmation page, reviewed the exact booking details, rules and privacy notice, and personally confirmed",
+      "labels": [
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "get_agent_booking_status",
+      "descriptionHash": "10859303f14479d0c757490b5dcc363135da544ec49f86d1f456fc687d991d84",
+      "description": "Operational status check. The backend may perform idempotent fulfilment when Stripe confirms payment but webhook delivery is delayed; that can create the appointment Calendar event and send booking notifications. Returns only booking status and appointment date/time, not client contact details, paym",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink"
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"get_agent_booking_status\" references sensitive artifacts (credentials). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:get_agent_booking_status",
+        "snippet": "Operational status check. The backend may perform idempotent fulfilment when Stripe confirms payment but webhook delivery is delayed; that can create the appoin…"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: request_client_consent, get_agent_booking_status · Private data: create_checkout_session, get_agent_booking_status · Public sink: request_client_consent, create_checkout_session, get_agent_booking_status.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: request_client_consent, get_agent_booking_status · Private data: create_checkout_session, get_agent_booking_status · Public sink: request_client_consent, create_checkout_session, get_agent_booking_status"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 60,
+  "scoreBreakdown": {
+    "tool-poisoning": 20,
+    "toxic-flow": 20
+  },
+  "errors": []
+}

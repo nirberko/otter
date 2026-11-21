@@ -1,0 +1,114 @@
+{
+  "schemaVersion": 1,
+  "scanner": {
+    "version": "1.6.0",
+    "rules": "402995650b68"
+  },
+  "target": {
+    "kind": "url",
+    "ref": "https://api.autotunempc.com/mcp"
+  },
+  "scannedAt": "2026-11-21T13:06:58.217Z",
+  "durationMs": 1120,
+  "layers": {
+    "metadata": true,
+    "static": false
+  },
+  "tools": [
+    {
+      "name": "identify_discrete_plant",
+      "descriptionHash": "e86c034c851197924338374928ee2614ee66dbf97050880a141d5bdd9c69b4ce",
+      "description": "Fit a discrete linear A, B, and dt from logged (t, u, y) samples.\n\nThis tool stays free when payment enforcement is on. It does not call\nIPOPT. Pass the returned matrices to ``solve_mpc`` as a linear system.\nSend 4 to 2000 samples. Each ``y`` has length 1..24 and each ``u`` has\nlength 1..12, the sam",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "validate_problem",
+      "descriptionHash": "3d85733a1d43f97493297639b6b37317aa5194b01f6d54541a88603974da3894",
+      "description": "Check dimensions, bounds, and linear controllability before a solve.\n\nThis is POST /v1/validate and stays free when payment enforcement is on.\nIt does not use X-API-Key and it does not return HTTP 402. Call it before\nsolve_mpc when you want the plant rejected without spending a credit.",
+      "labels": [
+        "untrusted-content",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "solve_mpc",
+      "descriptionHash": "351bde281ac9b80486d91da16cf85e351ec93e18e50ca4aeb33805429a0129bf",
+      "description": "Solve a multi-step constrained MPC problem on the server.\n\nUse this when the horizon has soft state bounds, hard input and slew limits,\nand an offset-free disturbance rejection term. Pass the same ``session_id``\non later calls of one closed loop so the shifted primal and dual warm start\nis restored.",
+      "labels": [
+        "public-sink",
+        "destructive"
+      ]
+    },
+    {
+      "name": "reset_warm_start",
+      "descriptionHash": "cee14ac3ae3630f7d63cbb484597660543375a99e33ad985822a9490dca26499",
+      "description": "Clear one session's shifted primal and dual.\n\nNext ``solve_mpc`` / ``POST /v1/solve`` with this ``session_id`` is cold.\nThe compiled solver stays. Stateless calls omit ``session_id`` and already\nclear warm-start memory, so they do not use this tool.",
+      "labels": [
+        "public-sink",
+        "destructive"
+      ]
+    },
+    {
+      "name": "start_autotune_job",
+      "descriptionHash": "1c04af179ecf827404fdb9f3a57f02656a84d67068a1ad2aed2a5becede72bb4",
+      "description": "Queue an Optuna search for Q, R, Rd, and Qf. Then poll ``get_autotune_job``.\n\nThe tuner needs a model, either matrices ``A`` and ``B`` or one registered\ntemplate. There is no entry for a custom nonlinear equation besides those\ntemplates. Obstacle and path-frame navigation stayed in Apex_nav.\n\nCall t",
+      "labels": [
+        "untrusted-content",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "get_autotune_job",
+      "descriptionHash": "4456d2cbcced30e7b32333137c5924f5b9efcdf4355b0f10dd625b565046c901",
+      "description": "Read one autotune job started by ``start_autotune_job``.\n\n``status`` is ``running``, ``complete``, or ``failed``. On ``complete``,\n``result`` holds the Pareto-best weights, overshoot, settling time, RMSE,\nand solve time. Poll again while it is ``running``. When payment enforcement\nis on, pass the ``",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "autotune_root_zone_irrigation",
+      "descriptionHash": "de5eee48aa3efca9467b53f8d2fe1c123077cab9cb51e950a3dda9a9b434dea1",
+      "description": "Tune valve weights for the three-layer root-zone irrigation template.\n\nSame payment as autotune_template: X-API-Key spends 2 autotune credits, and\na missing key or an empty pack is HTTP 402 for x402."
+    },
+    {
+      "name": "autotune_battery_peak_shaving",
+      "descriptionHash": "1c5ebf0342b8ddb479ff4d5c92d5fe3370039387d8dfe25a4c4eeadebeebf66d",
+      "description": "Tune charge power weights for the battery peak-shaving template.\n\nSame payment as autotune_template: X-API-Key spends 2 autotune credits, and\na missing key or an empty pack is HTTP 402 for x402."
+    },
+    {
+      "name": "autotune_embedded_controller_with_c_codegen",
+      "descriptionHash": "896f8b43ae93b44910a12634ba314b3e461a919138b7855b4f81d1676b0a5dd8",
+      "description": "Tune a linear plant and write a zero-heap C99 bundle.\n\nThe reply's ``codegen`` object lists ``mpc_bundle.h`` and ``mpc_bundle.c``\nplus ``usage_example_c`` and ``controller_kind``. A linear plant is a\ncondensed QP (``linear_qp``). A nonlinear plant, including differential\ndrive, is a linearized real-"
+    },
+    {
+      "name": "autotune_template",
+      "descriptionHash": "ecb18756e5023f847c82e1c906ed86994a3271f766f2ec041dba43cf4622de59",
+      "description": "Tune differential_drive, battery_peak_shaving, or root_zone_irrigation.\n\nThis is POST /v1/templates/autotune at $2.00. The name is differential_drive,\nbattery_peak_shaving, or root_zone_irrigation. The reply returns tuned\nQ, R, Rd, and Qf. Send name and max_trials.\nSend header X-API-Key when a $29 p",
+      "labels": [
+        "public-sink"
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: validate_problem, start_autotune_job · Private data: get_autotune_job · Public sink: identify_discrete_plant, validate_problem, solve_mpc, reset_warm_start, start_autotune_job, autotune_template · Destructive: solve_mpc, reset_warm_start.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: validate_problem, start_autotune_job · Private data: get_autotune_job · Public sink: identify_discrete_plant, validate_problem, solve_mpc, reset_warm_start, start_autotune_job, autotune_template · Destructive: solve_mpc, reset_warm_start"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 80,
+  "scoreBreakdown": {
+    "toxic-flow": 20
+  },
+  "errors": []
+}

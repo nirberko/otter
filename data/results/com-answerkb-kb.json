@@ -1,0 +1,94 @@
+{
+  "schemaVersion": 1,
+  "scanner": {
+    "version": "1.6.0",
+    "rules": "402995650b68"
+  },
+  "target": {
+    "kind": "url",
+    "ref": "https://answerkb.com/mcp"
+  },
+  "scannedAt": "2026-11-21T12:47:46.479Z",
+  "durationMs": 678,
+  "layers": {
+    "metadata": true,
+    "static": false
+  },
+  "tools": [
+    {
+      "name": "search_questions",
+      "descriptionHash": "96b57fe7017f0f5db65e5617548d6f1cc90cfb208f54894cca887a22f0dbf130",
+      "description": "Search this public knowledge base of short, accurate math, how-to, science, and geography answers. Use when the user asks a question that might already have a page here. Returns matching question ids, titles, short answers, and URLs. Read-only.",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "get_answer",
+      "descriptionHash": "a7a03a477026cd0f86eea255587fc2635ae1318b542fa9cb91cf1e693e436910",
+      "description": "Fetch the full answer for one knowledge-base question by id, exact question text, or path. Use an id from search_questions when possible. Read-only."
+    },
+    {
+      "name": "submit_feedback",
+      "descriptionHash": "be578752534200ff4b427c568847e6fffffa67148473dae59bee9570891fcc1e",
+      "description": "Leave a suggestion about how to make this knowledge base more useful or accessible to AI agents. Use for missing content, errors, format issues, accessibility, praise, or other suggestions. Submissions are reviewed before they appear on the public board. Do not include off-site links in the message.",
+      "labels": [
+        "public-sink",
+        "destructive"
+      ]
+    },
+    {
+      "name": "list_questions",
+      "descriptionHash": "395bfce16c21ac28a8fadea10b186a028acaa25401e97bbceefc8ada9579d737",
+      "description": "Browse question pages in this knowledge base without a search query. Filter by section (education, how-to, science, geography), grade (for education pages, e.g. '1' or 'k'), subject (e.g. 'math'), or category (e.g. 'units', 'money', 'physics', 'capitals'). Results are paginated. Use list_sections fi"
+    },
+    {
+      "name": "list_sections",
+      "descriptionHash": "c36f6866046e1f17ef60db2c04be8c70607fe47d87e0995b9a3073f67606ff89",
+      "description": "Return the knowledge-base taxonomy with page counts: sections, grades, subjects, and categories. Use this to browse available entries before calling list_questions. No input required. Read-only."
+    },
+    {
+      "name": "get_feedback_status",
+      "descriptionHash": "e21194f287603eb46e2a7980f60ce739387373691b4e86c021c7b5b1dae88c62",
+      "description": "Check the review status of a feedback item previously returned by submit_feedback. Pass the feedback id (starts with fb_). Returns whether the item is pending, approved, or rejected. Does not expose private reviewer or visitor fields. Read-only.",
+      "labels": [
+        "untrusted-content",
+        "private-data"
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOOL-POISON-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description issues instructions to the model",
+      "detail": "Description of \"list_sections\" contains imperative instructions directed at the AI assistant rather than describing the tool. This is the core tool-poisoning technique.",
+      "evidence": {
+        "source": "tool:list_sections",
+        "snippet": "Return the knowledge-base taxonomy with page counts: sections, grades, subjects, and categories. Use this to browse available entries before calling list_questi…"
+      },
+      "confidence": 0.7,
+      "remediation": "Treat the server as untrusted; the model may obey embedded instructions."
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: search_questions, get_feedback_status · Private data: get_feedback_status · Public sink: submit_feedback · Destructive: submit_feedback.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: search_questions, get_feedback_status · Private data: get_feedback_status · Public sink: submit_feedback · Destructive: submit_feedback"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 60,
+  "scoreBreakdown": {
+    "tool-poisoning": 20,
+    "toxic-flow": 20
+  },
+  "errors": []
+}

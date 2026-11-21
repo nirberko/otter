@@ -8,8 +8,8 @@
     "kind": "url",
     "ref": "https://stoadex.com/mcp"
   },
-  "scannedAt": "2026-11-19T13:36:57.059Z",
-  "durationMs": 621,
+  "scannedAt": "2026-11-21T13:01:14.947Z",
+  "durationMs": 3620,
   "layers": {
     "metadata": true,
     "static": false
@@ -70,18 +70,83 @@
       ]
     },
     {
+      "name": "stock_gaps",
+      "descriptionHash": "0aa6f2ac0be68025a4d7a7a31c6c886362d462c622cc011677078aa06e6677b8",
+      "description": "Robinhood Stock Tokens whose on-chain price is furthest from Robinhood's own price right now: cheaper or dearer on-chain, among pools with real liquidity that actually trade (pools with under $100 of 24h volume and gaps over 25% are left out as stale). Optionally a 7-day history of one token's gap f",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "open_data",
+      "descriptionHash": "cc14b57b38d6bea6f88dfacf13ae08887bfe073c64a1bbb57181aed98f22f015",
+      "description": "Stoa's public on-chain data: every swap routed through Stoa (newest first), the Points season 1 board, or the venue-quote basket (the same swaps quoted on every Robinhood Chain venue in one block). Also lists the open datasets on Hugging Face with their download links and checksums."
+    },
+    {
       "name": "spotlight",
-      "descriptionHash": "af86039edc32ea7bbdfb37005a9fea59c31d3228122f2f41bd960c0c80761ae4",
+      "descriptionHash": "40a1b1cf4baa56c348e088711343a31988b817f2d5ef1767bd019a36799744bc",
       "description": "Stoa Spotlight on Robinhood Chain: projects bid ETH for 3 sponsored slots a week and $STOA holders lock and vote; voters share most of each winning bid. Returns the week, its phase (before_week_1, bids_open, votes_only) and closing times, the rules (quorum, min bid, entry fee), every candidate with ",
       "labels": [
         "private-data",
         "public-sink",
         "destructive"
       ]
+    },
+    {
+      "name": "create_payment_link",
+      "descriptionHash": "c499eea712ff10737eac98b466f0ea3f3ef9634c9d601460828e6884c8100729",
+      "description": "Stoa Pay on Robinhood Chain: a link that asks to be paid `amount` USDG (or that much in a Robinhood stock token) to `to`. Whoever opens it pays with any token Stoa routes, or ETH from Base, Arbitrum, Optimism or Ethereum for USDG payouts. Nothing is stored or signed: the link is the request. Returns",
+      "labels": [
+        "untrusted-content",
+        "private-data"
+      ]
+    },
+    {
+      "name": "pay_payment_link",
+      "descriptionHash": "ad37f0bc2082148ac94a075497797aaf082f1215bfd528e8368d7053eae93b03",
+      "description": "The unsigned transaction that pays a Stoa Pay link on Robinhood Chain from `payer`, with `payWith` (a token address or native). The requester gets at least what the link asks, or the transaction does not go through. Stoa never signs or sends: show the user the amount and the recipient, approve first",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "payment_status",
+      "descriptionHash": "7ba997edc06cf49c149925cdbbaf0bcd63771cdec47d1708fd67402cca65f1af",
+      "description": "Whether a Stoa Pay link has been paid on Robinhood Chain, read from the chain: the paying transaction, who paid and when."
     }
   ],
-  "findings": [],
-  "score": 100,
-  "scoreBreakdown": {},
+  "findings": [
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: create_payment_link · Private data: list_tokens, build_swap, safety_check, bridge_quote, market_context, stock_tokens, stock_gaps, spotlight, create_payment_link, pay_payment_link · Public sink: spotlight · Destructive: list_tokens, spotlight.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: create_payment_link · Private data: list_tokens, build_swap, safety_check, bridge_quote, market_context, stock_tokens, stock_gaps, spotlight, create_payment_link, pay_payment_link · Public sink: spotlight · Destructive: list_tokens, spotlight"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"spotlight\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:spotlight",
+        "snippet": "before: \"Stoa Spotlight on Robinhood Chain: projects bid ETH for 3 sponsored slots a week and $STOA holders lock and vote; voters share most of each winning bid. Returns the week, its phase (before_week_1, bids_open, votes_only) and closing times, the rules (quorum, min bid, entry fee), every candidate with \" → after: \"Stoa Spotlight on Robinhood Chain: projects bid ETH for 3 sponsored slots a week and $STOA holders lock and vote; voters share most of each winning bid. Returns the week, its phase (before_week_1, bids_open, votes_only) and closing times, the rules (quorum, min bid, entry fee), every candidate with \""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    }
+  ],
+  "score": 60,
+  "scoreBreakdown": {
+    "toxic-flow": 20,
+    "tool-poisoning": 20
+  },
   "errors": []
 }

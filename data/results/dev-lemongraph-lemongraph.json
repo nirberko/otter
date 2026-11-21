@@ -8,19 +8,91 @@
     "kind": "url",
     "ref": "https://api.lemongraph.dev/mcp"
   },
-  "scannedAt": "2026-11-14T11:39:51.968Z",
-  "durationMs": 164,
+  "scannedAt": "2026-11-21T12:52:00.679Z",
+  "durationMs": 417,
   "layers": {
-    "metadata": false,
+    "metadata": true,
     "static": false
   },
-  "findings": [],
-  "score": 100,
-  "scoreBreakdown": {},
-  "errors": [
+  "tools": [
     {
-      "scanner": "metadata",
-      "message": "Streamable HTTP error: Error POSTing to endpoint: {\"jsonrpc\":\"2.0\",\"error\":{\"code\":-32000,\"message\":\"missing authorization header\"},\"id\":null}"
+      "name": "confirm_connection",
+      "descriptionHash": "fe6ddd79a688b4c5598a931ce4b6f3900bd9af685eac17ca59fcef684c4e04ac",
+      "description": "Confirm the connection ID from the Lemongraph setup prompt after OAuth sign-in. Uses your authenticated user and application identity. This works even when the user has no plan or time zone."
+    },
+    {
+      "name": "get_today",
+      "descriptionHash": "f2743b212d80524220167d3969894b273845e86672be8f3a1eeb72b652f452ae",
+      "description": "Return today's ordered plan and suggestions using the user's saved timezone. This is not every task. Requires a timezone in Lemongraph Settings. Use returned IDs for actions. When the user selects a task to work on, call get_task_context with its eight-character data.key, not the card's top-level ke"
+    },
+    {
+      "name": "get_task_context",
+      "descriptionHash": "d398ea25003320b487c351dcc1dd3c6d629828051481dad5872bc9e6cf372da2",
+      "description": "Get the stored execution brief for a task the user selected. Copy its eight-character data.key exactly from get_today or a dependency in a previous brief. Returns the task description and comments, progress notes agents logged on it, oldest first, commitments, the evidence behind the task context, p",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "start_task",
+      "descriptionHash": "c77c72988511a057c5ce467c61ba6de3d0dd29330d2ce167d6b4b153a70bfe21",
+      "description": "Start working on the selected task using its exact eight-character data.key. The server identifies your application. If another agent is already working on it, respect the error and do not proceed. Call stop_task if you stop without finishing."
+    },
+    {
+      "name": "stop_task",
+      "descriptionHash": "69f6c4340d620c65a0b790f3218d01528e75bcec095528b296aac10506c97ff3",
+      "description": "Stop working on a task you started, using its exact eight-character key. Releases your claim without completing the task. Another application cannot release your active claim. Log a hand-off note with log_task_progress first."
+    },
+    {
+      "name": "log_task_progress",
+      "descriptionHash": "c0e4425e7929af8e6cdad05845b5d38ddc96ccb6bc93e532360c482554f7e6e7",
+      "description": "Report progress on a task you started, using its exact eight-character key. The user reads it in the task timeline. Write plain text: what you did, decisions you made and why, what is next, and any blocker. If you cannot finish, log a hand-off note before stop_task: what is done, what is left, where"
+    },
+    {
+      "name": "create_task",
+      "descriptionHash": "cb16d3049c59968a59153e79c6b3c4c94fce81b465563c390c5c635426425fcb",
+      "description": "Create a native Lemongraph task when requested. Accepts a title and optional Markdown content, dueDate (YYYY-MM-DD), priority, and participant emails. A due date is a calendar day, not a timed reminder. Do not invent missing values."
+    },
+    {
+      "name": "update_task",
+      "descriptionHash": "b775ec8c32d40836ca48f2db5ffac6d609ac1a002fa0bde15d9b9bc9c4f053d3",
+      "description": "Update an open native Lemongraph task using its exact eight-character data.key. Accepts optional title, dueDate (YYYY-MM-DD or null), priority, and edits. Task bodies are Markdown; use Markdown formatting in new_str. Each edit replaces old_str with new_str literally, in array order. Copy old_str exa",
+      "labels": [
+        "destructive"
+      ]
+    },
+    {
+      "name": "complete_task",
+      "descriptionHash": "e82a1134786e15db0ca79774aa308ba933293f6a6b5d4400e74988a2e13c0c20",
+      "description": "Complete a native todo (type: todo, id), hide a commitment (type: commitment, commitment), or mark a note read (type: note, jobId and milestoneId). Use identifiers returned by get_today, not a context lookup key. External services are unchanged."
+    },
+    {
+      "name": "approve_card",
+      "descriptionHash": "ece08e03640f12c4493208a0e39f76d50db2b21697167ce223b8f21347f65953",
+      "description": "Approve or hire a suggestion once using its id from get_today. This may start external actions including email. Explaining a suggestion does not authorize approval. An explicit approval request is sufficient when the effect is clear. Success means approval, not finished downstream work.",
+      "labels": [
+        "public-sink"
+      ]
     }
-  ]
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "medium",
+      "category": "toxic-flow",
+      "title": "Toxic flow: untrusted input can reach an external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: get_task_context · Public sink: approve_card · Destructive: update_task.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: get_task_context · Public sink: approve_card · Destructive: update_task"
+      },
+      "confidence": 0.45,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 92,
+  "scoreBreakdown": {
+    "toxic-flow": 8
+  },
+  "errors": []
 }

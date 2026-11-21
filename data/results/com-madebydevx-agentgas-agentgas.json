@@ -6,15 +6,40 @@
   },
   "target": {
     "kind": "url",
-    "ref": "https://agentgas.madebydevx.com/mcp"
+    "ref": "https://agentgas.madebydevx.com/mcp?src=mcp-registry"
   },
-  "scannedAt": "2026-11-14T11:37:48.335Z",
-  "durationMs": 178,
+  "scannedAt": "2026-11-21T12:49:33.599Z",
+  "durationMs": 282,
   "layers": {
     "metadata": true,
     "static": false
   },
   "tools": [
+    {
+      "name": "agentgas_ensure_gas",
+      "descriptionHash": "bbd9fa1828808c32db5a1b87baa403208fca931bea6bbe1fc93351cbd61f75dc",
+      "description": "Free. Checks a wallet's native gas balance on base/arbitrum/optimism/polygon. If it is at least min, returns needed:false (nothing to pay). Otherwise returns the exact top-up to reach target (default 2 x min), the price with your loyalty fee, an x402 URL to pay (pay_with_x402.url) and, if you hold A",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "agentgas_wallet",
+      "descriptionHash": "9c5578fcf9c8506120a0845e09755db4c222235c20dd7df2b068959efb3a8e1e",
+      "description": "Free. Delivered orders, current flat fee ($0.10 / $0.05 after 3 / $0.02 after 10), orders to the next tier, and prepaid credit balance for a wallet.",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "agentgas_credit_message",
+      "descriptionHash": "5cb4f6724c0ce799b582f78d5175f7734eead9a3b2599e95d1063cf4a996c89b",
+      "description": "Free. Returns the exact EIP-191 message to sign with the payer wallet to spend prepaid credit on a top-up (no x402 payment). Then POST /v1/gas {credit:{message,signature}}. Credit: start with a 0.09 USDC pack (fits the $0.10 x402 cap, 0.099 credit) or 5/10/20 USDC packs, all with +10% bonus, at /v1/",
+      "labels": [
+        "private-data",
+        "public-sink"
+      ]
+    },
     {
       "name": "agentgas_quote",
       "descriptionHash": "b9daca9282e59d06c355eac4cbea30ab8d99bf9a14008e64a7583dc8308cbbf1",
@@ -32,15 +57,45 @@
     },
     {
       "name": "agentgas_how_to_buy",
-      "descriptionHash": "a02412bff8192cc90594e91a30296e78ab627ec5a440bdf60743027d9ba9dc01",
-      "description": "Step-by-step instructions plus the exact x402 payment URL for buying native gas for an address. This MCP server cannot sign payments; your x402 client (e.g. @x402/fetch) pays the URL with USDC on Base, gasless (EIP-3009 signature, no ETH needed).",
+      "descriptionHash": "f69285e4111a3d58a940e7b3a6f608dcedb4b6a3ae493f036bcbeb0ce994ff59",
+      "description": "Pay USDC via x402 at /v1/gas; starter fills under $0.10; MCP tools are free helpers—use an x402 client to pay. Step-by-step instructions plus the exact x402 payment URL. This MCP server cannot sign payments; your x402 client (e.g. @x402/fetch) pays the URL with USDC on Base, gasless (EIP-3009 signat",
       "labels": [
         "untrusted-content"
       ]
     }
   ],
-  "findings": [],
-  "score": 100,
-  "scoreBreakdown": {},
+  "findings": [
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp?src=mcp-registry\" exposes tools that together enable an exfiltration flow. Untrusted content: agentgas_how_to_buy · Private data: agentgas_ensure_gas, agentgas_wallet, agentgas_credit_message · Public sink: agentgas_credit_message.",
+      "evidence": {
+        "source": "server:mcp?src=mcp-registry",
+        "snippet": "Untrusted content: agentgas_how_to_buy · Private data: agentgas_ensure_gas, agentgas_wallet, agentgas_credit_message · Public sink: agentgas_credit_message"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"agentgas_how_to_buy\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:agentgas_how_to_buy",
+        "snippet": "before: \"Step-by-step instructions plus the exact x402 payment URL for buying native gas for an address. This MCP server cannot sign payments; your x402 client (e.g. @x402/fetch) pays the URL with USDC on Base, gasless (EIP-3009 signature, no ETH needed).\" → after: \"Pay USDC via x402 at /v1/gas; starter fills under $0.10; MCP tools are free helpers—use an x402 client to pay. Step-by-step instructions plus the exact x402 payment URL. This MCP server cannot sign payments; your x402 client (e.g. @x402/fetch) pays the URL with USDC on Base, gasless (EIP-3009 signat\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    }
+  ],
+  "score": 60,
+  "scoreBreakdown": {
+    "toxic-flow": 20,
+    "tool-poisoning": 20
+  },
   "errors": []
 }

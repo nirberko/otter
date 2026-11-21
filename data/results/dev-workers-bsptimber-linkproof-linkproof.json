@@ -6,10 +6,10 @@
   },
   "target": {
     "kind": "url",
-    "ref": "https://linkproof.bsptimber.workers.dev/mcp"
+    "ref": "https://linkproof.zopip.com/mcp"
   },
-  "scannedAt": "2026-11-14T11:40:02.192Z",
-  "durationMs": 425,
+  "scannedAt": "2026-11-21T12:52:10.959Z",
+  "durationMs": 344,
   "layers": {
     "metadata": true,
     "static": false
@@ -32,10 +32,94 @@
       "name": "find_archive",
       "descriptionHash": "a80512e47f3ff4360b7ac2eeeada785dac9599721cb8938a491ab25fb4dd39e4",
       "description": "For up to 10 URLs (e.g. dead links), find the closest Internet Archive Wayback Machine snapshot, optionally nearest a date (YYYY, YYYY-MM or YYYY-MM-DD). Returns snapshot URL, capture time, captured status. Price: 0.005 USDC per call (x402, Base)."
+    },
+    {
+      "name": "check_headers",
+      "descriptionHash": "929925d86fab15a0c60b80f3a639feec61fcae5a66e8ad904e37ea91ce5c7fd0",
+      "description": "Inspect security headers for up to 5 URLs: HSTS, CSP, clickjacking protection, cookie flags (names only, never values), Server/X-Powered-By disclosure, HTTPS redirect, a simple letter grade and plain recommendations. HEAD is used first, with a small GET if needed. No TLS certificate handshake. Price",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "site_policies",
+      "descriptionHash": "974e982ac49120fd0e01bb6a4c513544c42501134ec9e8f0b1c4e8535b7c8705",
+      "description": "Fetch robots.txt, llms.txt, llms-full.txt, ai.txt and /.well-known/security.txt for up to 5 sites. Parses AI-crawler rules (GPTBot, ClaudeBot, Google-Extended, CCBot, PerplexityBot, …) and whether a given path is allowed, lists sitemap URLs, and parses security.txt contact/expiry. Price: 0.005 USDC ",
+      "labels": [
+        "untrusted-content",
+        "private-data"
+      ]
+    },
+    {
+      "name": "email_auth",
+      "descriptionHash": "ef2ec9ef99c9d5767a5f514fc1be17ac39d2000c7326e0f76af24a69d64b306d",
+      "description": "Check SPF, DMARC, MX and common DKIM selectors for up to 5 domains via DNS-over-HTTPS. Reports policy strength, common misconfigs (multiple SPF, SPF lookup limit, +all, p=none), a simple grade and recommendations. Mailbox existence is never probed. Not a deliverability or safety guarantee. Price: 0.",
+      "labels": [
+        "untrusted-content",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "injection_scan",
+      "descriptionHash": "648b5a4f6ce54428f390bd9ac13aa7cfdb3641df6d7f1f47f989b8a92dffd93a",
+      "description": "Rule-based scan of a text blob (max 50 KB) for prompt-injection patterns: instruction overrides, role hijack, hidden unicode, base64 payloads, tool/webhook exfil, markdown image exfil. Returns risk, matches with offsets, and a sanitized copy marked untrusted. Heuristic only; text is not stored. Pric",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "wiki_summary",
+      "descriptionHash": "19aedafebcc17149f76387e2b8e39261481f3ea325c73a7158fdf621efcaf374",
+      "description": "Short Wikipedia extract for up to 3 titles or search queries (optional lang). Returns extract, URL, thumbnail, Wikidata id and CC BY-SA 4.0 attribution. Price: 0.005 USDC per call (x402, Base).",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "license_detect",
+      "descriptionHash": "f375efe1650aead176203ca76d3c52450d91c5afa46afdacfb7a456bbc55de9a",
+      "description": "Identify a common SPDX license (MIT, Apache-2.0, GPL, LGPL, AGPL, BSD, MPL-2.0, ISC, Unlicense, CC0, …) from license text or a public LICENSE file URL. Returns confidence and key permissions/conditions. Not legal advice. Price: 0.003 USDC per call (x402, Base).",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "ics_parse",
+      "descriptionHash": "794dc32c9174056834934527b472c912d03dca02bd94e660e1e6ef87c834ef84",
+      "description": "Parse iCalendar (ICS) text or a public .ics URL. Returns VEVENTs (summary, start/end in UTC/ISO, location) with RRULE expanded to at most 50 occurrences in a bounded window. Data is not stored. Price: 0.003 USDC per call (x402, Base)."
     }
   ],
-  "findings": [],
-  "score": 100,
-  "scoreBreakdown": {},
+  "findings": [
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"check_headers\" references sensitive artifacts (cookie). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:check_headers",
+        "snippet": "Inspect security headers for up to 5 URLs: HSTS, CSP, clickjacking protection, cookie flags (names only, never values), Server/X-Powered-By disclosure, HTTPS re…"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: verify_links, check_headers, site_policies, email_auth, wiki_summary · Private data: site_policies, license_detect · Public sink: email_auth, injection_scan.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: verify_links, check_headers, site_policies, email_auth, wiki_summary · Private data: site_policies, license_detect · Public sink: email_auth, injection_scan"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 60,
+  "scoreBreakdown": {
+    "tool-poisoning": 20,
+    "toxic-flow": 20
+  },
   "errors": []
 }
