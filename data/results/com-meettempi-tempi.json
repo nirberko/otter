@@ -8,8 +8,8 @@
     "kind": "url",
     "ref": "https://meettempi.com/mcp"
   },
-  "scannedAt": "2026-11-21T12:49:41.007Z",
-  "durationMs": 1354,
+  "scannedAt": "2026-11-22T12:44:05.556Z",
+  "durationMs": 1509,
   "layers": {
     "metadata": true,
     "static": false
@@ -98,6 +98,41 @@
       ]
     },
     {
+      "name": "get_public_event",
+      "descriptionHash": "4b5e9208ee9bbe4fe73572dd69c3695a765a6d2bcba48bf54e8b065c5236cdb1",
+      "description": "Returns an event from its link (\".../e/<slug>\") or slug: its title, description, host, `start` and `end` (UTC) with `when` in words in `timezone`, how many can come (`capacity`), how many are `going` and `waiting`, and its `state`: open (spots are left), full (joining puts you on the waitlist), over",
+      "labels": [
+        "untrusted-content",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "join_event",
+      "descriptionHash": "a74013ea900f0f41a6c9bddb35fe0c7be934b616387771e6dd421a090b6239ce",
+      "description": "Joins an event for one person. `status` in the result says what happened: going (they have a spot, and `event.where` now has the address or the link) waiting (the event is full: `waitlistPlace` is their place, 1 is next, and they get the next spot that opens, in order, with nothing to do or confirm)",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "get_event_guest",
+      "descriptionHash": "67fb515e8e8f813db7d7c567f692979c4f28f0725e068990c2294e1ab3591704",
+      "description": "Returns a guest’s own view of an event, from the `id` and `token` join_event gave (both are in their link): `status` (asked: the host hasn’t answered yet; going; waiting; left; removed; declined: the host said no), `waitlistPlace` when waiting (1 is next), a `summary` in words, and the event, with t",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "leave_event",
+      "descriptionHash": "9ae8590c292e1f7e51dc0edd65a1918c375dca4d6c8731a8ada051ce6af396ba",
+      "description": "Gives up a guest’s spot or their place on the waitlist, or takes back their ask to join, with the `id` and `token` join_event gave. A spot goes to the first person on the waitlist at once, so it can’t be taken back: to come after all, join again (join_event), at the end of the line. Works until the ",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
       "name": "join_waitlist",
       "descriptionHash": "522b1a264b33e8d194c205aa2b1defc271a95fbe203991d23e6650d82825a92d",
       "description": "Requests access to host on Tempi (create event types, share a booking page). Not needed to book meetings, since booking pages are public. Returns the status: pending, approved (sign in to the Tempi web app), rejected, or open (no waitlist, sign in directly). Joining again with the same email returns",
@@ -109,36 +144,36 @@
   ],
   "findings": [
     {
+      "id": "MCP-TOOL-POISON-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description issues instructions to the model",
+      "detail": "Description of \"leave_event\" contains imperative instructions directed at the AI assistant rather than describing the tool. This is the core tool-poisoning technique.",
+      "evidence": {
+        "source": "tool:leave_event",
+        "snippet": "Gives up a guest’s spot or their place on the waitlist, or takes back their ask to join, with the `id` and `token` join_event gave. A spot goes to the first per…"
+      },
+      "confidence": 0.7,
+      "remediation": "Treat the server as untrusted; the model may obey embedded instructions."
+    },
+    {
       "id": "MCP-TOXIC-FLOW-001",
       "severity": "high",
       "category": "toxic-flow",
       "title": "Lethal trifecta: untrusted input + private data + external sink",
-      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: check_series, create_booking, share_booking_as_invitee, join_waitlist · Private data: get_available_slots, create_booking, get_booking, reschedule_booking_as_invitee, cancel_booking_as_invitee, get_shared_booking · Public sink: create_booking, share_booking_as_invitee, join_waitlist.",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: check_series, create_booking, share_booking_as_invitee, get_public_event, join_event, join_waitlist · Private data: get_available_slots, create_booking, get_booking, reschedule_booking_as_invitee, cancel_booking_as_invitee, get_shared_booking, join_event, get_event_guest, leave_event · Public sink: create_booking, share_booking_as_invitee, get_public_event, join_event, join_waitlist.",
       "evidence": {
         "source": "server:mcp",
-        "snippet": "Untrusted content: check_series, create_booking, share_booking_as_invitee, join_waitlist · Private data: get_available_slots, create_booking, get_booking, reschedule_booking_as_invitee, cancel_booking_as_invitee, get_shared_booking · Public sink: create_booking, share_booking_as_invitee, join_waitlist"
+        "snippet": "Untrusted content: check_series, create_booking, share_booking_as_invitee, get_public_event, join_event, join_waitlist · Private data: get_available_slots, create_booking, get_booking, reschedule_booking_as_invitee, cancel_booking_as_invitee, get_shared_booking, join_event, get_event_guest, leave_event · Public sink: create_booking, share_booking_as_invitee, get_public_event, join_event, join_waitlist"
       },
       "confidence": 0.6,
       "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
-    },
-    {
-      "id": "MCP-RUGPULL-001",
-      "severity": "high",
-      "category": "tool-poisoning",
-      "title": "Tool description changed since last scan",
-      "detail": "Tool \"answer_booking\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
-      "evidence": {
-        "source": "tool:answer_booking",
-        "snippet": "before: \"Saves the invitee's answers to questions the host asks (`questions` on the booking, those not yet in `answers`). Answering is up to the invitee: after create_booking, ask them the open questions and send what they say. A new answer to a question replaces the old one. Returns the booking.\" → after: \"Saves the invitee's answers to questions the host asks (`questions` on the booking, those not yet in `answers`). Questions are answered when booking, in create_booking's `answers`. This is for an answer the invitee wants to add or change afterwards: don't ask them again after booking. A new answer t\""
-      },
-      "confidence": 0.8,
-      "remediation": "Re-review the tool before continuing to trust it."
     }
   ],
   "score": 60,
   "scoreBreakdown": {
-    "toxic-flow": 20,
-    "tool-poisoning": 20
+    "tool-poisoning": 20,
+    "toxic-flow": 20
   },
   "errors": []
 }

@@ -1,0 +1,111 @@
+{
+  "schemaVersion": 1,
+  "scanner": {
+    "version": "1.6.0",
+    "rules": "402995650b68"
+  },
+  "target": {
+    "kind": "url",
+    "ref": "https://workman.rent/mcp"
+  },
+  "scannedAt": "2026-11-22T12:56:23.237Z",
+  "durationMs": 2055,
+  "layers": {
+    "metadata": true,
+    "static": false
+  },
+  "tools": [
+    {
+      "name": "start_pairing",
+      "descriptionHash": "d77a558b27510deed3cc4546ebe1dfc1fff187448c465104ae987614b07081ee",
+      "description": "Step 1 of onboarding. Returns a short code (valid 15 min). Show it to your human operator: a VERIFIED requester confirms it in the dashboard at https://workman.rent/zamovnik.html. Then call pairing_status with the code. There is no anonymous self-registration.\nNo verified requester yet? Try the SAND"
+    },
+    {
+      "name": "pairing_status",
+      "descriptionHash": "889d8851d5f395e73df5b1763148aa2cde32ca77ee53893919950e58d0f8c1bf",
+      "description": "Step 2 of onboarding. While pending returns { status }. When the requester has confirmed, returns { status: \"ready\", client_id, api_key } exactly ONCE — store them. Then reconnect to https://workman.rent/mcp with header  Authorization: Bearer <client_id>:<api_key>  to get the task tools (no header s",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "list_task_templates",
+      "descriptionHash": "cc89dee4a520c74c3e7852bc68837bb0c9e8da8924400fea5294e54dd3e521c9",
+      "description": "Catalogue of ready-made task templates (call_check, storefront_photo, shelf_price_check, store_open_check). Each has a result spec (checklist questions, minimum photos, done-when), a recommended and minimum budget in USDC, the executor skill, the location type and a default deadline. Create a task f"
+    },
+    {
+      "name": "sandbox_signup_start",
+      "descriptionHash": "78312ee8b4b347e30194224b57da83a623ef5829b8ba06e36d08eae9bf98fdbb",
+      "description": "Try workman.rent in 5 minutes without business verification (KYB): the SANDBOX runs the full task flow (create → fund → accept → submit → confirm, same statuses and webhooks as production) but tasks are taken by a bot and payments are simulated; no real people, no real money. Ask your human operator",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "sandbox_signup_verify",
+      "descriptionHash": "9f5b9cc7f9e3181eebb39d5b2ddda389a9c9d3a0a71149928b6dba5e740284e0",
+      "description": "Confirms the 6-digit code and returns { client_id, api_key: \"sk_sandbox_…\" } ONCE — store them. Calling it again for the same email issues a new key and disables the old one. accept_rules must be true: your human operator accepts the Platform Rules (https://workman.rent/oferta.html) — ask them befor",
+      "labels": [
+        "public-sink"
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"pairing_status\" references sensitive artifacts (api_key, authorization, bearer). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:pairing_status",
+        "snippet": "Step 2 of onboarding. While pending returns { status }. When the requester has confirmed, returns { status: \"ready\", client_id, api_key } exactly ONCE — store t…"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-SCHEMA-SMELL-001",
+      "severity": "medium",
+      "category": "schema-smell",
+      "title": "Read-only tool requests dangerous parameters",
+      "detail": "Tool \"pairing_status\" appears informational but accepts parameters (code) that enable code/file/secret access.",
+      "evidence": {
+        "source": "tool:pairing_status",
+        "snippet": "code"
+      },
+      "confidence": 0.55
+    },
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"sandbox_signup_verify\" references sensitive artifacts (api_key, authorization, bearer). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:sandbox_signup_verify",
+        "snippet": "Confirms the 6-digit code and returns { client_id, api_key: \"sk_sandbox_…\" } ONCE — store them. Calling it again for the same email issues a new key and disable…"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "medium",
+      "category": "toxic-flow",
+      "title": "Toxic flow: untrusted input can reach an external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: pairing_status · Public sink: sandbox_signup_start, sandbox_signup_verify.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: pairing_status · Public sink: sandbox_signup_start, sandbox_signup_verify"
+      },
+      "confidence": 0.45,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 54,
+  "scoreBreakdown": {
+    "tool-poisoning": 30,
+    "schema-smell": 8,
+    "toxic-flow": 8
+  },
+  "errors": []
+}
