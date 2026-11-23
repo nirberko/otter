@@ -8,8 +8,8 @@
     "kind": "url",
     "ref": "https://dubsync.me/mcp"
   },
-  "scannedAt": "2026-11-22T12:55:47.345Z",
-  "durationMs": 740,
+  "scannedAt": "2026-11-23T15:09:31.579Z",
+  "durationMs": 5287,
   "layers": {
     "metadata": true,
     "static": false
@@ -30,8 +30,8 @@
     },
     {
       "name": "dub_get_balance",
-      "descriptionHash": "9a9e11bde5a90a434b6aca3084b45e0825d385713850c02b808ce1a77c22e20e",
-      "description": "Use when the user asks about available translation allowance. May initialize the eligible one-time account allowance, but never replenishes it, buys credits, or changes a subscription."
+      "descriptionHash": "d4341a88c4aee93b19329cb40a111aa4590f24cff12f5e1db7c20281fb8c69ae",
+      "description": "Reads the connected account’s remaining paid translation seconds. This does not consume minutes or change the balance."
     },
     {
       "name": "dub_list_projects",
@@ -60,8 +60,8 @@
     },
     {
       "name": "dub_import_file",
-      "descriptionHash": "0ecfd22ad0c15a918514459a15a3c1c6fa34c7cb91955d59a33b513c726ff20b",
-      "description": "Copies a user-selected ChatGPT video attachment up to 128 MiB to the connected DubSync account for media preparation. Ask permission to upload this specific video first. Supports known-length downloads from OpenAI-owned oaiusercontent.com hosts; unsupported or expired links require a fresh supported",
+      "descriptionHash": "72c32d9849aecc8c0ebd877817d1adc241b845cdd1e6413a26a077d67f95ecbd",
+      "description": "Copies a selected ChatGPT video attachment up to 128 MiB into the connected DubSync account. Ask permission to upload this file first and use the exact file handle supplied by ChatGPT. If either handle field is missing or the link is unsupported or expired, ask the user to reattach the file or uploa",
       "labels": [
         "private-data",
         "public-sink"
@@ -86,24 +86,24 @@
     },
     {
       "name": "dub_complete_upload",
-      "descriptionHash": "7aecae1dd315783d87ed5f775a7a918b3321a139ad48a5b24225e21aa097b7d8",
-      "description": "Use after every byte has uploaded. Validates and prepares the source media; it does not start translation.",
+      "descriptionHash": "a5d0df6aa0f4791420faff1849249d27385850e2bdf7506e98328304874964ea",
+      "description": "Call after all bytes have uploaded. For a ChatGPT import, use its assetId as uploadId and its completionKey as idempotencyKey. If preparing is true, wait and retry the same completion with that key. This validates the source without starting translation.",
       "labels": [
         "public-sink"
       ]
     },
     {
       "name": "dub_quote_translation",
-      "descriptionHash": "5ba3d5a306b6c7f6da4ecb5295f3a03f29440570f8f7a0ca6c7e0d1ec540b255",
-      "description": "Use after upload completion to check required usage and eligibility before the user authorizes translation. May initialize eligible one-time allowance. This does not start processing.",
-      "labels": [
-        "public-sink"
-      ]
+      "descriptionHash": "29d9b41866fe327923e82b6354d037f1eb338d51c23af24f0eefa12853e4e0e2",
+      "description": "Use after preparation finishes. Show full.requiredSeconds as minutes and seconds before asking for approval. If full.deficitSeconds is positive, explain that the account has insufficient minutes. A quote does not consume minutes or start processing."
     },
     {
       "name": "dub_create_project",
-      "descriptionHash": "979822f8c359f1fe84cc07a6b51d22175130c037545481fec03b8bb01acd5b7a",
-      "description": "Sends the uploaded video and audio for AI processing and starts translation, consuming existing credits or free allowance. First explain this processing and obtain affirmative user approval for the exact source, target language and full/free-preview scope, including content and speaker/voice rights."
+      "descriptionHash": "2db543afd3e2958d16395e0593d188f9c03d7b34051ba1b7b63e0db31f6c899c",
+      "description": "Starts a full translation and sends the source for AI processing using existing paid minutes. Show the exact quote, then obtain affirmative approval for the source, target language, AI processing, and quoted usage. Confirm that the user has rights to the content and consent from all speakers. OAuth ",
+      "labels": [
+        "public-sink"
+      ]
     }
   ],
   "findings": [
@@ -124,18 +124,83 @@
       "severity": "high",
       "category": "toxic-flow",
       "title": "Lethal trifecta: untrusted input + private data + external sink",
-      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: dub_get_project_result · Private data: dub_get_account, dub_get_project_result, dub_import_file, dub_create_upload · Public sink: dub_get_project_result, dub_import_file, dub_create_upload, dub_get_upload_status, dub_complete_upload, dub_quote_translation.",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: dub_get_project_result · Private data: dub_get_account, dub_get_project_result, dub_import_file, dub_create_upload · Public sink: dub_get_project_result, dub_import_file, dub_create_upload, dub_get_upload_status, dub_complete_upload, dub_create_project.",
       "evidence": {
         "source": "server:mcp",
-        "snippet": "Untrusted content: dub_get_project_result · Private data: dub_get_account, dub_get_project_result, dub_import_file, dub_create_upload · Public sink: dub_get_project_result, dub_import_file, dub_create_upload, dub_get_upload_status, dub_complete_upload, dub_quote_translation"
+        "snippet": "Untrusted content: dub_get_project_result · Private data: dub_get_account, dub_get_project_result, dub_import_file, dub_create_upload · Public sink: dub_get_project_result, dub_import_file, dub_create_upload, dub_get_upload_status, dub_complete_upload, dub_create_project"
       },
       "confidence": 0.6,
       "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"dub_get_balance\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:dub_get_balance",
+        "snippet": "before: \"Use when the user asks about available translation allowance. May initialize the eligible one-time account allowance, but never replenishes it, buys credits, or changes a subscription.\" → after: \"Reads the connected account’s remaining paid translation seconds. This does not consume minutes or change the balance.\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"dub_import_file\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:dub_import_file",
+        "snippet": "before: \"Copies a user-selected ChatGPT video attachment up to 128 MiB to the connected DubSync account for media preparation. Ask permission to upload this specific video first. Supports known-length downloads from OpenAI-owned oaiusercontent.com hosts; unsupported or expired links require a fresh supported\" → after: \"Copies a selected ChatGPT video attachment up to 128 MiB into the connected DubSync account. Ask permission to upload this file first and use the exact file handle supplied by ChatGPT. If either handle field is missing or the link is unsupported or expired, ask the user to reattach the file or uploa\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"dub_complete_upload\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:dub_complete_upload",
+        "snippet": "before: \"Use after every byte has uploaded. Validates and prepares the source media; it does not start translation.\" → after: \"Call after all bytes have uploaded. For a ChatGPT import, use its assetId as uploadId and its completionKey as idempotencyKey. If preparing is true, wait and retry the same completion with that key. This validates the source without starting translation.\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"dub_quote_translation\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:dub_quote_translation",
+        "snippet": "before: \"Use after upload completion to check required usage and eligibility before the user authorizes translation. May initialize eligible one-time allowance. This does not start processing.\" → after: \"Use after preparation finishes. Show full.requiredSeconds as minutes and seconds before asking for approval. If full.deficitSeconds is positive, explain that the account has insufficient minutes. A quote does not consume minutes or start processing.\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"dub_create_project\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:dub_create_project",
+        "snippet": "before: \"Sends the uploaded video and audio for AI processing and starts translation, consuming existing credits or free allowance. First explain this processing and obtain affirmative user approval for the exact source, target language and full/free-preview scope, including content and speaker/voice rights.\" → after: \"Starts a full translation and sends the source for AI processing using existing paid minutes. Show the exact quote, then obtain affirmative approval for the source, target language, AI processing, and quoted usage. Confirm that the user has rights to the content and consent from all speakers. OAuth \""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
     }
   ],
-  "score": 60,
+  "score": 40,
   "scoreBreakdown": {
-    "tool-poisoning": 20,
+    "tool-poisoning": 40,
     "toxic-flow": 20
   },
   "errors": []

@@ -1,0 +1,90 @@
+{
+  "schemaVersion": 1,
+  "scanner": {
+    "version": "1.6.0",
+    "rules": "402995650b68"
+  },
+  "target": {
+    "kind": "url",
+    "ref": "https://legit2compute.com/mcp"
+  },
+  "scannedAt": "2026-11-23T14:51:50.848Z",
+  "durationMs": 732,
+  "layers": {
+    "metadata": true,
+    "static": false
+  },
+  "tools": [
+    {
+      "name": "account",
+      "descriptionHash": "74599384174479c970169c7271d3c6ae3aad74cc0c3c565328e81e97d31ab866",
+      "description": "Your legit2compute account: credit balance, the media pipelines your key can run with their estimated cost, and per-model token prices. Call this first to see what is available.",
+      "labels": [
+        "private-data",
+        "destructive"
+      ]
+    },
+    {
+      "name": "list_models",
+      "descriptionHash": "00d1f20ac9d251af0ab97ddf87b7567ea02e008d1f7832087112a0f316dbe66e",
+      "description": "Every language model your key can call, with context length, tool support, modality (text or vision) and price. \"l2c/auto\" picks the cheapest model that fits each request."
+    },
+    {
+      "name": "chat",
+      "descriptionHash": "fc7a3d8049d84d154a813e18aad47ed02e48d623af0a757afca4e818c4f0237b",
+      "description": "Send a prompt (or a full OpenAI-style messages array) to a hosted language model and get the answer. Billed per token from your credit. Use model \"l2c/auto\" unless you need a specific one from list_models.",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "generate",
+      "descriptionHash": "2851343908dc0383d60e6f1f275c39f1d10bae465eec13b5b38baf72cb9d1df7",
+      "description": "Start a media job: images, image edits, music and songs, cloned voice and narration (in other languages too), sound effects, video from text or an image, long video to short clips, transcripts, articles, podcasts. Returns a job_id at once; then call get_job. Billed from your credit when it runs. Pip"
+    },
+    {
+      "name": "get_job",
+      "descriptionHash": "3c5537976419e53b23c0d82e0aa8e9fd1f84130d3d17f065945a324bb000a96f",
+      "description": "Status of a media job. When it is completed, the result files with download links. wait_seconds (up to 50) keeps checking until the job ends or the time is up. Never submit a job again because it is still running: it is still billed.",
+      "labels": [
+        "private-data",
+        "public-sink"
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOOL-POISON-006",
+      "severity": "low",
+      "category": "tool-poisoning",
+      "title": "Anomalously long tool description",
+      "detail": "Description of \"generate\" is 1098 chars, far longer than this server's median (205). Overlong descriptions are a common place to bury instructions.",
+      "evidence": {
+        "source": "tool:generate",
+        "snippet": "Start a media job: images, image edits, music and songs, cloned voice and narration (in other languages too), sound effects, video from text or an image, long v…"
+      },
+      "confidence": 0.4
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: chat · Private data: account, chat, get_job · Public sink: chat, get_job · Destructive: account.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: chat · Private data: account, chat, get_job · Public sink: chat, get_job · Destructive: account"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 77,
+  "scoreBreakdown": {
+    "tool-poisoning": 3,
+    "toxic-flow": 20
+  },
+  "errors": []
+}

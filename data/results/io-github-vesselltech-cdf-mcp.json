@@ -8,19 +8,489 @@
     "kind": "url",
     "ref": "https://mcp.cdf.finance/mcp"
   },
-  "scannedAt": "2026-11-22T12:54:48.433Z",
-  "durationMs": 139,
+  "scannedAt": "2026-11-23T15:08:07.701Z",
+  "durationMs": 894,
   "layers": {
-    "metadata": false,
+    "metadata": true,
     "static": false
   },
-  "findings": [],
-  "score": 100,
-  "scoreBreakdown": {},
-  "errors": [
+  "tools": [
     {
-      "scanner": "metadata",
-      "message": "Streamable HTTP error: Error POSTing to endpoint: {\"error\":\"unauthorized\"}"
+      "name": "get_profile",
+      "descriptionHash": "d186d6cddfb8ab5c956477f06c097572e29ffc76f118f8bbed8c59637bd3e2ae",
+      "description": "Retorna o perfil completo do usuário autenticado: dados cadastrais, negócio (CNPJ/website, se hasBusiness), plano e status de assinatura (Stripe), e vínculo com planejador (plannerId). Único campo omitido é `phone`, redigido antes de sair do servidor MCP — mesmo que fosse pedido explicitamente, não "
+    },
+    {
+      "name": "update_profile",
+      "descriptionHash": "6946102209c69d4a3d69cf141f61c3cbe2a49518eb8448e1feaf716baed712f2",
+      "description": "Atualiza o perfil do usuário autenticado (parcial — campo omitido ou string vazia mantém o valor atual; não há como limpar um campo já preenchido por esta tool, exceto `hasBusiness` que aceita true/false explícito). Não atualiza email, plano ou dados de assinatura (não expostos aqui).",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "list_accounts",
+      "descriptionHash": "8ad62b7460afd70ac29064ff056f243924b71394c289659fa36ef5ba158bcd61",
+      "description": "Lista as contas bancárias/carteiras do usuário: as que ele é dono (`userId`) e as contas conjuntas onde ele é membro (via AccountMember). Cada item traz `myRole` (OWNER/MEMBER na conta), `isShared` e a lista completa de `members` com dados básicos de cada usuário. Ordenado por criação, mais recente "
+    },
+    {
+      "name": "create_account",
+      "descriptionHash": "285e351561bc0fbdff7e1eb8918393591d4de0a812f6518cf31f0b7c50e2513c",
+      "description": "Cria uma conta bancária/carteira nova com o usuário autenticado como OWNER. `balance` é o saldo inicial (default 0), não um saldo calculado a partir de transações — o saldo depois é ajustado incrementalmente conforme transações pagas são criadas/confirmadas/excluídas."
+    },
+    {
+      "name": "update_account",
+      "descriptionHash": "35400129d16786d872f7ec301004c84454bb605c4d61d0c47cae0fba79ab7121",
+      "description": "Atualiza campos de uma conta existente (parcial — campo omitido/vazio mantém o valor atual). Tanto o dono (OWNER) quanto membros (MEMBER) de uma conta conjunta podem chamar esta tool; para excluir a conta, porém, só o dono pode (veja delete_account). Editar `balance` aqui sobrescreve o saldo diretam"
+    },
+    {
+      "name": "delete_account",
+      "descriptionHash": "cb748da146ceaa4b1ea1b430aaba4df5e61c0e517d0a3798e462d7a6116bdda2",
+      "description": "Exclui uma conta permanentemente. Só o dono (`userId` da conta) pode excluir — membros de uma conta conjunta não conseguem, mesmo podendo editá-la via update_account. Não há confirmação adicional nem verificação de transações/cartões vinculados antes de excluir.",
+      "labels": [
+        "destructive"
+      ]
+    },
+    {
+      "name": "list_cards",
+      "descriptionHash": "6d304c12c702d30850773460aca525b80e60a4830f913c3253732e7b972e7301",
+      "description": "Lista os cartões de crédito do usuário. `currentInvoice` é o total da fatura mais próxima ainda não paga (ordenada por year/month) — 0 se não houver fatura em aberto. Para o valor completo de uma fatura específica (aberta ou fechada) use as tools de fatura (invoice_for_period/list_pending_invoices),",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "create_card",
+      "descriptionHash": "912ece5c33b31dbad7a60aaabd5620a238b2c059fd9fe4d6d38ed0ff3c58da4a",
+      "description": "Cria um novo cartão de crédito para o usuário autenticado, com limite usado e fatura atual zerados."
+    },
+    {
+      "name": "update_card",
+      "descriptionHash": "976cdadc70a156d2edc80a50c2895d6f5d38b8bb031cac29277b110935cd4318",
+      "description": "Atualiza campos de um cartão (parcial — campo omitido mantém o valor atual). Para tornar o cartão 'Sem Limite' envie `limit: \"none\"` (o literal, não omitir e não 0 — omitir mantém o limite atual, 0 vira um limite de fato zero). Não permite alterar `currentInvoice`/`limitUsed` diretamente: esses camp"
+    },
+    {
+      "name": "delete_card",
+      "descriptionHash": "70087516a3bc3936f3eb18c6b93bba04e5f35022b0be0177001d62ee10c294dc",
+      "description": "Exclui um cartão de crédito permanentemente. Não há verificação de faturas em aberto ou transações vinculadas antes de excluir.",
+      "labels": [
+        "destructive"
+      ]
+    },
+    {
+      "name": "list_categories",
+      "descriptionHash": "6e891d9eacbeacf67ef855302d797dcb3b72f0cba7ed84842d6d1c38bd748466",
+      "description": "Lista todas as categorias e subcategorias do usuário (achatado — subcategorias vêm no mesmo array que as categorias-pai, diferenciadas por `parentId`), ordenado por criação (mais recente primeiro). Para gasto acumulado/orçamento por categoria use categories_insights, não esta tool."
+    },
+    {
+      "name": "create_category",
+      "descriptionHash": "9bc3e160e277aad8da39f409d7b69228c881cb12b5f268bbe1d3c71034987d53",
+      "description": "Cria uma categoria ou subcategoria do usuário (informe `parentId` para criar como subcategoria — o pai precisa ser do mesmo `type`). Opcionalmente vincula a um catálogo global (`globalCategoryId`/`globalSubcategoryId`): se informado, o `type` é herdado do registro global e um `type` divergente envia"
+    },
+    {
+      "name": "update_category",
+      "descriptionHash": "c9489eeedd64d4edc82aed7a69731aab0b6d46a6a779768fdc5092d4ebcc750f",
+      "description": "Atualiza campos de uma categoria (parcial — campo omitido/vazio mantém o valor atual). Mesmas validações de create_category: parentId precisa ser de uma categoria própria do usuário com o mesmo type (e não pode ser a própria categoria), e vínculo com catálogo global exige type compatível."
+    },
+    {
+      "name": "delete_category",
+      "descriptionHash": "dcd9269c8aee6b212c63191ea8187018f01e8a4a81980adf3022667b9e07e849",
+      "description": "Exclui uma categoria (ou subcategoria) permanentemente. Não há verificação de transações/orçamentos vinculados antes de excluir — não exclui em cascata subcategorias filhas.",
+      "labels": [
+        "destructive"
+      ]
+    },
+    {
+      "name": "list_cost_centers",
+      "descriptionHash": "f0c3d63878eb494be7e62b66aa5330646048e752ed30d6ffa8a8724bf3aaa86c",
+      "description": "Lista os centros de custo do usuário (ex: 'Pessoal', 'Empresa X'), ordenados por criação (mais antigo primeiro). Todo usuário tem ao menos um centro de custo padrão (`isDefault: true`), que não pode ser excluído."
+    },
+    {
+      "name": "create_cost_center",
+      "descriptionHash": "788c5e245171dd295585cb9ffdd9f8b08b78caa3d9762017407872468976f9fb",
+      "description": "Cria um centro de custo novo (não-padrão — `isDefault` sempre começa false)."
+    },
+    {
+      "name": "update_cost_center",
+      "descriptionHash": "0c98106065a31c8311f611052c82cd81835af4ec9b843d1940c2c5dd7e4159f5",
+      "description": "Atualiza nome/descrição de um centro de custo (parcial — campo omitido/vazio mantém o valor atual)."
+    },
+    {
+      "name": "delete_cost_center",
+      "descriptionHash": "a76504b80064f576eb37eb885419d655ac19f3079de2750523a7bad08e2de0e8",
+      "description": "Exclui um centro de custo permanentemente. Retorna erro se o centro de custo for o padrão (`isDefault: true`) — todo usuário precisa ter ao menos um. Não verifica transações/recorrências vinculadas antes de excluir.",
+      "labels": [
+        "destructive"
+      ]
+    },
+    {
+      "name": "list_transactions",
+      "descriptionHash": "16464b765ee304e5f2d08864ca8a3677750f4424c018e67f9ea8f16892a35089",
+      "description": "Lista as transações do usuário (inclusive de contas conjuntas onde ele é membro), com categoria/conta/cartão/centro de custo/agente/tags já incluídos, mais recentes primeiro (por `date`, não por criação). Sem `from`/`to`/`limit`, traz o histórico inteiro — para não estourar o contexto, use `limit` ("
+    },
+    {
+      "name": "upcoming_transactions",
+      "descriptionHash": "06d9acafec15f8b5a7eb9655652d130f31b07fdcd7f0d8a3e94f58d43bbd3395",
+      "description": "Lista transações INCOME/EXPENSE (não TRANSFER) dos próximos dias com resumo agregado de `upcoming` (dentro do range) e `overdue` (vencidas e ainda não pagas, sempre incluídas independente do range). `status` filtra por isPaid: default 'pending' (só não pagas) — use 'all' pra ver pagas e pendentes ju"
+    },
+    {
+      "name": "create_transaction",
+      "descriptionHash": "b1ca6adfcbedfc148c8669f4894d5227dc47b43f931cf03b6694b689c84d5edd",
+      "description": "Cria uma transação (EXPENSE/INCOME/TRANSFER). Requer accountId ou cardId. Se a transação vai ser considerada paga agora (isPaid não-false e sem scheduledDate futura), valida saldo suficiente na conta (EXPENSE/TRANSFER) ou limite disponível no cartão (EXPENSE) e retorna 400 se faltar — para permitir "
+    },
+    {
+      "name": "confirm_new_transaction",
+      "descriptionHash": "530ae05b1f06e1447e8d2dea89772892a58836a104e79d920983f16f4d43585b",
+      "description": "Igual a create_transaction, mas SEM validar saldo suficiente — permite deixar a conta negativa (a validação de limite de cartão continua valendo). Use no lugar de create_transaction quando o usuário está registrando algo que sabidamente vai deixar o saldo negativo (ex: import de extrato retroativo) "
+    },
+    {
+      "name": "confirm_pending_transaction",
+      "descriptionHash": "d1b97d99a2fcf6ff3f728b3d64a8da5e44a5c0c243210a6a48acc66e55df5e0b",
+      "description": "Marca uma transação existente (agendada ou com isPaid: false) como paga agora (paidDate = agora) e aplica o efeito no saldo da conta vinculada. Retorna 400 se a transação já estiver paga. Não reaplica efeito em cartão (limitUsed/fatura) — hoje só transações vinculadas a conta são afetadas por esta c"
+    },
+    {
+      "name": "update_transaction",
+      "descriptionHash": "244ed54d48739cfaa9a43788dad1e8d9bafaf10cd65fb0bf2bbd3012737eebfd",
+      "description": "Atualiza uma transação existente (parcial — campo omitido/vazio mantém o valor atual). Se amount, type ou accountId mudarem, reverte o efeito de saldo da versão antiga e reaplica com os novos valores (retorna 400 se a nova conta não tiver saldo suficiente para EXPENSE/TRANSFER). Não reajusta parcela"
+    },
+    {
+      "name": "delete_transaction",
+      "descriptionHash": "800d35dc719f72339209cabbe85c87971515c8ec363025905a4905ce0bae5c61",
+      "description": "Exclui uma transação permanentemente e, se ela estava paga (isPaid: true), reverte seu efeito: devolve/desconta o saldo da conta (e da conta de destino, se TRANSFER), decrementa a meta vinculada (se TRANSFER com goalId) e reverte o efeito no cartão/fatura (se cardId). Ação irreversível.",
+      "labels": [
+        "destructive"
+      ]
+    },
+    {
+      "name": "list_recurring_transactions",
+      "descriptionHash": "faba7f0a1e610df7b28d04ae7384116de0e3f821c2f12416261b4b7a242bf97e",
+      "description": "Lista as regras de transações recorrentes do usuário (assinaturas, salário, aluguel etc.), ativas e inativas, mais recentes primeiro. Cada regra já gerou transações reais na criação (veja create_recurring_transaction) — esta tool retorna só a regra, não as transações geradas; use list_transactions/u"
+    },
+    {
+      "name": "create_recurring_transaction",
+      "descriptionHash": "204965ab3d0bf2e9056c47d78a461a1d9add748386a68b743afda34905c90124",
+      "description": "Cria uma regra recorrente e, de uma vez, já gera todas as transações concretas entre startDate e endDate (default endDate: 1 ano após startDate) — as datadas até hoje entram como pagas e afetam o saldo da conta imediatamente; as futuras entram como pendentes. Se cardId for informado, também cria/vin"
+    },
+    {
+      "name": "update_recurring_transaction",
+      "descriptionHash": "048d1a1233dfb14473b7f0cf76337ce8ad731a1bef3af9f744db2b9ed75331d2",
+      "description": "Atualiza a regra recorrente (parcial — campo omitido/vazio mantém o valor atual). Só altera a regra em si: não retroage nem edita as transações já geradas por ela (use update_transaction/delete_transaction para essas), e não gera novas ocorrências — dispara apenas recálculo de projeções/insights (an"
+    },
+    {
+      "name": "delete_recurring_transaction",
+      "descriptionHash": "8cb9d479dcedc3a79d947b4a0bc3cad6e26df9a8f7a3bc642fea13c0ec238758",
+      "description": "Remove a regra recorrente e TODAS as transações que ela já gerou (inclusive futuras/pendentes e vínculos de fatura de cartão) — reverte o limite usado do cartão das ocorrências já pagas antes de apagar. Ação irreversível; para só parar de gerar novas ocorrências sem apagar o histórico, use update_re",
+      "labels": [
+        "destructive"
+      ]
+    },
+    {
+      "name": "list_invoices",
+      "descriptionHash": "b35ffe35756f8630bfa0a9a106899ab2dbea6f6cf759ff1ba798a2a3afb8728c",
+      "description": "Lista faturas de cartão de crédito (CreditCardInvoice) do usuário, mais recentes primeiro (ano/mês desc), cada uma com o cartão e as transações vinculadas. Sem filtros retorna faturas em qualquer status (aberta, fechada, paga, parcial, vencida) — para só as pendentes de pagamento use list_pending_in"
+    },
+    {
+      "name": "list_pending_invoices",
+      "descriptionHash": "c482f333b1ffa6313ccf6719979ee7aaed7a20520b240442c77070a252ee72a5",
+      "description": "Lista as faturas de cartão já fechadas e ainda não totalmente pagas (status CLOSED, OVERDUE ou PARTIAL), ordenadas por data de vencimento crescente. Não inclui faturas OPEN (ciclo ainda em curso, acumulando compras) nem PAID. Use invoice_for_period para o valor da fatura de UM cartão específico (inc"
+    },
+    {
+      "name": "get_invoice",
+      "descriptionHash": "13df3604cfc5be4cfc33a73da6a82bd801c6ed377cfc1d4cdd32d782d29b04d2",
+      "description": "Detalhe completo de uma fatura de cartão específica: dados do cartão, os vínculos de transação (transactions) e as transações completas (fullTransactions, com categoria/parcela/etc). `id` é o id da fatura (CreditCardInvoice), não do cartão — para buscar pela fatura ativa de um cartão sem saber o id "
+    },
+    {
+      "name": "invoice_for_period",
+      "descriptionHash": "411627ae52b66d983413e78e05d356927e0ec110e5d1852efcbadb3cf4983048",
+      "description": "Fatura de um cartão pro período pedido em `period` (default 'current'). 'current': a mais antiga ainda não paga (isPaid = false), qualquer que seja seu status; se não houver nenhuma pendente, cai pra fatura do período vigente calculada pelo dia de fechamento/vencimento do cartão. 'next': fatura prev",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "invoice_allocation_preview",
+      "descriptionHash": "ad5a775f27afa4b661a3e388129583298e5357aad80aecdefc7a8d141071915f",
+      "description": "Lista transações de cartão cujo período (mês/ano) de fatura calculado hoje diverge do período em que estão realmente alocadas (currentInvoiceMonth/Year vs correctedInvoiceMonth/Year) — útil para detectar faturas desalinhadas antes de corrigir. Não altera nada; é sempre resultado de leitura mesmo não"
+    },
+    {
+      "name": "invoice_orphan_count",
+      "descriptionHash": "e38c399be91ae03f1cc70543693b9ed64afc55ca635714967e078d1a26c38a66",
+      "description": "Conta despesas de cartão (Transaction.type = EXPENSE com cardId preenchido) que não têm nenhum vínculo em CreditCardInvoiceTransaction — normalmente transações antigas lançadas antes do sistema de faturas existir, ou importadas sem gerar o vínculo."
+    },
+    {
+      "name": "validate_current_invoices",
+      "descriptionHash": "2a7c6a841971251e7a9481c99b58614ed6e74824673ea380bdb64c437c01c204",
+      "description": "Recalcula e sobrescreve `currentInvoice` (soma das faturas não pagas) de TODOS os cartões do usuário, incondicionalmente — não só os desalinhados. Retorna, por cartão, o valor anterior e o novo, com `needsCorrection = true` quando a diferença era maior que 0.01. Rode depois de operações em lote (ex:"
+    },
+    {
+      "name": "pay_invoice",
+      "descriptionHash": "64b5e724c3453b63ec9f72b2e05c5fa5b80287cf83588803691169fdde27e4ce",
+      "description": "Registra pagamento (total ou parcial) de uma fatura de cartão: soma `amount` a paidAmount, atualiza status (PAID se cobrir o total, PARTIAL se parcial) e, só quando `accountId` é informado, debita da conta — cria uma transação de despesa 'Fatura de Cartão', reduz o saldo da conta, libera o limite do"
+    },
+    {
+      "name": "list_goals",
+      "descriptionHash": "8350ee05cd54ae53a8f07623c8f19ccc251de7ad7be469ffafd1267de8bad4ca",
+      "description": "Lista as metas financeiras (Goal) do usuário, mais recentes primeiro. Para progresso/prazo/aporte mensal necessário de cada meta use goal_projections (insights.ts), que já cruza essas metas com a projeção de fluxo de caixa."
+    },
+    {
+      "name": "create_goal",
+      "descriptionHash": "2e9a6410a8eb20eecac20e4616ba91627d9208baedb61a741afb0b9256b19363",
+      "description": "Cria uma meta financeira (ex: 'Viagem', 'Reserva de emergência'). `category` e `color` são obrigatórios no banco — se omitidos, a meta é criada com esses campos vazios (string ''), então prefira sempre informá-los. Não dispara recalculo de analytics/insights (diferente de create_budget/create_debt)."
+    },
+    {
+      "name": "update_goal",
+      "descriptionHash": "236677bbba44cfbafa7584adbd88e89c1a8af4712e1c9c086ce7635819bc80b5",
+      "description": "Atualiza uma meta (parcial — campos omitidos ou string vazia mantêm o valor atual). Diferente de create_goal, devolve apenas `{ count }` (1 se atualizou, 0 se o id não existe ou não pertence ao usuário), não a meta atualizada — use list_goals para conferir o resultado."
+    },
+    {
+      "name": "delete_goal",
+      "descriptionHash": "c1789853babc09e9940174c8cd21422ac40d7a4d18463d296d880e110f70317a",
+      "description": "Exclui permanentemente uma meta do usuário. Não afeta transações já vinculadas a ela (Transaction.goalId fica órfão).",
+      "labels": [
+        "destructive"
+      ]
+    },
+    {
+      "name": "list_budgets",
+      "descriptionHash": "1420b80c9c2a367fedf50886ada5f23d05bbebafa66808393b6fa695c90ae0e8",
+      "description": "Lista orçamentos (Budget) do usuário, mais recentes primeiro. Sem filtro retorna todos os períodos já criados (não só o mês atual). Cada item é o valor orçado; para orçado x gasto real de um orçamento específico use budget_comparison — para ver isso por categoria em todas as categorias de uma vez se"
+    },
+    {
+      "name": "create_budget",
+      "descriptionHash": "b77d4b3c883b3fc14e20834ec39bbf23f535b21a07ee0e8408590f17f711222c",
+      "description": "Cria um orçamento (limite planejado) por categoria e período. `name` e `type` são obrigatórios no banco e não têm default — omiti-los grava valores vazios e quebra o cruzamento com transações feito por budget_comparison (que casa Transaction.type = Budget.type). Efeito colateral: recalcula analytics"
+    },
+    {
+      "name": "update_budget",
+      "descriptionHash": "09e42d04b73eda73b88bb7e734e8f83cfc8b3948723f976e53b5fb55e7e56207",
+      "description": "Atualiza um orçamento (parcial — campos omitidos ou string vazia mantêm o valor atual). Efeito colateral: recalcula analytics e insights do usuário, igual create_budget. Devolve apenas `{ count }`, não o orçamento atualizado."
+    },
+    {
+      "name": "delete_budget",
+      "descriptionHash": "cbe32e775475a96c68ecdeee8d52cba5a160dbe297dcdb1fbc8e37bfd82f0c58",
+      "description": "Exclui um orçamento. Efeito colateral: recalcula analytics e insights do usuário. Não apaga nem desvincula as transações que eram comparadas contra ele.",
+      "labels": [
+        "destructive"
+      ]
+    },
+    {
+      "name": "budget_comparison",
+      "descriptionHash": "0332ce4a247363165238ca3f2a759bd1cadb58f097e29eee6d2d2f7747cb6b68",
+      "description": "Compara orçado (Budget.amount) vs gasto real de UM orçamento específico no seu período (mês, se MONTHLY; ano inteiro, se YEARLY), somando as transações do mesmo type/category no intervalo. Inclui `daily`: série diária acumulada do mês com projeção linear até o fim do mês (só para orçamentos MONTHLY "
+    },
+    {
+      "name": "list_debts",
+      "descriptionHash": "a4c07496c0072112a175592a21daba4ac817f0394b64dc50e34e04a34f1aba25",
+      "description": "Lista as dívidas (Debt) do usuário, mais recentes primeiro — financiamentos, empréstimos, cartão de crédito parcelado fora do sistema de faturas, etc. `equityId`, quando presente, vincula a dívida a um ativo (Equity) financiado por ela, usado no cálculo de patrimônio líquido (valor do ativo - dívida"
+    },
+    {
+      "name": "create_debt",
+      "descriptionHash": "3ff99cdfbec4af854c790c786163ef8c9b79e3dad0cd35609d204fb598f2c96a",
+      "description": "Registra uma dívida do usuário. Se `equityId` for informado, precisa pertencer ao usuário (validado antes de gravar — erro 400 'Invalid equityId' caso contrário) e representa o ativo financiado por essa dívida (ex: financiamento vinculado ao imóvel). Efeito colateral: recalcula analytics (patrimônio"
+    },
+    {
+      "name": "update_debt",
+      "descriptionHash": "a7a3216d32e4ffb4d7d7d6b855c20f102cd98fb6d5548f491eb70d6358995c2b",
+      "description": "Atualiza uma dívida (parcial — campo omitido ou string vazia mantém o atual; `status`/`category`/`creditor`/`description`/`currency` seguem essa mesma regra, não há como limpar um valor já preenchido por esta tool). `equityId`, se enviado, é revalidado contra o dono. Efeito colateral: recalcula anal"
+    },
+    {
+      "name": "delete_debt",
+      "descriptionHash": "cc05fc1b20fc6f2dc06b5bb4b7abcddf294895b41e3f6bf2b9ce9b9dd365a0e8",
+      "description": "Exclui uma dívida. Efeito colateral: recalcula analytics (patrimônio líquido) e insights do usuário.",
+      "labels": [
+        "destructive"
+      ]
+    },
+    {
+      "name": "debt_payoff_plan",
+      "descriptionHash": "e96c28f2316f9c3f87df8f1fb2176a91b0c9eeef6981d75779f468d84f1c6d08",
+      "description": "Simula a quitação de UMA dívida: informe targetMonths (quanto pagar por mês pra quitar em N meses) OU monthlyPayment (em quantos meses quita pagando R$X/mês) — nunca os dois. Devolve o valor mensal, total pago, juros totais e o impacto no saldo projetado (inclusive se cria mês no vermelho). Não grav"
+    },
+    {
+      "name": "list_equities",
+      "descriptionHash": "8b322b2cb484633bd7d1cc89f96c51c8ef34fcb5ae0b79a0ceb3a7783789d520",
+      "description": "Lista os ativos de investimento (equities) do usuário, ordenados do mais recente para o mais antigo (createdAt desc). Cada item traz o valor/custo atuais (o mais recente registrado, seja por update_equity ou add_equity_valuation), não o histórico — para histórico de um ativo específico use list_equi"
+    },
+    {
+      "name": "create_equity",
+      "descriptionHash": "5cef752494b763f77cfe415d5fb1a8acd316c063a2194e584170de964e89ac65",
+      "description": "Cria um ativo de investimento (Equity) e, no mesmo statement atômico, registra sua primeira avaliação (EquityValuation) com value/cost/data informados — equivalente a criar o ativo e já chamar add_equity_valuation uma vez. Dispara recálculo best-effort de projeções e insights em background."
+    },
+    {
+      "name": "update_equity",
+      "descriptionHash": "c22e87ea9816d7ba0b1ed32e5786525f19fcb7d63f39d79d029cce689f0599cf",
+      "description": "Atualiza campos de um investimento existente (`id` = id do investimento). Campos omitidos mantêm o valor atual — exceto description/ticker/exchange/shares, que quando enviados como string vazia são limpos (setados para null). Se value e/ou cost forem enviados, registra automaticamente uma nova avali"
+    },
+    {
+      "name": "delete_equity",
+      "descriptionHash": "da38539f9f58dc80fabb7e96137656789718743d8edba3e4e4918699caffecbb",
+      "description": "Exclui permanentemente um ativo de investimento do usuário dono (`id` = id do investimento). Não afeta transações já lançadas ligadas a ele (equityId fica órfão); o histórico de avaliações (EquityValuation) é removido junto via cascade do banco. `count` retorna 0 se o id não existir ou não pertencer",
+      "labels": [
+        "destructive"
+      ]
+    },
+    {
+      "name": "list_equity_valuations",
+      "descriptionHash": "86f0cb3e7c25960412c2421d41c64d7d6eacb8b93eabfa14f1b3d0f8b2dc5817",
+      "description": "Histórico completo de avaliações (EquityValuation: value/cost ao longo do tempo) de um investimento (`id` = id do investimento, não da avaliação), ordenado do mais recente para o mais antigo (asOf desc). Não filtra por período nem pagina."
+    },
+    {
+      "name": "add_equity_valuation",
+      "descriptionHash": "4d63adba8182f955094d05e2e09fdc5d3f3a2aa145e886bc72c22352051cc137",
+      "description": "Adiciona um ponto no histórico de valor de um investimento (`id` = id do investimento/equity, não da avaliação). Sempre insere uma nova linha, mesmo se já houver avaliação na mesma data — não sobrescreve nem deduplica. `date` é opcional (default agora); use pra registrar uma avaliação retroativa. Ef"
+    },
+    {
+      "name": "investments_workspace",
+      "descriptionHash": "d9aebb29dff2c433c43ad00d550c3912a67d361c1f3fe13c944d91fa3b76d53b",
+      "description": "Visão consolidada de investimentos: lista de equities, holdings com ganho/perda (valor atual vs custo, usando a avaliação mais recente de cada ativo), totais agregados, alocação por tipo (agrupada em categorias como Imóveis/Veículos/Investimentos/Liquidez/Bens Pessoais/Outros), fluxo mensal dos últi"
+    },
+    {
+      "name": "cashflow_forecast",
+      "descriptionHash": "c3bec53d8cce26c7daed1c4e01caea623732ce2949d5358b9aa7287f4376ee08",
+      "description": "Projeção mês a mês (até 12 meses) de entradas, saídas e saldo projetado, incluindo receita/despesa recorrente, categorias, centros de custo e meses no vermelho. Quando pending=true (default) e não há simulação, serve a leitura já materializada (cache); caso contrário recalcula ao vivo no motor Pytho"
+    },
+    {
+      "name": "spending_projection",
+      "descriptionHash": "e3eeb844cd03492657c8ddf2b383bd618ce91012af5eeaac16b6461d57142029",
+      "description": "Projeção mensal (até 12 meses) da despesa efetiva total e das categorias de maior peso, sem detalhar receita/saldo/patrimônio. É um recorte de cashflow_forecast focado só em despesa — use cashflow_forecast quando precisar também de saldo/entradas, e use este quando o interesse é só 'quanto vou gasta"
+    },
+    {
+      "name": "networth_projection",
+      "descriptionHash": "1edf9bea87df9514687eaab6b80665a3bbb527933f1f4605f106b9483f86b5cb",
+      "description": "Projeção mensal (até 12 meses) do patrimônio líquido (caixa projetado + total de equities), sem detalhar categorias de gasto/receita. Recorte de cashflow_forecast focado só em patrimônio — use este quando o interesse é só a curva de patrimônio, e wealth_evolution quando precisar separar quanto do cr"
+    },
+    {
+      "name": "current_month_spending",
+      "descriptionHash": "4520a4eb3f5155ad35f057aa3a42bda24e9a64f2f4d086e19065e9b8e2aa882f",
+      "description": "Só o mês corrente (não série futura): gasto já realizado, ritmo diário, total projetado até o fim do mês e confiança da projeção, comparado a orçamento se houver. Diferente de cashflow_forecast/spending_projection (que olham vários meses à frente) e de categories_insights (que compara mês atual vs a"
+    },
+    {
+      "name": "categories_insights",
+      "descriptionHash": "1e7a80aabc803396db0e0065ce76203f68881c6652717ce46a9951a2811ed9ce",
+      "description": "Gasto acumulado por categoria (somando subcategorias) no mês alvo vs mês anterior, com % de variação e comparação com orçamento (se houver Budget mensal para a categoria). Sem month/year usa o mês atual e serve a versão materializada (mais rápida); com month/year calcula ao vivo. Para série de vário"
+    },
+    {
+      "name": "insights_highlight",
+      "descriptionHash": "f6a4eed2b3e5935d1ed9c2069da5df8ae2cbb61db330a38c051969a9188c2b94",
+      "description": "Devolve NO MÁXIMO um destaque textual (highlight pode vir null), escolhido por prioridade fixa: (1) contas atrasadas não pagas, senão (2) orçamento mensal mais estourado (>100% do limite), senão (3) categoria com maior alta de gasto vs mês anterior (gasto atual ≥ R$50 e variação > 15%). Pensado pra "
+    },
+    {
+      "name": "behavior_insights",
+      "descriptionHash": "826abf9e78ea46f91138fe8eebbcfd36acdcdc582a59ae6e692c0eda4064c683",
+      "description": "Observações financeiras já analisadas e prontas para narrar (cada item já vem com um texto pronto em `text`): padrão de dia da semana por categoria, aumento de gasto nos dias após o recebimento de renda, e categorias que sobem nos fins de semana. Pode retornar lista vazia se nenhum padrão for detect"
+    },
+    {
+      "name": "list_tags",
+      "descriptionHash": "c3f7f59ed21608cf01180921e7e82ff7eae5d73475d4c377581476dadcafcc26",
+      "description": "Lista as tags usadas para marcar transações do usuário."
+    },
+    {
+      "name": "tags_insights",
+      "descriptionHash": "510c1bc2fc88b321e928842e3245d95f665d3221b9e34649169cb43cf8c59c0a",
+      "description": "Total gasto, contagem de transações e data da última movimentação, agregados por tag no mês alvo. Sem month/year usa o mês atual e serve a versão materializada; com month/year calcula ao vivo. Equivalente a categories_insights mas por tag em vez de categoria — não traz comparação com mês anterior ne"
+    },
+    {
+      "name": "financial_snapshot",
+      "descriptionHash": "09e4314ced05bcbfeaf5fe477d8a7ca6ddcd5df0b4322ac3826067affff9c954",
+      "description": "Retrato único do momento atual (não série): saldo total, receita/despesa média mensal, taxa de poupança, reserva de emergência (meses), endividamento sobre a renda anual e patrimônio. Vem de uma tabela materializada (FinancialSnapshot) recalculada de forma best-effort a cada escrita relevante; se ai"
+    },
+    {
+      "name": "goal_projections",
+      "descriptionHash": "2e8aedbca8fdeefd020e460d81be58dda81bb370e20cfad6c93cd5d70513b607",
+      "description": "Progresso, prazo, meses restantes e aporte mensal necessário para cada meta financeira ativa do usuário. Usado também por can_afford para calcular quanto uma compra atrasaria cada meta — se só precisa desse impacto, prefira can_afford diretamente."
+    },
+    {
+      "name": "active_installments",
+      "descriptionHash": "a9dd92c771564c254f9432bcbbb804638754d8716f9f4705dd43ac9467a72312",
+      "description": "Parcelas de compras parceladas (não faturas de cartão — qualquer forma de pagamento com totalInstallments > 1) ainda não pagas. `count`/`total` somam TODAS as parcelas em aberto, sem filtro de data — inclui parcelas já vencidas. `upcoming` traz até 5 parcelas com a data mais próxima, ordenadas de fo"
+    },
+    {
+      "name": "bill_anomalies",
+      "descriptionHash": "526910e62d3cc8153a4273cfada79434d01625bfa3478566e53d599ab191f66e",
+      "description": "Contas recorrentes de despesa ativas (aluguel, luz, etc.) cuja última ocorrência lançada neste mês veio bem acima (>20%) da média das ocorrências dos últimos 6 meses. Exige pelo menos 2 ocorrências históricas para comparar — recorrente nova ou sem histórico suficiente não entra. Lista vazia se nada "
+    },
+    {
+      "name": "subscriptions_overview",
+      "descriptionHash": "9750ce3f948b728c47c51c10732839f09ba40cd385c0c434bbac5c411f7706ea",
+      "description": "Todas as recorrências de despesa ativas (RecurringTransaction), com o valor normalizado para mensal (DAILY/WEEKLY/BIWEEKLY/MONTHLY/QUARTERLY/YEARLY convertidos), total mensal comprometido, e duplicidades: categorias com 2+ recorrências ativas (ex.: dois streamings). Não indica uso do serviço nem se "
+    },
+    {
+      "name": "subscription_renewals",
+      "descriptionHash": "3d1ab0f91c8a9afc54e2f4f0b63dbe50f90d424fb559284685d2bad7970028b5",
+      "description": "Data exata da próxima cobrança de cada recorrência de despesa ativa (RecurringTransaction), recalculada na hora (não usa o nextDueDate salvo, que fica desatualizado após a primeira ocorrência). `entity` traz o nome da marca reconhecida (ex: 'Canva', 'Netflix') quando a descrição bate com o catálogo "
+    },
+    {
+      "name": "transport_routine",
+      "descriptionHash": "460ef6189a8afac1b298db0f1353c5e2152ee6f70fa5a4e395c2b3c0d98a5711",
+      "description": "Detecta quando a sequência atual de dias seguidos com gasto de transporte (categoria TRANSPORT ou nome contendo 'transport') está bem acima do normal do usuário: olha os últimos 90 dias, só sinaliza se o último gasto foi hoje/ontem, a sequência atual tem ≥3 dias e é ≥1.5x a média das sequências ante"
+    },
+    {
+      "name": "bill_concentration",
+      "descriptionHash": "037d83970bbf1368119c1ff379099417bab6a8139c112779cd9baf81c18e03d2",
+      "description": "Acha a janela de 5 dias consecutivos, dentro dos próximos 30, com maior concentração de compromissos (transações EXPENSE/INVOICE_PAYMENT não pagas + faturas de cartão não pagas vencendo no período). Só retorna algo se essa janela concentrar ≥35% do total previsto para os 30 dias — senão vem lista va"
+    },
+    {
+      "name": "best_card_day",
+      "descriptionHash": "c1d3dc0753677eefdac04390a60282a64c6af543e25be64c3dc1923e6ac7f385",
+      "description": "Avisa, para cada cartão do usuário, quando hoje é véspera do fechamento da fatura — comprar amanhã em vez de hoje cairia na fatura seguinte, ganhando mais dias até o vencimento para pagar. Só sinaliza cartões onde essa diferença é ≥15 dias; cartões sem closingDay/dueDay configurado são ignorados. Li"
+    },
+    {
+      "name": "can_afford",
+      "descriptionHash": "5c4113f9e71306031404c6461d23c856e38221135a81f3414045512f9a2cd8df",
+      "description": "Simula uma despesa única a partir de hoje: verifica se o saldo atual (soma de contas não-cartão) cobre, o impacto no saldo projetado dos próximos 12 meses (reusando a mesma projeção materializada de cashflow_forecast, inclusive se algum mês passa a ficar negativo) e quanto meses cada meta ativa atra"
+    },
+    {
+      "name": "analytics_history",
+      "descriptionHash": "8361743a7d4ae08fcecbc045c5fee29df14acba31b413eb84ba382b2d60e63d4",
+      "description": "Série histórica contínua (meses com e sem movimento) com saldo reconstruído, patrimônio e estatística elaborada (média/mediana/desvio/variação, tendência por regressão linear, médias móveis 3/6/12m, taxa de poupança). Suporta vida inteira (até 120 meses). Use from/to como YYYY-MM ou YYYY-MM-DD. Use "
+    },
+    {
+      "name": "wealth_evolution",
+      "descriptionHash": "0d3c806f777529364a8dec26876260f3a152dadb49fa86f841ad3909cef8daae",
+      "description": "Série histórica mensal (não projeção) que separa quanto do crescimento de patrimônio veio de aporte/resgate (transações ligadas a um Equity) vs valorização de mercado (EquityValuation.value - cost). Retorna série mensal e resumo com total de aportes, estatística e tendência da valorização. Diferença"
+    },
+    {
+      "name": "category_history",
+      "descriptionHash": "9c58a9ae0be062542d69c7949779195312891ae116abd74d4c606e05a1ad3631",
+      "description": "Série histórica mensal (não projeção) por categoria, limitada às top N categorias por volume no período, com estatística (média/mediana/desvio) e tendência de cada uma. Use para sazonalidade/comparar categorias ao longo do tempo; para o total geral (sem quebra por categoria) use analytics_history, e"
+    },
+    {
+      "name": "create_tag",
+      "descriptionHash": "9dff221fd0bad6e469545cae18e61c9cb9aab23897e9da4ee294c2c4b8336406",
+      "description": "Cria uma nova tag para marcar transações do usuário autenticado. Não valida duplicidade de nome."
+    },
+    {
+      "name": "update_tag",
+      "descriptionHash": "ee1b5713cdfea210aed3942750b9be074b92201d8ba8d3fcf357e66726b0dfda",
+      "description": "Atualiza nome e/ou cor de uma tag existente do usuário autenticado (`id` = id da tag). Campos omitidos mantêm o valor atual. `count` retorna 0 se o id não existir ou não pertencer ao usuário (sem erro)."
+    },
+    {
+      "name": "delete_tag",
+      "descriptionHash": "b0f50190487bc2be1aaa2a393173f0e10254be9182f5ee33aa8e38564c285e9e",
+      "description": "Exclui uma tag permanentemente (`id` = id da tag). Não afeta as transações que a usavam além de removê-la delas (relação N:N com cascade). `count` retorna 0 se o id não existir ou não pertencer ao usuário (sem erro).",
+      "labels": [
+        "destructive"
+      ]
     }
-  ]
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "medium",
+      "category": "toxic-flow",
+      "title": "Toxic flow: untrusted input can reach an external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: list_cards, invoice_for_period · Public sink: update_profile · Destructive: delete_account, delete_card, delete_category, delete_cost_center, delete_transaction, delete_recurring_transaction, delete_goal, delete_budget, delete_debt, delete_equity, delete_tag.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: list_cards, invoice_for_period · Public sink: update_profile · Destructive: delete_account, delete_card, delete_category, delete_cost_center, delete_transaction, delete_recurring_transaction, delete_goal, delete_budget, delete_debt, delete_equity, delete_tag"
+      },
+      "confidence": 0.45,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 92,
+  "scoreBreakdown": {
+    "toxic-flow": 8
+  },
+  "errors": []
 }

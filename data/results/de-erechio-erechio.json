@@ -1,0 +1,91 @@
+{
+  "schemaVersion": 1,
+  "scanner": {
+    "version": "1.6.0",
+    "rules": "402995650b68"
+  },
+  "target": {
+    "kind": "url",
+    "ref": "https://api.erechio.de/mcp"
+  },
+  "scannedAt": "2026-11-23T14:54:38.523Z",
+  "durationMs": 2075,
+  "layers": {
+    "metadata": true,
+    "static": false
+  },
+  "tools": [
+    {
+      "name": "validate_invoice",
+      "descriptionHash": "0d7a18ad341205d1a618fb26413e54a4f59eb7130e3500c73ee46fb40e79bc9e",
+      "description": "Validates one e-invoice (XRechnung UBL or CII, ZUGFeRD / Factur-X XML) against the XML schema, EN 16931 and the official KoSIT rules for XRechnung 3.0.2, and explains every finding in German (meaning of the rule code, how to fix it). Requires an eRechio API key (header Authorization: Bearer pk_…; fr",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "explain_rule",
+      "descriptionHash": "598cb17b264bea28f2ddfb743b7837c17ccdc19e63c88c6c1e3599012dd85fe4",
+      "description": "Explains a validation rule code (e.g. BR-DE-15, BR-CO-10, BR-S-08, PEPPOL-EN16931-R008) in German: what the rule requires, how to fix the invoice and which XML element is affected (UBL and CII path). Useful for findings from any validator, e.g. the KoSIT validator. No API key needed, not counted aga",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "get_status",
+      "descriptionHash": "93053264a09ee4e20a8747f04a9867a1a16510408c8bee6cd7d961a9d2803876",
+      "description": "Returns status, version and rule set of the eRechio API (same as GET /v1/status): structuredContent {status (ok or gestört), version, regeln, regelstand, zeit, gruende}. isError is true while the service is disturbed. No API key needed, not counted against the quota.",
+      "labels": [
+        "private-data"
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"validate_invoice\" references sensitive artifacts (authorization, bearer). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:validate_invoice",
+        "snippet": "Validates one e-invoice (XRechnung UBL or CII, ZUGFeRD / Factur-X XML) against the XML schema, EN 16931 and the official KoSIT rules for XRechnung 3.0.2, and ex…"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-SCHEMA-SMELL-001",
+      "severity": "medium",
+      "category": "schema-smell",
+      "title": "Read-only tool requests dangerous parameters",
+      "detail": "Tool \"explain_rule\" appears informational but accepts parameters (code) that enable code/file/secret access.",
+      "evidence": {
+        "source": "tool:explain_rule",
+        "snippet": "code"
+      },
+      "confidence": 0.55
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: validate_invoice · Private data: validate_invoice, explain_rule, get_status · Public sink: validate_invoice.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: validate_invoice · Private data: validate_invoice, explain_rule, get_status · Public sink: validate_invoice"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 52,
+  "scoreBreakdown": {
+    "tool-poisoning": 20,
+    "schema-smell": 8,
+    "toxic-flow": 20
+  },
+  "errors": []
+}
