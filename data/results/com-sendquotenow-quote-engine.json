@@ -8,19 +8,93 @@
     "kind": "url",
     "ref": "https://sendquotenow.com/mcp"
   },
-  "scannedAt": "2026-11-12T12:55:08.347Z",
-  "durationMs": 605,
+  "scannedAt": "2026-11-24T15:03:12.324Z",
+  "durationMs": 1429,
   "layers": {
-    "metadata": false,
+    "metadata": true,
     "static": false
   },
-  "findings": [],
-  "score": 100,
-  "scoreBreakdown": {},
-  "errors": [
+  "tools": [
     {
-      "scanner": "metadata",
-      "message": "Streamable HTTP error: Error POSTing to endpoint: {\"error\":\"Missing API key. Pass it as \\\"X-API-Key: sqn_live_...\\\" or \\\"Authorization: Bearer sqn_live_...\\\".\",\"code\":\"MISSING_API_KEY\",\"statusCode\":401}"
+      "name": "create_quote",
+      "descriptionHash": "04d3328817b6e91cdafd7b49daaa6a44d7701461761b91ebffa791ba00995f38",
+      "description": "Generate a quote from line items. Returns quote number, totals, hosted quote page URL, PDF URL, QR code URL, Stripe payment link, and expiration date. The quote is issued immediately and shareable via the returned links."
+    },
+    {
+      "name": "preview_quote",
+      "descriptionHash": "9fc32448b70fa85188abdaf68070e610234e9523d42db13ce29d6a49574f6fd4",
+      "description": "Compute line items, subtotal, tax, discount, and total for a quote payload without creating anything. Use this to confirm pricing with the user before create_quote."
+    },
+    {
+      "name": "get_quote",
+      "descriptionHash": "6ab99eea6eb8d8f9c81d5315f5dba5cccdb95e3515d5360fb61fce1768497da8",
+      "description": "Fetch an existing quote or quote-labeled invoice by id: status, payment status, totals, line items, and share links.",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "list_quotes",
+      "descriptionHash": "ebc34f1545a1abc8f9b41b438f6c2eb4184f8fef0b56c0f0c804d18f32143d0e",
+      "description": "List the account's quotes and quote-labeled invoices, newest first. Use this to find a document the user refers to by description rather than id (\"my last quote for John\").",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "send_quote",
+      "descriptionHash": "762d5e1107a38e609748e7a51bf7b19921a806274f1c6447cd1231bc958a4682",
+      "description": "Email an existing quote to the customer with links to view, download, and pay. \"to\" defaults to the customer.email set at creation.",
+      "labels": [
+        "untrusted-content",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "convert_quote_to_invoice",
+      "descriptionHash": "cf2454dd5453c6f1f396560672da85d597e5d87c10e94b289e9b827b15d0e1cf",
+      "description": "Turn an accepted quote into a separate invoice record (invoice number, optional due date, payment status). The source quote is marked converted and can no longer be edited or re-converted. Fails if the quote was rejected or already converted. Note: the resulting invoice has no hosted page/PDF yet — ",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "get_invoice",
+      "descriptionHash": "ae4f8285ad996b9c0133aa6127ded3e370ab1b3b07f75b53a1cd2caf92429bbf",
+      "description": "Fetch an invoice created by convert_quote_to_invoice: invoice number, totals, payment status, due date."
+    },
+    {
+      "name": "mark_invoice_paid",
+      "descriptionHash": "bc87a11c1b98a8d012e219178e6e77c69ec8860ecfd721a496352e0a656f8a42",
+      "description": "Record an offline payment (cash, check, Zelle, ACH, bank transfer, other) against an invoice, in full. Only invoices can be marked paid, not quotes. Idempotent: an already-paid invoice returns its current state. paid_at may be backdated. Deactivates the invoice's old Stripe payment link so the custo",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "mark_invoice_unpaid",
+      "descriptionHash": "8fcdb3263102e4223d04ef8ea8bd74165eb0c194c70b764fdbe2a8ab8bf92d75",
+      "description": "Reverse a manually recorded payment and clear paid_at/method/reference. Payments collected through Stripe cannot be undone here (refund them in the dashboard). Idempotent."
     }
-  ]
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: send_quote · Private data: list_quotes, convert_quote_to_invoice, mark_invoice_paid · Public sink: get_quote, send_quote.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: send_quote · Private data: list_quotes, convert_quote_to_invoice, mark_invoice_paid · Public sink: get_quote, send_quote"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 80,
+  "scoreBreakdown": {
+    "toxic-flow": 20
+  },
+  "errors": []
 }

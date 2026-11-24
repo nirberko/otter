@@ -8,8 +8,8 @@
     "kind": "url",
     "ref": "https://innov.fillio.ca/mcp"
   },
-  "scannedAt": "2026-11-19T13:22:26.336Z",
-  "durationMs": 457,
+  "scannedAt": "2026-11-24T14:59:14.930Z",
+  "durationMs": 476,
   "layers": {
     "metadata": true,
     "static": false
@@ -57,32 +57,90 @@
     },
     {
       "name": "send_harness_quote_template",
-      "descriptionHash": "7b0a5fa0a361507677da9c7a45789549eded303e142ae9903dd6c0fc8633e6bd",
-      "description": "Returns a check of a wire harness connection list (unknown references, contacts beyond the number of positions, duplicate contacts or wires, connectors with no wire or no length) and what the project still needs for a quote, and emails Fillio's Excel quote request template, filled in with the projec",
+      "descriptionHash": "d5d2c599cd6c5d108a3087dc1b8f8bcf773d23b725933f3abaa36fd28e693a65",
+      "description": "Returns a check of a wire harness connection list (unknown references, contacts beyond the number of positions, duplicate contacts or wires, connectors with no wire or no length) and what the project still needs for a quote, and writes to the given address: a confirmation email, then, once its recip",
       "labels": [
         "untrusted-content",
         "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "start_part_check",
+      "descriptionHash": "e209675e749939101bfa39642e433029de3061c7e94959f66445ef74c8059e0c",
+      "description": "Returns a one-time upload address for the 3D file (STEP, STL or 3MF) of a part to be overmolded. Once the file is uploaded to that address, the portal analyzes it in a draft project of the connected Fillio account; nothing is sent to Fillio until the project is submitted (submit_part_check, or by th",
+      "labels": [
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "get_part_check",
+      "descriptionHash": "e37f86fb1251da507d8ef6591d92ce5b44ca6ab7282fc315d1dfd1cf8977584b",
+      "description": "Returns the feasibility analysis of a part uploaded with start_part_check: the outcome, the points to revisit with their location in millimetres, what was checked without remark and the recognized role of each body. Pending while the analysis is running. Requires the same connected Fillio account."
+    },
+    {
+      "name": "get_submission_summary",
+      "descriptionHash": "f6405b5965f55498d859215a156004cbc016ee35cd8f54e12cee7ade0344eb97",
+      "description": "Returns the summary of sending a project checked with start_part_check to Fillio: files, analysis outcome, answers and those still missing, and, when nothing is missing, a time-limited confirmation that submit_part_check takes to send the project. Read-only: nothing is sent or saved. An answer left ",
+      "labels": [
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "submit_part_check",
+      "descriptionHash": "419623786c7f60beaabb55dcc3dfc9cef2bd3659439b6036a6745af45e524cea",
+      "description": "Returns the outcome of sending a project checked with start_part_check to Fillio: the request carries the confirmation returned by get_submission_summary and the same answers; Fillio receives the request like a submission made in the portal, and the user an acknowledgement by email. If the project o",
+      "labels": [
+        "untrusted-content",
         "public-sink"
       ]
     }
   ],
   "findings": [
     {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"start_part_check\" references sensitive artifacts (authorization). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:start_part_check",
+        "snippet": "Returns a one-time upload address for the 3D file (STEP, STL or 3MF) of a part to be overmolded. Once the file is uploaded to that address, the portal analyzes …"
+      },
+      "confidence": 0.65
+    },
+    {
       "id": "MCP-TOXIC-FLOW-001",
       "severity": "high",
       "category": "toxic-flow",
       "title": "Lethal trifecta: untrusted input + private data + external sink",
-      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: send_harness_quote_template · Private data: get_design_guide, get_capabilities, get_upload_link, send_harness_quote_template · Public sink: get_upload_link, send_harness_quote_template.",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: send_harness_quote_template, submit_part_check · Private data: get_design_guide, get_capabilities, get_upload_link, send_harness_quote_template, start_part_check, get_submission_summary · Public sink: get_upload_link, send_harness_quote_template, start_part_check, get_submission_summary, submit_part_check.",
       "evidence": {
         "source": "server:mcp",
-        "snippet": "Untrusted content: send_harness_quote_template · Private data: get_design_guide, get_capabilities, get_upload_link, send_harness_quote_template · Public sink: get_upload_link, send_harness_quote_template"
+        "snippet": "Untrusted content: send_harness_quote_template, submit_part_check · Private data: get_design_guide, get_capabilities, get_upload_link, send_harness_quote_template, start_part_check, get_submission_summary · Public sink: get_upload_link, send_harness_quote_template, start_part_check, get_submission_summary, submit_part_check"
       },
       "confidence": 0.6,
       "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"send_harness_quote_template\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:send_harness_quote_template",
+        "snippet": "before: \"Returns a check of a wire harness connection list (unknown references, contacts beyond the number of positions, duplicate contacts or wires, connectors with no wire or no length) and what the project still needs for a quote, and emails Fillio's Excel quote request template, filled in with the projec\" → after: \"Returns a check of a wire harness connection list (unknown references, contacts beyond the number of positions, duplicate contacts or wires, connectors with no wire or no length) and what the project still needs for a quote, and writes to the given address: a confirmation email, then, once its recip\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
     }
   ],
-  "score": 80,
+  "score": 50,
   "scoreBreakdown": {
+    "tool-poisoning": 30,
     "toxic-flow": 20
   },
   "errors": []

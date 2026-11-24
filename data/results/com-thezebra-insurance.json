@@ -8,8 +8,8 @@
     "kind": "url",
     "ref": "https://api.thezebra.com/mcp"
   },
-  "scannedAt": "2026-11-12T12:55:35.403Z",
-  "durationMs": 671,
+  "scannedAt": "2026-11-24T15:03:46.003Z",
+  "durationMs": 624,
   "layers": {
     "metadata": true,
     "static": false
@@ -22,13 +22,39 @@
     },
     {
       "name": "zebra_get_rc1_rates",
-      "descriptionHash": "ab32c9a4ca52385d5b54c9a7008965a567d4c4169f83896bc5fc797423e61723",
+      "descriptionHash": "f7da1a55a16c28e11342cab5c3722f3a629b8aa9908bba7674b41edd2794e0b6",
       "description": "Get estimated auto insurance rates (RC1 quotes) for the user, from the carriers they can buy from online on\nThe Zebra.\n\nCall zebra_start_session first and pass its quote_handle. Usually takes about 30 seconds: wait for the result\nrather than calling again or starting a new session. On UPSTREAM_UNAVA"
     },
     {
       "name": "zebra_get_rate_action",
       "descriptionHash": "03738e20493b3c1e62f240668cb8cef03b693f11539d7959c8ae792bf6f87432",
       "description": "Get the next step for the quote the user chose. Pass the quote_handle from zebra_start_session and the chosen\nquote's quote_id from zebra_get_rc1_rates.\n\nFollow recommended_next if present; otherwise give the user the url to continue buying the policy on The Zebra.",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "zebra_get_rc2_questions",
+      "descriptionHash": "95fc758c1a48a6aee45e8c80788a449ecf7cbeb02e7cc1dda325b71e906df05d",
+      "description": "Get the questions the carrier needs answered before the user can buy the quote they picked.\n\nAsk the questions in order. Ask a question if any of its visibility_conditions is met, or, when it has none,\nif is_visible is true. Check this again after each answer, because an answer can make new question",
+      "labels": [
+        "untrusted-content",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "zebra_submit_rc2_answers",
+      "descriptionHash": "eb5c1472013a172476e220800e8e6d4ffaca4bb1ed0b1eed1fac93c8017fe79d",
+      "description": "Submit the user's answers to the questions from zebra_get_rc2_questions, all at once. This sends them to the\ncarrier, so confirm them with the user first.\n\nOn success, a licensed insurance agent at agency_phone finishes buying the policy with the user. Present\nagency_call_message as written: it says",
+      "labels": [
+        "untrusted-content",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "zebra_get_rc2_price",
+      "descriptionHash": "fcfe9628eb1938a547d395d5891abef9041d8968d04e584184c615abf74f036c",
+      "description": "Get the carrier's final price for a quote after zebra_submit_rc2_answers.\n\nThe carrier usually returns the final price 3 to 5 minutes after the answers are submitted. Each call waits a while\nfor it.\nWhile price_status is in_progress, keep calling this tool without waiting for the user.\nIf you have t",
       "labels": [
         "untrusted-content"
       ]
@@ -49,16 +75,17 @@
       "remediation": "Treat the server as untrusted; the model may obey embedded instructions."
     },
     {
-      "id": "MCP-TOOL-POISON-006",
-      "severity": "low",
-      "category": "tool-poisoning",
-      "title": "Anomalously long tool description",
-      "detail": "Description of \"zebra_get_rc1_rates\" is 1450 chars, far longer than this server's median (265). Overlong descriptions are a common place to bury instructions.",
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "medium",
+      "category": "toxic-flow",
+      "title": "Toxic flow: untrusted input can reach an external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: zebra_get_rate_action, zebra_get_rc2_questions, zebra_submit_rc2_answers, zebra_get_rc2_price · Public sink: zebra_get_rc2_questions, zebra_submit_rc2_answers.",
       "evidence": {
-        "source": "tool:zebra_get_rc1_rates",
-        "snippet": "Get estimated auto insurance rates (RC1 quotes) for the user, from the carriers they can buy from online on The Zebra. Call zebra_start_session first and pass i…"
+        "source": "server:mcp",
+        "snippet": "Untrusted content: zebra_get_rate_action, zebra_get_rc2_questions, zebra_submit_rc2_answers, zebra_get_rc2_price · Public sink: zebra_get_rc2_questions, zebra_submit_rc2_answers"
       },
-      "confidence": 0.4
+      "confidence": 0.45,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
     },
     {
       "id": "MCP-RUGPULL-001",
@@ -72,24 +99,12 @@
       },
       "confidence": 0.8,
       "remediation": "Re-review the tool before continuing to trust it."
-    },
-    {
-      "id": "MCP-RUGPULL-001",
-      "severity": "high",
-      "category": "tool-poisoning",
-      "title": "Tool description changed since last scan",
-      "detail": "Tool \"zebra_get_rate_action\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
-      "evidence": {
-        "source": "tool:zebra_get_rate_action",
-        "snippet": "before: \"Get the next step for the quote the user chose. Pass the quote_handle from zebra_start_session and the chosen\nquote's quote_id from zebra_get_rc1_rates.\n\nGive the user the returned url to continue buying the policy on The Zebra.\" → after: \"Get the next step for the quote the user chose. Pass the quote_handle from zebra_start_session and the chosen\nquote's quote_id from zebra_get_rc1_rates.\n\nFollow recommended_next if present; otherwise give the user the url to continue buying the policy on The Zebra.\""
-      },
-      "confidence": 0.8,
-      "remediation": "Re-review the tool before continuing to trust it."
     }
   ],
-  "score": 65,
+  "score": 62,
   "scoreBreakdown": {
-    "tool-poisoning": 35
+    "tool-poisoning": 30,
+    "toxic-flow": 8
   },
   "errors": []
 }

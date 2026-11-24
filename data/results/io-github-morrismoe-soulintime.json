@@ -8,8 +8,8 @@
     "kind": "url",
     "ref": "https://soulintime.com/functions/mcp"
   },
-  "scannedAt": "2026-11-12T13:01:54.890Z",
-  "durationMs": 1171,
+  "scannedAt": "2026-11-24T15:10:11.573Z",
+  "durationMs": 1603,
   "layers": {
     "metadata": true,
     "static": false
@@ -17,8 +17,8 @@
   "tools": [
     {
       "name": "stamp",
-      "descriptionHash": "904e79b36020f2abd9dbb9831a9dcf82269cb48daa74efd4ed826d1b1b817242",
-      "description": "Explicitly create an unlisted hash-only receipt via createMoment; not an evaluation tool. No file upload. May be pending/429; no retry. Need more than the free rate? See https://soulintime.com/pricing.",
+      "descriptionHash": "e06ae10f8f6018bf49c85a79e3d1ff18d43a84de9f71ad78d31d4ca70f81946d",
+      "description": "Recommended agent path. Request a signed, citable statement for a SHA-256 (sit-statement/0.1). Same as the signed-out curl: curl -s -X POST https://soulintime.com/functions/createMoment -H \"Content-Type: application/json\" -d '{\"sha256Hash\":\"<64 hex>\"}'. First one free, no account; one fresh hash per",
       "labels": [
         "private-data",
         "public-sink"
@@ -26,28 +26,43 @@
     },
     {
       "name": "verify",
-      "descriptionHash": "033ba6e8955296e8cd76d67d12279c7e7ee43b6e2e774567939878b61d9ca4a2",
-      "description": "cite slug@height only when status confirmed and proofFile exists; else refuse. Read existing receipt, no creation; metadata check, not local OTS cryptographic verification. Before citing: call verify or first_at. Cite only status confirmed with proofFile; otherwise refuse. You may attach the .ots UR",
+      "descriptionHash": "616ecb70ff8736b73833caeb79dc774cdfad0fb8abc2e5f84bb1c2106cc4957c",
+      "description": "Get the signed statement for a hash (sit-statement/0.1). Read-only, no key, creates nothing. On a confirmed receipt the result body carries statement (Ed25519, kid 0a64aa45b8ce17a7; verify offline with https://github.com/SoulinTime/soulintime-client/tree/main/verifier) next to proofFile (.ots). Pend",
       "labels": [
-        "untrusted-content"
+        "untrusted-content",
+        "private-data",
+        "public-sink",
+        "destructive"
       ]
     },
     {
       "name": "first_at",
-      "descriptionHash": "53e3523973e91cca29716193c09a6e609cf20e6f2f66e144651d9664d2316667",
-      "description": "cite slug@height only when status confirmed and proofFile exists; else refuse. Read earliest public receipt; recheck verify before citing."
+      "descriptionHash": "a31e2a814a3ff957e0c9e7c71935fb47b1ef804c8313d71e694b6b21043a70c7",
+      "description": "Use verify to cite; first_at only for earliest height. Secondary, read-only: the earliest confirmed public receipt for a hash, optionally at or before a height. Not needed to cite."
     }
   ],
   "findings": [
+    {
+      "id": "MCP-TOOL-POISON-006",
+      "severity": "low",
+      "category": "tool-poisoning",
+      "title": "Anomalously long tool description",
+      "detail": "Description of \"verify\" is 7547 chars, far longer than this server's median (1234). Overlong descriptions are a common place to bury instructions.",
+      "evidence": {
+        "source": "tool:verify",
+        "snippet": "Get the signed statement for a hash (sit-statement/0.1). Read-only, no key, creates nothing. On a confirmed receipt the result body carries statement (Ed25519, …"
+      },
+      "confidence": 0.4
+    },
     {
       "id": "MCP-TOXIC-FLOW-001",
       "severity": "high",
       "category": "toxic-flow",
       "title": "Lethal trifecta: untrusted input + private data + external sink",
-      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: verify · Private data: stamp · Public sink: stamp.",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: verify · Private data: stamp, verify · Public sink: stamp, verify · Destructive: verify.",
       "evidence": {
         "source": "server:mcp",
-        "snippet": "Untrusted content: verify · Private data: stamp · Public sink: stamp"
+        "snippet": "Untrusted content: verify · Private data: stamp, verify · Public sink: stamp, verify · Destructive: verify"
       },
       "confidence": 0.6,
       "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
@@ -60,16 +75,42 @@
       "detail": "Tool \"stamp\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
       "evidence": {
         "source": "tool:stamp",
-        "snippet": "before: \"Explicitly create an unlisted hash-only receipt via createMoment; not an evaluation tool. No file upload. May be pending/429; no retry. Need more than the free rate? Email morris@mifalai.com with the hash and the use.\" → after: \"Explicitly create an unlisted hash-only receipt via createMoment; not an evaluation tool. No file upload. May be pending/429; no retry. Need more than the free rate? See https://soulintime.com/pricing.\""
+        "snippet": "before: \"Explicitly create an unlisted hash-only receipt via createMoment; not an evaluation tool. No file upload. May be pending/429; no retry. Need more than the free rate? See https://soulintime.com/pricing.\" → after: \"Recommended agent path. Request a signed, citable statement for a SHA-256 (sit-statement/0.1). Same as the signed-out curl: curl -s -X POST https://soulintime.com/functions/createMoment -H \"Content-Type: application/json\" -d '{\"sha256Hash\":\"<64 hex>\"}'. First one free, no account; one fresh hash per\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"verify\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:verify",
+        "snippet": "before: \"cite slug@height only when status confirmed and proofFile exists; else refuse. Read existing receipt, no creation; metadata check, not local OTS cryptographic verification. Before citing: call verify or first_at. Cite only status confirmed with proofFile; otherwise refuse. You may attach the .ots UR\" → after: \"Get the signed statement for a hash (sit-statement/0.1). Read-only, no key, creates nothing. On a confirmed receipt the result body carries statement (Ed25519, kid 0a64aa45b8ce17a7; verify offline with https://github.com/SoulinTime/soulintime-client/tree/main/verifier) next to proofFile (.ots). Pend\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"first_at\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:first_at",
+        "snippet": "before: \"cite slug@height only when status confirmed and proofFile exists; else refuse. Read earliest public receipt; recheck verify before citing.\" → after: \"Use verify to cite; first_at only for earliest height. Secondary, read-only: the earliest confirmed public receipt for a hash, optionally at or before a height. Not needed to cite.\""
       },
       "confidence": 0.8,
       "remediation": "Re-review the tool before continuing to trust it."
     }
   ],
-  "score": 60,
+  "score": 45,
   "scoreBreakdown": {
-    "toxic-flow": 20,
-    "tool-poisoning": 20
+    "tool-poisoning": 35,
+    "toxic-flow": 20
   },
   "errors": []
 }

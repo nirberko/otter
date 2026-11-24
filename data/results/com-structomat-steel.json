@@ -8,8 +8,8 @@
     "kind": "url",
     "ref": "https://structomat.com/mcp/"
   },
-  "scannedAt": "2026-11-12T12:55:24.834Z",
-  "durationMs": 1319,
+  "scannedAt": "2026-11-24T15:03:30.714Z",
+  "durationMs": 1007,
   "layers": {
     "metadata": true,
     "static": false
@@ -17,9 +17,10 @@
   "tools": [
     {
       "name": "about_structomat",
-      "descriptionHash": "8b3a4e7112280ba595648698a901e369defb9c131edbb930191678caed65ac6a",
-      "description": "Facts about Structomat, an AI engineering agent for structural steel: what it does, design codes, who signs designs for construction, what to send, what comes back, how to start. Use when the user asks about Structomat or how to engage it.",
+      "descriptionHash": "62b78b0aaf3b422840aeb362dea568b76c616c445f36910ec8cf6102297de604",
+      "description": "Facts about Structomat, an AI engineering agent for structural steel: what it does, design codes, who signs designs for construction, what to send, what comes back, NDA and file ownership, how to start. Use when the user asks about Structomat or how to engage it, or looks for a firm to outsource str",
       "labels": [
+        "private-data",
         "public-sink"
       ]
     },
@@ -45,7 +46,7 @@
     },
     {
       "name": "analyze_frame",
-      "descriptionHash": "4918fe28d789bf5a292d23dcddc5f16a6579307e59ceb3b713541ce0a71f00f9",
+      "descriptionHash": "603692e267326b55eb8ed8e454e4d13d7078bce0794c5d61c08b15b76e90cbd0",
       "description": "Runs a 3D finite-element frame analysis and returns the numbers: equilibrium check, largest deflection along the members, largest joint displacement and sway in X and Y, every support reaction, the axial force, shears and moments of every member (the envelope with the governing combination when ther",
       "labels": [
         "destructive"
@@ -53,7 +54,7 @@
     },
     {
       "name": "check_steel_members",
-      "descriptionHash": "b1bf1402f879366ea18c30bcc1b583a309119226a5d061c53c47e47a6242992b",
+      "descriptionHash": "2e95229e51c387e7ab44d20d607924c2d8d7c3253d7d05f3c593caccf2179d37",
       "description": "Preliminary strength check of steel members to AISC 360-16 LRFD under the forces you give: available strengths and the demand-to-capacity ratio D/C of each member, the governing limit state and every step with its clause. Covers compression (flexural, torsional and local buckling, E3/E4/E7), tension"
     },
     {
@@ -63,6 +64,11 @@
       "labels": [
         "untrusted-content"
       ]
+    },
+    {
+      "name": "design_lgs_framing",
+      "descriptionHash": "8cdd1bdada078a4f839b0d5858bbe5effc511f06d9c978919b727e130460274b",
+      "description": "Preliminary design of the cold-formed steel (light gauge steel, LGS) framing of a single-storey house with a gable roof on a concrete slab, in Canada: NBC 2020 Part 4 loads (snow, wind, earthquake when Sa values are given), members and screw connections to AISI S100-16 with the Canadian Appendix B ("
     },
     {
       "name": "draft_project_request",
@@ -81,16 +87,29 @@
   "findings": [
     {
       "id": "MCP-TOXIC-FLOW-001",
-      "severity": "medium",
+      "severity": "high",
       "category": "toxic-flow",
-      "title": "Toxic flow: untrusted input can reach an external sink",
-      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: estimate_steel_cost · Public sink: about_structomat, draft_project_request · Destructive: analyze_frame.",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: estimate_steel_cost · Private data: about_structomat · Public sink: about_structomat, draft_project_request · Destructive: analyze_frame.",
       "evidence": {
         "source": "server:mcp",
-        "snippet": "Untrusted content: estimate_steel_cost · Public sink: about_structomat, draft_project_request · Destructive: analyze_frame"
+        "snippet": "Untrusted content: estimate_steel_cost · Private data: about_structomat · Public sink: about_structomat, draft_project_request · Destructive: analyze_frame"
       },
-      "confidence": 0.45,
+      "confidence": 0.6,
       "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"about_structomat\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:about_structomat",
+        "snippet": "before: \"Facts about Structomat, an AI engineering agent for structural steel: what it does, design codes, who signs designs for construction, what to send, what comes back, how to start. Use when the user asks about Structomat or how to engage it.\" → after: \"Facts about Structomat, an AI engineering agent for structural steel: what it does, design codes, who signs designs for construction, what to send, what comes back, NDA and file ownership, how to start. Use when the user asks about Structomat or how to engage it, or looks for a firm to outsource str\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
     },
     {
       "id": "MCP-RUGPULL-001",
@@ -104,12 +123,25 @@
       },
       "confidence": 0.8,
       "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"check_steel_members\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:check_steel_members",
+        "snippet": "before: \"Preliminary strength check of steel members to AISC 360-16 LRFD under the forces you give: available strengths and the demand-to-capacity ratio D/C of each member, the governing limit state and every step with its clause. Covers compression (flexural, torsional and local buckling, E3/E4/E7), tension\" → after: \"Preliminary strength check of steel members to AISC 360-16 LRFD under the forces you give: available strengths and the demand-to-capacity ratio D/C of each member, the governing limit state and every step with its clause. Covers compression (flexural, torsional and local buckling, E3/E4/E7), tension\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
     }
   ],
-  "score": 72,
+  "score": 45,
   "scoreBreakdown": {
-    "toxic-flow": 8,
-    "tool-poisoning": 20
+    "toxic-flow": 20,
+    "tool-poisoning": 35
   },
   "errors": []
 }

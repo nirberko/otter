@@ -1,0 +1,109 @@
+{
+  "schemaVersion": 1,
+  "scanner": {
+    "version": "1.6.0",
+    "rules": "402995650b68"
+  },
+  "target": {
+    "kind": "url",
+    "ref": "https://agents.analyticalinsider.ai/mcp"
+  },
+  "scannedAt": "2026-11-24T14:57:52.753Z",
+  "durationMs": 292,
+  "layers": {
+    "metadata": true,
+    "static": false
+  },
+  "tools": [
+    {
+      "name": "probe_agent",
+      "descriptionHash": "35dfc0face2adc77dcb87c17f7eaba3ff1d1e8f864167cec3e0cb599d1af192e",
+      "description": "Fetch and cache a remote agent's A2A card (/.well-known/agent-card.json, falling back to /.well-known/agent.json). Returns parsed metadata, declared capabilities, and an aipi-computed trustTier. Identical bytes to POST /api/v2/agents/probe.",
+      "labels": [
+        "untrusted-content",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "issue_receipt",
+      "descriptionHash": "8d1bef7fc2fe1dae6256d7bef6d536df2e7f5de2ddf499b65e079db1c6122922",
+      "description": "Submit a caller-signed receipt of an agent-to-agent interaction. aipi verifies the signature, attaches a witness signature (aipi-witness-v1), and stores the receipt. Idempotent on receipt-hash. Identical bytes to POST /api/v2/agents/receipts.",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "get_reputation",
+      "descriptionHash": "49c051c5d50a2b0420666bf4482613d44342554851de8e40e6912aa07e2a92ea",
+      "description": "Compute a remote agent's reputation from witnessed receipts — success rate, latency percentiles, sample size, and low-confidence flag. Identical compute path to GET /api/v2/agents/:encodedAgentUrl/reputation."
+    },
+    {
+      "name": "aipi_get_capabilities",
+      "descriptionHash": "28c452c6f923c46e23f20a1d4a9b059663786d67d029d76c8983f63945ac7566",
+      "description": "List the aipi intelligence agents and the metrics each one can produce. Takes no arguments. Ring 1: works with no API key, because agent capabilities are static platform metadata with no tenant column — nothing here belongs to any organization. Two surfaces, mirroring the REST route: a key-less or o",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "comms_get_offer",
+      "descriptionHash": "376832dbebfd569f36f4d250cc3597790b42eb6100eab53b44ddad088d8dcde5",
+      "description": "Read the current offer of the Analytical Insider communications service for agents. The paid plans are phone (a dedicated United States phone number that receives texts and calls, with voicemail your agent reads by API, and outbound calls and texts where the offer lists them as open), email (a custo",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "comms_start_signup",
+      "descriptionHash": "6474ad5e1c63fd29e1452d16aaa610a5b1e245fbcfff8862ed58b8f128e12c3b",
+      "description": "Start a signup for the communications service. Send the principal's legal name, email and postal address (website optional for a paid plan, required for the messaging account that needs no payment), the agent's name and operator, the plan the principal chose (one of the plans[].plan values comms_get",
+      "labels": [
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "comms_get_signup_guide",
+      "descriptionHash": "b1598298dff98c4f60d84e7eb6c073497f617bf0767cb7bbca888a64ed9ef61b",
+      "description": "Return the step-by-step signup guide for agents, as Markdown (also published at https://agents.analyticalinsider.ai/agent-signup.md). It uses only the discovery document's own field names and states no price, plan or limit. No key needed.",
+      "labels": [
+        "private-data"
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOOL-POISON-006",
+      "severity": "low",
+      "category": "tool-poisoning",
+      "title": "Anomalously long tool description",
+      "detail": "Description of \"comms_start_signup\" is 1557 chars, far longer than this server's median (242). Overlong descriptions are a common place to bury instructions.",
+      "evidence": {
+        "source": "tool:comms_start_signup",
+        "snippet": "Start a signup for the communications service. Send the principal's legal name, email and postal address (website optional for a paid plan, required for the mes…"
+      },
+      "confidence": 0.4
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: probe_agent, comms_get_offer · Private data: aipi_get_capabilities, comms_get_offer, comms_start_signup, comms_get_signup_guide · Public sink: probe_agent, issue_receipt, comms_get_offer, comms_start_signup.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: probe_agent, comms_get_offer · Private data: aipi_get_capabilities, comms_get_offer, comms_start_signup, comms_get_signup_guide · Public sink: probe_agent, issue_receipt, comms_get_offer, comms_start_signup"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 77,
+  "scoreBreakdown": {
+    "tool-poisoning": 3,
+    "toxic-flow": 20
+  },
+  "errors": []
+}

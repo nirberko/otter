@@ -8,8 +8,8 @@
     "kind": "url",
     "ref": "https://imonfhir.com/api/v1/mcp"
   },
-  "scannedAt": "2026-11-14T11:37:20.137Z",
-  "durationMs": 841,
+  "scannedAt": "2026-11-24T15:01:30.169Z",
+  "durationMs": 628,
   "layers": {
     "metadata": true,
     "static": false
@@ -41,10 +41,21 @@
     },
     {
       "name": "validate_bundle",
-      "descriptionHash": "17ce8dbaeb31a5c4aced3c08d79ef63661892b2547a3b41fc3cd6bdb722c060c",
-      "description": "Validate a synthetic Da Vinci PAS Submit Bundle with the ImOnFHIR validator. Synthetic payloads only. Never send real patient data. Findings describe a synthetic Bundle. Body cap 2 MB, 10 calls per minute.",
+      "descriptionHash": "e1476642b74452a56ffc7bc252ac47f4b21509f784efb9cf3451c30a83006690",
+      "description": "Validate a synthetic Da Vinci PAS Submit Bundle with the ImOnFHIR validator. Synthetic payloads only. Never send real patient data. Findings describe a synthetic Bundle. Body cap 2 MB, 10 calls per minute. Over MCP every answer carries `verdict`: the validator's own readiness verdict, the one its La",
       "labels": [
+        "untrusted-content",
         "public-sink"
+      ]
+    },
+    {
+      "name": "get_validation_findings",
+      "descriptionHash": "bc17ba35fa0cad21c4b8470c838f6241d34b3aa248957021734f97b7fca7e6b3",
+      "description": "Every issue of one large validate_bundle result, a page at a time. Give it the result_id from a validate_bundle summary; it reads what validate_bundle kept (the findings, never the bundle) for 1 hour, so the bundle is not sent again and the validator does not run again. The issues come in the order ",
+      "labels": [
+        "untrusted-content",
+        "public-sink",
+        "destructive"
       ]
     },
     {
@@ -68,21 +79,48 @@
   ],
   "findings": [
     {
-      "id": "MCP-TOOL-POISON-006",
+      "id": "MCP-TOOL-POISON-007",
       "severity": "low",
       "category": "tool-poisoning",
-      "title": "Anomalously long tool description",
-      "detail": "Description of \"explain_finding\" is 1207 chars, far longer than this server's median (228). Overlong descriptions are a common place to bury instructions.",
+      "title": "Description uses pressure/override language",
+      "detail": "Description of \"get_validation_findings\" stacks urgency/override words (never, warning). Legitimate tool descriptions rarely pressure the model to act or ignore prior guidance.",
       "evidence": {
-        "source": "tool:explain_finding",
-        "snippet": "The evidence behind a semantic validator rule, not an explanation of it. Give rule_id (a rule id such as PAS-SEM-PROV-001) and get the rule's id, version, title…"
+        "source": "tool:get_validation_findings",
+        "snippet": "Every issue of one large validate_bundle result, a page at a time. Give it the result_id from a validate_bundle summary; it reads what validate_bundle kept (the…"
       },
-      "confidence": 0.4
+      "confidence": 0.3
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: validate_bundle, get_validation_findings · Private data: search_digest, get_digest_item, get_jira_status · Public sink: validate_bundle, get_validation_findings, compare_igs · Destructive: get_validation_findings.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: validate_bundle, get_validation_findings · Private data: search_digest, get_digest_item, get_jira_status · Public sink: validate_bundle, get_validation_findings, compare_igs · Destructive: get_validation_findings"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"validate_bundle\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:validate_bundle",
+        "snippet": "before: \"Validate a synthetic Da Vinci PAS Submit Bundle with the ImOnFHIR validator. Synthetic payloads only. Never send real patient data. Findings describe a synthetic Bundle. Body cap 2 MB, 10 calls per minute.\" → after: \"Validate a synthetic Da Vinci PAS Submit Bundle with the ImOnFHIR validator. Synthetic payloads only. Never send real patient data. Findings describe a synthetic Bundle. Body cap 2 MB, 10 calls per minute. Over MCP every answer carries `verdict`: the validator's own readiness verdict, the one its La\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
     }
   ],
-  "score": 97,
+  "score": 59,
   "scoreBreakdown": {
-    "tool-poisoning": 3
+    "tool-poisoning": 22,
+    "toxic-flow": 20
   },
   "errors": []
 }

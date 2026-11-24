@@ -8,8 +8,8 @@
     "kind": "url",
     "ref": "https://agent-os-mcp.alpha.studocu.com/mcp"
   },
-  "scannedAt": "2026-11-12T12:55:24.890Z",
-  "durationMs": 805,
+  "scannedAt": "2026-11-24T15:03:30.774Z",
+  "durationMs": 999,
   "layers": {
     "metadata": true,
     "static": false
@@ -30,16 +30,29 @@
     },
     {
       "name": "search-courses",
-      "descriptionHash": "444c3c76970d0d633044cebf8af77e7b8a4bf99719438b7898bf16944d960e93",
-      "description": "Find a course on Studocu by name or code, to get its course_id for search-documents, get-course-syllabus, or get-course-mastery. Pass institution_id from search-institutions when you know the school. Show the user the name, code, and school, not the id. If several results are plausible, ask the user",
+      "descriptionHash": "56b3a28e5e41885253d447356c90887371a2ca58230faec4327065c07724358d",
+      "description": "Find a course on Studocu by name or code, to get its course_id for search-documents, get-course-syllabus, or get-course-mastery. Pass institution_id from search-institutions when you know the school. For a high school, pass degree_id and grade_id from list-degrees. Those ids are national, so a schoo",
       "labels": [
         "private-data"
       ]
     },
     {
+      "name": "list-degrees",
+      "descriptionHash": "4a80088b0334bf821d93f174689ea6d57f57267c7632713723e7fe89292327c9",
+      "description": "List the degrees taught at a high school, with their ids, so you can pass degree_id to search-courses. The ids are national, so search-courses can use them with no school. Pass institution_id from search-institutions. A university id is not a high school. Each degree may include grades with grade id"
+    },
+    {
       "name": "get-course-syllabus",
       "descriptionHash": "198aac33e3525cd9926b60a0f9979723f3e16ab830837068d541978eb9f1ef10",
       "description": "Return Studocu's generated outline for a course as markdown. If none exists yet, the call returns an error; try again in a few minutes."
+    },
+    {
+      "name": "list-course-recordings",
+      "descriptionHash": "c43b709f5956078510fa977246010e9fa78fdf0de41c18333157a2a3893978ac",
+      "description": "List public class recordings (lecture audio with a transcript) that students shared for a course. Pass course_id from search-courses. Most recently recorded first; each recording has a recording date and an artifact_id. An empty list means no one has shared a recording for this course yet.",
+      "labels": [
+        "untrusted-content"
+      ]
     },
     {
       "name": "agent-os-session",
@@ -48,9 +61,10 @@
     },
     {
       "name": "read-artifact",
-      "descriptionHash": "fa912dddbba6887dd7b00be5dc71a938f0706c96a78765abc337250b7b5a8662",
-      "description": "Read a project source or creation by its studocu:// id (from get-project-state, add-document-sources, write-artifact, or request-creation). File and image sources also return the image when a viewable copy, or an original upload under 5 MB, exists.",
+      "descriptionHash": "d771d7e6ddaa9cb336ea2c76759be2fb942b7f938b7351ca8e6ff01e83678c51",
+      "description": "Read a project source or creation by its studocu:// id (from get-project-state, add-document-sources, write-artifact, or request-creation). File and image sources also return the image when a viewable copy, or an original upload under 5 MB, exists. A class recording returns its transcript only to it",
       "labels": [
+        "untrusted-content",
         "private-data",
         "public-sink"
       ]
@@ -141,11 +155,51 @@
       },
       "confidence": 0.7,
       "remediation": "Treat the server as untrusted; the model may obey embedded instructions."
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: list-course-recordings, read-artifact · Private data: search-documents, search-courses, read-artifact, read-detached-document, add-document-sources, create-project · Public sink: read-artifact · Destructive: delete-memory.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: list-course-recordings, read-artifact · Private data: search-documents, search-courses, read-artifact, read-detached-document, add-document-sources, create-project · Public sink: read-artifact · Destructive: delete-memory"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"search-courses\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:search-courses",
+        "snippet": "before: \"Find a course on Studocu by name or code, to get its course_id for search-documents, get-course-syllabus, or get-course-mastery. Pass institution_id from search-institutions when you know the school. Show the user the name, code, and school, not the id. If several results are plausible, ask the user\" → after: \"Find a course on Studocu by name or code, to get its course_id for search-documents, get-course-syllabus, or get-course-mastery. Pass institution_id from search-institutions when you know the school. For a high school, pass degree_id and grade_id from list-degrees. Those ids are national, so a schoo\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"read-artifact\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:read-artifact",
+        "snippet": "before: \"Read a project source or creation by its studocu:// id (from get-project-state, add-document-sources, write-artifact, or request-creation). File and image sources also return the image when a viewable copy, or an original upload under 5 MB, exists.\" → after: \"Read a project source or creation by its studocu:// id (from get-project-state, add-document-sources, write-artifact, or request-creation). File and image sources also return the image when a viewable copy, or an original upload under 5 MB, exists. A class recording returns its transcript only to it\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
     }
   ],
-  "score": 80,
+  "score": 45,
   "scoreBreakdown": {
-    "tool-poisoning": 20
+    "tool-poisoning": 35,
+    "toxic-flow": 20
   },
   "errors": []
 }

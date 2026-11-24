@@ -1,0 +1,112 @@
+{
+  "schemaVersion": 1,
+  "scanner": {
+    "version": "1.6.0",
+    "rules": "402995650b68"
+  },
+  "target": {
+    "kind": "url",
+    "ref": "https://agentdiscover.me/mcp"
+  },
+  "scannedAt": "2026-11-24T15:17:43.323Z",
+  "durationMs": 435,
+  "layers": {
+    "metadata": true,
+    "static": false
+  },
+  "tools": [
+    {
+      "name": "search_businesses",
+      "descriptionHash": "2f03b54f51f29c2aaddfc566ea31292026701010341d8bc26074e4102d5218e4",
+      "description": "Finds local and online businesses by what is needed and where, or looks one up exactly by its website domain or phone number. It takes at least one of query, place, website_domain or phone. With the town, region or postcode in place, only businesses in it, serving it or near it, and those that work "
+    },
+    {
+      "name": "search_products",
+      "descriptionHash": "036567269689097c1b26d4e22a5fcd12eff308bb8ba768086867827c4230e5d1",
+      "description": "Finds products that businesses here sell, by what the user wants and, optionally, where they are. A product is listed when one of the words in query, in any of its forms, is a word of its name or description, and its business serves place: in person in it or near it, or online, or by shipping to its"
+    },
+    {
+      "name": "get_business",
+      "descriptionHash": "d96d2f4920bb9d7a960647a7cf9a2d8221f16d8147e2791bbd958bec55a061e0",
+      "description": "Reads the public fact sheet of one business: contact details, address, places served, where it serves (reach: in person, online, the countries it ships to), what it sells (offers), opening hours, services, its first 20 products with our link to buy each where it may be given (products), and which ki",
+      "labels": [
+        "untrusted-content",
+        "private-data"
+      ]
+    },
+    {
+      "name": "get_availability",
+      "descriptionHash": "78796cbf9a36436d4b7c6550a5ac601ccf3b6f57716741f9c5467333e3ef0169",
+      "description": "Lists the times one business has open for an appointment, when its owner offers them (request.instant_booking in get_business). Returns up to 50 slots over 1 to 14 days, soonest first, each with a start and an end as ISO 8601 date-times carrying the business's own offset, and the business's time zon"
+    },
+    {
+      "name": "send_request",
+      "descriptionHash": "01607f6b91efba237a33f8fa1211c5b4de0428e1754fdfa3c4b58095c89adaf9",
+      "description": "Passes on one booking request, quote request or question from the user to one business. It contacts a real business owner in the user's name, with the name and the phone number or email address the user gave. user_requested: true states that the user explicitly asked for this request to be sent to t",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "request_match",
+      "descriptionHash": "68561433a9e82631c10732491262a1e786e479ea1bd073c03ffb04193d9c8f4c",
+      "description": "Sends one booking request, quote request or question from the user to the directory, to be matched with businesses, instead of to one named business. query and place take the words for the kind of business and the place, as search_businesses does; with no place, only businesses that work online or s",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "answer_request",
+      "descriptionHash": "5b7d63a521fa0d5f8a80e623b2e64b1197b7a9fca9d3ccc62e407085fb247791",
+      "description": "Adds the user's answers to a request that send_request returned with status needs_info, by its public_ref. The request was held because the business asks questions it needs answered before it can reply; nothing was sent to anyone. The answers are the user's own answers to the questions in open_quest"
+    },
+    {
+      "name": "get_request_status",
+      "descriptionHash": "e00ff57f2981bcd2a7a7668d8c421a94228d9bc3f88c3bc3a2f4d3a5db42157d",
+      "description": "Shows where a request stands, by the public_ref that send_request or request_match returned: whether the user still has to confirm it, whether the business has been told, the time by which it is asked to answer, and its decision once given (accepted, declined or replied, with a proposed time if it g",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink"
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOOL-POISON-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description issues instructions to the model",
+      "detail": "Description of \"answer_request\" contains imperative instructions directed at the AI assistant rather than describing the tool. This is the core tool-poisoning technique.",
+      "evidence": {
+        "source": "tool:answer_request",
+        "snippet": "Adds the user's answers to a request that send_request returned with status needs_info, by its public_ref. The request was held because the business asks questi…"
+      },
+      "confidence": 0.7,
+      "remediation": "Treat the server as untrusted; the model may obey embedded instructions."
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: get_business, send_request, request_match, get_request_status · Private data: get_business, send_request, request_match, get_request_status · Public sink: send_request, request_match, get_request_status.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: get_business, send_request, request_match, get_request_status · Private data: get_business, send_request, request_match, get_request_status · Public sink: send_request, request_match, get_request_status"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 60,
+  "scoreBreakdown": {
+    "tool-poisoning": 20,
+    "toxic-flow": 20
+  },
+  "errors": []
+}

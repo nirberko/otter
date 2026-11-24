@@ -8,8 +8,8 @@
     "kind": "url",
     "ref": "https://stablescan.achivx.com/mcp"
   },
-  "scannedAt": "2026-11-12T12:52:31.915Z",
-  "durationMs": 1825,
+  "scannedAt": "2026-11-24T14:59:48.935Z",
+  "durationMs": 1217,
   "layers": {
     "metadata": true,
     "static": false
@@ -49,8 +49,8 @@
     },
     {
       "name": "get_recent_transactions",
-      "descriptionHash": "c8e78d1177c85d18c1cd360e33ccebd45abcc9e5cd42ad40799485ecbc1f141c",
-      "description": "Recent stablecoin transfers on one chain, newest first, filterable by payer and/or recipient, cursor-paginated. Use it for the latest transfers of an address or of the whole chain, with a tx_hash to cite. Not for who an address settles with over time: get_wallet_graph_walk. Not for how fresh the fee",
+      "descriptionHash": "e681e1d5d2996d53edb42743b3456c42eab330a3989485f188983953434dd183",
+      "description": "Recent stablecoin transfers on one chain, newest first, filterable by payer and/or recipient, cursor-paginated. Use it for the latest transfers of an address or of the whole chain, with a tx_hash to cite. Not for an address's older transfers, the archived days included: get_transfer_history. Not for",
       "labels": [
         "untrusted-content",
         "private-data"
@@ -70,6 +70,16 @@
       ]
     },
     {
+      "name": "get_transfer_history",
+      "descriptionHash": "6a4e51d921d7c8eba80f125a302b2712fc4ab1a7333dc1cf7b39c04dcc8e2a23",
+      "description": "One address's stablecoin transfer history on one chain, newest first, across the recent days and the archive: every token or one (token), what it sent, received or both (side), cursor-paginated. Use it for an address's transfers older than the recent window, or to page back through what it sent or r",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
       "name": "get_wallet_graph_walk",
       "descriptionHash": "066bf5491c0fe86ea621c5f2fb73163eb873a8d76aee2515c16d96abd2d0ee00",
       "description": "Bounded walk over the indexed settlement graph of one stablecoin from one wallet on one chain: payer<->recipient hops with value-weighted scores, entity-aware node keys, a stop at known services and sanctioned-node markers. Use it to explain who an address settles with and through which hops. Not fo",
@@ -80,14 +90,26 @@
   ],
   "findings": [
     {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"get_transfer_history\" references sensitive artifacts (api_key). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:get_transfer_history",
+        "snippet": "One address's stablecoin transfer history on one chain, newest first, across the recent days and the archive: every token or one (token), what it sent, received…"
+      },
+      "confidence": 0.65
+    },
+    {
       "id": "MCP-TOXIC-FLOW-001",
       "severity": "high",
       "category": "toxic-flow",
       "title": "Lethal trifecta: untrusted input + private data + external sink",
-      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: get_recent_transactions, get_sync_status · Private data: get_address_approvals, get_address_exposure, get_address_risk, get_recent_transactions, get_wallet_graph_walk · Public sink: get_address_compliance.",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: get_recent_transactions, get_sync_status, get_transfer_history · Private data: get_address_approvals, get_address_exposure, get_address_risk, get_recent_transactions, get_transfer_history, get_wallet_graph_walk · Public sink: get_address_compliance, get_transfer_history.",
       "evidence": {
         "source": "server:mcp",
-        "snippet": "Untrusted content: get_recent_transactions, get_sync_status · Private data: get_address_approvals, get_address_exposure, get_address_risk, get_recent_transactions, get_wallet_graph_walk · Public sink: get_address_compliance"
+        "snippet": "Untrusted content: get_recent_transactions, get_sync_status, get_transfer_history · Private data: get_address_approvals, get_address_exposure, get_address_risk, get_recent_transactions, get_transfer_history, get_wallet_graph_walk · Public sink: get_address_compliance, get_transfer_history"
       },
       "confidence": 0.6,
       "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
@@ -97,23 +119,10 @@
       "severity": "high",
       "category": "tool-poisoning",
       "title": "Tool description changed since last scan",
-      "detail": "Tool \"get_address_exposure\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "detail": "Tool \"get_recent_transactions\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
       "evidence": {
-        "source": "tool:get_address_exposure",
-        "snippet": "before: \"Taint exposure of one address on one chain: a bounded backward walk over the value graph to the nearest OFAC-sanctioned or hack/drainer/mixer root, answered as a class (sanctioned|direct|indirect|negligible|unknown|none), the nearest hop and a value-proportional haircut fraction. Use it to explain h\" → after: \"Taint exposure of one address on one chain: a bounded backward walk over the value graph to the nearest OFAC-sanctioned or hack/drainer/mixer root, answered as a class (sanctioned|direct|indirect|negligible|unknown|none), the nearest hop and a value-proportional haircut fraction. Use it to explain h\""
-      },
-      "confidence": 0.8,
-      "remediation": "Re-review the tool before continuing to trust it."
-    },
-    {
-      "id": "MCP-RUGPULL-001",
-      "severity": "high",
-      "category": "tool-poisoning",
-      "title": "Tool description changed since last scan",
-      "detail": "Tool \"get_address_risk\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
-      "evidence": {
-        "source": "tool:get_address_risk",
-        "snippet": "before: \"Unified risk tier for one address on one chain — unknown|none|low|medium|high|severe — from decoded facts (OFAC listing, issuer freeze/seize on this chain, exposure to a sanctioned or hack root) and attributed labels with provenance (labels alone cap at medium; a lone-source accusation adds no tier)\" → after: \"Unified risk tier for one address on one chain — unknown|none|low|medium|high|severe — from decoded facts (OFAC listing, issuer freeze/seize on this chain, exposure to a sanctioned or hack root) and attributed labels with provenance (labels alone cap at medium; a lone-source accusation adds no tier)\""
+        "source": "tool:get_recent_transactions",
+        "snippet": "before: \"Recent stablecoin transfers on one chain, newest first, filterable by payer and/or recipient, cursor-paginated. Use it for the latest transfers of an address or of the whole chain, with a tx_hash to cite. Not for who an address settles with over time: get_wallet_graph_walk. Not for how fresh the fee\" → after: \"Recent stablecoin transfers on one chain, newest first, filterable by payer and/or recipient, cursor-paginated. Use it for the latest transfers of an address or of the whole chain, with a tx_hash to cite. Not for an address's older transfers, the archived days included: get_transfer_history. Not for\""
       },
       "confidence": 0.8,
       "remediation": "Re-review the tool before continuing to trust it."
@@ -121,8 +130,8 @@
   ],
   "score": 50,
   "scoreBreakdown": {
-    "toxic-flow": 20,
-    "tool-poisoning": 30
+    "tool-poisoning": 30,
+    "toxic-flow": 20
   },
   "errors": []
 }

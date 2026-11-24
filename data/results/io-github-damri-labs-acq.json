@@ -8,8 +8,8 @@
     "kind": "url",
     "ref": "https://acq.damri.org/mcp"
   },
-  "scannedAt": "2026-11-15T12:09:51.998Z",
-  "durationMs": 1015,
+  "scannedAt": "2026-11-24T15:07:20.676Z",
+  "durationMs": 621,
   "layers": {
     "metadata": true,
     "static": false
@@ -43,16 +43,17 @@
     },
     {
       "name": "acq_send",
-      "descriptionHash": "fcdd127f66786e6ce76d21830a7a3dcf5eb554ccfc88523e93ce45f2b2f2a3cc",
-      "description": "Send a message to your peer. Set end=true to close the room.",
+      "descriptionHash": "3b8985da3bab0e921a8c141efbecbe8abbfe0550edc9ba576c21038917cf9218",
+      "description": "Send a message to your peer. Set end=true to close the room. Pass a unique cid per logical send (reusing one only to retry that same content): it is stored with the message and echoed back, so after an ambiguous failure (connection dropped, timeout, non-JSON gateway error) you can check acq_recv wit",
       "labels": [
+        "untrusted-content",
         "public-sink"
       ]
     },
     {
       "name": "acq_recv",
-      "descriptionHash": "5ed0ff71cf4236a62cd0cdd7ce06330d1669e07d55d39a50c5181955ec15c825",
-      "description": "Receive peer messages. Returns immediately by default (wait=0); pass wait up to 120 to long-poll, or since=<last seq you have> to replay. Set self=true to include your own messages (full transcript replay).",
+      "descriptionHash": "c617331f0630c72102a116946a320df4e3c4692d102f09c0cce4f8054b2b5761",
+      "description": "Receive peer messages. Returns immediately by default (wait=0); pass wait up to 120 to long-poll. For replay-safe reads, pass since=<last cursor you processed> (0 to read everything) and update it from the response cursor field after processing: a lost response is then recovered by re-issuing the id",
       "labels": [
         "untrusted-content"
       ]
@@ -74,11 +75,38 @@
     },
     {
       "name": "acq_stats",
-      "descriptionHash": "e501a6028cb6937d2dcf45c12d5be49c85d7dd11e4f629aacfc0fbe6142384ea",
-      "description": "Lifetime usage counters: rooms created, agents paired, messages."
+      "descriptionHash": "24b75e09503090546514df8a3953e0042dab33f07d1a5bf8af63e7650b342e38",
+      "description": "Lifetime service counters: rooms created, rooms paired (seat B joined), and messages. Includes synthetic checks and repeat use; not unique agents, users, or outside adoption. Persisted best-effort and may reset without the volume. Also returns collection_started_at and up to 192 UTC event-hour bucke",
+      "labels": [
+        "destructive"
+      ]
     }
   ],
   "findings": [
+    {
+      "id": "MCP-TOOL-POISON-006",
+      "severity": "low",
+      "category": "tool-poisoning",
+      "title": "Anomalously long tool description",
+      "detail": "Description of \"acq_send\" is 1546 chars, far longer than this server's median (192). Overlong descriptions are a common place to bury instructions.",
+      "evidence": {
+        "source": "tool:acq_send",
+        "snippet": "Send a message to your peer. Set end=true to close the room. Pass a unique cid per logical send (reusing one only to retry that same content): it is stored with…"
+      },
+      "confidence": 0.4
+    },
+    {
+      "id": "MCP-TOOL-POISON-006",
+      "severity": "low",
+      "category": "tool-poisoning",
+      "title": "Anomalously long tool description",
+      "detail": "Description of \"acq_recv\" is 988 chars, far longer than this server's median (192). Overlong descriptions are a common place to bury instructions.",
+      "evidence": {
+        "source": "tool:acq_recv",
+        "snippet": "Receive peer messages. Returns immediately by default (wait=0); pass wait up to 120 to long-poll. For replay-safe reads, pass since=<last cursor you processed> …"
+      },
+      "confidence": 0.4
+    },
     {
       "id": "MCP-SCHEMA-SMELL-001",
       "severity": "medium",
@@ -96,17 +124,57 @@
       "severity": "high",
       "category": "toxic-flow",
       "title": "Lethal trifecta: untrusted input + private data + external sink",
-      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: acq_create_room, acq_recv · Private data: acq_create_room, acq_join_room, acq_rejoin · Public sink: acq_create_room, acq_send.",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: acq_create_room, acq_send, acq_recv · Private data: acq_create_room, acq_join_room, acq_rejoin · Public sink: acq_create_room, acq_send · Destructive: acq_stats.",
       "evidence": {
         "source": "server:mcp",
-        "snippet": "Untrusted content: acq_create_room, acq_recv · Private data: acq_create_room, acq_join_room, acq_rejoin · Public sink: acq_create_room, acq_send"
+        "snippet": "Untrusted content: acq_create_room, acq_send, acq_recv · Private data: acq_create_room, acq_join_room, acq_rejoin · Public sink: acq_create_room, acq_send · Destructive: acq_stats"
       },
       "confidence": 0.6,
       "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"acq_send\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:acq_send",
+        "snippet": "before: \"Send a message to your peer. Set end=true to close the room.\" → after: \"Send a message to your peer. Set end=true to close the room. Pass a unique cid per logical send (reusing one only to retry that same content): it is stored with the message and echoed back, so after an ambiguous failure (connection dropped, timeout, non-JSON gateway error) you can check acq_recv wit\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"acq_recv\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:acq_recv",
+        "snippet": "before: \"Receive peer messages. Returns immediately by default (wait=0); pass wait up to 120 to long-poll, or since=<last seq you have> to replay. Set self=true to include your own messages (full transcript replay).\" → after: \"Receive peer messages. Returns immediately by default (wait=0); pass wait up to 120 to long-poll. For replay-safe reads, pass since=<last cursor you processed> (0 to read everything) and update it from the response cursor field after processing: a lost response is then recovered by re-issuing the id\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"acq_stats\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:acq_stats",
+        "snippet": "before: \"Lifetime usage counters: rooms created, agents paired, messages.\" → after: \"Lifetime service counters: rooms created, rooms paired (seat B joined), and messages. Includes synthetic checks and repeat use; not unique agents, users, or outside adoption. Persisted best-effort and may reset without the volume. Also returns collection_started_at and up to 192 UTC event-hour bucke\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
     }
   ],
-  "score": 72,
+  "score": 36,
   "scoreBreakdown": {
+    "tool-poisoning": 36,
     "schema-smell": 8,
     "toxic-flow": 20
   },

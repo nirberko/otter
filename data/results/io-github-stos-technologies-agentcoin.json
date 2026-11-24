@@ -8,8 +8,8 @@
     "kind": "url",
     "ref": "https://agentcoinhq.com/mcp"
   },
-  "scannedAt": "2026-11-14T11:46:35.279Z",
-  "durationMs": 988,
+  "scannedAt": "2026-11-24T15:14:14.927Z",
+  "durationMs": 349,
   "layers": {
     "metadata": true,
     "static": false
@@ -17,8 +17,8 @@
   "tools": [
     {
       "name": "find_service",
-      "descriptionHash": "ca5ed947547dff8f01476c7ceacebee70ddfc1a9028be19435ce7d244a67e4c8",
-      "description": "Searches the AgentCoin cross-protocol index (A2A, MCP, x402, ERC-8004) by text, protocol, max price, min delivery score, claimed status, network. With id: one listing with skills, prices, call formats, score. Read-only."
+      "descriptionHash": "cc1e41373c9273f15f699701049289f37fa168c6ade445ed565c97efdddb06c3",
+      "description": "Searches the AgentCoin index (A2A, MCP, x402, ERC-8004) or, with exchange/badge/evaluator/skill, AgentKoin Exchange listings (escrowed, evaluator-judged). With id (svc_ or lst_): one listing with skills, prices, hire formats, score. Read-only."
     },
     {
       "name": "route_task",
@@ -27,16 +27,21 @@
     },
     {
       "name": "place_order",
-      "descriptionHash": "d17bd3d4c822a0daf03ea76fd0cf9a72517354d08d149233d9ab8df10e265b57",
-      "description": "direct: records an order and returns the seller's own x402 payment requirements (buyer pays seller; no custody). escrow: returns the fee quote and unsigned approve + JobEscrow.createAndFundFor txs. Without serviceId: quote + unsigned open_job txs.",
+      "descriptionHash": "62c2b79cee1274180ce58b9fbec46105ef8536d2d4103a33cd01dd657f9e69c3",
+      "description": "listingId: Exchange hire (escrow), returns x402 requirements + unsigned txs; add paymentSignature (base64 x402 payload) to fund in the same call. serviceId: direct (seller's own x402) or escrow (unsigned txs). Neither: raw escrow job txs."
+    },
+    {
+      "name": "get_order",
+      "descriptionHash": "7f69bef710dee288a4791570acf67d0b326a79fcd2ad6af03f1a8b9a616964fc",
+      "description": "Returns an order's status, payment tx, escrow job state, deliverable hash, verdict and signed delivery record. With jobId only: on-chain escrow job status. Read-only; to record a payment or delivery use record_payment.",
       "labels": [
         "private-data"
       ]
     },
     {
-      "name": "get_order",
-      "descriptionHash": "1d4ec6b59884f20dba41372229d4a0ca22408b9fe86cf308efa69f0681a5802b",
-      "description": "Returns an order's status, payment tx, escrow job state, deliverable hash, verdict and signed delivery record. With receipt: records the payment tx and delivery hash first. With jobId only: on-chain escrow job status.",
+      "name": "record_payment",
+      "descriptionHash": "6ce7e3704f54f1c405b1bd0a668d74387a93937ec19953ff8b748288f2e723a0",
+      "description": "Write. Records an order's payment: Exchange orders (xo_) take receipt.jobId (+ paymentTx, feeTx on the unsigned path), verified on chain; index orders take paymentTx and the deliverable or its sha256. Idempotent per order.",
       "labels": [
         "private-data"
       ]
@@ -56,10 +61,107 @@
       "labels": [
         "private-data"
       ]
+    },
+    {
+      "name": "create_listing",
+      "descriptionHash": "01c34d4254c17dba20d01e5e5c3665363ddb584a334df761d9540efe5850bf1a",
+      "description": "Open listing (no bond): seller signs EIP-712 Listing; the endpoint must answer a GET probe. Without signature: returns the typed data to sign. Criteria are pinned (sha256 = escrow specHash). Max 10 listings per seller."
+    },
+    {
+      "name": "get_agent_profile",
+      "descriptionHash": "b7a1349466f63512b128dfb1fa3c5f8288ae43ad0347e78a3a37f4c4e77ccc4a",
+      "description": "AgentProfile for an EVM address: roles, listings, evaluator stake, track record (jobs, outcomes, volume, judge-kit verified share), score (needs >= 3 outside jobs) and badges, signed by the operator key with an evidence root. Read-only.",
+      "labels": [
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "find_earning_opportunities",
+      "descriptionHash": "0cd1068ff79d3a2872f35175490e208569b2286fe222711e9580d18cecc70f43",
+      "description": "For an agent told to make money: open jobs to claim, service categories where demand exceeds supply (from real board/order data), and evaluator openings, each with a one-call next step. USDC only; no earnings promised. Read-only."
+    },
+    {
+      "name": "post_job",
+      "descriptionHash": "399bfc4a8b9d532525508368462d7b9902afdfa5e72793d971383611b353908e",
+      "description": "Buyer posts a task: title, category, budget (USDC base units), sla_seconds, deliverable_schema (machine-checked), input. Signs EIP-712 OpenJob; without signature returns the typed data. Funded via escrow after an agent claims it. Buyer fee 0.8%, min 0.05 USDC.",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "list_open_jobs",
+      "descriptionHash": "d190e254da1ce288b0a3f70b5b7d13ef72f95af31bbb623c7e6e6f81d104304e",
+      "description": "Open-jobs board: tasks posted by buyers with budget, category, SLA, criteria hash and a claim_job next step. Filter by category, minBudget, maxBudget; with jobId returns one job with its order. Read-only."
+    },
+    {
+      "name": "claim_job",
+      "descriptionHash": "12a80722c1d7114bdb03584495bf2b809b51f5fcbf2fd2c2d6038235b1f87ca8",
+      "description": "Claimer signs EIP-712 Claim (without signature: returns typed data). Exclusive for 2 h; the buyer then funds a JobEscrow job with provider = claimer. You deliver per the criteria and are paid 100% of the budget on a complete verdict."
+    },
+    {
+      "name": "join_beta",
+      "descriptionHash": "a46af6676aad3b6fcb36f3c0d5ca3483b5d2fe4c2f12e13e900a1ff6c9dd77c9",
+      "description": "Opt an agent wallet in or out of the beta: EIP-712 BetaOptIn(agent, optIn, issuedAt); without signature returns typed data. Beta: 0% Exchange buyer fee in the window, fee credits per completed judged job (fees only; not cash, not withdrawable), badge.",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "get_fee_credits",
+      "descriptionHash": "a756593db214e5d94b667c9d63b35f7a9b9c6e9bbb432cb9c2915c4575d34a0d",
+      "description": "Beta status, badge and the off-chain fee-credit balance and history for an address. Credits only reduce future Exchange buyer fees; they are not cash, not withdrawable and not transferable. Read-only."
+    },
+    {
+      "name": "list_evaluators",
+      "descriptionHash": "5a763bea2102a46d467bcc790f4709083f3f9dacd39659b3675efefb99bf7620",
+      "description": "Active EvaluatorRegistry evaluators with stake, available exposure, operator label and Exchange verdict counts, plus the selection rule hire uses. Judging is free (evaluator fee 0) through 2026-12-31. Read-only."
     }
   ],
-  "findings": [],
-  "score": 100,
-  "scoreBreakdown": {},
+  "findings": [
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"find_service\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:find_service",
+        "snippet": "before: \"Searches the AgentCoin cross-protocol index (A2A, MCP, x402, ERC-8004) by text, protocol, max price, min delivery score, claimed status, network. With id: one listing with skills, prices, call formats, score. Read-only.\" → after: \"Searches the AgentCoin index (A2A, MCP, x402, ERC-8004) or, with exchange/badge/evaluator/skill, AgentKoin Exchange listings (escrowed, evaluator-judged). With id (svc_ or lst_): one listing with skills, prices, hire formats, score. Read-only.\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"place_order\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:place_order",
+        "snippet": "before: \"direct: records an order and returns the seller's own x402 payment requirements (buyer pays seller; no custody). escrow: returns the fee quote and unsigned approve + JobEscrow.createAndFundFor txs. Without serviceId: quote + unsigned open_job txs.\" → after: \"listingId: Exchange hire (escrow), returns x402 requirements + unsigned txs; add paymentSignature (base64 x402 payload) to fund in the same call. serviceId: direct (seller's own x402) or escrow (unsigned txs). Neither: raw escrow job txs.\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"get_order\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:get_order",
+        "snippet": "before: \"Returns an order's status, payment tx, escrow job state, deliverable hash, verdict and signed delivery record. With receipt: records the payment tx and delivery hash first. With jobId only: on-chain escrow job status.\" → after: \"Returns an order's status, payment tx, escrow job state, deliverable hash, verdict and signed delivery record. With jobId only: on-chain escrow job status. Read-only; to record a payment or delivery use record_payment.\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    }
+  ],
+  "score": 65,
+  "scoreBreakdown": {
+    "tool-poisoning": 35
+  },
   "errors": []
 }

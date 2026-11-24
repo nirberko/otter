@@ -8,55 +8,139 @@
     "kind": "url",
     "ref": "https://kerne.fi/api/mcp"
   },
-  "scannedAt": "2026-11-12T13:00:29.397Z",
-  "durationMs": 741,
+  "scannedAt": "2026-11-24T15:09:12.061Z",
+  "durationMs": 521,
   "layers": {
     "metadata": true,
     "static": false
   },
   "tools": [
     {
-      "name": "list_rows",
-      "descriptionHash": "e3197f0fce9bfb69780550b368dcaaa45fd6d9e6feba0701cab1a4bce81c1ca1",
-      "description": "The roster: every vault the Kerne Honesty Index measures, with its key, protocol, symbol, chain and contract address. Cheap. Call this first to find the key for get_row.",
+      "name": "get_signed_reserves",
+      "descriptionHash": "ec9ee4f239d07d61954e351452c1ca052c8138bf3d7515eb44302ea5993baa19",
+      "description": "The latest signed proof of reserves for kUSD, the Kerne stablecoin on Base: outstanding kUSD, the USDC held in each PSM contract, the solvency ratio, skUSD share price and the hedge account, all read on chain at one pinned block and signed every 15 minutes by a dedicated key that holds no funds. The",
       "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "get_stock_quote",
+      "descriptionHash": "c410b3a987247a8f5d73e9fa706fac1e2928c458c591ebd24f0324c8f509c41a",
+      "description": "The latest signed REFERENCE quote for a one week covered call on TSLAc (Coinbase tokenized Tesla stock on Base): spot from the Chainlink feed, realized volatility, strike near 20 delta, premium in basis points, expiry, and how long the quote is valid. A pricing agent signs a new one every 15 minutes",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "verify_stock_quote",
+      "descriptionHash": "ca980d1afcc1e4d1f5d17b284a8f29ec859faa7a99cc1ecd5aa174ccb10c88db",
+      "description": "Checks a Kerne stock quote: that the hash matches the signed string, that both signatures (EIP-191 over the document, EIP-712 over the on-chain Quote struct) recover to the published quote signer, whether the quote has expired, and whether the price round it is bound to is still the latest round on ",
+      "labels": [
+        "untrusted-content",
         "private-data"
       ]
     },
     {
-      "name": "get_board",
-      "descriptionHash": "572b8a0037fcffc9c9c156e542dbe248a874b60dffaa518427a9333ee9130eeb",
-      "description": "The full Kerne Honesty Index: what each of the measured synthetic and yield-bearing dollars ADVERTISES against what its holders actually REALIZED, computed from ERC-4626 share-price growth on chain over a 30 day window, plus the board summary and the provenance of the snapshot. Kerne Protocol publis",
+      "name": "get_vault_state",
+      "descriptionHash": "1bd33f389ee4d76d0c553a318663ed95538a5b5217362b493c025fafb91dd6f2",
+      "description": "The current on-chain state of the Kerne covered call vault for TSLAc on Base, read live in one call pinned to one block: epoch number, whether an epoch is live, whether sales are paused, deposit cap, total assets, the limits the vault enforces on any call it writes, the keeper, and the latest price ",
       "labels": [
-        "public-sink"
+        "untrusted-content",
+        "private-data"
       ]
-    },
-    {
-      "name": "get_row",
-      "descriptionHash": "3ecc723201b490909c300ece130b82c38893f55197d6b0f6320cd8506bc5f76b",
-      "description": "One row with everything behind it: the verbatim advertised quote and the first-party page it was read from, the capture date, both block heights, both share prices, the arithmetic, the exact eth_call payloads needed to reproduce it, and any right of reply the protocol has published.",
-      "labels": [
-        "public-sink"
-      ]
-    },
-    {
-      "name": "get_methodology",
-      "descriptionHash": "642a1115168fb79745c878742a748f1dc5e6bd160e3fdc1344308dfebc6682e3",
-      "description": "The measurement, the comparability rules that decide when a gap may be stated at all, the capture expiry, what this board deliberately does not cover, and the standing commitment if you reproduce a row and get a different answer."
-    },
-    {
-      "name": "get_corrections",
-      "descriptionHash": "5a3e2f89476aad538258bd150f55f65e0f6b0a86ac27538699b7b7bac9c8e112",
-      "description": "Every time this board changed something it had stated about a named company, or changed a method rule, with the old value, the new one, the date and the rule that stops a repeat. Append only: entries are never edited or removed."
-    },
-    {
-      "name": "get_right_of_reply",
-      "descriptionHash": "4b3ef34587c0577078a36cdf74ecb6e948faf9801aee62b20571e75999d3483c",
-      "description": "The free, permanent, unedited reply slot every measured protocol has on its own row, its terms, the only three things that will not be published, and every reply received so far."
     }
   ],
-  "findings": [],
-  "score": 100,
-  "scoreBreakdown": {},
+  "findings": [
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: get_stock_quote, verify_stock_quote, get_vault_state · Private data: verify_stock_quote, get_vault_state · Public sink: get_signed_reserves.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: get_stock_quote, verify_stock_quote, get_vault_state · Private data: verify_stock_quote, get_vault_state · Public sink: get_signed_reserves"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "medium",
+      "category": "tool-poisoning",
+      "title": "Tool removed since last scan",
+      "detail": "Tool \"list_rows\" is no longer advertised. Removal can precede a shadowing replacement from another server.",
+      "evidence": {
+        "source": "tool:list_rows",
+        "snippet": "removed: list_rows"
+      },
+      "confidence": 0.5
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "medium",
+      "category": "tool-poisoning",
+      "title": "Tool removed since last scan",
+      "detail": "Tool \"get_board\" is no longer advertised. Removal can precede a shadowing replacement from another server.",
+      "evidence": {
+        "source": "tool:get_board",
+        "snippet": "removed: get_board"
+      },
+      "confidence": 0.5
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "medium",
+      "category": "tool-poisoning",
+      "title": "Tool removed since last scan",
+      "detail": "Tool \"get_row\" is no longer advertised. Removal can precede a shadowing replacement from another server.",
+      "evidence": {
+        "source": "tool:get_row",
+        "snippet": "removed: get_row"
+      },
+      "confidence": 0.5
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "medium",
+      "category": "tool-poisoning",
+      "title": "Tool removed since last scan",
+      "detail": "Tool \"get_methodology\" is no longer advertised. Removal can precede a shadowing replacement from another server.",
+      "evidence": {
+        "source": "tool:get_methodology",
+        "snippet": "removed: get_methodology"
+      },
+      "confidence": 0.5
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "medium",
+      "category": "tool-poisoning",
+      "title": "Tool removed since last scan",
+      "detail": "Tool \"get_corrections\" is no longer advertised. Removal can precede a shadowing replacement from another server.",
+      "evidence": {
+        "source": "tool:get_corrections",
+        "snippet": "removed: get_corrections"
+      },
+      "confidence": 0.5
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "medium",
+      "category": "tool-poisoning",
+      "title": "Tool removed since last scan",
+      "detail": "Tool \"get_right_of_reply\" is no longer advertised. Removal can precede a shadowing replacement from another server.",
+      "evidence": {
+        "source": "tool:get_right_of_reply",
+        "snippet": "removed: get_right_of_reply"
+      },
+      "confidence": 0.5
+    }
+  ],
+  "score": 64,
+  "scoreBreakdown": {
+    "toxic-flow": 20,
+    "tool-poisoning": 16
+  },
   "errors": []
 }
