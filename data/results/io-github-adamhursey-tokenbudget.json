@@ -1,0 +1,108 @@
+{
+  "schemaVersion": 1,
+  "scanner": {
+    "version": "1.6.0",
+    "rules": "402995650b68"
+  },
+  "target": {
+    "kind": "url",
+    "ref": "https://tokenbudget.netlify.app/mcp"
+  },
+  "scannedAt": "2026-11-25T14:38:27.702Z",
+  "durationMs": 439,
+  "layers": {
+    "metadata": true,
+    "static": false
+  },
+  "tools": [
+    {
+      "name": "estimate_cost",
+      "descriptionHash": "c5b02a3b1d596842a26c10596634cd84256e594e1894296b66caca2c24a80d11",
+      "description": "Price one LLM request (input + expected output) on many models at once, cheapest first, with current list prices from each provider's own pricing page (source URL and check date included), prompt-cache and batch discounts, long-prompt surcharges and announced price changes. Also says whether the req",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "plan_agent_run",
+      "descriptionHash": "c325f36226df9d91e853388dd84d73b1df2eb4dd9c99827ba20e9ed7a994360a",
+      "description": "Estimate the total cost of an agent loop that re-sends its growing context every turn, with prompt caching, on many models. Returns total cost, peak context, how many turns fit in each model's context window, how many turns fit in a budget, and a recommended model. Use before starting a long agent t",
+      "labels": [
+        "destructive"
+      ]
+    },
+    {
+      "name": "check_context_fit",
+      "descriptionHash": "94c99c0fd5d6a5a56901f5b340ee2bb2812ce33cafc371271804e384c47387ab",
+      "description": "Say which models can take this input plus the output you want to reserve, which cannot, and which do not publish a context window. Use before sending a very large document or conversation.",
+      "labels": [
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "count_tokens",
+      "descriptionHash": "eb0978cede1c9a960cc88f86d5ba67afc5214963cb1000bc86a346e21ae7faba",
+      "description": "Estimate how many tokens a text is for each tokenizer family (OpenAI o200k, Claude legacy and 2026, Gemini, DeepSeek, Mistral, Qwen), with an error band. Estimates only; for exact counts use the provider's count endpoint.",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "list_models",
+      "descriptionHash": "9206fbb6322d81f665db36ec9d6b3fc217220cbcb502f8ee785c674595dadfa3",
+      "description": "List every model this tool prices, with input, output, cache and batch prices per 1M tokens, context window, max output, source URL and the day the price was checked.",
+      "labels": [
+        "untrusted-content",
+        "private-data"
+      ]
+    },
+    {
+      "name": "get_model_pricing",
+      "descriptionHash": "c3311c498f77802fa93ddb38e15024e980057ee63642f2c6f4c2b98c1a9938e0",
+      "description": "Price, context window, long-prompt surcharge, announced price changes and source for one model id."
+    },
+    {
+      "name": "send_feedback",
+      "descriptionHash": "3f0e41ffae1e4f4ececa73bcb722e711637b917de68dbb95e284a0d51f142a9d",
+      "description": "Report a wrong price, a missing model, a bug or an idea. Read by a person. Keep it under 1000 characters and do not include prompts, secrets or personal data (they are scrubbed anyway).",
+      "labels": [
+        "private-data",
+        "public-sink"
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"send_feedback\" references sensitive artifacts (secret). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:send_feedback",
+        "snippet": "Report a wrong price, a missing model, a bug or an idea. Read by a person. Keep it under 1000 characters and do not include prompts, secrets or personal data (t…"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: estimate_cost, list_models · Private data: check_context_fit, count_tokens, list_models, send_feedback · Public sink: check_context_fit, send_feedback · Destructive: plan_agent_run.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: estimate_cost, list_models · Private data: check_context_fit, count_tokens, list_models, send_feedback · Public sink: check_context_fit, send_feedback · Destructive: plan_agent_run"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 60,
+  "scoreBreakdown": {
+    "tool-poisoning": 20,
+    "toxic-flow": 20
+  },
+  "errors": []
+}

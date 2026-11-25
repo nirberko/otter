@@ -8,8 +8,8 @@
     "kind": "url",
     "ref": "https://huxin.online/signcheck/mcp"
   },
-  "scannedAt": "2026-11-15T12:17:44.631Z",
-  "durationMs": 8981,
+  "scannedAt": "2026-11-25T14:52:54.681Z",
+  "durationMs": 5468,
   "layers": {
     "metadata": true,
     "static": false
@@ -17,13 +17,27 @@
   "tools": [
     {
       "name": "signcheck_verify",
-      "descriptionHash": "4b8e62e8b3d95c3d3a4f725b9454af5b2eea846474a3824ec78c537e45f1bbe7",
-      "description": "确定性体检一份 HTTP 消息签名样本（RFC 9421）：逐项 checks 给出缺哪个头/覆盖组件够不够/content-digest 是否对得上/created 是否新鲜/签名能否用给定公钥验过，返回 verdict 与可兑现收据。按次计费，0.002 USD/call，先付后跑。"
+      "descriptionHash": "27e62943d93c3b2481f80edc5cf660c2951bf6692098d5a1059f2a9b036c0079",
+      "description": "确定性体检一份 HTTP 消息签名样本（RFC 9421）：逐项 checks 给出缺哪个头/覆盖组件够不够/content-digest 是否对得上/created 是否新鲜/签名能否用给定公钥验过，返回 verdict 与可兑现收据。按次计费，0.002 USD/call（demo 账本，仅联调）；真实收款：19.00 CNY / 200 次提取码。先付后跑。"
     },
     {
       "name": "signcheck_redeem",
-      "descriptionHash": "9e8b1229a8823b9416c04514fe6012bacc3cfc49f696ba3cb9db91c99ef69922",
-      "description": "把爱发电订单上的提取码换成 AK（entitlement）：带可用次数与有效期，由卖家私钥签名，可直接用 /seller-key.jwk 自验。不收费；一张码只能换一次，AK 绑定到你这次签证明的 keyid。换到后把 entitlement 传给 signcheck_verify 即可。"
+      "descriptionHash": "27ca3697707948048a508668a3f016d7b4903af11720508738e5933aa18eecc5",
+      "description": "把爱发电订单上的提取码换成 AK（entitlement）：带可用次数与有效期，由卖家私钥签名，可直接用 /seller-key.jwk 自验。不收费；一张码只能换一次，AK 绑到你这次签证明的 keyid。换到后把 entitlement 单独传给 signcheck_verify 即可（bearer，不需要再签 proof）。标准 MCP host 不会生成钥匙，用 /signcheck/try 页面换码：浏览器里生成钥匙并贴码，AK 直接复制进客户端。"
+    },
+    {
+      "name": "signcheck_trial",
+      "descriptionHash": "767b77fa24d211006b164452db5e988683ed90f6520e492236d063b4deaeecdb",
+      "description": "免费试用一次：把自己的请求样本（method/url/headers/body_b64，可选 key_jwk）贴进来，跑同一套 RFC 9421 体检，返回 verdict + 通过/失败计数 + 最多 3 条失败明细（完整 checks 与可兑现收据需要提取码）。不需要注册、不需要钥匙、不需要签名、不需要付款。同一 IP 24h 一次。适合先判断「我的签名到底缺什么」。"
+    },
+    {
+      "name": "signcheck_gitdoctor",
+      "descriptionHash": "6146279be80422a9c291b18396cadfa0d0feb78a0d537308ab93352c1606fd1c",
+      "description": "诊断一个坏掉的 git pack：定位第一个坏点（offset/seq/kind）、尽可能恢复对象、再用真 git 逐对象验收（cat-file / fsck），返回报告与可兑现收据。两种入参（只能给一种）：pack_url＝你的下载直链，本站自己 GET（≤256 MB，超了请改走本机命令）；transcript＝你本机跑 doctor.py 得到的 transcript.json，本站只对账、不复算包字节（结果标 self_reported=true / not_recomputed）。按 pack 计费 0.10 USD/pack（demo 账本，仅联调）；付款用的是同一把登记钥匙：ke",
+      "labels": [
+        "untrusted-content",
+        "private-data"
+      ]
     },
     {
       "name": "signcheck_pricing",
@@ -31,8 +45,49 @@
       "description": "返回当前价格、收款方、付款凭据形状与调用示例。不收费。"
     }
   ],
-  "findings": [],
-  "score": 100,
-  "scoreBreakdown": {},
+  "findings": [
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"signcheck_redeem\" references sensitive artifacts (bearer). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:signcheck_redeem",
+        "snippet": "把爱发电订单上的提取码换成 AK（entitlement）：带可用次数与有效期，由卖家私钥签名，可直接用 /seller-key.jwk 自验。不收费；一张码只能换一次，AK 绑到你这次签证明的 keyid。换到后把 entitlement 单独传给 signcheck_verify 即可（bearer，不需要再签 p…"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"signcheck_verify\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:signcheck_verify",
+        "snippet": "before: \"确定性体检一份 HTTP 消息签名样本（RFC 9421）：逐项 checks 给出缺哪个头/覆盖组件够不够/content-digest 是否对得上/created 是否新鲜/签名能否用给定公钥验过，返回 verdict 与可兑现收据。按次计费，0.002 USD/call，先付后跑。\" → after: \"确定性体检一份 HTTP 消息签名样本（RFC 9421）：逐项 checks 给出缺哪个头/覆盖组件够不够/content-digest 是否对得上/created 是否新鲜/签名能否用给定公钥验过，返回 verdict 与可兑现收据。按次计费，0.002 USD/call（demo 账本，仅联调）；真实收款：19.00 CNY / 200 次提取码。先付后跑。\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"signcheck_redeem\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:signcheck_redeem",
+        "snippet": "before: \"把爱发电订单上的提取码换成 AK（entitlement）：带可用次数与有效期，由卖家私钥签名，可直接用 /seller-key.jwk 自验。不收费；一张码只能换一次，AK 绑定到你这次签证明的 keyid。换到后把 entitlement 传给 signcheck_verify 即可。\" → after: \"把爱发电订单上的提取码换成 AK（entitlement）：带可用次数与有效期，由卖家私钥签名，可直接用 /seller-key.jwk 自验。不收费；一张码只能换一次，AK 绑到你这次签证明的 keyid。换到后把 entitlement 单独传给 signcheck_verify 即可（bearer，不需要再签 proof）。标准 MCP host 不会生成钥匙，用 /signcheck/try 页面换码：浏览器里生成钥匙并贴码，AK 直接复制进客户端。\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    }
+  ],
+  "score": 65,
+  "scoreBreakdown": {
+    "tool-poisoning": 35
+  },
   "errors": []
 }

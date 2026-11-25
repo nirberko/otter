@@ -8,19 +8,74 @@
     "kind": "url",
     "ref": "https://stmtai.com/mcp"
   },
-  "scannedAt": "2026-11-23T14:53:17.955Z",
-  "durationMs": 332,
+  "scannedAt": "2026-11-25T14:37:54.045Z",
+  "durationMs": 975,
   "layers": {
-    "metadata": false,
+    "metadata": true,
     "static": false
   },
-  "findings": [],
-  "score": 100,
-  "scoreBreakdown": {},
-  "errors": [
+  "tools": [
     {
-      "scanner": "metadata",
-      "message": "Streamable HTTP error: Error POSTing to endpoint: {\"error\":\"unauthorized\",\"error_description\":\"Sign in to stmtai from your assistant to use this connector.\"}"
+      "name": "convert_statement",
+      "descriptionHash": "287c07eb2adc71e31ee08975c80b946d9f2868ecc08c501e26b731e916976075",
+      "description": "Starts converting one bank or credit-card statement (PDF, scanned image, CSV, QIF, OFX/QFX) into reconciled transactions on the user's stmtai account. Pass the bytes as file_base64 (about 4 MB at most) or as an attached file object; with neither, the result is an upload_required handshake holding a ",
+      "labels": [
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "get_conversion",
+      "descriptionHash": "1585391a40b92a29fafd87acc9cb0298bad8281b7882f01b75feef565a75d4c8",
+      "description": "Reports the state of one conversion: \"processing\" while it runs, \"error\" with the reason when it failed (nothing charged), or \"done\" with a summary: file name, bank, account last digits, statement period, reconciliation outcome (balanced, unbalanced or unverifiable) and difference, transaction count",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "get_download_link",
+      "descriptionHash": "b19bc3b9c6c04b1b449685d207970cfe89f874b5712de6cc253be31ee575864b",
+      "description": "Creates a download link (valid 15 minutes, no sign-in needed to open it) for a finished conversion in one of these formats: xlsx, csv, xero, qbo, qbcsv, tally, report. xlsx is an Excel workbook with transactions, summary and categories; csv is Date, Description, Money Out, Money In, Amount, Balance,",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "list_conversions",
+      "descriptionHash": "78459b7c79aba5d4425629ba0646294c7660f10d63e9ff36947ed1f795bc99d9",
+      "description": "Lists the user's finished conversions, newest first (default 20, at most 50): conversion id, file name, when it was converted, reconciliation status, pages read, transaction count and when the result expires (results are kept 7 days unless the user deletes them earlier).",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "get_account",
+      "descriptionHash": "5c18ab2cc71f1a938e37e22b0d95101a8368172facd7ebbef06e5c5198216399",
+      "description": "Shows the signed-in stmtai account: email, plan, subscription status, monthly page allowance, pages remaining this month (plan and pages-pack) and when the monthly counter resets. An account that has never converted anything reports the Free plan without a remaining count.",
+      "labels": [
+        "untrusted-content",
+        "public-sink"
+      ]
     }
-  ]
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: get_account · Private data: convert_statement, get_conversion, get_download_link, list_conversions · Public sink: convert_statement, get_account.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: get_account · Private data: convert_statement, get_conversion, get_download_link, list_conversions · Public sink: convert_statement, get_account"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 80,
+  "scoreBreakdown": {
+    "toxic-flow": 20
+  },
+  "errors": []
 }

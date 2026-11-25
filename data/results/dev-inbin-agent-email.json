@@ -8,13 +8,22 @@
     "kind": "url",
     "ref": "https://api.inbin.dev/mcp"
   },
-  "scannedAt": "2026-11-23T14:54:43.195Z",
-  "durationMs": 696,
+  "scannedAt": "2026-11-25T14:39:17.155Z",
+  "durationMs": 1070,
   "layers": {
     "metadata": true,
     "static": false
   },
   "tools": [
+    {
+      "name": "verify_inbin_email",
+      "descriptionHash": "144eaee6751a18890c2a3d8d5f4ed24c376e31ff47d2d473a86440f9ede37b4a",
+      "description": "Check that an email was really sent by an agent through Inbin. No account needed. Pass `input`: the verify link from the email's footer (inbin.dev/verify/snd_...), its snd_ id, or the raw X-Agent-Verified-Identity-Signature header value. Returns signed_by_inbin, the agent identity Inbin verified (is",
+      "labels": [
+        "untrusted-content",
+        "public-sink"
+      ]
+    },
     {
       "name": "create_trial_inbox",
       "descriptionHash": "d4770fe7267150463f5966b1b7c0fbf6c2a78fc39749e3aa3446a209273ff72f",
@@ -44,7 +53,7 @@
     },
     {
       "name": "await_trial_inbox_claim",
-      "descriptionHash": "7b99d616faea94af803775a53abac6550c8493cce1a1359daff7bce593824d19",
+      "descriptionHash": "c04276c424caeca9435d15f8f4df88045a3d4d5e0c29e74c594202ad493586b8",
       "description": "Block (up to ttl_seconds, max 60) for a human to finish the EMAIL+CODE step on the claim_url page from claim_trial_inbox. This NEVER returns a credential, at any status. It returns one of three honest states, not a single 'connected': \"claim_pending\" (nobody has entered the code yet -- keep waiting ",
       "labels": [
         "untrusted-content",
@@ -54,11 +63,21 @@
     },
     {
       "name": "claim_connection_status",
-      "descriptionHash": "8a20a95a2f35eefb376d0171ea90015cbeb9f725b9a0aee0535bf88e5ed55959",
-      "description": "Read-only, non-blocking check of exactly which state a claim_trial_inbox connection is in RIGHT NOW: \"claim_pending\", \"claimed\" (credential issued, unused), or \"client_installed\" (a client has actually authenticated with it at least once -- real, observed). Never returns a credential. Use this inste",
+      "descriptionHash": "81d8bf4f546faff57794dddea73e9898547942b060e89dba190853e29aa1103d",
+      "description": "Read-only, non-blocking check of exactly which state a claim_trial_inbox connection is in RIGHT NOW: \"claim_pending\", \"claimed\" (credential issued, unused), or \"client_installed\" (a client has actually authenticated with it at least once -- real, observed), or, when the human asked to join someone e",
       "labels": [
         "untrusted-content",
         "private-data"
+      ]
+    },
+    {
+      "name": "join_inbox",
+      "descriptionHash": "4b33bcd7182871f4704bb40159d820c966fc6c0b311dc3054942673aff975e5d",
+      "description": "Use an Inbin invite link someone sent you. Needs no credentials. Returns a claim_url: show it to the person; they enter the email the invite was made for and the code Inbin emails them, and the page then shows this agent's connection. Then wait with await_trial_inbox_claim (the token after /claim/) ",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink"
       ]
     }
   ],
@@ -101,22 +120,60 @@
       "confidence": 0.75
     },
     {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"join_inbox\" references sensitive artifacts (credentials). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:join_inbox",
+        "snippet": "Use an Inbin invite link someone sent you. Needs no credentials. Returns a claim_url: show it to the person; they enter the email the invite was made for and th…"
+      },
+      "confidence": 0.65
+    },
+    {
       "id": "MCP-TOXIC-FLOW-001",
       "severity": "high",
       "category": "toxic-flow",
       "title": "Lethal trifecta: untrusted input + private data + external sink",
-      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: create_trial_inbox, await_trial_inbox_claim, claim_connection_status · Private data: claim_trial_inbox, await_trial_inbox_claim, claim_connection_status · Public sink: create_trial_inbox, await_trial_inbox, claim_trial_inbox, await_trial_inbox_claim · Destructive: await_trial_inbox.",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: verify_inbin_email, create_trial_inbox, await_trial_inbox_claim, claim_connection_status, join_inbox · Private data: claim_trial_inbox, await_trial_inbox_claim, claim_connection_status, join_inbox · Public sink: verify_inbin_email, create_trial_inbox, await_trial_inbox, claim_trial_inbox, await_trial_inbox_claim, join_inbox · Destructive: await_trial_inbox.",
       "evidence": {
         "source": "server:mcp",
-        "snippet": "Untrusted content: create_trial_inbox, await_trial_inbox_claim, claim_connection_status · Private data: claim_trial_inbox, await_trial_inbox_claim, claim_connection_status · Public sink: create_trial_inbox, await_trial_inbox, claim_trial_inbox, await_trial_inbox_claim · Destructive: await_trial_inbox"
+        "snippet": "Untrusted content: verify_inbin_email, create_trial_inbox, await_trial_inbox_claim, claim_connection_status, join_inbox · Private data: claim_trial_inbox, await_trial_inbox_claim, claim_connection_status, join_inbox · Public sink: verify_inbin_email, create_trial_inbox, await_trial_inbox, claim_trial_inbox, await_trial_inbox_claim, join_inbox · Destructive: await_trial_inbox"
       },
       "confidence": 0.6,
       "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"await_trial_inbox_claim\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:await_trial_inbox_claim",
+        "snippet": "before: \"Block (up to ttl_seconds, max 60) for a human to finish the EMAIL+CODE step on the claim_url page from claim_trial_inbox. This NEVER returns a credential, at any status. It returns one of three honest states, not a single 'connected': \"claim_pending\" (nobody has entered the code yet -- keep waiting \" → after: \"Block (up to ttl_seconds, max 60) for a human to finish the EMAIL+CODE step on the claim_url page from claim_trial_inbox. This NEVER returns a credential, at any status. It returns one of three honest states, not a single 'connected': \"claim_pending\" (nobody has entered the code yet -- keep waiting \""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"claim_connection_status\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:claim_connection_status",
+        "snippet": "before: \"Read-only, non-blocking check of exactly which state a claim_trial_inbox connection is in RIGHT NOW: \"claim_pending\", \"claimed\" (credential issued, unused), or \"client_installed\" (a client has actually authenticated with it at least once -- real, observed). Never returns a credential. Use this inste\" → after: \"Read-only, non-blocking check of exactly which state a claim_trial_inbox connection is in RIGHT NOW: \"claim_pending\", \"claimed\" (credential issued, unused), or \"client_installed\" (a client has actually authenticated with it at least once -- real, observed), or, when the human asked to join someone e\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
     }
   ],
-  "score": 49,
+  "score": 41,
   "scoreBreakdown": {
-    "tool-poisoning": 31,
+    "tool-poisoning": 39,
     "toxic-flow": 20
   },
   "errors": []

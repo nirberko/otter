@@ -8,8 +8,8 @@
     "kind": "url",
     "ref": "https://serp-extract-72343955726.us-central1.run.app/mcp/serp-extract"
   },
-  "scannedAt": "2026-10-13T12:07:58.220Z",
-  "durationMs": 340,
+  "scannedAt": "2026-11-25T14:49:17.833Z",
+  "durationMs": 298,
   "layers": {
     "metadata": true,
     "static": false
@@ -17,23 +17,69 @@
   "tools": [
     {
       "name": "search_clean_agent_web",
-      "descriptionHash": "cc5c14471af88dc51fbf9165b4460829448a4d6c354494f08bc3ed197dc56f28",
-      "description": "Zero-Bloat Agent Web Search & Tech News Aggregator (0.01 USDC via x402): Executes live web/news search queries and returns clean, token-pruned results with zero ad bloat.",
+      "descriptionHash": "16b8848fdea6d850a2f9f9d9d1b66417cd55fe220010598e45ffa3b3b19bf15b",
+      "description": "Executes live Google News RSS + HackerNews Algolia search queries and returns clean, token-pruned results with zero ad bloat. WHEN TO USE: Call `search_clean_agent_web` when your task requires deterministic `serp-extract` analysis for `query`; use `get_agent_wallet_status` to check your remaining fr",
       "labels": [
+        "untrusted-content",
         "private-data"
       ]
     },
     {
       "name": "get_agent_wallet_status",
-      "descriptionHash": "80ec610e59e6305031c21c8b7b856c59cf4752e69316f5570a7fa98afe815881",
-      "description": "Returns the calling agent's remaining free quota, USD balance, and total tokens saved.",
+      "descriptionHash": "2ba154caf98dd04808495e56e49c0db94a0d248d084666e40ff2b82f912fcae4",
+      "description": "Inspect an agent's account ledger: remaining free trial calls (out of 5), prepaid USD balance, cumulative spend, total API calls, and total LLM tokens saved. WHEN TO USE: Call before a batch of paid tool executions or after completing a Stripe or USDC top-up to confirm your balance. WHEN NOT TO USE:",
       "labels": [
-        "private-data"
+        "private-data",
+        "public-sink",
+        "destructive"
       ]
     }
   ],
-  "findings": [],
-  "score": 100,
-  "scoreBreakdown": {},
+  "findings": [
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"serp-extract\" exposes tools that together enable an exfiltration flow. Untrusted content: search_clean_agent_web · Private data: search_clean_agent_web, get_agent_wallet_status · Public sink: get_agent_wallet_status · Destructive: get_agent_wallet_status.",
+      "evidence": {
+        "source": "server:serp-extract",
+        "snippet": "Untrusted content: search_clean_agent_web · Private data: search_clean_agent_web, get_agent_wallet_status · Public sink: get_agent_wallet_status · Destructive: get_agent_wallet_status"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"search_clean_agent_web\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:search_clean_agent_web",
+        "snippet": "before: \"Zero-Bloat Agent Web Search & Tech News Aggregator (0.01 USDC via x402): Executes live web/news search queries and returns clean, token-pruned results with zero ad bloat.\" → after: \"Executes live Google News RSS + HackerNews Algolia search queries and returns clean, token-pruned results with zero ad bloat. WHEN TO USE: Call `search_clean_agent_web` when your task requires deterministic `serp-extract` analysis for `query`; use `get_agent_wallet_status` to check your remaining fr\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"get_agent_wallet_status\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:get_agent_wallet_status",
+        "snippet": "before: \"Returns the calling agent's remaining free quota, USD balance, and total tokens saved.\" → after: \"Inspect an agent's account ledger: remaining free trial calls (out of 5), prepaid USD balance, cumulative spend, total API calls, and total LLM tokens saved. WHEN TO USE: Call before a batch of paid tool executions or after completing a Stripe or USDC top-up to confirm your balance. WHEN NOT TO USE:\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    }
+  ],
+  "score": 50,
+  "scoreBreakdown": {
+    "toxic-flow": 20,
+    "tool-poisoning": 30
+  },
   "errors": []
 }

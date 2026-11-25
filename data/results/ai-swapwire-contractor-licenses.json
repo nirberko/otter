@@ -8,8 +8,8 @@
     "kind": "url",
     "ref": "https://swapwire.ai/mcp"
   },
-  "scannedAt": "2026-11-20T13:22:34.304Z",
-  "durationMs": 384,
+  "scannedAt": "2026-11-25T14:54:13.741Z",
+  "durationMs": 322,
   "layers": {
     "metadata": true,
     "static": false
@@ -25,7 +25,7 @@
     },
     {
       "name": "search_licenses",
-      "descriptionHash": "3cb397174ceda1c8f6c1879048f7dac9ef0e6d843dfe1dc3fd07c530cd40b4f7",
+      "descriptionHash": "42a3debe58fd339cfaa1be8e2f96503411a2bd42d5e23f2244294f41d551bb16",
       "description": "Search contractor licenses (California by default; pass state for others) three ways. (1) By business name, as written on a quote, invoice, truck or website: typos, word forms (plumber/plumbing), missing words and Inc/LLC are handled, and other names on the CSLB record are matched too (other_busines",
       "labels": [
         "private-data"
@@ -33,7 +33,7 @@
     },
     {
       "name": "check_document",
-      "descriptionHash": "e602ac7e7bb3011ccd4d5f6b0a53a05d2616f2d0ad0600f103fd34c8a812ab5d",
+      "descriptionHash": "785750af607e0de6104e5f252bf5680b83dd9d711d6a4142d775f80c2be4a9b5",
       "description": "Check whether a contractor's quote, invoice, contract, business card, ad or truck photo matches a California license in this dataset. Send the document as text, as a PNG or JPEG image (base64), or both, plus the license number to check against (if the text shows a license number from the dataset, it",
       "labels": [
         "private-data",
@@ -51,15 +51,82 @@
     },
     {
       "name": "get_prices",
-      "descriptionHash": "d82aaa98e60283860d5ca7354f61a223ade818d06c141a2dc672efb42610607b",
-      "description": "Median installed cost and the middle half (25th to 75th percentile) for heat pumps, solar, battery storage and weatherization, from public rebate, loan and incentive program records in Oregon, New York, Massachusetts, Connecticut and Delaware, statewide and by county or city. Each series says what t",
+      "descriptionHash": "891aa5457d55e96444b327b947655cc8a5648c2be2c7dcba7f65d844f1e7785f",
+      "description": "Median and middle half (25th to 75th percentile) of what common home jobs cost, from two kinds of public record. (1) Rebate, loan and incentive program records in Oregon, New York, Massachusetts, Connecticut and Delaware: installed cost of heat pumps, solar, battery storage and weatherization, state",
       "labels": [
-        "private-data"
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "get_rules",
+      "descriptionHash": "9b909f88eeff57e0455da6787992964ee80253e118c3423b7a35b9967040cdf8",
+      "description": "Answers rules questions homeowners ask before hiring, for one state: how much a contractor may ask up front (deposit_limit), when a state license is needed (license_threshold), what an unlicensed handyman may do, including electrical or plumbing (handyman_exemption), whether a job needs a permit (pe",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink"
       ]
     }
   ],
-  "findings": [],
-  "score": 100,
-  "scoreBreakdown": {},
+  "findings": [
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: get_rules · Private data: get_license, search_licenses, check_document, get_area_stats, get_prices, get_rules · Public sink: check_document, get_prices, get_rules · Destructive: check_document.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: get_rules · Private data: get_license, search_licenses, check_document, get_area_stats, get_prices, get_rules · Public sink: check_document, get_prices, get_rules · Destructive: check_document"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"search_licenses\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:search_licenses",
+        "snippet": "before: \"Search contractor licenses (California by default; pass state for others) three ways. (1) By business name, as written on a quote, invoice, truck or website: typos, word forms (plumber/plumbing), missing words and Inc/LLC are handled, and other names on the CSLB record are matched too (other_busines\" → after: \"Search contractor licenses (California by default; pass state for others) three ways. (1) By business name, as written on a quote, invoice, truck or website: typos, word forms (plumber/plumbing), missing words and Inc/LLC are handled, and other names on the CSLB record are matched too (other_busines\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"check_document\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:check_document",
+        "snippet": "before: \"Check whether a contractor's quote, invoice, contract, business card, ad or truck photo matches a California license in this dataset. Send the document as text, as a PNG or JPEG image (base64), or both, plus the license number to check against (if the text shows a license number from the dataset, it\" → after: \"Check whether a contractor's quote, invoice, contract, business card, ad or truck photo matches a California license in this dataset. Send the document as text, as a PNG or JPEG image (base64), or both, plus the license number to check against (if the text shows a license number from the dataset, it\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"get_prices\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:get_prices",
+        "snippet": "before: \"Median installed cost and the middle half (25th to 75th percentile) for heat pumps, solar, battery storage and weatherization, from public rebate, loan and incentive program records in Oregon, New York, Massachusetts, Connecticut and Delaware, statewide and by county or city. Each series says what t\" → after: \"Median and middle half (25th to 75th percentile) of what common home jobs cost, from two kinds of public record. (1) Rebate, loan and incentive program records in Oregon, New York, Massachusetts, Connecticut and Delaware: installed cost of heat pumps, solar, battery storage and weatherization, state\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    }
+  ],
+  "score": 45,
+  "scoreBreakdown": {
+    "toxic-flow": 20,
+    "tool-poisoning": 35
+  },
   "errors": []
 }

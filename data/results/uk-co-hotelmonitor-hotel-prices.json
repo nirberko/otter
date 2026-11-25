@@ -8,8 +8,8 @@
     "kind": "url",
     "ref": "https://hotelmonitor.co.uk/mcp"
   },
-  "scannedAt": "2026-10-10T10:54:08.544Z",
-  "durationMs": 1772,
+  "scannedAt": "2026-11-25T14:54:24.618Z",
+  "durationMs": 1730,
   "layers": {
     "metadata": true,
     "static": false
@@ -17,22 +17,105 @@
   "tools": [
     {
       "name": "check_hotel_price",
-      "descriptionHash": "f16bdbb5a8cc86b3200a8575f8c97f798eb18ad2082df708ada8eda722e90e97",
-      "description": "Say whether a price the person has been quoted for a hotel is high, low or usual for that hotel in that month, using HotelMonitor's own scans. Use it when someone asks \"is this a good price?\". Returns no verdict when there is not enough data. Prices are tax-inclusive nightly figures for two adults f"
+      "descriptionHash": "2da06fcc32b78a2eeb01801f9066253f0957b0f8a6613ebe54afd7e4a9cc7400",
+      "description": "Say whether a price the person has been quoted for a hotel is high, low or usual for that hotel in that month, using HotelMonitor's own scans. Use it when someone asks \"is this a good price?\". Returns no verdict when there is not enough data. Prices are tax-inclusive nightly figures for two adults f",
+      "labels": [
+        "public-sink"
+      ]
     },
     {
       "name": "get_destination_prices",
-      "descriptionHash": "c09164c543fa349eef8193af8db3113577abb3b347668cb64b2aed33e525947c",
-      "description": "Typical nightly hotel price by month for a destination over the coming months, and its cheapest months. Months with too few scans are left out. Use it for \"when is it cheapest to go to X?\". Prices are tax-inclusive nightly figures for two adults from past scans, not a live quote. Results include pag"
+      "descriptionHash": "70b3f43a2b757f74db9114b288e369dc74843482305c34907a197bfc35074b6c",
+      "description": "Typical nightly hotel price by month for a destination over the coming months, and its cheapest months. Months with too few scans are left out. Use it for \"when is it cheapest to go to X?\". Prices are tax-inclusive nightly figures for two adults from past scans (the Agoda share is an estimate of tax",
+      "labels": [
+        "public-sink"
+      ]
     },
     {
       "name": "find_hotel_deals",
-      "descriptionHash": "5452eebe244ddb03a8a3ef9d540f20e5d3c445790d3334f318113d4dbecdb195",
-      "description": "Current hotel deals from the latest scans (at most 20): hotels priced below their usual level, optionally for one destination, check-in month or maximum nightly price. Prices are tax-inclusive nightly figures for two adults from past scans, not a live quote. Each deal includes page_url (price histor"
+      "descriptionHash": "6d2db61aeeb50d663e66d3afa153f1a74c85972cbbfef233c534e4954bfe0a82",
+      "description": "Current hotel deals from the latest scans (at most 20): hotels priced below their typical level, optionally for one destination, check-in month or maximum nightly price. Prices are tax-inclusive nightly figures for two adults from past scans (the Agoda share is an estimate of tax), not a live quote.",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "is_this_a_good_price",
+      "descriptionHash": "ac74f3c9445961a720a24f06f2a706621b061b5a9b55b6f5ac2a375b2ee780b7",
+      "description": "Say whether a quoted hotel price is good, typical or high against HotelMonitor's stored prices for the same hotel, check-in month, nights band, party (2 adults) and tax basis. Returns no verdict when there are fewer than 20 prices over 14 days. Includes a URL to cite.",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "cheapest_time_to_visit",
+      "descriptionHash": "50501a1e008b2e6c29d84427ea770c3e671ed428fdf46dccc8ec9dac9a4585e1",
+      "description": "Cheapest and dearest months, and cheapest weeks, for a destination from HotelMonitor's stored scans, each with its scan count and dates. Includes a URL to cite."
+    },
+    {
+      "name": "find_trip",
+      "descriptionHash": "d0e769c8f392d2f05ec9b2a019b14bc655bbc9160dbb1e7f1952e320a4f75672",
+      "description": "Shortlist hotels for a destination, check-in window, nights and party, with live prices for a few dates, the tax basis and what could not be confirmed. Capped and cached; anonymous callers get 3 a day."
     }
   ],
-  "findings": [],
-  "score": 100,
-  "scoreBreakdown": {},
+  "findings": [
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "medium",
+      "category": "toxic-flow",
+      "title": "Toxic flow: untrusted input can reach an external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: is_this_a_good_price · Public sink: check_hotel_price, get_destination_prices, find_hotel_deals.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: is_this_a_good_price · Public sink: check_hotel_price, get_destination_prices, find_hotel_deals"
+      },
+      "confidence": 0.45,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"check_hotel_price\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:check_hotel_price",
+        "snippet": "before: \"Say whether a price the person has been quoted for a hotel is high, low or usual for that hotel in that month, using HotelMonitor's own scans. Use it when someone asks \"is this a good price?\". Returns no verdict when there is not enough data. Prices are tax-inclusive nightly figures for two adults f\" → after: \"Say whether a price the person has been quoted for a hotel is high, low or usual for that hotel in that month, using HotelMonitor's own scans. Use it when someone asks \"is this a good price?\". Returns no verdict when there is not enough data. Prices are tax-inclusive nightly figures for two adults f\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"get_destination_prices\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:get_destination_prices",
+        "snippet": "before: \"Typical nightly hotel price by month for a destination over the coming months, and its cheapest months. Months with too few scans are left out. Use it for \"when is it cheapest to go to X?\". Prices are tax-inclusive nightly figures for two adults from past scans, not a live quote. Results include pag\" → after: \"Typical nightly hotel price by month for a destination over the coming months, and its cheapest months. Months with too few scans are left out. Use it for \"when is it cheapest to go to X?\". Prices are tax-inclusive nightly figures for two adults from past scans (the Agoda share is an estimate of tax\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"find_hotel_deals\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:find_hotel_deals",
+        "snippet": "before: \"Current hotel deals from the latest scans (at most 20): hotels priced below their usual level, optionally for one destination, check-in month or maximum nightly price. Prices are tax-inclusive nightly figures for two adults from past scans, not a live quote. Each deal includes page_url (price histor\" → after: \"Current hotel deals from the latest scans (at most 20): hotels priced below their typical level, optionally for one destination, check-in month or maximum nightly price. Prices are tax-inclusive nightly figures for two adults from past scans (the Agoda share is an estimate of tax), not a live quote.\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    }
+  ],
+  "score": 57,
+  "scoreBreakdown": {
+    "toxic-flow": 8,
+    "tool-poisoning": 35
+  },
   "errors": []
 }

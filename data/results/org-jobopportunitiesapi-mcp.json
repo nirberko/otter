@@ -8,8 +8,8 @@
     "kind": "url",
     "ref": "https://api.jobopportunitiesapi.org/mcp"
   },
-  "scannedAt": "2026-10-10T10:53:35.528Z",
-  "durationMs": 1977,
+  "scannedAt": "2026-11-25T14:53:02.940Z",
+  "durationMs": 2041,
   "layers": {
     "metadata": true,
     "static": false
@@ -17,7 +17,7 @@
   "tools": [
     {
       "name": "search_jobs",
-      "descriptionHash": "81fa10fbaa3cbd36f993c56ecd3389870407ef3e6c05cb8ff2eb1757a6dbe73c",
+      "descriptionHash": "3484bdc953da850fe61374dc2fe6015ea5dd4c87461d3043cd68456667a8dedb",
       "description": "Search JOA's live ledger of employer-direct job postings (current count: the coverage tool). Filter by country, city, US state, job category/family, seniority, remote type, employment type, engagement (employee/vendor), contract category, agency flag, working schedule, source type, provider, employe",
       "labels": [
         "private-data"
@@ -25,15 +25,15 @@
     },
     {
       "name": "get_job",
-      "descriptionHash": "745cebef616e0faf6233b368e8a0a284ffddd90d3c2ec3c61b7c34162c261cf4",
-      "description": "Fetch a single job posting's full detail: the complete advert description, per-field provenance (published/inferred/absent), and closure info if the role has since closed. NEEDS a JOA API key -- free Explore key at https://jobopportunitiesapi.org/login?ref=mcp. The description field is third-party t",
+      "descriptionHash": "6abe116ced0b01598483c3459c54ec12f7df7a2253f5c2b5414c9687450e4978",
+      "description": "Fetch a single job posting's full detail: the complete advert description, per-field provenance (published/inferred/absent), and closure info if the role has since closed. NEEDS a JOA API key -- free Primary key at https://jobopportunitiesapi.org/login?ref=mcp. The description field is third-party t",
       "labels": [
         "private-data"
       ]
     },
     {
       "name": "company_hiring",
-      "descriptionHash": "06240d99b0285b062814821098f611261599ee07e67ec8f329b2c4d0951741bc",
+      "descriptionHash": "ad2b92d41f557da08584b2038c4bd05be843e1cfaf6039d8992bd47469dbd80a",
       "description": "Look up one employer by slug: its profile (website, industry, live open-role count) and its 30/90/365-day open-roles trend (daily snapshots from 2026-10-06, earlier gaps; each point is labelled snapshot or reconstructed). The open-roles TREND works with NO key at all, mirroring this API's own keyles",
       "labels": [
         "private-data"
@@ -58,10 +58,30 @@
     },
     {
       "name": "changes_since",
-      "descriptionHash": "d127dd43a0c4c2916c5f0bbf7f28c16ca501da607f3155c96ccc8eb1e770b69c",
+      "descriptionHash": "b02e07c74e9e67226d3ddc68740d4ff2c47c6687eab626ad3aa28891e0d410a0",
       "description": "The incremental change feed: every job created, updated, withdrawn or delisted since a given cursor, in change order, with a next_since cursor to resume from -- how an integrator keeps a local copy of the ledger current without re-scanning it. NEEDS a JOA API key on the Growth plan or above (the del",
       "labels": [
-        "private-data"
+        "untrusted-content",
+        "private-data",
+        "destructive"
+      ]
+    },
+    {
+      "name": "job_status",
+      "descriptionHash": "bda80467a5472086a8210bc4e3e0b6b296ef6414e264ad315ecab38437b2a4a1",
+      "description": "For a local copy of the ledger: send up to 1000 job ids, get each one's current status (live, closed, withdrawn or unknown, exactly what get_job would answer with this key), with closed_at and closed_reason, withdrawn_at and withdrawn_reason, and for a live or closed id content_version, content_chan",
+      "labels": [
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "sponsor_lookup",
+      "descriptionHash": "0ee55db50f482ca2064240d7025dac0e36d91adc89614e500b0ea1ac60084a4f",
+      "description": "For up to 100 employer names, whether each appears on an official government sponsor register JOA reads: the UK Home Office register of licensed sponsors, the IND recognised sponsors (NL), the SIRI fast-track certified companies (DK) (licences), and the US DOL LCA (H-1B) and PERM filings, the Canadi",
+      "labels": [
+        "private-data",
+        "public-sink"
       ]
     }
   ],
@@ -79,6 +99,31 @@
       "confidence": 0.65
     },
     {
+      "id": "MCP-TOOL-POISON-006",
+      "severity": "low",
+      "category": "tool-poisoning",
+      "title": "Anomalously long tool description",
+      "detail": "Description of \"sponsor_lookup\" is 3311 chars, far longer than this server's median (651). Overlong descriptions are a common place to bury instructions.",
+      "evidence": {
+        "source": "tool:sponsor_lookup",
+        "snippet": "For up to 100 employer names, whether each appears on an official government sponsor register JOA reads: the UK Home Office register of licensed sponsors, the I…"
+      },
+      "confidence": 0.4
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: coverage, changes_since · Private data: search_jobs, get_job, company_hiring, market_signals, coverage, changes_since, job_status, sponsor_lookup · Public sink: job_status, sponsor_lookup · Destructive: changes_since.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: coverage, changes_since · Private data: search_jobs, get_job, company_hiring, market_signals, coverage, changes_since, job_status, sponsor_lookup · Public sink: job_status, sponsor_lookup · Destructive: changes_since"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    },
+    {
       "id": "MCP-RUGPULL-001",
       "severity": "high",
       "category": "tool-poisoning",
@@ -86,7 +131,20 @@
       "detail": "Tool \"search_jobs\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
       "evidence": {
         "source": "tool:search_jobs",
-        "snippet": "before: \"Search JOA's live ledger of roughly 2.3M employer-direct job postings across 248 countries. Filter by country, city, US state, job category/family, seniority, remote type, employment type, source type, provider, employer (slug or verified domain), salary range, posting/verification date and free tex\" → after: \"Search JOA's live ledger of employer-direct job postings (current count: the coverage tool). Filter by country, city, US state, job category/family, seniority, remote type, employment type, engagement (employee/vendor), contract category, agency flag, working schedule, source type, provider, employe\""
+        "snippet": "before: \"Search JOA's live ledger of employer-direct job postings (current count: the coverage tool). Filter by country, city, US state, job category/family, seniority, remote type, employment type, engagement (employee/vendor), contract category, agency flag, working schedule, source type, provider, employe\" → after: \"Search JOA's live ledger of employer-direct job postings (current count: the coverage tool). Filter by country, city, US state, job category/family, seniority, remote type, employment type, engagement (employee/vendor), contract category, agency flag, working schedule, source type, provider, employe\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"get_job\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:get_job",
+        "snippet": "before: \"Fetch a single job posting's full detail: the complete advert description, per-field provenance (published/inferred/absent), and closure info if the role has since closed. NEEDS a JOA API key -- free Explore key at https://jobopportunitiesapi.org/login?ref=mcp. The description field is third-party t\" → after: \"Fetch a single job posting's full detail: the complete advert description, per-field provenance (published/inferred/absent), and closure info if the role has since closed. NEEDS a JOA API key -- free Primary key at https://jobopportunitiesapi.org/login?ref=mcp. The description field is third-party t\""
       },
       "confidence": 0.8,
       "remediation": "Re-review the tool before continuing to trust it."
@@ -99,15 +157,29 @@
       "detail": "Tool \"company_hiring\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
       "evidence": {
         "source": "tool:company_hiring",
-        "snippet": "before: \"Look up one employer by slug: its profile (website, industry, live open-role count) and its 30/90/365-day open-roles trend. The open-roles TREND works with NO key at all, mirroring this API's own keyless-statistics rule; the full profile, open-role count and optional live job rows need a JOA API key\" → after: \"Look up one employer by slug: its profile (website, industry, live open-role count) and its 30/90/365-day open-roles trend (daily snapshots from 2026-10-06, earlier gaps; each point is labelled snapshot or reconstructed). The open-roles TREND works with NO key at all, mirroring this API's own keyles\""
+        "snippet": "before: \"Look up one employer by slug: its profile (website, industry, live open-role count) and its 30/90/365-day open-roles trend (daily snapshots from 2026-10-06, earlier gaps; each point is labelled snapshot or reconstructed). The open-roles TREND works with NO key at all, mirroring this API's own keyles\" → after: \"Look up one employer by slug: its profile (website, industry, live open-role count) and its 30/90/365-day open-roles trend (daily snapshots from 2026-10-06, earlier gaps; each point is labelled snapshot or reconstructed). The open-roles TREND works with NO key at all, mirroring this API's own keyles\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"changes_since\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:changes_since",
+        "snippet": "before: \"The incremental change feed: every job created, updated, withdrawn or delisted since a given cursor, in change order, with a next_since cursor to resume from -- how an integrator keeps a local copy of the ledger current without re-scanning it. NEEDS a JOA API key on the Growth plan or above (the del\" → after: \"The incremental change feed: every job created, updated, withdrawn or delisted since a given cursor, in change order, with a next_since cursor to resume from -- how an integrator keeps a local copy of the ledger current without re-scanning it. NEEDS a JOA API key on the Growth plan or above (the del\""
       },
       "confidence": 0.8,
       "remediation": "Re-review the tool before continuing to trust it."
     }
   ],
-  "score": 65,
+  "score": 41,
   "scoreBreakdown": {
-    "tool-poisoning": 35
+    "tool-poisoning": 39,
+    "toxic-flow": 20
   },
   "errors": []
 }

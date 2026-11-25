@@ -8,8 +8,8 @@
     "kind": "url",
     "ref": "https://hooklayer.dev/api/mcp"
   },
-  "scannedAt": "2026-11-18T13:21:13.180Z",
-  "durationMs": 912,
+  "scannedAt": "2026-11-25T14:44:25.142Z",
+  "durationMs": 1037,
   "layers": {
     "metadata": true,
     "static": false
@@ -42,7 +42,7 @@
     {
       "name": "list_watches",
       "descriptionHash": "56ce5df2f4a1d4370055e140f6cb423f3b727e14426cc20f3422651b07269a75",
-      "description": "List every creator the authenticated user is tracking. Read-only, 0 credits. Returns each watch's id, platform, handle, when it was created + last updated, when the last snapshot was taken, and whether it's active. Does NOT return the ssnapshot payload itself — call watch_account (idempotent) to refr"
+      "description": "List every creator the authenticated user is tracking. Read-only, 0 credits. Returns each watch's id, platform, handle, when it was created + last updated, when the last snapshot was taken, and whether it's active. Does NOT return the snapshot payload itself — call watch_account (idempotent) to refr"
     },
     {
       "name": "score_hook",
@@ -72,7 +72,7 @@
     },
     {
       "name": "search_videos",
-      "descriptionHash": "3ecc19473d0cf8a445838e0c3a71476660a134b7135bcc68cfceb437d7c423cf",
+      "descriptionHash": "c8b03479a171589a7dfcb7e243680a29acd93f7ed20e891573401ea7b8d01939",
       "description": "Search for short-form videos by keyword across TikTok or Instagram. Returns up to 20 videos ranked by engagement, with view counts, likes, shares, comments, hashtags, author info, and URLs. Use when the user asks to find videos about a topic or keyword. Supports optional filters for niche, minimum v",
       "labels": [
         "untrusted-content"
@@ -102,10 +102,11 @@
     },
     {
       "name": "product_scout",
-      "descriptionHash": "d7295f47b4ef974e98db86e0dfe5a0312c44473d7e55d6e49cda481eb6511d49",
+      "descriptionHash": "991afc7069f238faa6ad04540acd5696d7c26f34172b16755551835fd6714c9d",
       "description": "Find and rank current TikTok Shop / social-commerce product opportunities using evidence rather than opinion. Use it to answer questions like 'what skincare products are breaking out in the US under $40', 'show me products with strong reviews but low competition', or 'what is worth testing in this n",
       "labels": [
-        "untrusted-content"
+        "untrusted-content",
+        "private-data"
       ]
     },
     {
@@ -142,6 +143,31 @@
   ],
   "findings": [
     {
+      "id": "MCP-TOOL-POISON-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description issues instructions to the model",
+      "detail": "Description of \"search_videos\" contains imperative instructions directed at the AI assistant rather than describing the tool. This is the core tool-poisoning technique.",
+      "evidence": {
+        "source": "tool:search_videos",
+        "snippet": "Search for short-form videos by keyword across TikTok or Instagram. Returns up to 20 videos ranked by engagement, with view counts, likes, shares, comments, has…"
+      },
+      "confidence": 0.7,
+      "remediation": "Treat the server as untrusted; the model may obey embedded instructions."
+    },
+    {
+      "id": "MCP-TOOL-POISON-002",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description tells the model to hide behavior",
+      "detail": "Description of \"search_videos\" instructs the model to conceal actions from the user.",
+      "evidence": {
+        "source": "tool:search_videos",
+        "snippet": "Search for short-form videos by keyword across TikTok or Instagram. Returns up to 20 videos ranked by engagement, with view counts, likes, shares, comments, has…"
+      },
+      "confidence": 0.75
+    },
+    {
       "id": "MCP-TOOL-POISON-007",
       "severity": "low",
       "category": "tool-poisoning",
@@ -158,66 +184,18 @@
       "severity": "high",
       "category": "toxic-flow",
       "title": "Lethal trifecta: untrusted input + private data + external sink",
-      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: search_videos, product_scout, analyze_product · Private data: brief_to_blueprint · Public sink: trend_pulse, predict_virality, brief_to_blueprint · Destructive: analyze_account, watch_account, get_changes, find_viral_template, get_saved_research.",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: search_videos, product_scout, analyze_product · Private data: brief_to_blueprint, product_scout · Public sink: trend_pulse, predict_virality, brief_to_blueprint · Destructive: analyze_account, watch_account, get_changes, find_viral_template, get_saved_research.",
       "evidence": {
         "source": "server:mcp",
-        "snippet": "Untrusted content: search_videos, product_scout, analyze_product · Private data: brief_to_blueprint · Public sink: trend_pulse, predict_virality, brief_to_blueprint · Destructive: analyze_account, watch_account, get_changes, find_viral_template, get_saved_research"
+        "snippet": "Untrusted content: search_videos, product_scout, analyze_product · Private data: brief_to_blueprint, product_scout · Public sink: trend_pulse, predict_virality, brief_to_blueprint · Destructive: analyze_account, watch_account, get_changes, find_viral_template, get_saved_research"
       },
       "confidence": 0.6,
       "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
-    },
-    {
-      "id": "MCP-RUGPULL-001",
-      "severity": "high",
-      "category": "tool-poisoning",
-      "title": "Tool description changed since last scan",
-      "detail": "Tool \"trend_pulse\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
-      "evidence": {
-        "source": "tool:trend_pulse",
-        "snippet": "before: \"Research what is currently gaining traction in short-form content for a specific niche. Returns rising opportunities (formats, hooks, styles, topics) with growth signals, data sources, and saturated patterns to avoid. Use when the user asks what to post about, what's trending in a niche, or needs to\" → after: \"Research what is currently gaining traction in short-form content for a specific niche. Returns rising opportunities (formats, hooks, styles, topics) with growth signals, data sources, and saturated patterns to avoid. Use when the user asks what to post about, what's trending in a niche, or needs to\""
-      },
-      "confidence": 0.8,
-      "remediation": "Re-review the tool before continuing to trust it."
-    },
-    {
-      "id": "MCP-RUGPULL-001",
-      "severity": "high",
-      "category": "tool-poisoning",
-      "title": "Tool description changed since last scan",
-      "detail": "Tool \"find_viral_template\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
-      "evidence": {
-        "source": "tool:find_viral_template",
-        "snippet": "before: \"Find proven viral templates in a niche with example videos. Returns templates ranked by performance, including hook patterns, format structures, average views, and example URLs. Use when the user asks what's working in a niche or wants concrete copyable structures. Supports 17 niches with optional a\" → after: \"Find proven viral templates in a niche with example videos. Returns templates ranked by performance, including hook patterns, format structures, average views, and example URLs. Use when the user asks what's working in a niche or wants concrete copyable structures. Supports the 18 canonical niches w\""
-      },
-      "confidence": 0.8,
-      "remediation": "Re-review the tool before continuing to trust it."
     }
   ],
   "score": 49,
   "scoreBreakdown": {
     "tool-poisoning": 31,
-    "toxic-flow": 20
-  },
-  "errors": []
-}    "remediation": "Re-review the tool before continuing to trust it."
-    },
-    {
-      "id": "MCP-RUGPULL-001",
-      "severity": "high",
-      "category": "tool-poisoning",
-      "title": "Tool description changed since last scan",
-      "detail": "Tool \"product_scout\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
-      "evidence": {
-        "source": "tool:product_scout",
-        "snippet": "before: \"Find and rank current TikTok Shop / social-commerce product opportunities using evidence rather than opinion. Use it to answer questions like 'what skincare products are breaking out in the US under $40', 'show me products with strong reviews but low competition', or 'what is worth testing in this n\" → after: \"Find and rank current TikTok Shop / social-commerce product opportunities using evidence rather than opinion. Use it to answer questions like 'what skincare products are breaking out in the US under $40', 'show me products with strong reviews but low competition', or 'what is worth testing in this n\""
-      },
-      "confidence": 0.8,
-      "remediation": "Re-review the tool before continuing to trust it."
-    }
-  ],
-  "score": 42,
-  "scoreBreakdown": {
-    "tool-poisoning": 38,
     "toxic-flow": 20
   },
   "errors": []

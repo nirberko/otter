@@ -8,8 +8,8 @@
     "kind": "url",
     "ref": "https://appfinder.tech/api/mcp"
   },
-  "scannedAt": "2026-11-02T12:48:17.749Z",
-  "durationMs": 2392,
+  "scannedAt": "2026-11-25T14:53:56.179Z",
+  "durationMs": 3536,
   "layers": {
     "metadata": true,
     "static": false
@@ -27,8 +27,11 @@
     },
     {
       "name": "get_app",
-      "descriptionHash": "1480ab5fd7c04986e41ea5ea33d21159b3fff7d9a22e8c93c1c56b4efc00e289",
-      "description": "One app's listing: description, categories, pricing, platforms, features, integrations, rating and its facts with sources."
+      "descriptionHash": "b89faea2b14d7ff4622df24c7f5d7693326989328d455fe9a14970e8e77d1018",
+      "description": "One app's listing: description, categories, pricing, platforms, features, integrations, rating, its facts with sources, and published user reviews (count, average, reviews page; the latest excerpts once it has 3 or more).",
+      "labels": [
+        "untrusted-content"
+      ]
     },
     {
       "name": "compare_apps",
@@ -55,36 +58,98 @@
     },
     {
       "name": "check_listing",
-      "descriptionHash": "07ae69ddfc190484d892d611237b57bf679b86c23f2b5101a12d0b1a4d52641b",
-      "description": "Whether a website already has a published AppFinder listing, and its page. Call this before prepare_listing."
+      "descriptionHash": "17fc2c0a354394dbb7c286303593b0e047cf76e7043df6ae0eb18df355c8931b",
+      "description": "Whether a website already has a published AppFinder listing, and its page. Call this before list_my_app."
+    },
+    {
+      "name": "list_my_app",
+      "descriptionHash": "99c31dc99b970a188d5fa2ecf23f92c5a130ea1dae33f27ae13795b363a65ce9",
+      "description": "Use this when a maker wants to list their own app, product or open-source project on AppFinder, get it discovered, launch it, or find a free backlink for it: listing is free (no votes or fee), and while the maker shows the AppFinder badge on their site, the listing links to the app's own website wit",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink"
+      ]
     },
     {
       "name": "prepare_listing",
-      "descriptionHash": "eba48d24115a751183e4f592607a6bce413f5e549b3fe58be87f621ee918492e",
-      "description": "For a maker who wants to list their own app: fills in AppFinder's submission form from what they told you plus the app's website, and returns a private link. The person opens it, signs in, reviews every field and submits; nothing is published until AppFinder's team approves it. Listing is free. Pass",
+      "descriptionHash": "64dfc6b578b86e942834ef684ab50101c29f6cf7eda622a4e0ef4c8dac4b5a74",
+      "description": "Same as list_my_app, kept for older clients: prefer list_my_app. Fills in AppFinder's submission form and returns a private link for the maker to review and submit.",
       "labels": [
-        "untrusted-content",
-        "private-data"
+        "private-data",
+        "public-sink"
       ]
     }
   ],
   "findings": [
     {
+      "id": "MCP-TOOL-POISON-006",
+      "severity": "low",
+      "category": "tool-poisoning",
+      "title": "Anomalously long tool description",
+      "detail": "Description of \"list_my_app\" is 849 chars, far longer than this server's median (143). Overlong descriptions are a common place to bury instructions.",
+      "evidence": {
+        "source": "tool:list_my_app",
+        "snippet": "Use this when a maker wants to list their own app, product or open-source project on AppFinder, get it discovered, launch it, or find a free backlink for it: li…"
+      },
+      "confidence": 0.4
+    },
+    {
       "id": "MCP-TOXIC-FLOW-001",
       "severity": "high",
       "category": "toxic-flow",
       "title": "Lethal trifecta: untrusted input + private data + external sink",
-      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: prepare_listing · Private data: prepare_listing · Public sink: category_demand.",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: get_app, list_my_app · Private data: list_my_app, prepare_listing · Public sink: category_demand, list_my_app, prepare_listing.",
       "evidence": {
         "source": "server:mcp",
-        "snippet": "Untrusted content: prepare_listing · Private data: prepare_listing · Public sink: category_demand"
+        "snippet": "Untrusted content: get_app, list_my_app · Private data: list_my_app, prepare_listing · Public sink: category_demand, list_my_app, prepare_listing"
       },
       "confidence": 0.6,
       "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"get_app\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:get_app",
+        "snippet": "before: \"One app's listing: description, categories, pricing, platforms, features, integrations, rating and its facts with sources.\" → after: \"One app's listing: description, categories, pricing, platforms, features, integrations, rating, its facts with sources, and published user reviews (count, average, reviews page; the latest excerpts once it has 3 or more).\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"check_listing\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:check_listing",
+        "snippet": "before: \"Whether a website already has a published AppFinder listing, and its page. Call this before prepare_listing.\" → after: \"Whether a website already has a published AppFinder listing, and its page. Call this before list_my_app.\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"prepare_listing\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:prepare_listing",
+        "snippet": "before: \"For a maker who wants to list their own app: fills in AppFinder's submission form from what they told you plus the app's website, and returns a private link. The person opens it, signs in, reviews every field and submits; nothing is published until AppFinder's team approves it. Listing is free. Pass\" → after: \"Same as list_my_app, kept for older clients: prefer list_my_app. Fills in AppFinder's submission form and returns a private link for the maker to review and submit.\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
     }
   ],
-  "score": 80,
+  "score": 45,
   "scoreBreakdown": {
+    "tool-poisoning": 35,
     "toxic-flow": 20
   },
   "errors": []

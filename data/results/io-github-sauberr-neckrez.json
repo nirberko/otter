@@ -8,8 +8,8 @@
     "kind": "url",
     "ref": "https://neckrez.tech/api/mcp"
   },
-  "scannedAt": "2026-11-24T15:15:21.612Z",
-  "durationMs": 1658,
+  "scannedAt": "2026-11-25T14:49:45.996Z",
+  "durationMs": 1512,
   "layers": {
     "metadata": true,
     "static": false
@@ -73,6 +73,15 @@
       ]
     },
     {
+      "name": "reset_root_password",
+      "descriptionHash": "73044999aaa8734c6c7225e91676e5738c01733c6cd9842d8754eb113db25d49",
+      "description": "Set a new password for the server's login user without a reinstall, through the server's recovery key (Linux on Vultr, DigitalOcean, Linode). Random unless password is given. The server must be running.",
+      "labels": [
+        "private-data",
+        "destructive"
+      ]
+    },
+    {
       "name": "change_ip",
       "descriptionHash": "7c448e2a66e2ce5ea6a4606189e5a658d62b3ddcdf2c6853236a599d79a6d0fa",
       "description": "Give a Vultr server a new IPv4, same data. Small fee and a cooldown. Needs confirm and the exact name."
@@ -128,6 +137,42 @@
       "name": "billing_history",
       "descriptionHash": "dfb79fd06c39c77454239c0d093bbe6783d17e260af00f3bf883516d86406c30",
       "description": "Recent top-ups and charges."
+    },
+    {
+      "name": "list_currencies",
+      "descriptionHash": "1e0cb0f6aa21cca0e12eb32bed75c4e3ac22afc5b33a29bcf28fed570cb732c6",
+      "description": "Coins the balance can be topped up with, the minimum in US dollars and VAT. Pass currency (an id) for that coin's exact minimum."
+    },
+    {
+      "name": "top_up",
+      "descriptionHash": "922b35f347c141735ba6ce810436377528509a9e65c9af7739ae98abcd708370",
+      "description": "Create a crypto payment for the user to pay: returns the address, the exact amount, the network and the deadline. Nothing is charged until the user sends it. amount_usd is what the balance receives."
+    },
+    {
+      "name": "list_deposits",
+      "descriptionHash": "18b13e7d4489aa17e61150c48b54bedb4239dbf0c754d9f57244ffd3422a4c64",
+      "description": "The last 20 top-ups and their status."
+    },
+    {
+      "name": "support_read",
+      "descriptionHash": "4095f30c82cb6a8caa2b9c004f33c0e73472ad7cc71ba6287e37fcade07c49ba",
+      "description": "The account's support chat, newest last (is_staff = our side, the support AI included).",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "support_send",
+      "descriptionHash": "ff0fba6bfb6b95b654ca44abc55ff3012ee7fd3bf29c1c5a005454653282da5e",
+      "description": "Send a message to Neckrez support on the user's behalf (marked as sent by an AI assistant, at most 10 an hour). Replies appear in support_read.",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "deposit_status",
+      "descriptionHash": "7a3129c804e1070231d3f0cabcf137b90274d64bda4bc4f75b71c675897bfda4",
+      "description": "Check a top-up live; it is credited to the balance as soon as the payment is confirmed."
     }
   ],
   "findings": [
@@ -142,11 +187,37 @@
         "snippet": "The login and root password of a server (stays in the chat history)."
       },
       "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"reset_root_password\" references sensitive artifacts (password). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:reset_root_password",
+        "snippet": "Set a new password for the server's login user without a reinstall, through the server's recovery key (Linux on Vultr, DigitalOcean, Linode). Random unless pass…"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: get_root_password, support_read · Private data: list_servers, get_root_password, reset_root_password, get_rdns, set_rdns · Public sink: support_send · Destructive: reset_root_password, destroy_server, delete_backup.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: get_root_password, support_read · Private data: list_servers, get_root_password, reset_root_password, get_rdns, set_rdns · Public sink: support_send · Destructive: reset_root_password, destroy_server, delete_backup"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
     }
   ],
-  "score": 80,
+  "score": 50,
   "scoreBreakdown": {
-    "tool-poisoning": 20
+    "tool-poisoning": 30,
+    "toxic-flow": 20
   },
   "errors": []
 }

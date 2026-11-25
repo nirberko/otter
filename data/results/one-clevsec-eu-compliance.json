@@ -8,8 +8,8 @@
     "kind": "url",
     "ref": "https://mcp.clevsec.one/mcp"
   },
-  "scannedAt": "2026-10-24T09:12:00.544Z",
-  "durationMs": 686,
+  "scannedAt": "2026-11-25T14:52:52.580Z",
+  "durationMs": 768,
   "layers": {
     "metadata": true,
     "static": false
@@ -112,6 +112,28 @@
       "description": "Use for a quick view of a small organisation's cyber risk ('how secure are we?', 'what is our cyber risk score?'). Call without answers to get 15 weighted questions on access, data, systems, people, incident response and backups. Call with yes, partial or no per question to get a 0-100 score, a risk"
     },
     {
+      "name": "agent_risk_check",
+      "descriptionHash": "2eea27e9a4a845982281d5b0d8eeb92bcb686d71583706d93377b6a31c44fbcc",
+      "description": "Use when someone asks how risky an AI agent or assistant setup is ('is it safe to let our agent read email and send replies?', 'what are the risks of this agent?'). Call without answers to get 9 questions on what the agent can do and 11 on the controls that limit it. Call with answers to get a 0-100",
+      "labels": [
+        "untrusted-content",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "mcp_tools_check",
+      "descriptionHash": "68dcc6f534bed75442599758d2826b38b91446efc24d6c3b66b060f0f1212299",
+      "description": "Use before enabling an MCP server or connecting to an A2A agent ('is this MCP server safe to add?', 'check these tool descriptions'). Pass the server's tools/list response or the agent's Agent Card as document. Returns flags for hidden or manipulative text in descriptions (tool poisoning), risky cap",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "ai_act_scope_check",
+      "descriptionHash": "6c28e49fcc50f6d05e2774379b4bdf9f0bd80a27e132825cc09a674da662b508",
+      "description": "Use when someone asks whether the EU AI Act applies to an AI system or model, how it is classified or what they must do ('is our recruitment tool high-risk?', 'does the AI Act apply to our chatbot?', 'what are our AI Act obligations as a deployer?'). Call without answers to get the questions. Call w"
+    },
+    {
       "name": "nis2_remediation_plan",
       "descriptionHash": "0ae796817b09c060b36e3e8554e8673474dc8b502ccf53801e1442eb20b243c9",
       "description": "Use after nis2_gap_assessment when the user wants a plan to close their NIS2 gaps. Turns the same answers into every gap with a recommended action, a priority, the NIS2 article and a 30/60/90-day roadmap (governance, risk and incident gaps first). Requires ClevSec Pro."
@@ -166,6 +188,15 @@
       "name": "cyber_risk_action_plan",
       "descriptionHash": "21c95fc45f136b33d0c467799e513d2bb2e88c3e069e051f2ad16d5cb4792d91",
       "description": "Use after cyber_risk_score when the user wants to reduce their risk. Returns every gap with a recommended action, a priority, NIST CSF 2.0 and NIS2 references and a 30/60/90-day roadmap (MFA, encryption, patching, incident response and backups first). Requires ClevSec Pro."
+    },
+    {
+      "name": "mcp_tools_report",
+      "descriptionHash": "a9e48238495359218a57d46bcd820f51254904740e67ef4e1bf00ceb69f8ea9d",
+      "description": "Use after mcp_tools_check when the user wants a review report or to see what changed since approval. Pass document (current tools/list response or Agent Card) and optionally previous (the approved version). Returns every flag with an action, a priority, OWASP and MCP Security Audit Kit references, a",
+      "labels": [
+        "untrusted-content",
+        "private-data"
+      ]
     }
   ],
   "findings": [
@@ -186,17 +217,43 @@
       "severity": "high",
       "category": "tool-poisoning",
       "title": "Description references secrets/credentials",
+      "detail": "Description of \"mcp_tools_check\" references sensitive artifacts (secret). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:mcp_tools_check",
+        "snippet": "Use before enabling an MCP server or connecting to an A2A agent ('is this MCP server safe to add?', 'check these tool descriptions'). Pass the server's tools/li…"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
       "detail": "Description of \"cookie_consent_fix_plan\" references sensitive artifacts (cookie). A tool description has no reason to mention credentials.",
       "evidence": {
         "source": "tool:cookie_consent_fix_plan",
         "snippet": "Use after cookie_consent_check when the user wants to fix their cookie consent. Returns every open item with the fix, its legal source (ePrivacy, GDPR, CJEU Pla…"
       },
       "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: agent_risk_check, mcp_tools_report · Private data: data_flow_record_check, mcp_tools_check, gdpr_remediation_plan, data_flow_review, mcp_tools_report · Public sink: agent_risk_check · Destructive: privacy_notice_requirements.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: agent_risk_check, mcp_tools_report · Private data: data_flow_record_check, mcp_tools_check, gdpr_remediation_plan, data_flow_review, mcp_tools_report · Public sink: agent_risk_check · Destructive: privacy_notice_requirements"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
     }
   ],
-  "score": 70,
+  "score": 45,
   "scoreBreakdown": {
-    "tool-poisoning": 30
+    "tool-poisoning": 35,
+    "toxic-flow": 20
   },
   "errors": []
 }

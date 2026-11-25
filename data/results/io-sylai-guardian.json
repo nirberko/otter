@@ -8,8 +8,8 @@
     "kind": "url",
     "ref": "https://guardian.sylai.io/mcp"
   },
-  "scannedAt": "2026-10-24T09:11:17.307Z",
-  "durationMs": 995,
+  "scannedAt": "2026-11-25T14:51:43.613Z",
+  "durationMs": 544,
   "layers": {
     "metadata": true,
     "static": false
@@ -17,12 +17,13 @@
   "tools": [
     {
       "name": "guardian_review",
-      "descriptionHash": "00bb9cb9fa81b2b55a11e9db8457206a68901029653eb303afa368527849e79a",
+      "descriptionHash": "42e43926f5652cc68165c851d1c60cff46082ca5c5bf9d22795c6ef7865f5d01",
       "description": "Sanity-check a causal claim (\"cause drove effect\") before acting on it.\n\nProvide exactly one of ``csv`` (CSV text), ``data`` (list of row objects) or\n``dataset_id`` (a dataset uploaded via ``guardian_request_upload``; use this for\nmore than ~200 rows; single-use, deleted when reviewed) containing co",
       "labels": [
         "untrusted-content",
         "private-data",
-        "public-sink"
+        "public-sink",
+        "destructive"
       ]
     },
     {
@@ -39,6 +40,18 @@
   ],
   "findings": [
     {
+      "id": "MCP-TOOL-POISON-007",
+      "severity": "low",
+      "category": "tool-poisoning",
+      "title": "Description uses pressure/override language",
+      "detail": "Description of \"guardian_review\" stacks urgency/override words (always, never). Legitimate tool descriptions rarely pressure the model to act or ignore prior guidance.",
+      "evidence": {
+        "source": "tool:guardian_review",
+        "snippet": "Sanity-check a causal claim (\"cause drove effect\") before acting on it. Provide exactly one of ``csv`` (CSV text), ``data`` (list of row objects) or ``dataset_i…"
+      },
+      "confidence": 0.3
+    },
+    {
       "id": "MCP-SCHEMA-SMELL-001",
       "severity": "medium",
       "category": "schema-smell",
@@ -46,7 +59,7 @@
       "detail": "Tool \"guardian_review\" appears informational but accepts parameters (context) that enable code/file/secret access.",
       "evidence": {
         "source": "tool:guardian_review",
-        "snippet": "cause, effect, csv, data, dataset_id, known_confounders, context, units, step, time_col, adstock, se, test_design"
+        "snippet": "cause, effect, csv, data, dataset_id, known_confounders, context, units, step, time_col, adstock, se, test_design, estimator, config, seed, cate, sensitivity"
       },
       "confidence": 0.55
     },
@@ -55,17 +68,31 @@
       "severity": "high",
       "category": "toxic-flow",
       "title": "Lethal trifecta: untrusted input + private data + external sink",
-      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: guardian_review, guardian_request_upload · Private data: guardian_review, guardian_request_upload · Public sink: guardian_review, guardian_request_upload · Destructive: guardian_request_upload.",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: guardian_review, guardian_request_upload · Private data: guardian_review, guardian_request_upload · Public sink: guardian_review, guardian_request_upload · Destructive: guardian_review, guardian_request_upload.",
       "evidence": {
         "source": "server:mcp",
-        "snippet": "Untrusted content: guardian_review, guardian_request_upload · Private data: guardian_review, guardian_request_upload · Public sink: guardian_review, guardian_request_upload · Destructive: guardian_request_upload"
+        "snippet": "Untrusted content: guardian_review, guardian_request_upload · Private data: guardian_review, guardian_request_upload · Public sink: guardian_review, guardian_request_upload · Destructive: guardian_review, guardian_request_upload"
       },
       "confidence": 0.6,
       "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"guardian_review\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:guardian_review",
+        "snippet": "before: \"Sanity-check a causal claim (\"cause drove effect\") before acting on it.\n\nProvide exactly one of ``csv`` (CSV text), ``data`` (list of row objects) or\n``dataset_id`` (a dataset uploaded via ``guardian_request_upload``; use this for\nmore than ~200 rows; single-use, deleted when reviewed) containing co\" → after: \"Sanity-check a causal claim (\"cause drove effect\") before acting on it.\n\nProvide exactly one of ``csv`` (CSV text), ``data`` (list of row objects) or\n``dataset_id`` (a dataset uploaded via ``guardian_request_upload``; use this for\nmore than ~200 rows; single-use, deleted when reviewed) containing co\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
     }
   ],
-  "score": 72,
+  "score": 51,
   "scoreBreakdown": {
+    "tool-poisoning": 22,
     "schema-smell": 8,
     "toxic-flow": 20
   },

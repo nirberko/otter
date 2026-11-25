@@ -8,8 +8,8 @@
     "kind": "url",
     "ref": "https://formstack.usefulapi.io/mcp"
   },
-  "scannedAt": "2026-10-10T10:53:13.667Z",
-  "durationMs": 489,
+  "scannedAt": "2026-11-25T14:51:53.184Z",
+  "durationMs": 387,
   "layers": {
     "metadata": true,
     "static": false
@@ -33,8 +33,8 @@
     },
     {
       "name": "formstack_list_form_fields",
-      "descriptionHash": "e7e107c22145b335e48abd362e6da81abe51e38e7bb1ed8b330eebc6d5e7f308",
-      "description": "List every field on a form — id, label, type, required flag, options and logic. Use this to learn field IDs before searching or creating submissions. Formstack: GET /forms/{formId}/fields."
+      "descriptionHash": "3d07d9d81362ec533159ff581e1dc1b5e4b58e3e3378b786b05a0a6f0e647616",
+      "description": "List the fields on a form — id, label, type, required flag, options and logic — 25 per call by default (limit 1-100, offset to continue). Follow next_offset until it is null. Use this to learn field IDs before searching or creating submissions. Formstack: GET /forms/{formId}/fields."
     },
     {
       "name": "formstack_list_form_submissions",
@@ -59,6 +59,15 @@
       "name": "formstack_get_submission",
       "descriptionHash": "88fbc3120035c08384c17d4be0e272c42813eac30943975ef090ad3505c8b517",
       "description": "Fetch a single submission with every field's label, type, display value and parsed value, plus payment, approval and workflow status. Formstack: GET /submissions/{submissionId}."
+    },
+    {
+      "name": "formstack_delete_submission",
+      "descriptionHash": "02a937cc44fe8b06d29e0b2483808a4e5632b7c47223ae24515d3b181e671c4f",
+      "description": "Permanently delete ONE submission and all associated data. First call with submission_id and its expected form_id to preview. Show the preview to the user and obtain their explicit confirmation, then call the SAME ids with confirm:true and the returned preview_token within 15 minutes. Changed record",
+      "labels": [
+        "private-data",
+        "destructive"
+      ]
     },
     {
       "name": "formstack_list_partial_submissions",
@@ -157,21 +166,35 @@
   "findings": [
     {
       "id": "MCP-TOXIC-FLOW-001",
-      "severity": "medium",
+      "severity": "high",
       "category": "toxic-flow",
-      "title": "Toxic flow: untrusted input can reach an external sink",
-      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: formstack_list_forms, formstack_get_form, formstack_search_submissions, formstack_list_webhooks, formstack_list_notification_emails, formstack_list_confirmation_emails, formstack_list_submit_actions · Public sink: formstack_search_submissions, formstack_list_submit_actions, formstack_create_submission, formstack_create_prefill_url, formstack_update_form, formstack_create_folder, formstack_create_webhook.",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: formstack_list_forms, formstack_get_form, formstack_search_submissions, formstack_list_webhooks, formstack_list_notification_emails, formstack_list_confirmation_emails, formstack_list_submit_actions · Private data: formstack_delete_submission · Public sink: formstack_search_submissions, formstack_list_submit_actions, formstack_create_submission, formstack_create_prefill_url, formstack_update_form, formstack_create_folder, formstack_create_webhook · Destructive: formstack_delete_submission.",
       "evidence": {
         "source": "server:mcp",
-        "snippet": "Untrusted content: formstack_list_forms, formstack_get_form, formstack_search_submissions, formstack_list_webhooks, formstack_list_notification_emails, formstack_list_confirmation_emails, formstack_list_submit_actions · Public sink: formstack_search_submissions, formstack_list_submit_actions, formstack_create_submission, formstack_create_prefill_url, formstack_update_form, formstack_create_folder, formstack_create_webhook"
+        "snippet": "Untrusted content: formstack_list_forms, formstack_get_form, formstack_search_submissions, formstack_list_webhooks, formstack_list_notification_emails, formstack_list_confirmation_emails, formstack_list_submit_actions · Private data: formstack_delete_submission · Public sink: formstack_search_submissions, formstack_list_submit_actions, formstack_create_submission, formstack_create_prefill_url, formstack_update_form, formstack_create_folder, formstack_create_webhook · Destructive: formstack_delete_submission"
       },
-      "confidence": 0.45,
+      "confidence": 0.6,
       "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"formstack_list_form_fields\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:formstack_list_form_fields",
+        "snippet": "before: \"List every field on a form — id, label, type, required flag, options and logic. Use this to learn field IDs before searching or creating submissions. Formstack: GET /forms/{formId}/fields.\" → after: \"List the fields on a form — id, label, type, required flag, options and logic — 25 per call by default (limit 1-100, offset to continue). Follow next_offset until it is null. Use this to learn field IDs before searching or creating submissions. Formstack: GET /forms/{formId}/fields.\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
     }
   ],
-  "score": 92,
+  "score": 60,
   "scoreBreakdown": {
-    "toxic-flow": 8
+    "toxic-flow": 20,
+    "tool-poisoning": 20
   },
   "errors": []
 }

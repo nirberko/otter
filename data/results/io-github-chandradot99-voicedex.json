@@ -8,8 +8,8 @@
     "kind": "url",
     "ref": "https://voicedex.dev/mcp"
   },
-  "scannedAt": "2026-11-19T13:29:26.238Z",
-  "durationMs": 642,
+  "scannedAt": "2026-11-25T14:41:43.460Z",
+  "durationMs": 1051,
   "layers": {
     "metadata": true,
     "static": false
@@ -17,7 +17,7 @@
   "tools": [
     {
       "name": "search_models",
-      "descriptionHash": "e01de37f6ab46d28a78cd79610b422511a469fd7d38586cc13140a4297131e44",
+      "descriptionHash": "2a047f9e8c97112895386d95a070e29de9936f676e26b020293a72ce26915219",
       "description": "Search active speech models. Filters combine (AND). Paged: pass next_offset to get more.\n\n    language: BCP-47 code, e.g. \"hi\" or \"en-GB\". Only models that explicitly list it are returned, unless\n    include_unlisted_languages=true also adds models that claim \"many languages\" without listing them. c",
       "labels": [
         "private-data"
@@ -49,16 +49,20 @@
     },
     {
       "name": "search_voices",
-      "descriptionHash": "ecf9a7a9369d7575c2f40566d83912b1f9a9bfd7794ae34bf6fa8f23135e278d",
-      "description": "Search stock voices (15,000+, so results are compact and paged: pass next_offset for more).\n    model: a model id of that provider (voices compatible with it). has_sample=true returns only voices with\n    an audio preview URL.",
+      "descriptionHash": "d860a9cd2d7c1f222aa41afae4a1e0158d120fe532e9237d5a2f984d6dc23c18",
+      "description": "Search stock voices (15,000+, so results are compact and paged: pass next_offset for more).\n    model: a model id of that provider (voices compatible with it). has_sample=true returns only voices with\n    an audio preview URL. use_case / age / accent (e.g. \"British\", \"Indian\") filter on values norma",
       "labels": [
         "untrusted-content"
       ]
     },
     {
       "name": "list_providers",
-      "descriptionHash": "9c46b86fbee599d139b29fff55c227175c4eb42442c681c4928d4b5e32127edc",
-      "description": "Providers in the catalog with model and voice counts, headquarters and access model. Retired providers\n    (shut down or no longer sold) are included only when include_retired=true, with their retirement date."
+      "descriptionHash": "aa3c3dec6523b44d6d5296c2cc74b84d6ad0ff063735c6aeb1b0e697fba38a01",
+      "description": "Providers in the catalog with model and voice counts, headquarters, access model and compliance. Retired\n    providers (shut down or no longer sold) are included only when include_retired=true, with their retirement\n    date. compliance: providers must list ALL of them (e.g. [\"hipaa\"]); a provider t",
+      "labels": [
+        "untrusted-content",
+        "public-sink"
+      ]
     },
     {
       "name": "recent_changes",
@@ -66,8 +70,64 @@
       "description": "Latest catalog changes, newest first: price changes, shutdown announcements, deprecations, models added.\n    kind: one of price_changed, price_published, shutdown_announced, model_deprecated, model_removed, now_ga,\n    model_added, provider_added, provider_retired."
     }
   ],
-  "findings": [],
-  "score": 100,
-  "scoreBreakdown": {},
+  "findings": [
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: get_model, search_voices, list_providers · Private data: search_models, get_model · Public sink: list_providers.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: get_model, search_voices, list_providers · Private data: search_models, get_model · Public sink: list_providers"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"search_models\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:search_models",
+        "snippet": "before: \"Search active speech models. Filters combine (AND). Paged: pass next_offset to get more.\n\n    language: BCP-47 code, e.g. \"hi\" or \"en-GB\". Only models that explicitly list it are returned, unless\n    include_unlisted_languages=true also adds models that claim \"many languages\" without listing them. c\" → after: \"Search active speech models. Filters combine (AND). Paged: pass next_offset to get more.\n\n    language: BCP-47 code, e.g. \"hi\" or \"en-GB\". Only models that explicitly list it are returned, unless\n    include_unlisted_languages=true also adds models that claim \"many languages\" without listing them. c\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"search_voices\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:search_voices",
+        "snippet": "before: \"Search stock voices (15,000+, so results are compact and paged: pass next_offset for more).\n    model: a model id of that provider (voices compatible with it). has_sample=true returns only voices with\n    an audio preview URL.\" → after: \"Search stock voices (15,000+, so results are compact and paged: pass next_offset for more).\n    model: a model id of that provider (voices compatible with it). has_sample=true returns only voices with\n    an audio preview URL. use_case / age / accent (e.g. \"British\", \"Indian\") filter on values norma\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"list_providers\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:list_providers",
+        "snippet": "before: \"Providers in the catalog with model and voice counts, headquarters and access model. Retired providers\n    (shut down or no longer sold) are included only when include_retired=true, with their retirement date.\" → after: \"Providers in the catalog with model and voice counts, headquarters, access model and compliance. Retired\n    providers (shut down or no longer sold) are included only when include_retired=true, with their retirement\n    date. compliance: providers must list ALL of them (e.g. [\"hipaa\"]); a provider t\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    }
+  ],
+  "score": 45,
+  "scoreBreakdown": {
+    "toxic-flow": 20,
+    "tool-poisoning": 35
+  },
   "errors": []
 }

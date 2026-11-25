@@ -8,8 +8,8 @@
     "kind": "url",
     "ref": "https://mint-facts.mintfacts.workers.dev/mcp"
   },
-  "scannedAt": "2026-11-19T13:32:49.839Z",
-  "durationMs": 265,
+  "scannedAt": "2026-11-25T14:45:29.113Z",
+  "durationMs": 624,
   "layers": {
     "metadata": true,
     "static": false
@@ -25,27 +25,41 @@
     },
     {
       "name": "check_mint",
-      "descriptionHash": "6736bf4acd992e89ef15cc34e94fd4cc6c7dd6a7df12e4c7e62f038433937139",
+      "descriptionHash": "7333f0492e8788317d1943204d642594fdd4e62004f3e7ecaeff0d0f266b3dbb",
       "description": "Use this when you need on-chain facts about a Solana SPL token mint before interacting with it: mint and freeze authority, supply, decimals, Token-2022 extensions (transfer fee, permanent delegate, transfer hook...) and factual flags. Facts only, no verdict. Automated facts, not financial advice. Pr",
       "labels": [
-        "private-data"
+        "untrusted-content",
+        "private-data",
+        "public-sink"
       ]
     },
     {
       "name": "holders_pack",
-      "descriptionHash": "62f04b5482fc83d5ef809aea9d3353ce24d46e10497f7dc95d6a6a9b3cb62b4d",
+      "descriptionHash": "11c0917263e10439bff0cd0ec05b0a76c66a0413ce449b4b508d78fdff2efd8a",
       "description": "Use this when you need holder concentration for a Solana token mint: share of supply held by the top 1/5/10/20 largest token accounts, with known liquidity-pool, bonding-curve and burn accounts identified and excluded where determinable. Facts only, no verdict. Automated facts, not financial advice.",
       "labels": [
+        "untrusted-content",
         "private-data",
         "public-sink"
       ]
     },
     {
       "name": "check_batch",
-      "descriptionHash": "4f9729d7afe4f961c0999bccfba95a786ee8781259eda264556a7117b3ebc502",
+      "descriptionHash": "2cd1a1e884d5ab00f162a5d50a0457774e24fcd176fc202e657f51e2b8eb37a5",
       "description": "Use this when you need the /check facts for up to 10 Solana token mints in one call (comma-separated mints). All-or-nothing: if any mint fails you are not charged. Facts only, not financial advice. Price: $0.08 USDC per call (x402, eip155:8453); pay by attaching an x402 payment in _meta[\"x402/paymen",
       "labels": [
-        "private-data"
+        "untrusted-content",
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "get_trial_key",
+      "descriptionHash": "e7cb7e6dcab571ef3451456551b2b602faefb2e7dd4af0eade99731d1a163129",
+      "description": "Use this when you want to try the paid tools without a wallet: returns a key good for 25 free calls of check_mint, holders_pack or check_batch (valid 30 days). Send it in params._meta[\"trial_key\"] or as the X-Trial-Key HTTP header on /mcp. Free, limited per IP.",
+      "labels": [
+        "private-data",
+        "public-sink"
       ]
     },
     {
@@ -54,8 +68,64 @@
       "description": "Use this when you want the current prices, network and payment details for each Mint Facts tool. Free."
     }
   ],
-  "findings": [],
-  "score": 100,
-  "scoreBreakdown": {},
+  "findings": [
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: check_mint, holders_pack, check_batch · Private data: lite_check, check_mint, holders_pack, check_batch, get_trial_key · Public sink: check_mint, holders_pack, check_batch, get_trial_key.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: check_mint, holders_pack, check_batch · Private data: lite_check, check_mint, holders_pack, check_batch, get_trial_key · Public sink: check_mint, holders_pack, check_batch, get_trial_key"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"check_mint\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:check_mint",
+        "snippet": "before: \"Use this when you need on-chain facts about a Solana SPL token mint before interacting with it: mint and freeze authority, supply, decimals, Token-2022 extensions (transfer fee, permanent delegate, transfer hook...) and factual flags. Facts only, no verdict. Automated facts, not financial advice. Pr\" → after: \"Use this when you need on-chain facts about a Solana SPL token mint before interacting with it: mint and freeze authority, supply, decimals, Token-2022 extensions (transfer fee, permanent delegate, transfer hook...) and factual flags. Facts only, no verdict. Automated facts, not financial advice. Pr\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"holders_pack\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:holders_pack",
+        "snippet": "before: \"Use this when you need holder concentration for a Solana token mint: share of supply held by the top 1/5/10/20 largest token accounts, with known liquidity-pool, bonding-curve and burn accounts identified and excluded where determinable. Facts only, no verdict. Automated facts, not financial advice.\" → after: \"Use this when you need holder concentration for a Solana token mint: share of supply held by the top 1/5/10/20 largest token accounts, with known liquidity-pool, bonding-curve and burn accounts identified and excluded where determinable. Facts only, no verdict. Automated facts, not financial advice.\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"check_batch\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:check_batch",
+        "snippet": "before: \"Use this when you need the /check facts for up to 10 Solana token mints in one call (comma-separated mints). All-or-nothing: if any mint fails you are not charged. Facts only, not financial advice. Price: $0.08 USDC per call (x402, eip155:8453); pay by attaching an x402 payment in _meta[\"x402/paymen\" → after: \"Use this when you need the /check facts for up to 10 Solana token mints in one call (comma-separated mints). All-or-nothing: if any mint fails you are not charged. Facts only, not financial advice. Price: $0.08 USDC per call (x402, eip155:8453); pay by attaching an x402 payment in _meta[\"x402/paymen\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    }
+  ],
+  "score": 45,
+  "scoreBreakdown": {
+    "toxic-flow": 20,
+    "tool-poisoning": 35
+  },
   "errors": []
 }

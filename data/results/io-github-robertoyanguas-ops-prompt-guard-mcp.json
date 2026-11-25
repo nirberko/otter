@@ -8,8 +8,8 @@
     "kind": "url",
     "ref": "https://prompt-guard-72343955726.us-central1.run.app/mcp/prompt-guard"
   },
-  "scannedAt": "2026-10-13T12:07:58.010Z",
-  "durationMs": 353,
+  "scannedAt": "2026-11-25T14:49:17.618Z",
+  "durationMs": 334,
   "layers": {
     "metadata": true,
     "static": false
@@ -17,20 +17,68 @@
   "tools": [
     {
       "name": "scan_prompt_injection",
-      "descriptionHash": "46f8a44552d0c7b9771d6f3249af88aacb044d67a24cbf1a3fa8e8836c4b9dd4",
-      "description": "B2A Indirect Prompt Injection & Jailbreak Firewall (0.005 USDC via x402): Scans untrusted web pages, emails, or tool outputs for prompt injections and returns sanitized text."
+      "descriptionHash": "d23de90e2a30160fb425c45d18611d00028b4ecd01d2be7fe3368a643aa9b972",
+      "description": "Scans untrusted web pages, emails, MCP responses, or A2A payloads for hidden prompt injections and returns sanitized text. WHEN TO USE: Call `scan_prompt_injection` when your task requires deterministic `prompt-guard` analysis for `text`; use `get_agent_wallet_status` to check your remaining free tr",
+      "labels": [
+        "untrusted-content"
+      ]
     },
     {
       "name": "get_agent_wallet_status",
-      "descriptionHash": "80ec610e59e6305031c21c8b7b856c59cf4752e69316f5570a7fa98afe815881",
-      "description": "Returns the calling agent's remaining free quota, USD balance, and total tokens saved.",
+      "descriptionHash": "2ba154caf98dd04808495e56e49c0db94a0d248d084666e40ff2b82f912fcae4",
+      "description": "Inspect an agent's account ledger: remaining free trial calls (out of 5), prepaid USD balance, cumulative spend, total API calls, and total LLM tokens saved. WHEN TO USE: Call before a batch of paid tool executions or after completing a Stripe or USDC top-up to confirm your balance. WHEN NOT TO USE:",
       "labels": [
-        "private-data"
+        "private-data",
+        "public-sink",
+        "destructive"
       ]
     }
   ],
-  "findings": [],
-  "score": 100,
-  "scoreBreakdown": {},
+  "findings": [
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"prompt-guard\" exposes tools that together enable an exfiltration flow. Untrusted content: scan_prompt_injection · Private data: get_agent_wallet_status · Public sink: get_agent_wallet_status · Destructive: get_agent_wallet_status.",
+      "evidence": {
+        "source": "server:prompt-guard",
+        "snippet": "Untrusted content: scan_prompt_injection · Private data: get_agent_wallet_status · Public sink: get_agent_wallet_status · Destructive: get_agent_wallet_status"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"scan_prompt_injection\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:scan_prompt_injection",
+        "snippet": "before: \"B2A Indirect Prompt Injection & Jailbreak Firewall (0.005 USDC via x402): Scans untrusted web pages, emails, or tool outputs for prompt injections and returns sanitized text.\" → after: \"Scans untrusted web pages, emails, MCP responses, or A2A payloads for hidden prompt injections and returns sanitized text. WHEN TO USE: Call `scan_prompt_injection` when your task requires deterministic `prompt-guard` analysis for `text`; use `get_agent_wallet_status` to check your remaining free tr\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"get_agent_wallet_status\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:get_agent_wallet_status",
+        "snippet": "before: \"Returns the calling agent's remaining free quota, USD balance, and total tokens saved.\" → after: \"Inspect an agent's account ledger: remaining free trial calls (out of 5), prepaid USD balance, cumulative spend, total API calls, and total LLM tokens saved. WHEN TO USE: Call before a batch of paid tool executions or after completing a Stripe or USDC top-up to confirm your balance. WHEN NOT TO USE:\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    }
+  ],
+  "score": 50,
+  "scoreBreakdown": {
+    "toxic-flow": 20,
+    "tool-poisoning": 30
+  },
   "errors": []
 }

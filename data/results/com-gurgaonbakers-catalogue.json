@@ -1,0 +1,106 @@
+{
+  "schemaVersion": 1,
+  "scanner": {
+    "version": "1.6.0",
+    "rules": "402995650b68"
+  },
+  "target": {
+    "kind": "url",
+    "ref": "https://api.gurgaonbakers.com/mcp"
+  },
+  "scannedAt": "2026-11-25T14:55:17.626Z",
+  "durationMs": 3051,
+  "layers": {
+    "metadata": true,
+    "static": false
+  },
+  "tools": [
+    {
+      "name": "search_cakes",
+      "descriptionHash": "f5e61faba6e2a911e6fbbfe1f092621b272d4f874dea6636b3e5f918c8746c90",
+      "description": "Search Gurgaon Bakers' live cake catalogue. Use for any request to find, compare or price cakes.\n    query: free text, e.g. \"1 kg eggless chocolate truffle birthday\" - weight, egg/eggless and budget words in the\n    text are understood. Optional filters: category slug (e.g. \"cakes-for-kids\"), eggles"
+    },
+    {
+      "name": "get_cake",
+      "descriptionHash": "3d4ea1f9e859a4c10c0518951f3659deb4e79d9637a1a09ca86a2f008c72cdaa",
+      "description": "Full details of one cake by slug (from search_cakes): description, weights, egg/eggless options and the exact\n    price (INR incl. GST) of every variant, each with an order_url. Use before quoting a price for a specific\n    weight/option. Read-only."
+    },
+    {
+      "name": "get_delivery_info",
+      "descriptionHash": "3821c2cb6782c3970932abdd3372e85442897d98664ef125ca5677299c64ce77",
+      "description": "Delivery and ordering rules: same-day cutoffs, delivery hours, checkout time slots, fees (delivery fee by\n    locality, small-order handling fee, 5% GST on fees), contact numbers and cancellation/complaint policy.\n    Pass a locality (e.g. \"Sector 56\", \"DLF Phase 2\") to get only its delivery fee. Fo",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "build_order_link",
+      "descriptionHash": "c2293f135ba22560aa6337acc40352ab5be4f981164b7823af2e7239b50fb7be",
+      "description": "Order link for the customer: opens the cake page on gurgaonbakers.com with the chosen weight (e.g. \"1 Kg\") and\n    egg option (\"Eggless\" default, or \"Egg\") pre-selected, plus the exact price. The customer adds flavour and\n    message, picks the delivery date/slot and pays on the website. Does NOT pl"
+    },
+    {
+      "name": "get_business_info",
+      "descriptionHash": "caf9a25cff86ed993c0a7c167d694cf191d80c244e34f5ea011afba57a993890",
+      "description": "Who Gurgaon Bakers is: verified contact (phone/WhatsApp/email), ordering channels and hours, delivery hours,\n    eggless policy, cancellation/complaint policy, coverage summary and what this server can and cannot do.\n    Use for \"who are you / how do I contact / do you deliver in Gurgaon\" questions.",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "check_delivery",
+      "descriptionHash": "16fc2fa0f29ab3eb3e66548a9422abebf6da8d6e1ea17b14e895f5bdf096ce71",
+      "description": "Can a cake be delivered to a Gurgaon locality on a date and time? date: YYYY-MM-DD, \"today\" or \"tomorrow\"\n    (default today); time optional, e.g. \"15:30\" or \"3 pm\" (India time). Returns status (available_online,\n    phone_only, special_request, check_by_phone, not_a_standard_slot, not_available), t",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "get_order_quote",
+      "descriptionHash": "32fdffb43252cc39ab63a087293035ecb9438b16482ee00b362ed285863c1579",
+      "description": "Exact price breakdown for up to 5 items before checkout: each item's variant price (INR incl. GST), the\n    small-order handling fee (₹75 + GST under ₹2,000), bulk discount (₹150 off from ₹4,000 with 2+ cakes) and the\n    delivery fee for the locality. Without a locality the total is marked incomple"
+    },
+    {
+      "name": "create_checkout_link",
+      "descriptionHash": "ff8067f3d8d79e88f541677f0896f315e640e4e13cc346be8d75d327d77cd0cb",
+      "description": "Use when the customer has chosen and wants to buy. Returns checkout_url: opening it puts the chosen items\n    (weight, egg option, quantity, flavour, message) into the customer's own cart on gurgaonbakers.com with the\n    locality pre-selected; the customer then picks date/slot, enters details and p",
+      "labels": [
+        "public-sink"
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOOL-POISON-002",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description tells the model to hide behavior",
+      "detail": "Description of \"search_cakes\" instructs the model to conceal actions from the user.",
+      "evidence": {
+        "source": "tool:search_cakes",
+        "snippet": "Search Gurgaon Bakers' live cake catalogue. Use for any request to find, compare or price cakes. query: free text, e.g. \"1 kg eggless chocolate truffle birthday…"
+      },
+      "confidence": 0.75
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: get_business_info, check_delivery · Private data: get_delivery_info, get_business_info · Public sink: get_business_info, create_checkout_link.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: get_business_info, check_delivery · Private data: get_delivery_info, get_business_info · Public sink: get_business_info, create_checkout_link"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 60,
+  "scoreBreakdown": {
+    "tool-poisoning": 20,
+    "toxic-flow": 20
+  },
+  "errors": []
+}

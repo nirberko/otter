@@ -23,4 +23,134 @@
       "message": "Streamable HTTP error: Error POSTing to endpoint: {\"jsonrpc\":\"2.0\",\"id\":null,\"error\":{\"code\":-32000,\"message\":\"Connect your assistant to AnyShare to continue.\"}}"
     }
   ]
+} is blocked. can_use=false pauses uploads and sharing; existing document and engagement reads remain available with the required permissions. This does n",
+      "labels": [
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "list_documents",
+      "descriptionHash": "6bd33b1b181ece5051ab74c8f0d2225f4d8d33670962eea999ce352ef6f6dc4b",
+      "description": "Search document names in the connected organization. Results are paginated; use next_cursor for subsequent pages.",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "get_document",
+      "descriptionHash": "47a632627a956545d3aebcf15a099e3034db5144af011aecf582a920dc753d5f",
+      "description": "Read metadata and processing status for an existing document. Does not open the shared viewer or count a view.",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "list_data_rooms",
+      "descriptionHash": "7b492cbd1c2e1d55808a1b6a90ec9fa907fa96ff782fab35b5651096ec822e16",
+      "description": "Search existing data rooms and their folder names in the connected organization."
+    },
+    {
+      "name": "get_data_room",
+      "descriptionHash": "7910decf3367b27040e2574e5026d7ef0c04c75a7456c06adb1eb21dd86d8d2a",
+      "description": "List the documents and folders in one existing data room.",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "request_document_upload",
+      "descriptionHash": "65c12476d9a9d50fbb846d31e124924ed1a6cc1c559e371e43ffc65631d47354",
+      "description": "Reserve a document up to 100 MB. Returns a signed URL for PUT of original file bytes, plus a user upload page if your client cannot transfer the file. Complete the upload afterward; completion may expose it to existing room recipients. Adding to a room also requires rooms:write.",
+      "labels": [
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "upload_document",
+      "descriptionHash": "3380e44f09acaa9777253215a44a84acd360d6c6c6b80f32df6afaa2a4878225",
+      "description": "Import the original bytes of a user-provided file using its temporary download_url. Use a stable file_id and idempotency_key for retries. If the source cannot be fetched, request_document_upload provides an upload page. May place content in an existing room and expose it to its recipients (requires ",
+      "labels": [
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "complete_document_upload",
+      "descriptionHash": "c7d85005e2904daa69f44f4d3b95ebae0012f1628efb45f168d20bf8a7c6ed99",
+      "description": "Confirm the bytes have been uploaded, queue conversion and apply reserved room placement, exposing content to existing room recipients. Safe to retry. Returns processing status; queued does not mean ready.",
+      "labels": [
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "get_upload_status",
+      "descriptionHash": "7965e4365a73d7f23b1f58597a5eefb9b969e8ba26565742b745c0680ab85aa3",
+      "description": "Read the status of an upload initiated by this connection. Check again in a few seconds while queued or processing.",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "create_share_link",
+      "descriptionHash": "571b3b82fc956b0c781c2c8fc03703b973d1e02d2be568d9f44eed46884e4655",
+      "description": "Create a persistent recipient link for exactly one document or data room. Verified email on and downloads off by default. Set weaker access only when the user explicitly requests it. Reuse idempotency_key only for the same requested link. Recipients can access content once ready. Never supply a pass",
+      "labels": [
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "add_document_to_data_room",
+      "descriptionHash": "f30191584a5a5f2858668edc02adb2ef79c0c578ff563fa6787a78dfa351234d",
+      "description": "Add an existing document to an existing data room and folder. If already present, preserve its current folder. Existing room recipients may gain access to this document. Does not create a new link.",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "get_document_analytics",
+      "descriptionHash": "621531040696075f8043fcdeebf25ca8f07633f016c4d9b36be097fe088c2749",
+      "description": "Read aggregate recorded engagement for exactly one document_id, share_link_id or room_id. Use share_link_id for a recipient link; the host may reserve link_id for connected-account selection. Default summary has no sessions or emails. Choose detail=sessions for visit/page detail; include_viewer_iden",
+      "labels": [
+        "untrusted-content",
+        "private-data"
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"create_share_link\" references sensitive artifacts (password). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:create_share_link",
+        "snippet": "Create a persistent recipient link for exactly one document or data room. Verified email on and downloads off by default. Set weaker access only when the user e…"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: get_document_analytics · Private data: get_connection, list_documents, get_document, get_data_room, request_document_upload, upload_document, complete_document_upload, create_share_link, add_document_to_data_room, get_document_analytics · Public sink: get_connection, request_document_upload, upload_document, complete_document_upload, get_upload_status, create_share_link.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: get_document_analytics · Private data: get_connection, list_documents, get_document, get_data_room, request_document_upload, upload_document, complete_document_upload, create_share_link, add_document_to_data_room, get_document_analytics · Public sink: get_connection, request_document_upload, upload_document, complete_document_upload, get_upload_status, create_share_link"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 60,
+  "scoreBreakdown": {
+    "tool-poisoning": 20,
+    "toxic-flow": 20
+  },
+  "errors": []
 }

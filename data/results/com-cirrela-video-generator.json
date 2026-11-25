@@ -8,19 +8,108 @@
     "kind": "url",
     "ref": "https://cirrela.com/api/mcp"
   },
-  "scannedAt": "2026-11-20T13:24:35.840Z",
-  "durationMs": 587,
+  "scannedAt": "2026-11-25T14:56:19.695Z",
+  "durationMs": 1836,
   "layers": {
-    "metadata": false,
+    "metadata": true,
     "static": false
   },
-  "findings": [],
-  "score": 100,
-  "scoreBreakdown": {},
-  "errors": [
+  "tools": [
     {
-      "scanner": "metadata",
-      "message": "Streamable HTTP error: Error POSTing to endpoint: {\"jsonrpc\":\"2.0\",\"id\":null,\"error\":{\"code\":-32600,\"message\":\"Missing API key. Send it as Authorization: Bearer <key>.\",\"data\":{\"code\":\"invalid_key\"}}}"
+      "name": "get_balance",
+      "descriptionHash": "290878c3a7742a6e1e2bd8fca91c7e9d926d98c11d31f29a9d674444f0063964",
+      "description": "The account's plan, credit balance and limits (renders at once, per day, top resolution)."
+    },
+    {
+      "name": "list_models",
+      "descriptionHash": "71e21be36b8b5d52e321a245fa8ef04d54da9448762c6c006e478b880a4687e6",
+      "description": "The quality tiers (quick, great, cinema) and every model, with their options and prices in credits."
+    },
+    {
+      "name": "estimate_cost",
+      "descriptionHash": "e761192aba49f7b0aa93209e4f30aac9be6d668af5a085fe978756229d8d5f83",
+      "description": "What a video or image would cost in credits, and whether the balance covers it. Spends nothing."
+    },
+    {
+      "name": "create_video",
+      "descriptionHash": "300358a2c9e5ff5615aa15d295c2390a9b77c2be39d358460901d12d9d12413d",
+      "description": "Starts rendering a video and spends its credits (refunded if it fails). Returns at once with an id: poll get_generation until it is completed."
+    },
+    {
+      "name": "make_wish",
+      "descriptionHash": "0a5a2c3a7f47cbd83eed8159cfbc0f26a3b6da59e6165ee6af067fdc00a508cc",
+      "description": "Prepares a personalised video wish: Santa Claus, Mrs Claus, an elf, Saint Nicholas, the Three Kings, the Tooth Fairy, a birthday bear or another character says a first name and a short message, in the chosen language. Returns the link to its page on cirrela.com, already filled in: there the person w"
+    },
+    {
+      "name": "create_film",
+      "descriptionHash": "7d25ace38d5140ebe0495990f269aee867ef16c337efc2d7c2daf111b192cc61",
+      "description": "Prepares a short film from one sentence: 3 to 6 shots, about 15 to 30 seconds, the same character throughout, with sound, music and editing. Returns the link to Cirrela's Film page with the idea filled in, where the person gets story ideas and a storyboard, sees the cost in credits, and makes the fi",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "create_ad",
+      "descriptionHash": "1d1477460f4fa5ff9e9a565cf19e7b08dd21a873afd342d8536ec95aa0285740",
+      "description": "Prepares video ads for a product, one per format (vertical 9:16 for Reels and TikTok, square 1:1, wide 16:9), from the product's page (Shopify, Amazon, Etsy or any shop) or its name. Returns the link to Cirrela's product-ad page filled in: the page reads the product when the person taps Import, show",
+      "labels": [
+        "destructive"
+      ]
+    },
+    {
+      "name": "touch_up",
+      "descriptionHash": "5e74117afb37da0ce52a87da90bfe081334c247f6d12ac1853619f7d474a4cd4",
+      "description": "Opens one of the connected account's finished videos in Cirrela's \"Ready to post\" panel: word-by-word captions, music, a voice-over, a new format (9:16, 1:1, 16:9) or a sharper version. Returns the link; the panel shows the exact cost in credits before the click, and the original stays. Needs the pe",
+      "labels": [
+        "public-sink",
+        "destructive"
+      ]
+    },
+    {
+      "name": "create_image",
+      "descriptionHash": "1e099e7363ed6c47954395873c0157bdd4694e17d0d87e8370baf29532506f7e",
+      "description": "Starts making one or more images and spends their credits (refunded if it fails). Poll get_generation with the id."
+    },
+    {
+      "name": "get_generation",
+      "descriptionHash": "41bdf0284aebc83155abd23b0e6b407bbc04a39aa33a5b4f86e49b3f55f52e8f",
+      "description": "Status (queued, running, completed, failed), progress and, once completed, the download URLs of a creation.",
+      "labels": [
+        "untrusted-content"
+      ]
     }
-  ]
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOOL-POISON-006",
+      "severity": "low",
+      "category": "tool-poisoning",
+      "title": "Anomalously long tool description",
+      "detail": "Description of \"make_wish\" is 864 chars, far longer than this server's median (128). Overlong descriptions are a common place to bury instructions.",
+      "evidence": {
+        "source": "tool:make_wish",
+        "snippet": "Prepares a personalised video wish: Santa Claus, Mrs Claus, an elf, Saint Nicholas, the Three Kings, the Tooth Fairy, a birthday bear or another character says …"
+      },
+      "confidence": 0.4
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "medium",
+      "category": "toxic-flow",
+      "title": "Toxic flow: untrusted input can reach an external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: create_film, get_generation · Public sink: touch_up · Destructive: create_ad, touch_up.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: create_film, get_generation · Public sink: touch_up · Destructive: create_ad, touch_up"
+      },
+      "confidence": 0.45,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 89,
+  "scoreBreakdown": {
+    "tool-poisoning": 3,
+    "toxic-flow": 8
+  },
+  "errors": []
 }
