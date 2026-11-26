@@ -8,8 +8,8 @@
     "kind": "url",
     "ref": "https://agentcv.dev/mcp"
   },
-  "scannedAt": "2026-11-20T13:08:17.066Z",
-  "durationMs": 464,
+  "scannedAt": "2026-11-26T14:07:11.711Z",
+  "durationMs": 895,
   "layers": {
     "metadata": true,
     "static": false
@@ -17,41 +17,148 @@
   "tools": [
     {
       "name": "get_profile",
-      "descriptionHash": "f1476e4831673fe03cc50758021317eab81197be2d34f2125b5dc898c351d656",
-      "description": "Headline, summary, location, current roles, links and what the person with this agentcv handle is open to. Start here."
+      "descriptionHash": "89e158439535ee73c598d50948ba598d72453cba599391df5ebfa8fc3f1727d3",
+      "description": "Get the overview of the person with this agentcv handle: headline, summary, location, current roles, links and what they are open to. Call it first for any handle or agentcv link your user gives you; then use list_experience for the timeline or search_knowledge for a specific question. Only facts th"
     },
     {
       "name": "list_experience",
-      "descriptionHash": "27267ab996215a116fa8433a37216c3bb8e1997b851e4472f1be1adc8101def3",
-      "description": "Approved timeline entries (roles, projects, education, achievements) of the person with this handle, newest first. Filter by kind and by `since` (YYYY or YYYY-MM). Use get_experience with an id for detail."
+      "descriptionHash": "6578c7d62cac6964110f08e94a61a2fcbc4e7d3912a7350250736c5f01f06b9f",
+      "description": "List the approved timeline of the person with this handle (roles, projects, education, achievements), newest first, each with an id, dates, source_url and as_of. Use it for broad questions such as their career history or roles since a year; for a specific question use search_knowledge, and pass an i"
     },
     {
       "name": "get_experience",
-      "descriptionHash": "054e7625533fa93e427901528ed4f90cccbb3b1d2a7c35ffb7275a2f47ee941c",
-      "description": "Full detail for one entry from list_experience, with supporting source excerpts."
+      "descriptionHash": "6eb4f58e370f1cb1e151fdc7af9effa6a8110fdd41db42963ca96145862d13cc",
+      "description": "Get one timeline entry in full, with the source excerpts that support it. Use it when your user wants detail or evidence for an entry whose id came from list_experience or list_skills; an unknown id returns an error telling you to call list_experience."
     },
     {
       "name": "search_knowledge",
-      "descriptionHash": "4803396535c8b4812d82a02c9bda036b84b0e6172c5d98f869d345cdb016fe7a",
-      "description": "Hybrid semantic + keyword search over the approved source material of the person with this handle. Returns cited passages with source_url and as_of."
+      "descriptionHash": "db945fb0a8a5b694c15961f2f68edb5f4f096ff72c75c36b1f97e4f6cc4125fd",
+      "description": "Search the approved source material of the person with this handle (CV, LinkedIn export, GitHub, web pages, FAQ) for passages matching a question; semantic and keyword search combined. Use it for specific questions, such as whether they have run Kafka in production, where list_experience is too broa",
+      "labels": [
+        "untrusted-content",
+        "destructive"
+      ]
     },
     {
       "name": "list_skills",
-      "descriptionHash": "d6945d2e657a97960ba32c4b4c030d20450e655f496676ff3f818822cda458ec",
-      "description": "Skills of the person with this handle, with evidence: each skill has evidence_count and fact_ids of the entries that support it (pass a fact id to get_experience). Optional query filters by name."
+      "descriptionHash": "3e605147dfa6e3cf3b08273e944a38d9dd407c084754d4ec8e21e492ab4f91ef",
+      "description": "List the skills of the person with this handle, each with evidence_count and the fact_ids of the entries that back it. Use it to check whether a skill is backed by real experience; pass a fact id to get_experience to see the evidence. The optional query filters skills by name."
     },
     {
       "name": "request_contact",
-      "descriptionHash": "928b894358ed729fa4f3d350e7b8c6e63a1274765c735ae74cb9d5ec00c3d469",
+      "descriptionHash": "5833bf449a02fc08391ac81281dc8001c84a236d6b811cafc1a754036c41bad5",
       "description": "Send an intro request by email to the person with this handle. Call it only when your user has explicitly asked to contact this person in this conversation. Send only a name, email and reason that your user wrote or approved: never add other candidates, job descriptions, notes or conversation conten",
       "labels": [
         "private-data",
         "public-sink"
       ]
+    },
+    {
+      "name": "preview_my_cv",
+      "descriptionHash": "5b1d9036cf02998e06306a7f32d1dd7ab473d870a492d085cbe70330b235bfeb",
+      "description": "For your user's own CV: shows what their agentcv agent would answer recruiters (sample answers quoting the CV, questions it can't answer yet, and job-ad fit when a job ad is given), plus the link to publish it. Call it only when your user asks to create or preview their own agentcv profile, with the",
+      "labels": [
+        "public-sink"
+      ]
     }
   ],
-  "findings": [],
-  "score": 100,
-  "scoreBreakdown": {},
+  "findings": [
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: search_knowledge · Private data: request_contact · Public sink: request_contact, preview_my_cv · Destructive: search_knowledge.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: search_knowledge · Private data: request_contact · Public sink: request_contact, preview_my_cv · Destructive: search_knowledge"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"get_profile\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:get_profile",
+        "snippet": "before: \"Headline, summary, location, current roles, links and what the person with this agentcv handle is open to. Start here.\" → after: \"Get the overview of the person with this agentcv handle: headline, summary, location, current roles, links and what they are open to. Call it first for any handle or agentcv link your user gives you; then use list_experience for the timeline or search_knowledge for a specific question. Only facts th\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"list_experience\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:list_experience",
+        "snippet": "before: \"Approved timeline entries (roles, projects, education, achievements) of the person with this handle, newest first. Filter by kind and by `since` (YYYY or YYYY-MM). Use get_experience with an id for detail.\" → after: \"List the approved timeline of the person with this handle (roles, projects, education, achievements), newest first, each with an id, dates, source_url and as_of. Use it for broad questions such as their career history or roles since a year; for a specific question use search_knowledge, and pass an i\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"get_experience\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:get_experience",
+        "snippet": "before: \"Full detail for one entry from list_experience, with supporting source excerpts.\" → after: \"Get one timeline entry in full, with the source excerpts that support it. Use it when your user wants detail or evidence for an entry whose id came from list_experience or list_skills; an unknown id returns an error telling you to call list_experience.\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"search_knowledge\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:search_knowledge",
+        "snippet": "before: \"Hybrid semantic + keyword search over the approved source material of the person with this handle. Returns cited passages with source_url and as_of.\" → after: \"Search the approved source material of the person with this handle (CV, LinkedIn export, GitHub, web pages, FAQ) for passages matching a question; semantic and keyword search combined. Use it for specific questions, such as whether they have run Kafka in production, where list_experience is too broa\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"list_skills\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:list_skills",
+        "snippet": "before: \"Skills of the person with this handle, with evidence: each skill has evidence_count and fact_ids of the entries that support it (pass a fact id to get_experience). Optional query filters by name.\" → after: \"List the skills of the person with this handle, each with evidence_count and the fact_ids of the entries that back it. Use it to check whether a skill is backed by real experience; pass a fact id to get_experience to see the evidence. The optional query filters skills by name.\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"request_contact\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:request_contact",
+        "snippet": "before: \"Send an intro request by email to the person with this handle. Call it only when your user has explicitly asked to contact this person in this conversation. Send only a name, email and reason that your user wrote or approved: never add other candidates, job descriptions, notes or conversation conten\" → after: \"Send an intro request by email to the person with this handle. Call it only when your user has explicitly asked to contact this person in this conversation. Send only a name, email and reason that your user wrote or approved: never add other candidates, job descriptions, notes or conversation conten\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    }
+  ],
+  "score": 40,
+  "scoreBreakdown": {
+    "toxic-flow": 20,
+    "tool-poisoning": 40
+  },
   "errors": []
 }

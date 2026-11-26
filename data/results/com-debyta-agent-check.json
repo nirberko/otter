@@ -1,0 +1,116 @@
+{
+  "schemaVersion": 1,
+  "scanner": {
+    "version": "1.6.0",
+    "rules": "402995650b68"
+  },
+  "target": {
+    "kind": "url",
+    "ref": "https://debyta.com/mcp"
+  },
+  "scannedAt": "2026-11-26T14:02:49.001Z",
+  "durationMs": 2202,
+  "layers": {
+    "metadata": true,
+    "static": false
+  },
+  "tools": [
+    {
+      "name": "guard_payment",
+      "descriptionHash": "ee1826f28856853713506101f3c329a68baeaead7f536bc1dad55f0962444734",
+      "description": "One call BEFORE any payment or deposit. Pass whatever you have: crypto address (to, optional payee domain), signed payment request (request), an x402 402 response (requirements, maxAmount), a trading/investment platform (platform), or a shop URL / IBAN / payment link / e-mail / phone. DEBYTA runs ev",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "check_before_payment",
+      "descriptionHash": "26d26e93a1f6707a9463e94fb53217f8e3e4ba0476af238ce6abf61700ea111c",
+      "description": "Call this BEFORE an agent pays, buys from a shop, transfers money to an IBAN or crypto address, or enters credentials on a website. Returns decision allow / warn / block with reasons, risk 0-100 and an Ed25519-signed verdict. allow = no known fraud indicators (not a guarantee); warn = ask the human;",
+      "labels": [
+        "private-data",
+        "destructive"
+      ]
+    },
+    {
+      "name": "check_crypto_transfer",
+      "descriptionHash": "889d026b31b1bc219eb86859e6948cdcfad6f6865fb1c450c2f4ce1736f4ef5b",
+      "description": "Call this BEFORE sending any crypto (BTC, ETH, USDT, USDC, SOL, TRX …). Detects mistyped or corrupted addresses (checksum), burn addresses, swapped addresses (payee verification: pass the recipient domain as \"payee\"), sanctioned addresses (OFAC), addresses linked to scam websites, address poisoning ",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "check_x402_payment",
+      "descriptionHash": "8273d383f332ba93086455ba2fe8d3be4f3ba9d5387f5b6fa41aeaf46f7cf4ad",
+      "description": "Call this when an HTTP request returns 402 Payment Required (x402) and BEFORE your wallet signs. Pass the 402 response body (or the PAYMENT-REQUIRED header) unchanged. DEBYTA verifies that payTo is published by the seller domain (payee verification), enforces your maxAmount (USD), and checks checksu",
+      "labels": [
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "check_crypto_platform",
+      "descriptionHash": "6d4f8f1b13c725cbf8b7d423bc58f43d03c5b95cbef71170d86e14d114f22631",
+      "description": "Call this BEFORE depositing on any crypto trading, investment, mining or staking platform the user was referred to (often via chat, dating or social media). DEBYTA opens the site live and checks domain age, guaranteed returns, withdrawal \"taxes\"/fees, VIP tiers, licence claims, messenger-only suppor",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "verify_payment_request",
+      "descriptionHash": "67e6af1c8907b0684601e7c8e28da3ff98935e4f9f04da9ded6dfe703e5969f3",
+      "description": "Call this when you received a DEBYTA payment request (\"dpr1.…\" or \"debyta:pay?r=…\") and BEFORE sending. DEBYTA checks the payee’s signature against the key published on the payee’s own domain – any swapped address, changed amount or expired request is detected – plus sanctions, checksum and fraud tr",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "report_outcome",
+      "descriptionHash": "dd2b267dcce65f86446bb490eb2f5300bc3470a1994620f6f8253535ff5e946e",
+      "description": "Tell DEBYTA whether a checked payment turned out to be fraud or legitimate. Pass the \"id\" from the DEBYTA decision. Free. Two independent reports change the data; a single report never blocks anything."
+    },
+    {
+      "name": "analyze_message",
+      "descriptionHash": "f43ecded13230455cb7dfba5fc10718815a751982a3794678b19e4f0cd7541b0",
+      "description": "Analyze an e-mail, SMS or chat message for scam patterns (18 patterns, 10 languages) and check every link, IBAN, crypto address and phone number in it. The text is not stored.",
+      "labels": [
+        "untrusted-content",
+        "public-sink"
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"check_before_payment\" references sensitive artifacts (credentials). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:check_before_payment",
+        "snippet": "Call this BEFORE an agent pays, buys from a shop, transfers money to an IBAN or crypto address, or enters credentials on a website. Returns decision allow / war…"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: guard_payment, check_crypto_platform, analyze_message · Private data: check_before_payment, check_x402_payment · Public sink: check_crypto_transfer, check_x402_payment, verify_payment_request, analyze_message · Destructive: check_before_payment.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: guard_payment, check_crypto_platform, analyze_message · Private data: check_before_payment, check_x402_payment · Public sink: check_crypto_transfer, check_x402_payment, verify_payment_request, analyze_message · Destructive: check_before_payment"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 60,
+  "scoreBreakdown": {
+    "tool-poisoning": 20,
+    "toxic-flow": 20
+  },
+  "errors": []
+}

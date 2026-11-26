@@ -1,0 +1,112 @@
+{
+  "schemaVersion": 1,
+  "scanner": {
+    "version": "1.6.0",
+    "rules": "402995650b68"
+  },
+  "target": {
+    "kind": "url",
+    "ref": "https://location-toolkit.ameeras-official.workers.dev/mcp"
+  },
+  "scannedAt": "2026-11-26T14:08:50.294Z",
+  "durationMs": 196,
+  "layers": {
+    "metadata": true,
+    "static": false
+  },
+  "tools": [
+    {
+      "name": "location_code",
+      "descriptionHash": "3072ebf037aa19d8bf278e459df9262612373c83e3ad183dc8b20bbffbf2c363",
+      "description": "Send lat+lng to get the Plus Code (Open Location Code, works everywhere, ~14 m square) and, inside India, the official India Post DIGIPIN (~4 m square). Or send any DIGIPIN or Plus Code as \"code\" to get its coordinates and cell bounds. Pure maths, exact to the official specs. Price 0.001 USDC per ca",
+      "labels": [
+        "untrusted-content",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "india_pincode_lookup",
+      "descriptionHash": "332b5868d94a83ef02b1d818edd6f54ad19aa5c376c02e85c4c53f1d87c9503d",
+      "description": "Full India Post directory (19,500+ PIN codes, 165,000+ post offices). Returns every post office under the PIN with its type (head, sub or branch office), district, state, circle, approximate centre point, its DIGIPIN and Plus Code. Not charged if the PIN does not exist. Price 0.002 USDC per call; fi",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "reverse_lookup",
+      "descriptionHash": "cd1001cf38cb92795f57551d6f07a00cf34bb09df8877e0bfcb9edd1c2862c86",
+      "description": "Reverse lookup from coordinates (or a DIGIPIN / Plus Code) to the 3 nearest populated places from GeoNames (170,000+ towns worldwide) with region, country and distance in km. Inside India it also returns the nearest PIN code with district and state. Approximate (town level), not a street address. Pr"
+    },
+    {
+      "name": "postal_code_check",
+      "descriptionHash": "3fe6f4e101aae7f8ad53e01e64a18ee81c403773b8a472e2fa6f48fb8fb7ef9f",
+      "description": "Validates postal / ZIP / PIN code format for 240+ countries and returns the cleaned form. For India it also checks that the PIN really exists and returns district and state. Price 0.001 USDC per call; first 3 calls per day free.",
+      "labels": [
+        "destructive"
+      ]
+    },
+    {
+      "name": "distance_between",
+      "descriptionHash": "9261225b4c0a104684c6b11f96b39648637aaceae283decab7d5c686d9ff5964",
+      "description": "Great-circle distance (km and miles) and compass bearing between two points. Each point can be {lat,lng}, \"13.08,80.27\", a DIGIPIN, a Plus Code or a 6-digit Indian PIN code. Price 0.001 USDC per call; first 3 calls per day free."
+    },
+    {
+      "name": "clean_address",
+      "descriptionHash": "299711a2f0b9f77000b17682c1a79bb6658a9ce14fa2b39a03b72c73d923429b",
+      "description": "AI turns free-text addresses (any language or format, e.g. \"near water tank 2nd main rd AN chennai 40\") into house, street, landmark, locality, city, district, state, postal code and country. Then checks the postal code format for the country, and for India that the PIN exists and matches the distri",
+      "labels": [
+        "destructive"
+      ]
+    },
+    {
+      "name": "local_time_and_working_days",
+      "descriptionHash": "b4afe0bbdb8c78585cf24322368813cabe4843e48d1cd355a5ab50bafedd143b",
+      "description": "From coordinates, a Plus Code, DIGIPIN or Indian PIN: the IANA time zone, local date and time, UTC offset, whether daylight saving is active, the country's weekend days (e.g. Friday-Saturday in Saudi Arabia, Sunday only in Nepal), whether it is business hours now and when the next business day opens"
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-SCHEMA-SMELL-001",
+      "severity": "medium",
+      "category": "schema-smell",
+      "title": "Read-only tool requests dangerous parameters",
+      "detail": "Tool \"location_code\" appears informational but accepts parameters (code) that enable code/file/secret access.",
+      "evidence": {
+        "source": "tool:location_code",
+        "snippet": "lat, lng, code, payment"
+      },
+      "confidence": 0.55
+    },
+    {
+      "id": "MCP-SCHEMA-SMELL-001",
+      "severity": "medium",
+      "category": "schema-smell",
+      "title": "Read-only tool requests dangerous parameters",
+      "detail": "Tool \"reverse_lookup\" appears informational but accepts parameters (code) that enable code/file/secret access.",
+      "evidence": {
+        "source": "tool:reverse_lookup",
+        "snippet": "lat, lng, code, payment"
+      },
+      "confidence": 0.55
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "medium",
+      "category": "toxic-flow",
+      "title": "Toxic flow: untrusted input can reach an external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: location_code · Public sink: location_code, india_pincode_lookup · Destructive: postal_code_check, clean_address.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: location_code · Public sink: location_code, india_pincode_lookup · Destructive: postal_code_check, clean_address"
+      },
+      "confidence": 0.45,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 80,
+  "scoreBreakdown": {
+    "schema-smell": 12,
+    "toxic-flow": 8
+  },
+  "errors": []
+}

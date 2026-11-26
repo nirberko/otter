@@ -1,0 +1,81 @@
+{
+  "schemaVersion": 1,
+  "scanner": {
+    "version": "1.6.0",
+    "rules": "402995650b68"
+  },
+  "target": {
+    "kind": "url",
+    "ref": "https://convertapi.usefulapi.io/mcp"
+  },
+  "scannedAt": "2026-11-26T14:17:27.258Z",
+  "durationMs": 296,
+  "layers": {
+    "metadata": true,
+    "static": false
+  },
+  "tools": [
+    {
+      "name": "convertapi_get_account",
+      "descriptionHash": "146b00c3c5f261319fbab9ae8a052749569493818c58fbda82ea11dd3e646d8a",
+      "description": "Show the ConvertAPI account status and conversion quota: Active, Status, ConversionsTotal, ConversionsConsumed, ConversionsLeft. Call this first to check quota before converting. Never returns the account secret. ConvertAPI: GET /user.",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "convertapi_get_usage_statistics",
+      "descriptionHash": "cf3bdde89427b25d611ab7758746b12369fbb035ae0e4769785259b2134b3771",
+      "description": "Show conversions per day between two dates for this account, as JSON. Use it to report usage over a period. ConvertAPI: GET /user/statistic?startDate&endDate."
+    },
+    {
+      "name": "convertapi_get_converter",
+      "descriptionHash": "6a8c4a94a1fb1764158b4dcb9106b294b119069f62c3e348c5e967823a64f487",
+      "description": "Describe one conversion, for example pdf to docx: its title, the accepted source and destination formats, and the parameter names and types it takes. Read it before convert_file so the parameters are right. ConvertAPI: GET /info/openapi (catalog, filtered to one path)."
+    },
+    {
+      "name": "convertapi_convert_file",
+      "descriptionHash": "749a9db674f01f29d2bdd29d09cf7066e0c61ec3f987edd1e7b549eeed6fa0ea",
+      "description": "Convert a file from one format to another. The file must be at a public https URL that ConvertAPI can read; local files cannot be sent. Each successful conversion costs ConversionCost conversions from the account quota. Returns download URLs that stay valid for a few hours. ConvertAPI: POST /convert",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink",
+        "destructive"
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"convertapi_get_account\" references sensitive artifacts (secret). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:convertapi_get_account",
+        "snippet": "Show the ConvertAPI account status and conversion quota: Active, Status, ConversionsTotal, ConversionsConsumed, ConversionsLeft. Call this first to check quota …"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: convertapi_convert_file · Private data: convertapi_get_account, convertapi_convert_file · Public sink: convertapi_convert_file · Destructive: convertapi_convert_file.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: convertapi_convert_file · Private data: convertapi_get_account, convertapi_convert_file · Public sink: convertapi_convert_file · Destructive: convertapi_convert_file"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 60,
+  "scoreBreakdown": {
+    "tool-poisoning": 20,
+    "toxic-flow": 20
+  },
+  "errors": []
+}

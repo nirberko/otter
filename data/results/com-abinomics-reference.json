@@ -8,8 +8,8 @@
     "kind": "url",
     "ref": "https://abinomics.com/mcp"
   },
-  "scannedAt": "2026-11-24T14:59:52.345Z",
-  "durationMs": 913,
+  "scannedAt": "2026-11-26T14:01:51.722Z",
+  "durationMs": 1143,
   "layers": {
     "metadata": true,
     "static": false
@@ -101,26 +101,66 @@
       "name": "random_genomics_term",
       "descriptionHash": "0a2198d834f61f76fba091b6edaa10befdd050642160e45d5dd5ba934b054b39",
       "description": "Return a random genomics dictionary entry, optionally within one category, e.g. for a quiz or \"term of the day\"."
+    },
+    {
+      "name": "get_pricing",
+      "descriptionHash": "5ce6e05c95024e29ec9d117c45ea8164f768c661763b06eb4663c922f4bac5f5",
+      "description": "List paid plans (Developer, Pro, Business; monthly) and prepaid request credit packs with prices, daily limits and how to buy. Not metered. Use when you hit HTTP 402 / error -32029 (quota exhausted) or need higher limits."
+    },
+    {
+      "name": "create_checkout",
+      "descriptionHash": "c9a79022197bab627a90210c9af016b2f95ee0638b78f19d573ec3472ca1b645",
+      "description": "Create a Stripe Checkout link to buy a plan (plan: developer|pro|business) or prepaid credits (pack: credits_10k|credits_100k|credits_1m). Returns checkout_url: give it to your human to pay; nothing is charged by this call. If this MCP connection sends an API key, the purchase upgrades/credits that ",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "check_checkout",
+      "descriptionHash": "2160915706492906069704c2d790d63a6b40fcabb4e01f96dab5d66ae07467e0",
+      "description": "Check whether a checkout created with create_checkout has been paid. Once paid returns the key prefix, plan tier and credits, plus the new api_key if the purchase issued one (available 24 hours). Poll every few seconds. Not metered."
+    },
+    {
+      "name": "get_usage",
+      "descriptionHash": "8db4c7ed1b00dd0c54ec6127207ecd098b81c0802c7a3fda13d7ab1ecaabb377",
+      "description": "Your current tier, daily limit, requests used today, prepaid credits left and reset time, for the API key on this connection (or anonymous IP). Not metered.",
+      "labels": [
+        "private-data",
+        "destructive"
+      ]
     }
   ],
   "findings": [
     {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"check_checkout\" references sensitive artifacts (api_key). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:check_checkout",
+        "snippet": "Check whether a checkout created with create_checkout has been paid. Once paid returns the key prefix, plan tier and credits, plus the new api_key if the purcha…"
+      },
+      "confidence": 0.65
+    },
+    {
       "id": "MCP-TOXIC-FLOW-001",
-      "severity": "medium",
+      "severity": "high",
       "category": "toxic-flow",
-      "title": "Toxic flow: untrusted input can reach an external sink",
-      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: define_term, search_terms, get_term, list_languages, define_genomics_term, search_genomics, get_genomics_term · Public sink: define_term.",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: define_term, search_terms, get_term, list_languages, define_genomics_term, search_genomics, get_genomics_term · Private data: create_checkout, get_usage · Public sink: define_term · Destructive: get_usage.",
       "evidence": {
         "source": "server:mcp",
-        "snippet": "Untrusted content: define_term, search_terms, get_term, list_languages, define_genomics_term, search_genomics, get_genomics_term · Public sink: define_term"
+        "snippet": "Untrusted content: define_term, search_terms, get_term, list_languages, define_genomics_term, search_genomics, get_genomics_term · Private data: create_checkout, get_usage · Public sink: define_term · Destructive: get_usage"
       },
-      "confidence": 0.45,
+      "confidence": 0.6,
       "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
     }
   ],
-  "score": 92,
+  "score": 60,
   "scoreBreakdown": {
-    "toxic-flow": 8
+    "tool-poisoning": 20,
+    "toxic-flow": 20
   },
   "errors": []
 }

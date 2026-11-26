@@ -8,19 +8,78 @@
     "kind": "url",
     "ref": "https://api.corsproxy.dev/mcp"
   },
-  "scannedAt": "2026-11-19T13:27:51.239Z",
-  "durationMs": 194,
+  "scannedAt": "2026-11-26T14:07:15.318Z",
+  "durationMs": 286,
   "layers": {
-    "metadata": false,
+    "metadata": true,
     "static": false
   },
-  "findings": [],
-  "score": 100,
-  "scoreBreakdown": {},
-  "errors": [
+  "tools": [
     {
-      "scanner": "metadata",
-      "message": "Streamable HTTP error: Error POSTing to endpoint: {\"jsonrpc\":\"2.0\",\"id\":0,\"error\":{\"code\":-32001,\"message\":\"MISSING_API_KEY: Missing API key: send it in the X-API-Key header or the key query parameter\"}}"
+      "name": "fetch_url",
+      "descriptionHash": "14b351affd4be7524519ec5211bd6bc7822ce434d4740c77749a35811c189c36",
+      "description": "Send a request through the corsproxy.dev proxy with your API key and return the status, CORS and rate-limit headers, and body. Use it to test an integration or debug a CORS/proxy error. Counts against the daily quota.",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "check_quota",
+      "descriptionHash": "fe867588cff2555fddcaba976b6a5bd93a62f21ac4864a02b849aea33831b207",
+      "description": "Today's request limit, used, and remaining for this key's account, and when the counter resets."
+    },
+    {
+      "name": "explain_error",
+      "descriptionHash": "90931d72eb73d74cd03fd59cafea9086dfaa64df34906ce8ac970b1db38c2e2b",
+      "description": "Explain a corsproxy.dev reason key (the `code` in a rejected response, e.g. API_KEY_ORIGIN_NOT_ALLOWED): status, meaning, and fix."
     }
-  ]
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"explain_error\" references sensitive artifacts (api_key). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:explain_error",
+        "snippet": "Explain a corsproxy.dev reason key (the `code` in a rejected response, e.g. API_KEY_ORIGIN_NOT_ALLOWED): status, meaning, and fix."
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-SCHEMA-SMELL-001",
+      "severity": "medium",
+      "category": "schema-smell",
+      "title": "Read-only tool requests dangerous parameters",
+      "detail": "Tool \"explain_error\" appears informational but accepts parameters (code) that enable code/file/secret access.",
+      "evidence": {
+        "source": "tool:explain_error",
+        "snippet": "code"
+      },
+      "confidence": 0.55
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: fetch_url · Private data: fetch_url · Public sink: fetch_url.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: fetch_url · Private data: fetch_url · Public sink: fetch_url"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 52,
+  "scoreBreakdown": {
+    "tool-poisoning": 20,
+    "schema-smell": 8,
+    "toxic-flow": 20
+  },
+  "errors": []
 }

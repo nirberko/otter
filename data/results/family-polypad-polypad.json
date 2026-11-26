@@ -8,8 +8,8 @@
     "kind": "url",
     "ref": "https://polypad.family/api/mcp"
   },
-  "scannedAt": "2026-11-19T13:28:30.049Z",
-  "durationMs": 2005,
+  "scannedAt": "2026-11-26T14:07:50.027Z",
+  "durationMs": 1115,
   "layers": {
     "metadata": true,
     "static": false
@@ -38,8 +38,8 @@
     },
     {
       "name": "polypad_get_token",
-      "descriptionHash": "dfedf05ec3f98379c514b56b11dcc7431e180948c7b21e90975fa2dbea897ba6",
-      "description": "One token: price reading, bonding-curve progress, creator, fees, and links. Accepts a symbol, name, token address, or launch address.",
+      "descriptionHash": "2f4a61f6bc8f43a246c0f97fb5222d84d21d209b289f8f2583f81c8e2560094a",
+      "description": "One token: price reading, bonding-curve progress, creator, fees, and links. Accepts a symbol, name, token address, or launch address. POLYDASH itself works too — it is not a launch, so it has no curve or launch contract.",
       "labels": [
         "private-data"
       ]
@@ -90,6 +90,14 @@
       "name": "polypad_prepare_nft_buy",
       "descriptionHash": "60d2afe185304d572bd756e5689de893335e2fab559ab888e127f01a312db81d",
       "description": "Prepares either a marketplace purchase (listingId) or a public mint from a fixed-price collection (collection + quantity). Checks supply, wallet limits, and price, then simulates. Returns unsigned transactions, a summary, and a signing link. Collections still in their commitment window are sent to t",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "polypad_prepare_nft_create",
+      "descriptionHash": "c4234df666c74361438b393643c227a8c05ce418e8ef9fc6c57116a419c17452",
+      "description": "Creates a fixed-price NFT collection on the Polypad NFT factory: name, symbol, artwork, max supply, mint price, and creator royalty. The caller signs once in their own wallet and pays gas only — creating a collection costs no ETH beyond gas. Only allowlisted business API keys can call it (used by Ma",
       "labels": [
         "private-data"
       ]
@@ -162,10 +170,81 @@
       "labels": [
         "private-data"
       ]
+    },
+    {
+      "name": "x402_cross_chain_quote",
+      "descriptionHash": "844e0191687134cdeafaa72370528895c3282a606be31f1511f97fa8d320b023",
+      "description": "Dry-run plan for paying any x402 endpoint from the other chain: fetch the 402, read the wallet's balances on Base and Robinhood Chain, and quote the Relay bridge for only the shortfall. Read-only — no key, no signature, nothing moves. Works for the USD stablecoins (USDG on Robinhood Chain, USDC on B",
+      "labels": [
+        "private-data",
+        "destructive"
+      ]
+    },
+    {
+      "name": "x402_cross_chain_pay",
+      "descriptionHash": "014306c5996280b0fa583e35b4644951e806e54978c2bd2bf543c8d207c3dbee",
+      "description": "The executable package for paying any x402 endpoint from the other chain: the dry-run plan, the unsigned Relay bridge transactions (approve + deposit, shortfall only), and the EIP-3009 typed data to sign for the settlement. Returns unsigned transactions only — the agent signs the bridge steps on the",
+      "labels": [
+        "private-data",
+        "destructive"
+      ]
+    },
+    {
+      "name": "polypad_agent_chat",
+      "descriptionHash": "f62e3d2ca2de8d3d01385a6fab4f2ce607a7eac78c0905ff9ec43076b4c566a5",
+      "description": "Run a business agent chat completion through Polypad: send a system prompt and messages, get the assistant reply. Only allowlisted business API keys can call it — every call is metered as API usage. The model is fixed (gpt-4o-mini) and the caller never sees the OpenAI key. Prompt and reply content i",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink",
+        "destructive"
+      ]
     }
   ],
-  "findings": [],
-  "score": 100,
-  "scoreBreakdown": {},
+  "findings": [
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"x402_cross_chain_pay\" references sensitive artifacts (private key). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:x402_cross_chain_pay",
+        "snippet": "The executable package for paying any x402 endpoint from the other chain: the dry-run plan, the unsigned Relay bridge transactions (approve + deposit, shortfall…"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: polypad_agent_chat · Private data: polypad_intent, polypad_list_tokens, polypad_get_token, polypad_token_protections, polypad_quote_trade, polypad_prepare_buy, polypad_prepare_sell, polypad_prepare_nft_buy, polypad_prepare_nft_create, polypad_prepare_fund_redeem, polypad_prepare_token_launch, polypad_portfolio, polypad_get_tx_status, polypad_stats, x402_cross_chain_quote, x402_cross_chain_pay, polypad_agent_chat · Public sink: polypad_get_fund, polypad_prepare_fund_redeem, polypad_agent_chat · Destructive: x402_cross_chain_quote, x402_cross_chain_pay, polypad_agent_chat.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: polypad_agent_chat · Private data: polypad_intent, polypad_list_tokens, polypad_get_token, polypad_token_protections, polypad_quote_trade, polypad_prepare_buy, polypad_prepare_sell, polypad_prepare_nft_buy, polypad_prepare_nft_create, polypad_prepare_fund_redeem, polypad_prepare_token_launch, polypad_portfolio, polypad_get_tx_status, polypad_stats, x402_cross_chain_quote, x402_cross_chain_pay, polypad_agent_chat · Public sink: polypad_get_fund, polypad_prepare_fund_redeem, polypad_agent_chat · Destructive: x402_cross_chain_quote, x402_cross_chain_pay, polypad_agent_chat"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"polypad_get_token\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:polypad_get_token",
+        "snippet": "before: \"One token: price reading, bonding-curve progress, creator, fees, and links. Accepts a symbol, name, token address, or launch address.\" → after: \"One token: price reading, bonding-curve progress, creator, fees, and links. Accepts a symbol, name, token address, or launch address. POLYDASH itself works too — it is not a launch, so it has no curve or launch contract.\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    }
+  ],
+  "score": 50,
+  "scoreBreakdown": {
+    "tool-poisoning": 30,
+    "toxic-flow": 20
+  },
   "errors": []
 }

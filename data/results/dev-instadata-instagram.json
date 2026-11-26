@@ -8,19 +8,108 @@
     "kind": "url",
     "ref": "https://mcp.instadata.dev"
   },
-  "scannedAt": "2026-11-19T13:27:59.463Z",
-  "durationMs": 155,
+  "scannedAt": "2026-11-26T14:07:21.674Z",
+  "durationMs": 296,
   "layers": {
-    "metadata": false,
+    "metadata": true,
     "static": false
   },
-  "findings": [],
-  "score": 100,
-  "scoreBreakdown": {},
-  "errors": [
+  "tools": [
     {
-      "scanner": "metadata",
-      "message": "Streamable HTTP error: Error POSTing to endpoint: {\"error\":{\"code\":\"missing_api_key\",\"message\":\"Missing Authorization: Bearer header\",\"hint\":\"Pass your key as \\\"Authorization: Bearer ik_live_...\\\". Create one at https://instadata.dev/app/keys\",\"request_id\":\"a5cf8e351aa48ea3\"}}"
+      "name": "get_transcript",
+      "descriptionHash": "6f3454f9e2be1d2e83a0fce70edd7444efe9cade3936efbf17ab17ffd2477600",
+      "description": "Spoken-word transcript of a public video, with timestamped segments where the source publishes them. Instagram only. Credits: 1 per call plus 20 per started minute of video. Input: url.",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "get_summary",
+      "descriptionHash": "aaccf97b8e270c3839e931fa652b9ce3a5daf827277415952fda7e359bcfb0fc",
+      "description": "Short LLM summary of what a public video actually says, built on its transcript. Instagram only. Credits: 4 per call plus 20 per started minute of video. Input: url.",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "get_post_stats",
+      "descriptionHash": "37cb6436f7f76e9c20f42b725f025c398eb4a418ea9e9292f7d9b88c08ce7bda",
+      "description": "Engagement stats for one public post or video: views, likes, comments, shares and reposts where the platform publishes them. Instagram only. Credits: 1 per call. Input: url.",
+      "labels": [
+        "untrusted-content",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "get_comments",
+      "descriptionHash": "fffa3fe39bd91c052b03b171e4f357595bfbbea6b5b95987f81c8ab2b3d458b6",
+      "description": "Comments on a public post or video, newest first, paginated with limit and cursor. Instagram only. Credits: 1 per item returned, and an empty result is free (25 a day per account, then 1 credit each). Input: url.",
+      "labels": [
+        "untrusted-content",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "get_profile",
+      "descriptionHash": "86448e7f3eb812a58c97a6a64a896aae1bedc0260d269b0089b3b68e7facd281",
+      "description": "Profile, page or channel record for a public account: follower and subscriber counts, bio, and totals. Instagram only. Credits: 1 per call. Input: handle.",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "get_channel_posts",
+      "descriptionHash": "a4efcc96908c680d8402d63a0d17f54b922670c3cfebb570d236ad59d54d2e4e",
+      "description": "Recent public posts or videos from one account, with per-item metrics. Instagram only. Credits: 1 per item returned, and an empty result is free (25 a day per account, then 1 credit each). Input: handle.",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "search_hashtag",
+      "descriptionHash": "8b5b705b5ccc77aff476ad49990c069e3263a2e6063087546ec1f9d93fcd568e",
+      "description": "Public posts carrying a hashtag. Instagram only. Credits: 1 per item returned, and an empty result is free (25 a day per account, then 1 credit each). Input: query.",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "download_media",
+      "descriptionHash": "e5e8f53295a2a1b82d38c1a49d3a15ccbe4e37295241d4b86a6196d8e5bdce7e",
+      "description": "Direct media URLs for a public post or video, served from the platform's own CDN. Instagram only. Credits: 8 per call. Input: url.",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "list_endpoints",
+      "descriptionHash": "3e9422a09c4ddc12a6b3292cf0ead4b00af670d42364eedde73ba0b4e59f1664",
+      "description": "Discover every Instagram endpoint that can serve right now, with its path, what it takes as input, what one credit buys, and whether it paginates. Free — this reads our registry and calls nothing upstream. Use it to find the endpoint for anything the other tools do not cover, then call it with call_"
+    },
+    {
+      "name": "call_endpoint",
+      "descriptionHash": "5b4818e1e32e8899456882d2a60d8e4df34e44dfb757b1b623bb569f79d871c3",
+      "description": "Call any Instagram endpoint from list_endpoints by its path under /v1/instagram/. This reaches everything Instagram offers, including what the capability tools above do not wrap; a path on another platform is refused. Pass only the parameters that endpoint accepts; list_endpoints reports which one i"
     }
-  ]
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp.instadata.dev\" exposes tools that together enable an exfiltration flow. Untrusted content: get_transcript, get_summary, get_post_stats, get_comments, get_channel_posts, search_hashtag · Private data: get_profile · Public sink: get_post_stats, get_comments, download_media.",
+      "evidence": {
+        "source": "server:mcp.instadata.dev",
+        "snippet": "Untrusted content: get_transcript, get_summary, get_post_stats, get_comments, get_channel_posts, search_hashtag · Private data: get_profile · Public sink: get_post_stats, get_comments, download_media"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 80,
+  "scoreBreakdown": {
+    "toxic-flow": 20
+  },
+  "errors": []
 }

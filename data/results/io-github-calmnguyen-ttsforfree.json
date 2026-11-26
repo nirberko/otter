@@ -8,8 +8,8 @@
     "kind": "url",
     "ref": "https://api.ttsforfree.com/mcp"
   },
-  "scannedAt": "2026-11-19T13:30:08.498Z",
-  "durationMs": 15903,
+  "scannedAt": "2026-11-26T14:09:28.188Z",
+  "durationMs": 3194,
   "layers": {
     "metadata": true,
     "static": false
@@ -97,10 +97,23 @@
     },
     {
       "name": "list_recent_jobs",
-      "descriptionHash": "2710741f5045d4825025edf394e32acc22215b87e08575d420a43d90d29c5ee1",
-      "description": "List the user's most recent speech jobs with status and audio URLs, to reuse earlier audio instead of paying again.",
+      "descriptionHash": "5bcda1077c4747828f599c3b0943a9123ce90371dc53d3b0ac4b6878740c983f",
+      "description": "List the user's most recent speech jobs with status and audio URLs, to reuse earlier audio instead of paying again. For other tools (Video to SRT, video dubbing, SRT translation) or a date range, use list_history.",
       "labels": [
         "untrusted-content"
+      ]
+    },
+    {
+      "name": "list_history",
+      "descriptionHash": "b23d80035256fe4d9c4e539588953e26bb48b19ff87df15026dfde9c13328688",
+      "description": "The user's history for one tool, newest first, filtered by date: video_to_srt (transcriptions: job_id, SRT preview; full SRT with get_transcription), video_localization and voice_to_voice (job_guid, status, final_video_url, audio_url, translated_srt_url), srt_to_speech / multi_voice / text_to_speech"
+    },
+    {
+      "name": "get_srt_translation",
+      "descriptionHash": "65544961cb30feb224aff7b4ed988ac8cbfa9ab1ef349867237869180ad8dd83",
+      "description": "Get one SRT translation from list_history (type srt_translation) as a ready-to-save SRT file in the target language, plus the original text of each cue.",
+      "labels": [
+        "private-data"
       ]
     },
     {
@@ -214,10 +227,10 @@
       "severity": "high",
       "category": "toxic-flow",
       "title": "Lethal trifecta: untrusted input + private data + external sink",
-      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: get_job_status, list_recent_jobs, create_upload_url, get_publishing_status, list_published_posts · Private data: list_voices, get_voice_details, design_custom_voice, get_job_detail, create_upload_url, transcribe_media, set_speaker_voices · Public sink: create_upload_url, localize_video, set_speaker_lines, get_publishing_status, publish_video, cancel_scheduled_post · Destructive: remove_favorite_voice, create_upload_url.",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: get_job_status, list_recent_jobs, create_upload_url, get_publishing_status, list_published_posts · Private data: list_voices, get_voice_details, design_custom_voice, get_srt_translation, get_job_detail, create_upload_url, transcribe_media, set_speaker_voices · Public sink: create_upload_url, localize_video, set_speaker_lines, get_publishing_status, publish_video, cancel_scheduled_post · Destructive: remove_favorite_voice, create_upload_url.",
       "evidence": {
         "source": "server:mcp",
-        "snippet": "Untrusted content: get_job_status, list_recent_jobs, create_upload_url, get_publishing_status, list_published_posts · Private data: list_voices, get_voice_details, design_custom_voice, get_job_detail, create_upload_url, transcribe_media, set_speaker_voices · Public sink: create_upload_url, localize_video, set_speaker_lines, get_publishing_status, publish_video, cancel_scheduled_post · Destructive: remove_favorite_voice, create_upload_url"
+        "snippet": "Untrusted content: get_job_status, list_recent_jobs, create_upload_url, get_publishing_status, list_published_posts · Private data: list_voices, get_voice_details, design_custom_voice, get_srt_translation, get_job_detail, create_upload_url, transcribe_media, set_speaker_voices · Public sink: create_upload_url, localize_video, set_speaker_lines, get_publishing_status, publish_video, cancel_scheduled_post · Destructive: remove_favorite_voice, create_upload_url"
       },
       "confidence": 0.6,
       "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
@@ -227,23 +240,22 @@
       "severity": "high",
       "category": "tool-poisoning",
       "title": "Tool description changed since last scan",
-      "detail": "Tool \"localize_video\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "detail": "Tool \"list_recent_jobs\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
       "evidence": {
-        "source": "tool:localize_video",
-        "snippet": "before: \"Full automatic dubbing of an uploaded video: transcribe once, translate, voice every target language with its own voice and render a dubbed video per language. Each language returns an audio_url (voice track aligned to the original timeline - upload it to YouTube Studio as a multi-language audio tra\" → after: \"Full automatic dubbing of an uploaded video: transcribe once, translate, voice every target language with its own voice and render a dubbed video per language. Each language returns an audio_url (voice track aligned to the original timeline - upload it to YouTube Studio as a multi-language audio tra\""
+        "source": "tool:list_recent_jobs",
+        "snippet": "before: \"List the user's most recent speech jobs with status and audio URLs, to reuse earlier audio instead of paying again.\" → after: \"List the user's most recent speech jobs with status and audio URLs, to reuse earlier audio instead of paying again. For other tools (Video to SRT, video dubbing, SRT translation) or a date range, use list_history.\""
       },
       "confidence": 0.8,
       "remediation": "Re-review the tool before continuing to trust it."
-    },
-    {
-      "id": "MCP-RUGPULL-001",
-      "severity": "high",
-      "category": "tool-poisoning",
-      "title": "Tool description changed since last scan",
-      "detail": "Tool \"get_localization_status\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
-      "evidence": {
-        "source": "tool:get_localization_status",
-        "snippet": "before: \"Status of localize_video jobs: current step, and when Completed the dubbed audio_url, final_video_url and translated SRT for each language.\" → after: \"Status of localize_video jobs: current step, and when Completed the dubbed audio_url, final_video_url and translated SRT for each language. multi_speaker jobs waiting for voices have waiting_speaker_voices = true and a `speakers` list (lines, seconds, sample and translated sample lines) - then call \""
+    }
+  ],
+  "score": 60,
+  "scoreBreakdown": {
+    "toxic-flow": 20,
+    "tool-poisoning": 20
+  },
+  "errors": []
+}nd a `speakers` list (lines, seconds, sample and translated sample lines) - then call \""
       },
       "confidence": 0.8,
       "remediation": "Re-review the tool before continuing to trust it."

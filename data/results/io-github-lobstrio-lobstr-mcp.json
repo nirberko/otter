@@ -1,0 +1,108 @@
+{
+  "schemaVersion": 1,
+  "scanner": {
+    "version": "1.6.0",
+    "rules": "402995650b68"
+  },
+  "target": {
+    "kind": "url",
+    "ref": "https://api.lobstr.io/v2/mcp"
+  },
+  "scannedAt": "2026-11-26T14:34:50.231Z",
+  "durationMs": 1510,
+  "layers": {
+    "metadata": true,
+    "static": false
+  },
+  "tools": [
+    {
+      "name": "find_operations",
+      "descriptionHash": "929b39063fc27081f0208aab70811769e4744a806ba8f0635f0084d53af971c2",
+      "description": "Find the operations that return the data you need, from what you would ask in words (\"reviews of a\n        restaurant on google maps\", \"places near a point\"): the few that fit best, each with its id\n        (source/resource/verb), when to use it, its options in one line (* is required), its record f",
+      "labels": [
+        "private-data",
+        "destructive"
+      ]
+    },
+    {
+      "name": "get_operation",
+      "descriptionHash": "28f9c75d5a94d32f89a90326067931fc17064fe76abde7e3471334c57b6393cd",
+      "description": "Everything about one operation, by its id from find_operations (\"google_maps/reviews/list\"): when to use\n        it, its options with their defaults, every field of its records, its price, its errors, its changelog.",
+      "labels": [
+        "untrusted-content",
+        "private-data"
+      ]
+    },
+    {
+      "name": "run_operation",
+      "descriptionHash": "5d4f04956f271a88f9f74d4d8b60064d16efcfa99962ac391e7aad3640a6a7e1",
+      "description": "Run one operation (POST /v2/run) and get one page of records in `results`, with `count`, `cost` and\n        `balance`. `options` is the operation's input (see find_operations or get_operation).\n\n        `fields`: the record fields you need, by path (\"name\", \"rating\", \"phone\", \"address.full\"); `objec",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink",
+        "destructive"
+      ]
+    },
+    {
+      "name": "send_feedback",
+      "descriptionHash": "281ac1d421bb18999883dbfd1f7b98bb8447bac0ea2e80fbbdd3195086a743a9",
+      "description": "Tell lobstr.io's team what went wrong or what you need, from this session (POST /v2/feedback): an\n        operation that failed in a way its error does not explain, a record that lacks a field you needed, an\n        operation that does not exist yet, an error message that misled you. Free, never bil",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "get_balance",
+      "descriptionHash": "e0c5da56d5970e1b5b07a3e17afd42bfabb96bddf8bdfc45ab5aec658fb5f395",
+      "description": "The credits this connection's key can spend now, and the account's plan with what one credit costs on it\n        (`plan.credit_price`; null on the free plan, whose credits have no price). To say a cost in money, multiply\n        the credits by it; never guess a price."
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOOL-POISON-007",
+      "severity": "low",
+      "category": "tool-poisoning",
+      "title": "Description uses pressure/override language",
+      "detail": "Description of \"run_operation\" stacks urgency/override words (always, never). Legitimate tool descriptions rarely pressure the model to act or ignore prior guidance.",
+      "evidence": {
+        "source": "tool:run_operation",
+        "snippet": "Run one operation (POST /v2/run) and get one page of records in `results`, with `count`, `cost` and `balance`. `options` is the operation's input (see find_oper…"
+      },
+      "confidence": 0.3
+    },
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"send_feedback\" references sensitive artifacts (secret). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:send_feedback",
+        "snippet": "Tell lobstr.io's team what went wrong or what you need, from this session (POST /v2/feedback): an operation that failed in a way its error does not explain, a r…"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: get_operation, run_operation, send_feedback · Private data: find_operations, get_operation, run_operation, send_feedback · Public sink: run_operation, send_feedback · Destructive: find_operations, run_operation.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: get_operation, run_operation, send_feedback · Private data: find_operations, get_operation, run_operation, send_feedback · Public sink: run_operation, send_feedback · Destructive: find_operations, run_operation"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 59,
+  "scoreBreakdown": {
+    "tool-poisoning": 22,
+    "toxic-flow": 20
+  },
+  "errors": []
+}

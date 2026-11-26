@@ -8,8 +8,8 @@
     "kind": "url",
     "ref": "https://enshapeapp.com/mcp"
   },
-  "scannedAt": "2026-11-19T13:24:07.497Z",
-  "durationMs": 587,
+  "scannedAt": "2026-11-26T14:03:09.379Z",
+  "durationMs": 693,
   "layers": {
     "metadata": true,
     "static": false
@@ -27,8 +27,8 @@
     },
     {
       "name": "get_meals",
-      "descriptionHash": "deaef2b252df35cd7010cf3870d8cca7d2c0979cfcb5128563c2608973d6b33d",
-      "description": "Returns a bounded page of the connected account’s private meals for a local calendar date, including persisted IDs and saved nutrition. Follow nextAfterId while hasMore is true. Oversized entries are marked for checking in Enshape; incomplete results must not be used as complete daily totals. Each p",
+      "descriptionHash": "3d3801b4ee7ffe3495b29ec417dbd625d6c4c62a1615c05721a95aa948b9e955",
+      "description": "Returns a bounded page of the connected account’s private meals for a local calendar date, including persisted IDs and saved nutrition. When hasMore is true, nextAfterId is the afterId for the next page. Oversized entries are marked for checking in Enshape. Each page consumes one diary call.",
       "labels": [
         "private-data"
       ]
@@ -43,8 +43,26 @@
     },
     {
       "name": "get_nearby_meal_suggestions",
-      "descriptionHash": "6b4f4c3117d4c914a34a435643b50ec036a310e57477937f839fcdc95f0ec3e0",
-      "description": "Suggests meals at restaurants near coordinates the user provides, from meal combinations saved in Enshape. Returns at most 10 suggestions with restaurant address and distance, saved nutrition, serving info, component items and a nutritionSource for a later confirmed log_meal. Unpersonalized unless t"
+      "descriptionHash": "be586a9ef5af381654b4af400fc7c1c51e217d00dcca84cb3ee200ec45ff32ab",
+      "description": "Suggests meals at restaurants near coordinates supplied by the user, from meal combinations saved in Enshape, optionally filtered by query, maxCalories or minProtein. Returns at most 10 suggestions plus nearbyRestaurants chains within the radius with distance, saved nutrition, serving info, componen",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "find_foods",
+      "descriptionHash": "ce2e5f7e528fe77708bf8827ca713e26b13ce2aaa57bf31f28b18039ed737ef0",
+      "description": "Searches Enshape by plain-language name or restaurant mention, without a location: verified restaurant menu items, reviewed restaurant combos (resolved automatically when a known chain appears in query or restaurant), plus the user’s own saved foods and recipes. Returns at most 10 items per page wit"
+    },
+    {
+      "name": "get_usual_meals",
+      "descriptionHash": "f46cf258c4ce34e1706089e5519c7e504adcfcb580c0d6973d03f89d5f3e5514",
+      "description": "Returns up to 10 distinct foods the user logs most, from their newest 300 diary entries on or before a local date, ranked by meal slot (when given), how often and how recently, with the latest portion, saved per-serving nutrition and a diary ref for log_food_reference. Nothing is logged: confirm the"
+    },
+    {
+      "name": "get_nutrition_trends",
+      "descriptionHash": "ffe9d35c00973fb6d06dd44b00a72c027bb0432216628eb2c6de021e9c2b593c",
+      "description": "Returns per-day logged totals for up to 31 user-local dates in one consistent read, with averages over complete logged days (count stated), target-hit days when daily targets are set, and the logged-day streak ending at endDate. Unknown values stay null and never become zero; unlogged days are not z"
     },
     {
       "name": "update_nutrition_targets",
@@ -53,17 +71,24 @@
     },
     {
       "name": "log_meal",
-      "descriptionHash": "71827ea039f0be655fd94a291a7636d2e892bb09a82cf3d8d7611c5d781fb01b",
-      "description": "Creates one confirmed private diary entry for the connected account using per-serving nutrition and quantity. Requires all five nutrition values, source, local date and meal slot. Identical retries with the same requestId return the existing entry; changed payloads are rejected. Approved estimates a",
+      "descriptionHash": "a1b056e7ccd253642a739d21a5d168b5259838a886926bb07fedd08dae04769b",
+      "description": "Creates one private diary entry for the connected account after the user confirms the portion, per-serving nutrition, local date and meal slot. Requires all five nutrition values and their source. Approved estimates are labeled. After an uncertain save, check the diary before retrying with the same ",
       "labels": [
-        "private-data",
-        "public-sink"
+        "private-data"
+      ]
+    },
+    {
+      "name": "log_food_reference",
+      "descriptionHash": "41f334921a6563fd9720c5ae318b41b07ced81e8d84c17e7b36ad5acd8e4a530",
+      "description": "Creates one confirmed private diary entry from a ref returned by find_foods (verified menu item, reviewed restaurant meal or the user’s own food), get_nearby_meal_suggestions (combo) or get_usual_meals, get_meals and recent_foods (diary entry); own foods and diary entries need meals:read too. Enshap",
+      "labels": [
+        "private-data"
       ]
     },
     {
       "name": "delete_meal",
-      "descriptionHash": "07a41b5bc939f2119e613b68a06a9cc696015f3d0572db8878954d156db9ee91",
-      "description": "Permanently deletes one persisted private diary entry belonging to the connected account after explicit user confirmation. Use the persisted ID from get_meals, recent_foods or log_meal; never a catalog ID or guessed ID. Confirm the exact entry before deletion. Retries of the same ID are safe: delete",
+      "descriptionHash": "0c3da503a890828c24ae388aa9254eb49344357c4441caa7db86d9ff00f87f91",
+      "description": "Permanently deletes one private diary entry belonging to the connected account after the user explicitly confirms that exact entry. Use its saved diary ID from Enshape and verify ambiguous or stale entries before deleting. If the outcome is uncertain, check the diary before retrying with the same ID",
       "labels": [
         "private-data",
         "destructive"
@@ -87,8 +112,77 @@
       ]
     }
   ],
-  "findings": [],
-  "score": 100,
-  "scoreBreakdown": {},
+  "findings": [
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: get_nearby_meal_suggestions · Private data: get_meals, recent_foods, log_meal, log_food_reference, delete_meal, request_restaurant · Public sink: request_restaurant · Destructive: delete_meal, get_account_status.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: get_nearby_meal_suggestions · Private data: get_meals, recent_foods, log_meal, log_food_reference, delete_meal, request_restaurant · Public sink: request_restaurant · Destructive: delete_meal, get_account_status"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"get_meals\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:get_meals",
+        "snippet": "before: \"Returns a bounded page of the connected account’s private meals for a local calendar date, including persisted IDs and saved nutrition. Follow nextAfterId while hasMore is true. Oversized entries are marked for checking in Enshape; incomplete results must not be used as complete daily totals. Each p\" → after: \"Returns a bounded page of the connected account’s private meals for a local calendar date, including persisted IDs and saved nutrition. When hasMore is true, nextAfterId is the afterId for the next page. Oversized entries are marked for checking in Enshape. Each page consumes one diary call.\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"get_nearby_meal_suggestions\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:get_nearby_meal_suggestions",
+        "snippet": "before: \"Suggests meals at restaurants near coordinates the user provides, from meal combinations saved in Enshape. Returns at most 10 suggestions with restaurant address and distance, saved nutrition, serving info, component items and a nutritionSource for a later confirmed log_meal. Unpersonalized unless t\" → after: \"Suggests meals at restaurants near coordinates supplied by the user, from meal combinations saved in Enshape, optionally filtered by query, maxCalories or minProtein. Returns at most 10 suggestions plus nearbyRestaurants chains within the radius with distance, saved nutrition, serving info, componen\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"log_meal\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:log_meal",
+        "snippet": "before: \"Creates one confirmed private diary entry for the connected account using per-serving nutrition and quantity. Requires all five nutrition values, source, local date and meal slot. Identical retries with the same requestId return the existing entry; changed payloads are rejected. Approved estimates a\" → after: \"Creates one private diary entry for the connected account after the user confirms the portion, per-serving nutrition, local date and meal slot. Requires all five nutrition values and their source. Approved estimates are labeled. After an uncertain save, check the diary before retrying with the same \""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"delete_meal\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:delete_meal",
+        "snippet": "before: \"Permanently deletes one persisted private diary entry belonging to the connected account after explicit user confirmation. Use the persisted ID from get_meals, recent_foods or log_meal; never a catalog ID or guessed ID. Confirm the exact entry before deletion. Retries of the same ID are safe: delete\" → after: \"Permanently deletes one private diary entry belonging to the connected account after the user explicitly confirms that exact entry. Use its saved diary ID from Enshape and verify ambiguous or stale entries before deleting. If the outcome is uncertain, check the diary before retrying with the same ID\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    }
+  ],
+  "score": 43,
+  "scoreBreakdown": {
+    "toxic-flow": 20,
+    "tool-poisoning": 38
+  },
   "errors": []
 }

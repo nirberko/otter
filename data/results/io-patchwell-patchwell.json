@@ -8,8 +8,8 @@
     "kind": "url",
     "ref": "https://patchwell.io/mcp/"
   },
-  "scannedAt": "2026-11-19T13:37:46.600Z",
-  "durationMs": 5395,
+  "scannedAt": "2026-11-26T14:17:00.513Z",
+  "durationMs": 2154,
   "layers": {
     "metadata": true,
     "static": false
@@ -17,7 +17,7 @@
   "tools": [
     {
       "name": "transcribe",
-      "descriptionHash": "bbbeba59bce9fedf72b1909c26833fa7bd9996f10ee84c75f58747cb2e8d9fbc",
+      "descriptionHash": "7c0fa71ff84bfa2142ce70d8490745cf9edb587d025907e8b28c04d1cc6c8704",
       "description": "Transcribe speech in an audio or video file. Use it when you need the words in a recording, quotes with\n        their time, who said what, or subtitles. Returns text, sentence segments, each word with start/end seconds,\n        confidence and speaker (`spk`: 1, 2, ... told apart by voice), `turns` (",
       "labels": [
         "private-data"
@@ -25,7 +25,7 @@
     },
     {
       "name": "research",
-      "descriptionHash": "c3b796ffa41e2e7b0339bf4b42626bfd52e6ca898dff0d26d61df27c95a8feb8",
+      "descriptionHash": "2fbf2d7f937894efefd2f55fe326f2ef4ea0f82337c405357e8a470b243fb645",
       "description": "Research a question on the live web and get an answer in which each sentence cites the page it came\n        from. Use it for facts you can't answer from memory or that may have changed. Returns `answer` (sentences\n        with [url] citations), `claims` (each sentence with its url and the quote foun",
       "labels": [
         "untrusted-content",
@@ -43,13 +43,59 @@
       "description": "Fetch the result of a long transcribe or research call that returned {\"status\": \"running\", \"job_id\"}.\n        Call it again every 20 to 30 seconds until status is 'done'; the finished result has the same shape as the\n        original tool's. Patchwell settles the call's charge when the job finishes,"
     },
     {
+      "name": "submit_batch",
+      "descriptionHash": "3c994f2a29fa4a0df6add5cbbbb7100c53cc721655d66479438cb2c1840dd69c",
+      "description": "Queue many items for one tool. They run in parallel at this key's share, each priced exactly like a\n        single call (failed and refused items are free). Returns the batch at once; follow it with get_batch, and\n        read finished items with get_batch_results while it runs.\n\n        Already scr",
+      "labels": [
+        "untrusted-content",
+        "public-sink",
+        "destructive"
+      ]
+    },
+    {
+      "name": "get_batch",
+      "descriptionHash": "820341f83bfb39076a9a7d19c9b2a83fc05c1d32b291f83eb34967722b5677cb",
+      "description": "A batch's status, progress (done / total), item counts, spend and estimated finish. Free."
+    },
+    {
+      "name": "get_batch_results",
+      "descriptionHash": "6d1eaeaa9977887c2c5836bf3ccf8ca64e24a7389457658ff58508089c4e8833",
+      "description": "Finished items, one per entry: index, custom_id, status and the result (or error). Works while the batch\n        runs. Free."
+    },
+    {
+      "name": "cancel_batch",
+      "descriptionHash": "92549620c3c15514f8d7f3a1e7f22e31be2af3e10038033df661a7f5b7eddc6f",
+      "description": "Stop starting new items. Items already running finish and are billed; nothing else is charged."
+    },
+    {
       "name": "clean_data",
-      "descriptionHash": "5a538a25c39e94d850e214b9a53d605f01cad8ad8308abdf748eb064d7c1ce79",
+      "descriptionHash": "e5e24e2c2c0ee356c3b9130c0dbcb84d70afd209d0be0d319b87d33fa85e7fa0",
       "description": "Clean a messy spreadsheet or JSON export into typed, deduplicated records with a log of each change.\n        Use it when a spreadsheet or export needs cleaning or deduplicating before analysis or import. It finds the header row, works out each\n        column's type from the values (ids incl. barcode",
       "labels": [
         "untrusted-content",
         "private-data",
         "public-sink"
+      ]
+    },
+    {
+      "name": "find_tools",
+      "descriptionHash": "408a511db379ca72e49c1e46d9f3c96197d0c403ac3ec3118a42c5910190d2d1",
+      "description": "Search every Patchwell tool, including those not listed here by name. Returns each match's name, one\n        line on what it does and its price. Then describe_tool(name) gives its input, and run_tool(name, input)\n        runs it. Free."
+    },
+    {
+      "name": "describe_tool",
+      "descriptionHash": "95dcea5917e3e2c536edf690a130c5ffb87469cdf1311882b6cc962a17b2ee38",
+      "description": "Everything needed to run one tool: its input as a JSON Schema, options, limits, price and what it\n        returns. Pass that input to run_tool. Free.",
+      "labels": [
+        "destructive"
+      ]
+    },
+    {
+      "name": "run_tool",
+      "descriptionHash": "12480582bc45a4be534a6427899683746c0d4337186a17865abf3afa3bc3e21f",
+      "description": "Run any Patchwell tool by name, priced and billed exactly as that tool (see its price in find_tools or\n        describe_tool; refusals and failures cost nothing). A slow call returns {\"status\": \"running\", \"job_id\"}:\n        call get_job_result with it.",
+      "labels": [
+        "destructive"
       ]
     }
   ],
@@ -62,9 +108,21 @@
       "detail": "Tool \"research\" appears informational but accepts parameters (context) that enable code/file/secret access.",
       "evidence": {
         "source": "tool:research",
-        "snippet": "question, context"
+        "snippet": "question, context, private, depth"
       },
       "confidence": 0.55
+    },
+    {
+      "id": "MCP-TOOL-POISON-006",
+      "severity": "low",
+      "category": "tool-poisoning",
+      "title": "Anomalously long tool description",
+      "detail": "Description of \"clean_data\" is 1744 chars, far longer than this server's median (244). Overlong descriptions are a common place to bury instructions.",
+      "evidence": {
+        "source": "tool:clean_data",
+        "snippet": "Clean a messy spreadsheet or JSON export into typed, deduplicated records with a log of each change. Use it when a spreadsheet or export needs cleaning or dedup…"
+      },
+      "confidence": 0.4
     },
     {
       "id": "MCP-TOOL-POISON-007",
@@ -83,10 +141,10 @@
       "severity": "high",
       "category": "toxic-flow",
       "title": "Lethal trifecta: untrusted input + private data + external sink",
-      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: research, clean_data · Private data: transcribe, research, clean_data · Public sink: clean_data.",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: research, submit_batch, clean_data · Private data: transcribe, research, clean_data · Public sink: submit_batch, clean_data · Destructive: submit_batch, describe_tool, run_tool.",
       "evidence": {
         "source": "server:mcp",
-        "snippet": "Untrusted content: research, clean_data · Private data: transcribe, research, clean_data · Public sink: clean_data"
+        "snippet": "Untrusted content: research, submit_batch, clean_data · Private data: transcribe, research, clean_data · Public sink: submit_batch, clean_data · Destructive: submit_batch, describe_tool, run_tool"
       },
       "confidence": 0.6,
       "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
@@ -99,7 +157,7 @@
       "detail": "Tool \"transcribe\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
       "evidence": {
         "source": "tool:transcribe",
-        "snippet": "before: \"Transcribe speech in an audio or video file. Use it when you need the words in a recording, quotes with\n        their time, or subtitles. Returns text, sentence segments, each word with start/end seconds and confidence,\n        SRT and VTT, and `flags` listing any phrase the guards removed (Whisper'\" → after: \"Transcribe speech in an audio or video file. Use it when you need the words in a recording, quotes with\n        their time, who said what, or subtitles. Returns text, sentence segments, each word with start/end seconds,\n        confidence and speaker (`spk`: 1, 2, ... told apart by voice), `turns` (\""
+        "snippet": "before: \"Transcribe speech in an audio or video file. Use it when you need the words in a recording, quotes with\n        their time, who said what, or subtitles. Returns text, sentence segments, each word with start/end seconds,\n        confidence and speaker (`spk`: 1, 2, ... told apart by voice), `turns` (\" → after: \"Transcribe speech in an audio or video file. Use it when you need the words in a recording, quotes with\n        their time, who said what, or subtitles. Returns text, sentence segments, each word with start/end seconds,\n        confidence and speaker (`spk`: 1, 2, ... told apart by voice), `turns` (\""
       },
       "confidence": 0.8,
       "remediation": "Re-review the tool before continuing to trust it."
@@ -112,20 +170,7 @@
       "detail": "Tool \"research\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
       "evidence": {
         "source": "tool:research",
-        "snippet": "before: \"Research a question on the live web and get an answer in which each sentence cites the page it came\n        from. Use it for facts you can't answer from memory or that may have changed. Returns `answer` (sentences\n        with [url] citations), `sources`, `gaps` (what the sources couldn't confirm) a\" → after: \"Research a question on the live web and get an answer in which each sentence cites the page it came\n        from. Use it for facts you can't answer from memory or that may have changed. Returns `answer` (sentences\n        with [url] citations), `claims` (each sentence with its url and the quote foun\""
-      },
-      "confidence": 0.8,
-      "remediation": "Re-review the tool before continuing to trust it."
-    },
-    {
-      "id": "MCP-RUGPULL-001",
-      "severity": "high",
-      "category": "tool-poisoning",
-      "title": "Tool description changed since last scan",
-      "detail": "Tool \"get_job_result\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
-      "evidence": {
-        "source": "tool:get_job_result",
-        "snippet": "before: \"Fetch the result of a long call that returned {\"status\": \"running\", \"job_id\"}. Call it every 20 to 30\n        seconds until status is 'done'; the finished result has the same shape as the original tool's. Free.\" → after: \"Fetch the result of a long transcribe or research call that returned {\"status\": \"running\", \"job_id\"}.\n        Call it again every 20 to 30 seconds until status is 'done'; the finished result has the same shape as the\n        original tool's. Patchwell settles the call's charge when the job finishes,\""
+        "snippet": "before: \"Research a question on the live web and get an answer in which each sentence cites the page it came\n        from. Use it for facts you can't answer from memory or that may have changed. Returns `answer` (sentences\n        with [url] citations), `claims` (each sentence with its url and the quote foun\" → after: \"Research a question on the live web and get an answer in which each sentence cites the page it came\n        from. Use it for facts you can't answer from memory or that may have changed. Returns `answer` (sentences\n        with [url] citations), `claims` (each sentence with its url and the quote foun\""
       },
       "confidence": 0.8,
       "remediation": "Re-review the tool before continuing to trust it."
@@ -138,16 +183,16 @@
       "detail": "Tool \"clean_data\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
       "evidence": {
         "source": "tool:clean_data",
-        "snippet": "before: \"Clean a messy spreadsheet or JSON export into typed, deduplicated records with a log of each change.\n        Use it before you analyse, import or act on tabular data. It works out each column's type from the\n        values, normalises emails, phones, dates, money, names and states, repairs broken en\" → after: \"Clean a messy spreadsheet or JSON export into typed, deduplicated records with a log of each change.\n        Use it when a spreadsheet or export needs cleaning or deduplicating before analysis or import. It finds the header row, works out each\n        column's type from the values (ids incl. barcode\""
+        "snippet": "before: \"Clean a messy spreadsheet or JSON export into typed, deduplicated records with a log of each change.\n        Use it when a spreadsheet or export needs cleaning or deduplicating before analysis or import. It finds the header row, works out each\n        column's type from the values (ids incl. barcode\" → after: \"Clean a messy spreadsheet or JSON export into typed, deduplicated records with a log of each change.\n        Use it when a spreadsheet or export needs cleaning or deduplicating before analysis or import. It finds the header row, works out each\n        column's type from the values (ids incl. barcode\""
       },
       "confidence": 0.8,
       "remediation": "Re-review the tool before continuing to trust it."
     }
   ],
-  "score": 34,
+  "score": 36,
   "scoreBreakdown": {
     "schema-smell": 8,
-    "tool-poisoning": 38,
+    "tool-poisoning": 36,
     "toxic-flow": 20
   },
   "errors": []

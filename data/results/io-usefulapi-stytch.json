@@ -1,0 +1,106 @@
+{
+  "schemaVersion": 1,
+  "scanner": {
+    "version": "1.6.0",
+    "rules": "402995650b68"
+  },
+  "target": {
+    "kind": "url",
+    "ref": "https://stytch.usefulapi.io/mcp"
+  },
+  "scannedAt": "2026-11-26T14:18:21.295Z",
+  "durationMs": 146,
+  "layers": {
+    "metadata": true,
+    "static": false
+  },
+  "tools": [
+    {
+      "name": "stytch_search_users",
+      "descriptionHash": "b3f487b0a3fcc0cc4e484a63cf8a2566185f17eb3044f4beef192c3f3b0e2c7e",
+      "description": "Search the users of this Stytch project, with optional filters and cursor paging. Returns results (user_id, emails, name, status, created_at) and results_metadata (next_cursor, total). Stytch warns this search is slow and not for login flows. Stytch API: POST /v1/users/search.",
+      "labels": [
+        "untrusted-content",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "stytch_get_user",
+      "descriptionHash": "a08cf43860615e80e14e20b580f5f74b244c84729da59a67af679e221c51e502",
+      "description": "Get one user by user_id: emails, phone numbers, providers (login methods), status, is_locked, roles and metadata. Stytch API: GET /v1/users/{user_id}.",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "stytch_list_user_sessions",
+      "descriptionHash": "708a1c6c92d127c78dc1a00393e45146f2fa80dbba18f607960cf373bbce9a29",
+      "description": "List the active sessions of one user: session_id, started_at, last_accessed_at, expires_at, authentication factors and roles. Stytch API: GET /v1/sessions?user_id=."
+    },
+    {
+      "name": "stytch_revoke_session",
+      "descriptionHash": "9c56e405b5ec6c193364b367a1f742b5cad8a2006a0f92c491b6a8be8590caff",
+      "description": "Revoke one session by session_id. Its session tokens stop working at once, so the user must sign in again. Use only when the user asks to end that session. Stytch API: POST /v1/sessions/revoke.",
+      "labels": [
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "stytch_search_organizations",
+      "descriptionHash": "6ebe438cbf4c90def0398c76a068b1f4d3e4aa2bee5f9318ac472218827bd449",
+      "description": "Search the B2B organizations of this project (needs a B2B-enabled project), with optional filters and cursor paging. Returns organizations (organization_id, organization_name, organization_slug, auth_methods) and results_metadata. Stytch API: POST /v1/b2b/organizations/search.",
+      "labels": [
+        "untrusted-content",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "stytch_get_organization",
+      "descriptionHash": "4df605d7f063e2eda8499dd780700cab02537ece1eb318fba1687506dd1e0933",
+      "description": "Get one B2B organization by organization_id: name, slug, SSO and auth method settings, and metadata. Stytch API: GET /v1/b2b/organizations/{organization_id}."
+    },
+    {
+      "name": "stytch_search_members",
+      "descriptionHash": "c5b2d6f7bd5c8395c3f8c57413ba06914e02594c869ffeeca6cebbcf0720be0b",
+      "description": "Search the members of one or more B2B organizations. Needs at least one organization_id. Returns members (member_id, email_address, name, status, roles), organizations and results_metadata. Stytch warns this search is slow and not for login flows. Stytch API: POST /v1/b2b/organizations/members/searc",
+      "labels": [
+        "untrusted-content",
+        "public-sink"
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"stytch_revoke_session\" references sensitive artifacts (session token). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:stytch_revoke_session",
+        "snippet": "Revoke one session by session_id. Its session tokens stop working at once, so the user must sign in again. Use only when the user asks to end that session. Styt…"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: stytch_search_users, stytch_get_user, stytch_search_organizations, stytch_search_members · Private data: stytch_revoke_session · Public sink: stytch_search_users, stytch_revoke_session, stytch_search_organizations, stytch_search_members.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: stytch_search_users, stytch_get_user, stytch_search_organizations, stytch_search_members · Private data: stytch_revoke_session · Public sink: stytch_search_users, stytch_revoke_session, stytch_search_organizations, stytch_search_members"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 60,
+  "scoreBreakdown": {
+    "tool-poisoning": 20,
+    "toxic-flow": 20
+  },
+  "errors": []
+}

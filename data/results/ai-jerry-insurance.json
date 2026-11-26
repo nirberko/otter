@@ -8,8 +8,8 @@
     "kind": "url",
     "ref": "https://mcp.jerry.ai/mcp"
   },
-  "scannedAt": "2026-11-20T13:02:10.712Z",
-  "durationMs": 860,
+  "scannedAt": "2026-11-26T14:00:03.917Z",
+  "durationMs": 481,
   "layers": {
     "metadata": true,
     "static": false
@@ -34,10 +34,11 @@
     },
     {
       "name": "jerry_update_application",
-      "descriptionHash": "64d3347a5c1fec7f5c2d2a85fed8016c995a9bc90a56463da09f730247e9d305",
+      "descriptionHash": "1e9c977dd0f1a5f3bf243ccfd77d3e1cefc8490301f6beee431db8984bf6762b",
       "description": "Save application facts the customer gave, in their own words. Every field is optional and merges into what's saved, so send only facts that are new or changed.\n- Items with an id update that driver, car or home; items without one are added. included puts an item on the quote or leaves it off.\n- Add ",
       "labels": [
-        "public-sink"
+        "public-sink",
+        "destructive"
       ]
     },
     {
@@ -50,26 +51,35 @@
     },
     {
       "name": "jerry_request_final_price",
-      "descriptionHash": "1cf280f3d4a7f256f9f4d5f8ae1b6f8671762ee190efdc0c697e9a23d2cfbc81",
-      "description": "Get the final price of the quote the customer chose. Call it first with bundleId only: that selects the quote and returns the status, which may list what the final price still needs, then a confirmation. After the customer says yes to that confirmation, call again with its token and the customer's e",
+      "descriptionHash": "759b08d4414f8790380f8d74be13b182ccd17dbcc74584f48170b93d7fc36a81",
+      "description": "Get the confirmed rate of the quote the customer chose. Call it first with bundleId only: that selects the quote and returns the status, which may list what the confirmed rate still needs, then a confirmation. After the customer says yes to that confirmation, call again with its token and the custom",
       "labels": [
+        "untrusted-content",
         "private-data"
       ]
     },
     {
       "name": "jerry_wait",
-      "descriptionHash": "b0ab573762830b94d06d174cc6f33736cd816c99f4ca11793f5b098090056a78",
-      "description": "Wait for quotes or a final price after requesting them. Returns as soon as they're ready, or after timeoutSeconds with the status so far; call again while they're still running. When quotes are ready, it returns the quote list too. A final price is ready once it's resolved. If a Jerry agent takes it"
+      "descriptionHash": "75341bef73cba8cb1ef31ff0653b2a6b5030cce0e2c0bade7d397ad156b2bba0",
+      "description": "Wait for quotes or a confirmed rate after requesting them. Quotes usually take about a minute and nearly always come within 4 minutes. A confirmed rate usually takes about 3 to 10 minutes. Returns as soon as they're ready, or after timeoutSeconds (at most 20) with the status so far and reason timeou"
     },
     {
       "name": "jerry_get_status",
-      "descriptionHash": "944958b1c13c736383deca6e20a991fe0fcfcf1228b480681865827142c32b32",
-      "description": "Read where the customer's insurance shopping stands: the stage, what the current goal still needs (by application path), a summary of the application, what Jerry found that isn't on the application yet (suggested) and, when a request is ready, the confirmation to show. It doesn't change anything."
+      "descriptionHash": "da58e3fe49a04b92919a505790319661dde8e13b53eea850be0769aaeaa5394b",
+      "description": "Read where the customer's insurance shopping stands: the stage, what the current goal still needs (by application path), a summary of the application, what Jerry found that isn't on the application yet (suggested) and, when a request is ready, the confirmation to show. It doesn't change anything. A ",
+      "labels": [
+        "private-data",
+        "public-sink",
+        "destructive"
+      ]
     },
     {
       "name": "jerry_get_quotes",
-      "descriptionHash": "206f165c52889e8ecd2467e25190dc0806448d8f7a4d8e60eab9028c9a67951a",
-      "description": "List every quote for a shopping intent, cheapest first by monthly price (in USD cents); each policy has a coverageSummary. Pass up to 4 bundleIds to also get their coverages, discounts and payment plans, for example to compare them. Prices are estimates until priceStatus is final. Declined quotes ar"
+      "descriptionHash": "b9805119e17d43a761ab2d32d97aecf7bfef53a03f38e4b653237f362b804089",
+      "description": "List every quote for a shopping intent, cheapest first by monthly price (in USD cents); each policy has a coverageSummary. A quote is one insurer's price for one plan, with its own bundleId, so one insurer can have several. Quotes are listed once quotes.status is complete; jerry_wait returns this li",
+      "labels": [
+        "untrusted-content"
+      ]
     }
   ],
   "findings": [
@@ -78,21 +88,10 @@
       "severity": "high",
       "category": "toxic-flow",
       "title": "Lethal trifecta: untrusted input + private data + external sink",
-      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: jerry_get_account · Private data: jerry_request_quotes, jerry_request_final_price · Public sink: jerry_get_account, jerry_start_shopping, jerry_update_application.",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: jerry_get_account, jerry_request_final_price, jerry_get_quotes · Private data: jerry_request_quotes, jerry_request_final_price, jerry_get_status · Public sink: jerry_get_account, jerry_start_shopping, jerry_update_application, jerry_get_status · Destructive: jerry_update_application, jerry_get_status.",
       "evidence": {
         "source": "server:mcp",
-        "snippet": "Untrusted content: jerry_get_account · Private data: jerry_request_quotes, jerry_request_final_price · Public sink: jerry_get_account, jerry_start_shopping, jerry_update_application"
-      },
-      "confidence": 0.6,
-      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
-    }
-  ],
-  "score": 80,
-  "scoreBreakdown": {
-    "toxic-flow": 20
-  },
-  "errors": []
-}}ion, jerry_get_status"
+        "snippet": "Untrusted content: jerry_get_account, jerry_request_final_price, jerry_get_quotes · Private data: jerry_request_quotes, jerry_request_final_price, jerry_get_status · Public sink: jerry_get_account, jerry_start_shopping, jerry_update_application, jerry_get_status · Destructive: jerry_update_application, jerry_get_status"
       },
       "confidence": 0.6,
       "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."

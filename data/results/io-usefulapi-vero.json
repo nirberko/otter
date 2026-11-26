@@ -1,0 +1,87 @@
+{
+  "schemaVersion": 1,
+  "scanner": {
+    "version": "1.6.0",
+    "rules": "402995650b68"
+  },
+  "target": {
+    "kind": "url",
+    "ref": "https://vero.usefulapi.io/mcp"
+  },
+  "scannedAt": "2026-11-26T14:18:11.788Z",
+  "durationMs": 227,
+  "layers": {
+    "metadata": true,
+    "static": false
+  },
+  "tools": [
+    {
+      "name": "vero_identify_user",
+      "descriptionHash": "a87f2df57dba9e7f27d668497a5842da7b04b2461675d703db202eeef8c6bddd",
+      "description": "Create a customer profile in Vero, or update the properties of an existing one. Sets custom properties in `data`. Vero keeps the newest value per property. Set `update_only` to change only existing profiles. Do not send sensitive data (for example passwords, card or health data). Track API: POST /us",
+      "labels": [
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "vero_track_event",
+      "descriptionHash": "4e10bcbfd4d6136c50a74456735be55585f650eb97b8307d5f7a4dc5b81b1ed7",
+      "description": "Record one event for a customer, for example a purchase or a page view. Vero creates the profile if it does not exist. Vero drops an exact repeat (same name, data and customer) within 5 minutes. Event data values must be strings. Do not send sensitive data. Track API: POST /events/track.",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "vero_unsubscribe_user",
+      "descriptionHash": "fcae953e861f6941f4543b153443f53f80706a694967f16ccddd65780080083d",
+      "description": "Unsubscribe a customer from all Vero email. This stops marketing and campaign email to them. Use it when the customer asks to stop email. The tools in this server do not resubscribe. Track API: POST /users/unsubscribe.",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "vero_edit_user_tags",
+      "descriptionHash": "714a1205b3af06b7b7b26c4a5582052d5a1e6d26a5558e8fe889588ae6b07a69",
+      "description": "Add tags to, or remove tags from, a customer profile. Tags group customers for segments and campaigns. Give at least one tag in `add` or `remove`. Track API: PUT /users/tags/edit.",
+      "labels": [
+        "destructive"
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"vero_identify_user\" references sensitive artifacts (password). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:vero_identify_user",
+        "snippet": "Create a customer profile in Vero, or update the properties of an existing one. Sets custom properties in `data`. Vero keeps the newest value per property. Set …"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: vero_track_event · Private data: vero_identify_user, vero_track_event · Public sink: vero_identify_user, vero_track_event, vero_unsubscribe_user · Destructive: vero_edit_user_tags.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: vero_track_event · Private data: vero_identify_user, vero_track_event · Public sink: vero_identify_user, vero_track_event, vero_unsubscribe_user · Destructive: vero_edit_user_tags"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 60,
+  "scoreBreakdown": {
+    "tool-poisoning": 20,
+    "toxic-flow": 20
+  },
+  "errors": []
+}
