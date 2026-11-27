@@ -1,0 +1,107 @@
+{
+  "schemaVersion": 1,
+  "scanner": {
+    "version": "1.6.0",
+    "rules": "402995650b68"
+  },
+  "target": {
+    "kind": "url",
+    "ref": "https://prokura.network/mcp"
+  },
+  "scannedAt": "2026-11-27T14:16:54.740Z",
+  "durationMs": 2104,
+  "layers": {
+    "metadata": true,
+    "static": false
+  },
+  "tools": [
+    {
+      "name": "prokura_request_mandate",
+      "descriptionHash": "1a0fa257c2919dcbb495fcc2dbf092c03481c5695790b9168d8e415dd027b98d",
+      "description": "Ask a human to grant this session a 10-minute demo Prokura Credential. 100.00 EUR per payment, step-up above 50.00 EUR, 150.00 EUR per day. Returns a grant URL and a QR code. Never returns a mandate. Any scope, principal or amount you send is ignored.",
+      "labels": [
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "prokura_check",
+      "descriptionHash": "b3a842de190f0372a691bfbce3d8419964163689f27eaed3c8e00f3c06dd43c9",
+      "description": "Ask the policy gate whether a payment would be allowed. Nothing is paid."
+    },
+    {
+      "name": "prokura_pay",
+      "descriptionHash": "7e9ea600d235c6b1e05413fa6c26a544a7ff8ba783281c6afd4793fbd714c0cf",
+      "description": "Submit a payment. The policy gate decides allow, step_up (a human approves with a passkey) or deny; only allowed payments are executed, server-side. Give either amount + payee + purpose, or, for an HTTP 402 API, x402Url (the paid response is returned).",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
+      "name": "prokura_evidence",
+      "descriptionHash": "d75d81f3bde3e8e421c7ef0e93bcbfe9158e6a90f681b521e3dc07d6c523fea6",
+      "description": "Fetch an evidence record by id, or all records of a mandate.",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "prokura_mandate",
+      "descriptionHash": "87a9d641cdd4f2abec9d2f681c331be8727d1640bc979fb955a32c8d86046451",
+      "description": "Read a mandate's current state: whether it is active, revoked, expired or not yet valid; its validity window; its scope (currency, per-payment cap, step-up threshold, period cap, allowed rails and purposes, payees); and the budget used so far in the current period (budget, spent, remaining). Use it ",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "store_catalog",
+      "descriptionHash": "f00887c38f6b66ba31c6aaab0df644fa7a28c3ca461b2c1d01d6387a77bf9267",
+      "description": "List the 4 items of Prokura's fake demo store, each with sku, name, unit price (amount and currency EUR), payee (a demo domain: demo-store.prokura.network, demo-saas.prokura.network, demo-travel.prokura.network), purpose (software or travel) and rail (mollie, test mode). Call it first to learn which",
+      "labels": [
+        "destructive"
+      ]
+    },
+    {
+      "name": "store_quote",
+      "descriptionHash": "630549a2ff84725ae955af7674548d1b4694c5fbd1d9a6e1a2fec59ff2606312",
+      "description": "Price one item of the fake demo store: returns the item (sku, name, payee, purpose, rail mollie), the quantity, the currency (EUR) and the total amount as a decimal string with two digits, e.g. \"29.00\" for one saas-seat. Use it after store_catalog, to turn a sku and quantity into the exact amount, p",
+      "labels": [
+        "destructive"
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOOL-POISON-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description issues instructions to the model",
+      "detail": "Description of \"prokura_mandate\" contains imperative instructions directed at the AI assistant rather than describing the tool. This is the core tool-poisoning technique.",
+      "evidence": {
+        "source": "tool:prokura_mandate",
+        "snippet": "Read a mandate's current state: whether it is active, revoked, expired or not yet valid; its validity window; its scope (currency, per-payment cap, step-up thre…"
+      },
+      "confidence": 0.7,
+      "remediation": "Treat the server as untrusted; the model may obey embedded instructions."
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: prokura_mandate · Private data: prokura_request_mandate, prokura_evidence · Public sink: prokura_request_mandate, prokura_pay · Destructive: store_catalog, store_quote.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: prokura_mandate · Private data: prokura_request_mandate, prokura_evidence · Public sink: prokura_request_mandate, prokura_pay · Destructive: store_catalog, store_quote"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 60,
+  "scoreBreakdown": {
+    "tool-poisoning": 20,
+    "toxic-flow": 20
+  },
+  "errors": []
+}

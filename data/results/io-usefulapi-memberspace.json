@@ -1,0 +1,116 @@
+{
+  "schemaVersion": 1,
+  "scanner": {
+    "version": "1.6.0",
+    "rules": "402995650b68"
+  },
+  "target": {
+    "kind": "url",
+    "ref": "https://memberspace.usefulapi.io/mcp"
+  },
+  "scannedAt": "2026-11-27T14:15:59.844Z",
+  "durationMs": 176,
+  "layers": {
+    "metadata": true,
+    "static": false
+  },
+  "tools": [
+    {
+      "name": "memberspace_list_sites",
+      "descriptionHash": "51e64b473ef77584b15f07456df109d0b5c4ee9803e0dcfd031de5b5d9c2d20c",
+      "description": "Get the site that this Admin API key can access: name, subdomain, domain, currency, locale, and member counts (active, free, paid). Good first call to confirm the connection. MemberSpace API: GET /sites.",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "memberspace_list_plans",
+      "descriptionHash": "32ce8ccf6f732dd5ba91258374ed16bae8ea61b34891f38cf96ddbe54c054f8b",
+      "description": "List the site's membership plans (enabled or disabled; archived plans are never returned), with their type (free, oneTimePayment, multiPayment, subscription), pricing and content. MemberSpace API: GET /plans."
+    },
+    {
+      "name": "memberspace_get_plan",
+      "descriptionHash": "bd670e2c4bcb0bfb3480c28a9268b2716db20df2ce512ab7ebc75426ad372ac3",
+      "description": "Get one membership plan by its numeric id, including pricing, expiration rules and status. MemberSpace API: GET /plans/{id}."
+    },
+    {
+      "name": "memberspace_list_memberships",
+      "descriptionHash": "58273ecc65338d92b69b0c58fb6660bd3f4b8749c71a315269e246522f91a078",
+      "description": "List member enrollments on plans, filtered by plan, member, status, and created, renewal or expiry dates. Use it for active subscriber counts, churn and renewal forecasts. MemberSpace API: GET /memberships."
+    },
+    {
+      "name": "memberspace_list_members",
+      "descriptionHash": "b196a1ca836acb9a99fa51cc25e82db520bdd686c02b5fdb101cbc0366885d6b",
+      "description": "List people who signed up on the site, filtered by id, exact name or email, status, a custom signup field answer, or creation date. Returns profile fields, not payment data. MemberSpace API: GET /members.",
+      "labels": [
+        "untrusted-content",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "memberspace_list_member_events",
+      "descriptionHash": "a926604c9bdee12e6a80268cb22d5dcfaf35a6423f68e333e45daba595beefac",
+      "description": "List activity events recorded for members (for example account created, plan added, plan changed, log in, email sent). Filter by member, event type and time. MemberSpace API: GET /memberEvents.",
+      "labels": [
+        "untrusted-content",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "memberspace_list_custom_fields",
+      "descriptionHash": "bc9729178002966b6d3302dde3ccfcc37b0aa0b7314cca9a4b563fb892893ece",
+      "description": "List the site's custom signup field definitions (label, type, required flag, which plans show it) and their ids. Use the ids with memberspace_list_members. MemberSpace API: GET /customSignupFields."
+    },
+    {
+      "name": "memberspace_list_coupons",
+      "descriptionHash": "b7e1cbd17a4c67e8064b8661d0ac8c8b80bc79b739b260af1daa62e9a608cf30",
+      "description": "List the site's coupons: code, enabled flag, availability window, discount, plans limited to, and redemption counts. A code can match two coupons (one-time and subscription). MemberSpace API: GET /coupons."
+    },
+    {
+      "name": "memberspace_list_coupon_redemptions",
+      "descriptionHash": "4e7767ac232d7e15dcfae73ea24e75121006bbd1f15792a93883ce9cb1e21658",
+      "description": "List the members who redeemed one coupon, with the membership and plan each redemption applied to. MemberSpace API: GET /coupons/{couponId}/redemptions."
+    },
+    {
+      "name": "memberspace_list_content_views",
+      "descriptionHash": "bd368599bbc6a673895b349c4c998a56437776c0e8b9441bd6f41a83c6ed1d2c",
+      "description": "List records of members who viewed Content Library items successfully, with the member, the content item and the time. Filter by member, item or time. MemberSpace API: GET /contentLibrary/views.",
+      "labels": [
+        "private-data"
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-SCHEMA-SMELL-001",
+      "severity": "medium",
+      "category": "schema-smell",
+      "title": "Read-only tool requests dangerous parameters",
+      "detail": "Tool \"memberspace_list_coupons\" appears informational but accepts parameters (code) that enable code/file/secret access.",
+      "evidence": {
+        "source": "tool:memberspace_list_coupons",
+        "snippet": "code, cursor, page_size"
+      },
+      "confidence": 0.55
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: memberspace_list_members, memberspace_list_member_events · Private data: memberspace_list_sites, memberspace_list_content_views · Public sink: memberspace_list_members, memberspace_list_member_events.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: memberspace_list_members, memberspace_list_member_events · Private data: memberspace_list_sites, memberspace_list_content_views · Public sink: memberspace_list_members, memberspace_list_member_events"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 72,
+  "scoreBreakdown": {
+    "schema-smell": 8,
+    "toxic-flow": 20
+  },
+  "errors": []
+}

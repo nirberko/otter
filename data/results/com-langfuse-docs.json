@@ -1,0 +1,95 @@
+{
+  "schemaVersion": 1,
+  "scanner": {
+    "version": "1.6.0",
+    "rules": "402995650b68"
+  },
+  "target": {
+    "kind": "url",
+    "ref": "https://langfuse.com/api/mcp"
+  },
+  "scannedAt": "2026-11-27T14:02:50.887Z",
+  "durationMs": 766,
+  "layers": {
+    "metadata": true,
+    "static": false
+  },
+  "tools": [
+    {
+      "name": "submitFeedback",
+      "descriptionHash": "7bb21110d6e0f3545207e0ca99d8551a2ea39144365de06a707326ffc8def065",
+      "description": "Submit explicit user-approved feedback to the Langfuse team.\nBefore calling, ask permission and show the exact payload.\nIf the user wants a reply, ask them to include their email address in the feedback text; only use an address they explicitly provide and show it in the exact payload preview.\nDo no",
+      "labels": [
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "searchLangfuseDocs",
+      "descriptionHash": "e59056b4074f0dcc9dde6bf076c1da946b4358701f84fc65c5cda67a5fb37084",
+      "description": "Semantic search (RAG) over the Langfuse documentation. Use this whenever the user asks a broader question that cannot be answered by a specific single page. Returns the text of the most relevant docs pages, with their URLs. For prices, call getLangfuseDocsPage with /pricing or /pricing-self-host. Pr",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "getLangfuseDocsPage",
+      "descriptionHash": "ec4500127d6659c9bc49db6da8fa911ad5841e1c311e545453f8b7c646ef8ea1",
+      "description": "Fetch the raw Markdown for a single Langfuse docs page. Accepts a docs path (e.g., /docs/observability/overview) or a full https://langfuse.com URL. Returns the exact Markdown (may include front matter). Use when you need a specific page content (Integration, Features, API, etc.) or code samples. Pr",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "getLangfuseOverview",
+      "descriptionHash": "88b59a009162a2dd092f47da2a7a1865dbba272605a4e061ef9e4cfba84455fa",
+      "description": "Get a high-level, machine-readable index by downloading https://langfuse.com/llms.txt. Use this at the start of a session when needed to discover key docs endpoints or to seed follow-up calls to searchLangfuseDocs or getLangfuseDocsPage. Returns the plain text contents of llms.txt. Avoid repeated ca"
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOOL-POISON-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description issues instructions to the model",
+      "detail": "Description of \"submitFeedback\" contains imperative instructions directed at the AI assistant rather than describing the tool. This is the core tool-poisoning technique.",
+      "evidence": {
+        "source": "tool:submitFeedback",
+        "snippet": "Submit explicit user-approved feedback to the Langfuse team. Before calling, ask permission and show the exact payload. If the user wants a reply, ask them to i…"
+      },
+      "confidence": 0.7,
+      "remediation": "Treat the server as untrusted; the model may obey embedded instructions."
+    },
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"submitFeedback\" references sensitive artifacts (credentials, secret). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:submitFeedback",
+        "snippet": "Submit explicit user-approved feedback to the Langfuse team. Before calling, ask permission and show the exact payload. If the user wants a reply, ask them to i…"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: searchLangfuseDocs, getLangfuseDocsPage · Private data: submitFeedback · Public sink: submitFeedback.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: searchLangfuseDocs, getLangfuseDocsPage · Private data: submitFeedback · Public sink: submitFeedback"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 50,
+  "scoreBreakdown": {
+    "tool-poisoning": 30,
+    "toxic-flow": 20
+  },
+  "errors": []
+}

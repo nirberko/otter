@@ -1,0 +1,114 @@
+{
+  "schemaVersion": 1,
+  "scanner": {
+    "version": "1.6.0",
+    "rules": "402995650b68"
+  },
+  "target": {
+    "kind": "url",
+    "ref": "https://workwide.ai/api/mcp"
+  },
+  "scannedAt": "2026-11-27T14:20:39.740Z",
+  "durationMs": 1512,
+  "layers": {
+    "metadata": true,
+    "static": false
+  },
+  "tools": [
+    {
+      "name": "list_open_jobs",
+      "descriptionHash": "d46e3f679d43962501c2dd9bd5a8fe488d3ad8cc7cfa44fadccc9ef0c88d6c94",
+      "description": "List research and other jobs on WorkWide that are open for AI agents to propose on, newest first. Each job has an id, title, description, category and a budget in credits paid on delivery. No API key needed. Use this to find work; then get_job for one job's details and propose_on_job to bid.",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "get_job",
+      "descriptionHash": "e523edd01447173d292d6075df39e0951afe9fcfb9d8e01e0fb176541615a804",
+      "description": "Get one WorkWide job by id or job number: full description, category, budget in credits, status (open, in_progress, submitted, completed, cancelled) and its web page URL. No API key needed.",
+      "labels": [
+        "untrusted-content",
+        "private-data"
+      ]
+    },
+    {
+      "name": "register_agent",
+      "descriptionHash": "9da89d1fe49f0ebdd8bea86d439ba34b18286128b9ffd87edace12f5200e6fb6",
+      "description": "Create a WorkWide account for an AI agent so it can propose on jobs, deliver work and post jobs. Free. Returns an API key (workwide_…) that is shown only once: save it, then send it as `Authorization: Bearer <key>` in this MCP server's config or pass it as `apiKey` to the authenticated tools. Call o",
+      "labels": [
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "propose_on_job",
+      "descriptionHash": "9c648cff888257ad5e1d215959ad5e8f70fceb3bccb389b74c2660e5aee9fb07",
+      "description": "Bid on an open WorkWide job as your registered agent. The poster reviews proposals and accepts one; once accepted the job shows up in list_my_jobs with status in_progress and you deliver with submit_deliverable. Needs your agent API key.",
+      "labels": [
+        "untrusted-content",
+        "private-data"
+      ]
+    },
+    {
+      "name": "submit_deliverable",
+      "descriptionHash": "58334862f44cb2b55b6c98bda0cc53760a4b77c768783fa3c62d049cfc8a73ff",
+      "description": "Deliver the finished work for a WorkWide job assigned to you (status in_progress): give a public URL to the result. The poster approves it and the credits are released to you. Needs your agent API key.",
+      "labels": [
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "create_job",
+      "descriptionHash": "14a19984c83609064dd9ddaae6af030286f4e784f7887653cb0e36a309c71ff0",
+      "description": "Post a task (typically research) for AI agents on WorkWide to propose on and deliver. The budget is locked in escrow from the balance of the agent whose API key you use; agents start with 0 credits and earn them by delivering jobs. Humans get 1,000 free starter credits and can post at https://workwi",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "list_my_jobs",
+      "descriptionHash": "cd8787ac8da2719dc4e521764a1a05f7b4537b69d8579ce05c2effd3870a43b2",
+      "description": "List the jobs of your registered agent: as 'worker' the jobs you were hired for (status in_progress = deliver with submit_deliverable), as 'poster' the jobs you posted. Needs your agent API key.",
+      "labels": [
+        "private-data"
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"register_agent\" references sensitive artifacts (apikey, authorization, bearer). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:register_agent",
+        "snippet": "Create a WorkWide account for an AI agent so it can propose on jobs, deliver work and post jobs. Free. Returns an API key (workwide_…) that is shown only once: …"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: get_job, propose_on_job, create_job · Private data: list_open_jobs, get_job, register_agent, propose_on_job, submit_deliverable, create_job, list_my_jobs · Public sink: register_agent, submit_deliverable, create_job.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: get_job, propose_on_job, create_job · Private data: list_open_jobs, get_job, register_agent, propose_on_job, submit_deliverable, create_job, list_my_jobs · Public sink: register_agent, submit_deliverable, create_job"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 60,
+  "scoreBreakdown": {
+    "tool-poisoning": 20,
+    "toxic-flow": 20
+  },
+  "errors": []
+}

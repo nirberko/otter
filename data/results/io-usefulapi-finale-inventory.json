@@ -8,8 +8,8 @@
     "kind": "url",
     "ref": "https://finale-inventory.usefulapi.io/mcp"
   },
-  "scannedAt": "2026-11-23T15:08:52.646Z",
-  "durationMs": 966,
+  "scannedAt": "2026-11-27T14:16:49.695Z",
+  "durationMs": 359,
   "layers": {
     "metadata": true,
     "static": false
@@ -63,7 +63,7 @@
     },
     {
       "name": "finale_list_inventory_items",
-      "descriptionHash": "4546bebac41e1af6e695cd8cc8d117ba34b94c129dbc79679165ef5b1448537d",
+      "descriptionHash": "6933d202c7442052e1b36335506f1aa15801297a4d41046c331f9590f07e070b",
       "description": "Current stock as Finale stores it: one entry per product, location, lot and order with quantityOnHand, quantityOnOrder (committed purchase orders) and quantityReserved (committed sales orders). The inventoryitem collection has no server-side filter, so the WHOLE collection is downloaded (one collect"
     },
     {
@@ -95,26 +95,72 @@
         "untrusted-content",
         "public-sink"
       ]
+    },
+    {
+      "name": "finale_create_sales_order",
+      "descriptionHash": "3a19353cd5e8c384049fc33d5168d634516b013fbb4e12622327095d2a56238a",
+      "description": "WRITE. Creates a sales order for a customer. By default it stays a draft (ORDER_CREATED, editable in Finale). With commit: true the tool then commits it through the lock action Finale returns (ORDER_LOCKED: the order can no longer be edited until unlocked in Finale, and Finale reserves stock for it)",
+      "labels": [
+        "untrusted-content",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "finale_receive_purchase_order",
+      "descriptionHash": "627383466f160349239730dcfe6d3dbf2220af8894ef15228f1b5085db5408a2",
+      "description": "WRITE, CHANGES STOCK. Records goods received against a COMMITTED purchase order (ORDER_LOCKED): creates a purchase receipt (PURCHASE_SHIPMENT) with the received lines and sublocations, then receives it through the receive action Finale returns, which adds the quantities to stock at the order's cost ",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink",
+        "destructive"
+      ]
     }
   ],
   "findings": [
     {
+      "id": "MCP-TOOL-POISON-006",
+      "severity": "low",
+      "category": "tool-poisoning",
+      "title": "Anomalously long tool description",
+      "detail": "Description of \"finale_receive_purchase_order\" is 1264 chars, far longer than this server's median (237). Overlong descriptions are a common place to bury instructions.",
+      "evidence": {
+        "source": "tool:finale_receive_purchase_order",
+        "snippet": "WRITE, CHANGES STOCK. Records goods received against a COMMITTED purchase order (ORDER_LOCKED): creates a purchase receipt (PURCHASE_SHIPMENT) with the received…"
+      },
+      "confidence": 0.4
+    },
+    {
       "id": "MCP-TOXIC-FLOW-001",
-      "severity": "medium",
+      "severity": "high",
       "category": "toxic-flow",
-      "title": "Toxic flow: untrusted input can reach an external sink",
-      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: finale_get_product, finale_get_order, finale_list_stock_changes, finale_create_draft_purchase_order · Public sink: finale_list_inventory_transfers, finale_create_draft_purchase_order.",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: finale_get_product, finale_get_order, finale_list_stock_changes, finale_create_draft_purchase_order, finale_create_sales_order, finale_receive_purchase_order · Private data: finale_receive_purchase_order · Public sink: finale_list_inventory_transfers, finale_create_draft_purchase_order, finale_create_sales_order, finale_receive_purchase_order · Destructive: finale_receive_purchase_order.",
       "evidence": {
         "source": "server:mcp",
-        "snippet": "Untrusted content: finale_get_product, finale_get_order, finale_list_stock_changes, finale_create_draft_purchase_order · Public sink: finale_list_inventory_transfers, finale_create_draft_purchase_order"
+        "snippet": "Untrusted content: finale_get_product, finale_get_order, finale_list_stock_changes, finale_create_draft_purchase_order, finale_create_sales_order, finale_receive_purchase_order · Private data: finale_receive_purchase_order · Public sink: finale_list_inventory_transfers, finale_create_draft_purchase_order, finale_create_sales_order, finale_receive_purchase_order · Destructive: finale_receive_purchase_order"
       },
-      "confidence": 0.45,
+      "confidence": 0.6,
       "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"finale_list_inventory_items\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:finale_list_inventory_items",
+        "snippet": "before: \"Current stock as Finale stores it: one entry per product, location, lot and order with quantityOnHand, quantityOnOrder (committed purchase orders) and quantityReserved (committed sales orders). The inventoryitem collection has no server-side filter, so the WHOLE collection is downloaded (one collect\" → after: \"Current stock as Finale stores it: one entry per product, location, lot and order with quantityOnHand, quantityOnOrder (committed purchase orders) and quantityReserved (committed sales orders). The inventoryitem collection has no server-side filter, so the WHOLE collection is downloaded (one collect\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
     }
   ],
-  "score": 92,
+  "score": 59,
   "scoreBreakdown": {
-    "toxic-flow": 8
+    "tool-poisoning": 22,
+    "toxic-flow": 20
   },
   "errors": []
 }

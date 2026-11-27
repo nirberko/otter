@@ -8,8 +8,8 @@
     "kind": "url",
     "ref": "https://api.invowerk.dev/mcp/"
   },
-  "scannedAt": "2026-11-25T14:39:18.357Z",
-  "durationMs": 1755,
+  "scannedAt": "2026-11-27T14:06:14.211Z",
+  "durationMs": 1594,
   "layers": {
     "metadata": true,
     "static": false
@@ -41,79 +41,84 @@
       ]
     },
     {
-      "name": "generate_invoice",
-      "descriptionHash": "76085d9573d967978dc2f74afdb93550353a4d81ae24b153ca3230096b67cb26",
-      "description": "Create a valid EN 16931 e-invoice (UBL or CII XML) from JSON.\n\nInput: `invoice` is a JSON object keyed on EN 16931 Business Terms, the same\nschema as `POST /v1/generate`, at most 4 MB. Main fields: `syntax` (\"ubl\"\ndefault, or \"cii\"), `flavor` (\"en16931\" default, or \"xrechnung\", which\nrequires `buyer",
+      "name": "parse_invoice",
+      "descriptionHash": "e9833cdaf83d5dd18f7bd5b7e3f435addefb4c593f8ab22ca12202c1165a5950",
+      "description": "Read an existing e-invoice into JSON keyed on EN 16931 Business Terms.\n\nThe JSON is the input format of Invowerk's REST API (`POST /v1/generate`), so a\nprogram can edit it and write the invoice again.\n\nInput: `invoice_base64` is the base64 of an XML invoice (UBL or CII) or a\nZUGFeRD / Factur-X PDF, ",
       "labels": [
         "untrusted-content",
         "private-data",
-        "public-sink"
-      ]
-    },
-    {
-      "name": "parse_invoice",
-      "descriptionHash": "2e8a9ac97e6eca5fef59dd89dcc0c5f9681e272072c7515445a4d996ec505bbc",
-      "description": "Read an existing e-invoice into JSON keyed on EN 16931 Business Terms.\n\nThe JSON is the input format of `generate_invoice`, so you can edit it and\ncreate the invoice again.\n\nInput: `invoice_base64` is the base64 of an XML invoice (UBL or CII) or a\nZUGFeRD / Factur-X PDF, at most 4 MB decoded; or pas",
-      "labels": [
-        "private-data",
+        "public-sink",
         "destructive"
       ]
     },
     {
-      "name": "convert_invoice",
-      "descriptionHash": "6d720531f5ea2fa71f8207fb8bbca4ad36e27a6daef2ddbebc89e4b10282294e",
-      "description": "Convert an e-invoice to UBL or CII. The result is checked before it is returned.\n\nInput: `invoice_base64` is the base64 of an XML invoice or a ZUGFeRD /\nFactur-X PDF, at most 4 MB decoded; or pass the file as a download link in\n`file`. `target_syntax` is \"ubl\" or \"cii\". `target_flavor` is optional,\n",
+      "name": "create_e_invoice",
+      "descriptionHash": "ecd687d8d12eb0ee0bc81cb303c522d15b0f1aaa7fb8fd81636eefcf2a3a3cbe",
+      "description": "Create a German e-invoice (ZUGFeRD PDF or XRechnung) from what the person\ntells you, and get a link to download it. Works without an API key.\n\nInvowerk checks the invoice against EN 16931 and the German rules, computes\nline amounts, VAT and totals itself, and answers a link to its form, filled\nin. T",
       "labels": [
         "untrusted-content",
-        "private-data"
+        "private-data",
+        "public-sink",
+        "destructive"
       ]
     }
   ],
   "findings": [
     {
-      "id": "MCP-TOOL-POISON-001",
-      "severity": "high",
-      "category": "tool-poisoning",
-      "title": "Description issues instructions to the model",
-      "detail": "Description of \"generate_invoice\" contains imperative instructions directed at the AI assistant rather than describing the tool. This is the core tool-poisoning technique.",
-      "evidence": {
-        "source": "tool:generate_invoice",
-        "snippet": "Create a valid EN 16931 e-invoice (UBL or CII XML) from JSON. Input: `invoice` is a JSON object keyed on EN 16931 Business Terms, the same schema as `POST /v1/g…"
-      },
-      "confidence": 0.7,
-      "remediation": "Treat the server as untrusted; the model may obey embedded instructions."
-    },
-    {
-      "id": "MCP-TOOL-POISON-001",
-      "severity": "high",
-      "category": "tool-poisoning",
-      "title": "Description issues instructions to the model",
-      "detail": "Description of \"convert_invoice\" contains imperative instructions directed at the AI assistant rather than describing the tool. This is the core tool-poisoning technique.",
-      "evidence": {
-        "source": "tool:convert_invoice",
-        "snippet": "Convert an e-invoice to UBL or CII. The result is checked before it is returned. Input: `invoice_base64` is the base64 of an XML invoice or a ZUGFeRD / Factur-X…"
-      },
-      "confidence": 0.7,
-      "remediation": "Treat the server as untrusted; the model may obey embedded instructions."
-    },
-    {
       "id": "MCP-TOXIC-FLOW-001",
       "severity": "high",
       "category": "toxic-flow",
       "title": "Lethal trifecta: untrusted input + private data + external sink",
-      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: validate_invoice, generate_invoice, convert_invoice · Private data: validate_invoice, render_invoice, explain_errors, generate_invoice, parse_invoice, convert_invoice · Public sink: generate_invoice · Destructive: parse_invoice.",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: validate_invoice, parse_invoice, create_e_invoice · Private data: validate_invoice, render_invoice, explain_errors, parse_invoice, create_e_invoice · Public sink: parse_invoice, create_e_invoice · Destructive: parse_invoice, create_e_invoice.",
       "evidence": {
         "source": "server:mcp",
-        "snippet": "Untrusted content: validate_invoice, generate_invoice, convert_invoice · Private data: validate_invoice, render_invoice, explain_errors, generate_invoice, parse_invoice, convert_invoice · Public sink: generate_invoice · Destructive: parse_invoice"
+        "snippet": "Untrusted content: validate_invoice, parse_invoice, create_e_invoice · Private data: validate_invoice, render_invoice, explain_errors, parse_invoice, create_e_invoice · Public sink: parse_invoice, create_e_invoice · Destructive: parse_invoice, create_e_invoice"
       },
       "confidence": 0.6,
       "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "medium",
+      "category": "tool-poisoning",
+      "title": "Tool removed since last scan",
+      "detail": "Tool \"generate_invoice\" is no longer advertised. Removal can precede a shadowing replacement from another server.",
+      "evidence": {
+        "source": "tool:generate_invoice",
+        "snippet": "removed: generate_invoice"
+      },
+      "confidence": 0.5
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"parse_invoice\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:parse_invoice",
+        "snippet": "before: \"Read an existing e-invoice into JSON keyed on EN 16931 Business Terms.\n\nThe JSON is the input format of `generate_invoice`, so you can edit it and\ncreate the invoice again.\n\nInput: `invoice_base64` is the base64 of an XML invoice (UBL or CII) or a\nZUGFeRD / Factur-X PDF, at most 4 MB decoded; or pas\" → after: \"Read an existing e-invoice into JSON keyed on EN 16931 Business Terms.\n\nThe JSON is the input format of Invowerk's REST API (`POST /v1/generate`), so a\nprogram can edit it and write the invoice again.\n\nInput: `invoice_base64` is the base64 of an XML invoice (UBL or CII) or a\nZUGFeRD / Factur-X PDF, \""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "medium",
+      "category": "tool-poisoning",
+      "title": "Tool removed since last scan",
+      "detail": "Tool \"convert_invoice\" is no longer advertised. Removal can precede a shadowing replacement from another server.",
+      "evidence": {
+        "source": "tool:convert_invoice",
+        "snippet": "removed: convert_invoice"
+      },
+      "confidence": 0.5
     }
   ],
-  "score": 50,
+  "score": 54,
   "scoreBreakdown": {
-    "tool-poisoning": 30,
-    "toxic-flow": 20
+    "toxic-flow": 20,
+    "tool-poisoning": 26
   },
   "errors": []
 }

@@ -1,0 +1,111 @@
+{
+  "schemaVersion": 1,
+  "scanner": {
+    "version": "1.6.0",
+    "rules": "402995650b68"
+  },
+  "target": {
+    "kind": "url",
+    "ref": "https://axveritas.com/mcp"
+  },
+  "scannedAt": "2026-11-27T14:29:06.586Z",
+  "durationMs": 597,
+  "layers": {
+    "metadata": true,
+    "static": false
+  },
+  "tools": [
+    {
+      "name": "axveritas_preflight_check",
+      "descriptionHash": "5d82fe793b2764dee1cb91c845fe839486ca398ef4214c49fda7be604369ae78",
+      "description": "Pre-flight URL dead-end check (1 preflight credit or $0.005 USDC). Returns PASSABLE or DEAD_END with a category and reason: blocked (WAF/403/429), broken (4xx/5xx), timeout, js_shell (needs a browser), soft_block (CAPTCHA page served as 200), soft_404. Call before fetching any external URL.",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "axveritas_scrape_verified",
+      "descriptionHash": "0334c64725e3ed591ff149fa45f0a4e297b349df76686240a44efb4f5d76d1db",
+      "description": "Schema-verified web extraction (1 scrape credit or $0.02 USDC). Returns clean JSON (url, title, description, headings, links, text) with an ABVS-1.0 SHA-256 receipt; fails if any required_keys are missing or empty.",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "axveritas_usage",
+      "descriptionHash": "00e34e42561c9a9dbf780343ae3b32a07949a8acaf11aaa23c8d72ef48522545",
+      "description": "Free (no credits): show remaining credits and your savings so far — dead ends avoided and estimated tokens saved.",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "axveritas_relay_create",
+      "descriptionHash": "0cf0299505e917df22358474e765b84bd2b9cf5aa4ba0cba64b5ad25131352e3",
+      "description": "Hire another agent (a 'worker') safely: Axveritas calls the worker's endpoint, checks its JSON output has the required fields and at least the minimum number of records, and only then lets you have it. Fee: 1% of bounty_usdc ($0.005 minimum, 1 credit with an API key). Without worker_wallet the verif",
+      "labels": [
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "axveritas_relay_release",
+      "descriptionHash": "72d796a44965e30d8bdbe09c31e65a9f714b60040b83605b1e85e3872ddae360",
+      "description": "Settlement mode, final step: after paying the worker in USDC on Base, submit the job_id, release_token and the payment transaction hash. Axveritas checks on-chain that the right amount reached the worker's wallet in time, then returns the verified output (check it against payload_hash). Calling agai",
+      "labels": [
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "axveritas_relay_status",
+      "descriptionHash": "9696917c62bca07504626d659f0bc649ff051a1446ad492339674f9deee05e8d",
+      "description": "Free: check a relay job's status (AWAITING_PAYMENT, RELEASED or EXPIRED), payment instructions and deadline. Does not return the data."
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"axveritas_relay_create\" references sensitive artifacts (secret). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:axveritas_relay_create",
+        "snippet": "Hire another agent (a 'worker') safely: Axveritas calls the worker's endpoint, checks its JSON output has the required fields and at least the minimum number of…"
+      },
+      "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOOL-POISON-007",
+      "severity": "low",
+      "category": "tool-poisoning",
+      "title": "Description uses pressure/override language",
+      "detail": "Description of \"axveritas_relay_create\" stacks urgency/override words (immediately, never). Legitimate tool descriptions rarely pressure the model to act or ignore prior guidance.",
+      "evidence": {
+        "source": "tool:axveritas_relay_create",
+        "snippet": "Hire another agent (a 'worker') safely: Axveritas calls the worker's endpoint, checks its JSON output has the required fields and at least the minimum number of…"
+      },
+      "confidence": 0.3
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: axveritas_preflight_check, axveritas_scrape_verified · Private data: axveritas_usage, axveritas_relay_create, axveritas_relay_release · Public sink: axveritas_relay_create, axveritas_relay_release.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: axveritas_preflight_check, axveritas_scrape_verified · Private data: axveritas_usage, axveritas_relay_create, axveritas_relay_release · Public sink: axveritas_relay_create, axveritas_relay_release"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 59,
+  "scoreBreakdown": {
+    "tool-poisoning": 22,
+    "toxic-flow": 20
+  },
+  "errors": []
+}
