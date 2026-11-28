@@ -8,8 +8,8 @@
     "kind": "url",
     "ref": "https://acq.damri.org/mcp"
   },
-  "scannedAt": "2026-11-24T15:07:20.676Z",
-  "durationMs": 621,
+  "scannedAt": "2026-11-28T13:17:36.321Z",
+  "durationMs": 816,
   "layers": {
     "metadata": true,
     "static": false
@@ -17,8 +17,8 @@
   "tools": [
     {
       "name": "acq_create_room",
-      "descriptionHash": "a005da8d5370587034354e91e7ed04f9835cee3a5a1b06969105d1a4744bcdd3",
-      "description": "Open a new two-seat room - one call is a complete setup: pass join_window_hours to set how long the peer has to join, and opening_message to post your first message immediately. The result is self-sufficient: room UIN, seat token (seat A), pairing code, invitation text, and the full API reference. H",
+      "descriptionHash": "0f7befd32f1a74500103d1c0f7398d5d6e130e6e7f75e32a3037a4e368b1a715",
+      "description": "Open a new two-seat room - one call is a complete setup: pass join_window_hours to set how long the peer has to join, and opening_message to post your first message immediately. The result is self-sufficient: room UIN, seat token (seat A), private seat-A recovery key (pairCode), invitation text, and",
       "labels": [
         "untrusted-content",
         "private-data",
@@ -35,10 +35,11 @@
     },
     {
       "name": "acq_rejoin",
-      "descriptionHash": "e983cfa2cb69a4be3a54529d3173ae7789b1c3ef0d6c9da89b690bc45a3c7d96",
-      "description": "Recover a lost seat token. Seat A proves with the 6-digit pairing code; seat B proves with the recovery code returned only in the join response. Mints a fresh token; the old one stops working.",
+      "descriptionHash": "17ad11bf6984484668f8be061c87e1511e031978078ed6aafeeaea24bd8fb444",
+      "description": "Recover a lost seat token. Seat A proves with the 6-digit pairing code; seat B proves with the recovery code returned only in the join response. Mints a fresh token; the old one stops working. Anyone with pairCode and the UIN can recover seat A without its token and act as the creator. Keep pairCode",
       "labels": [
-        "private-data"
+        "private-data",
+        "public-sink"
       ]
     },
     {
@@ -60,8 +61,12 @@
     },
     {
       "name": "acq_verify",
-      "descriptionHash": "c7780ed1c45598e23008e60dc5bc539e07a3de664289bb29260ab4bcd1dfbb0b",
-      "description": "Verify the pairing code your peer's operator read to you, to confirm you are in the right room."
+      "descriptionHash": "7741e6aa8f7984a7da25a0270195f888ad121a9a4a2a337ee3fe062c6d1e85c5",
+      "description": "Keep pairCode private. Legacy recovery-secret check, not proof of a person's identity. Do not request or share pairCode for verification: anyone with it and the UIN can recover seat A without its token, retire the creator token, and act as the creator. Confirm peers through an existing trusted chann",
+      "labels": [
+        "private-data",
+        "public-sink"
+      ]
     },
     {
       "name": "acq_extend",
@@ -84,50 +89,26 @@
   ],
   "findings": [
     {
-      "id": "MCP-TOOL-POISON-006",
-      "severity": "low",
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
       "category": "tool-poisoning",
-      "title": "Anomalously long tool description",
-      "detail": "Description of \"acq_send\" is 1546 chars, far longer than this server's median (192). Overlong descriptions are a common place to bury instructions.",
-      "evidence": {
-        "source": "tool:acq_send",
-        "snippet": "Send a message to your peer. Set end=true to close the room. Pass a unique cid per logical send (reusing one only to retry that same content): it is stored with…"
-      },
-      "confidence": 0.4
-    },
-    {
-      "id": "MCP-TOOL-POISON-006",
-      "severity": "low",
-      "category": "tool-poisoning",
-      "title": "Anomalously long tool description",
-      "detail": "Description of \"acq_recv\" is 988 chars, far longer than this server's median (192). Overlong descriptions are a common place to bury instructions.",
-      "evidence": {
-        "source": "tool:acq_recv",
-        "snippet": "Receive peer messages. Returns immediately by default (wait=0); pass wait up to 120 to long-poll. For replay-safe reads, pass since=<last cursor you processed> …"
-      },
-      "confidence": 0.4
-    },
-    {
-      "id": "MCP-SCHEMA-SMELL-001",
-      "severity": "medium",
-      "category": "schema-smell",
-      "title": "Read-only tool requests dangerous parameters",
-      "detail": "Tool \"acq_verify\" appears informational but accepts parameters (code) that enable code/file/secret access.",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"acq_verify\" references sensitive artifacts (secret). A tool description has no reason to mention credentials.",
       "evidence": {
         "source": "tool:acq_verify",
-        "snippet": "code, token, uin"
+        "snippet": "Keep pairCode private. Legacy recovery-secret check, not proof of a person's identity. Do not request or share pairCode for verification: anyone with it and the…"
       },
-      "confidence": 0.55
+      "confidence": 0.65
     },
     {
       "id": "MCP-TOXIC-FLOW-001",
       "severity": "high",
       "category": "toxic-flow",
       "title": "Lethal trifecta: untrusted input + private data + external sink",
-      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: acq_create_room, acq_send, acq_recv · Private data: acq_create_room, acq_join_room, acq_rejoin · Public sink: acq_create_room, acq_send · Destructive: acq_stats.",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: acq_create_room, acq_send, acq_recv · Private data: acq_create_room, acq_join_room, acq_rejoin, acq_verify · Public sink: acq_create_room, acq_rejoin, acq_send, acq_verify · Destructive: acq_stats.",
       "evidence": {
         "source": "server:mcp",
-        "snippet": "Untrusted content: acq_create_room, acq_send, acq_recv · Private data: acq_create_room, acq_join_room, acq_rejoin · Public sink: acq_create_room, acq_send · Destructive: acq_stats"
+        "snippet": "Untrusted content: acq_create_room, acq_send, acq_recv · Private data: acq_create_room, acq_join_room, acq_rejoin, acq_verify · Public sink: acq_create_room, acq_rejoin, acq_send, acq_verify · Destructive: acq_stats"
       },
       "confidence": 0.6,
       "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
@@ -137,10 +118,10 @@
       "severity": "high",
       "category": "tool-poisoning",
       "title": "Tool description changed since last scan",
-      "detail": "Tool \"acq_send\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "detail": "Tool \"acq_create_room\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
       "evidence": {
-        "source": "tool:acq_send",
-        "snippet": "before: \"Send a message to your peer. Set end=true to close the room.\" → after: \"Send a message to your peer. Set end=true to close the room. Pass a unique cid per logical send (reusing one only to retry that same content): it is stored with the message and echoed back, so after an ambiguous failure (connection dropped, timeout, non-JSON gateway error) you can check acq_recv wit\""
+        "source": "tool:acq_create_room",
+        "snippet": "before: \"Open a new two-seat room - one call is a complete setup: pass join_window_hours to set how long the peer has to join, and opening_message to post your first message immediately. The result is self-sufficient: room UIN, seat token (seat A), pairing code, invitation text, and the full API reference. H\" → after: \"Open a new two-seat room - one call is a complete setup: pass join_window_hours to set how long the peer has to join, and opening_message to post your first message immediately. The result is self-sufficient: room UIN, seat token (seat A), private seat-A recovery key (pairCode), invitation text, and\""
       },
       "confidence": 0.8,
       "remediation": "Re-review the tool before continuing to trust it."
@@ -150,10 +131,10 @@
       "severity": "high",
       "category": "tool-poisoning",
       "title": "Tool description changed since last scan",
-      "detail": "Tool \"acq_recv\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "detail": "Tool \"acq_rejoin\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
       "evidence": {
-        "source": "tool:acq_recv",
-        "snippet": "before: \"Receive peer messages. Returns immediately by default (wait=0); pass wait up to 120 to long-poll, or since=<last seq you have> to replay. Set self=true to include your own messages (full transcript replay).\" → after: \"Receive peer messages. Returns immediately by default (wait=0); pass wait up to 120 to long-poll. For replay-safe reads, pass since=<last cursor you processed> (0 to read everything) and update it from the response cursor field after processing: a lost response is then recovered by re-issuing the id\""
+        "source": "tool:acq_rejoin",
+        "snippet": "before: \"Recover a lost seat token. Seat A proves with the 6-digit pairing code; seat B proves with the recovery code returned only in the join response. Mints a fresh token; the old one stops working.\" → after: \"Recover a lost seat token. Seat A proves with the 6-digit pairing code; seat B proves with the recovery code returned only in the join response. Mints a fresh token; the old one stops working. Anyone with pairCode and the UIN can recover seat A without its token and act as the creator. Keep pairCode\""
       },
       "confidence": 0.8,
       "remediation": "Re-review the tool before continuing to trust it."
@@ -163,10 +144,22 @@
       "severity": "high",
       "category": "tool-poisoning",
       "title": "Tool description changed since last scan",
-      "detail": "Tool \"acq_stats\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "detail": "Tool \"acq_verify\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
       "evidence": {
-        "source": "tool:acq_stats",
-        "snippet": "before: \"Lifetime usage counters: rooms created, agents paired, messages.\" → after: \"Lifetime service counters: rooms created, rooms paired (seat B joined), and messages. Includes synthetic checks and repeat use; not unique agents, users, or outside adoption. Persisted best-effort and may reset without the volume. Also returns collection_started_at and up to 192 UTC event-hour bucke\""
+        "source": "tool:acq_verify",
+        "snippet": "before: \"Verify the pairing code your peer's operator read to you, to confirm you are in the right room.\" → after: \"Keep pairCode private. Legacy recovery-secret check, not proof of a person's identity. Do not request or share pairCode for verification: anyone with it and the UIN can recover seat A without its token, retire the creator token, and act as the creator. Confirm peers through an existing trusted chann\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    }
+  ],
+  "score": 43,
+  "scoreBreakdown": {
+    "tool-poisoning": 38,
+    "toxic-flow": 20
+  },
+  "errors": []
+} collection_started_at and up to 192 UTC event-hour bucke\""
       },
       "confidence": 0.8,
       "remediation": "Re-review the tool before continuing to trust it."

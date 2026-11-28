@@ -8,8 +8,8 @@
     "kind": "url",
     "ref": "https://localbit.adamson-cf.workers.dev/mcp"
   },
-  "scannedAt": "2026-11-26T14:08:36.360Z",
-  "durationMs": 218,
+  "scannedAt": "2026-11-28T13:16:23.479Z",
+  "durationMs": 217,
   "layers": {
     "metadata": true,
     "static": false
@@ -17,7 +17,7 @@
   "tools": [
     {
       "name": "check_fit",
-      "descriptionHash": "4347f3ce90345830bb8ade6a9f4d791094f82154df6ad9925865efde5e1a92f5",
+      "descriptionHash": "0b8a531c3ce492b0ede925077486e7940b1f63136088166c11efc2a50480f7fe",
       "description": "Checks whether one local AI model fits one hardware setup - a graphics card, several identical cards ('2x RTX 3090') or a Mac - and returns the verdict (fits / tight / does_not_fit), memory needed (weights + context cache + overhead) against memory available, and generation speed in tokens per secon",
       "labels": [
         "private-data",
@@ -26,7 +26,7 @@
     },
     {
       "name": "suggest_models",
-      "descriptionHash": "67517844512f976579f1f7d033a55e2b6d9cfb62a1e280a40d3dd3100475644b",
+      "descriptionHash": "bc2f217e7d8c031aaae7b0f63a7c06ffe8d76313bce62d0419e922707b175af4",
       "description": "Lists the largest known local AI models that fit on the given hardware at the given context length (default 8,192 tokens), up to 10, biggest first, each with its quantization, memory needed and speed in tokens per second (measured where LocalBit's node has run it, otherwise estimated). min_tokens_pe",
       "labels": [
         "private-data",
@@ -35,11 +35,11 @@
     },
     {
       "name": "list_known",
-      "descriptionHash": "3b779ca29c1d067fc565ac843135bf2364a53f648cdacb61a5d1c0e674f2bef4",
+      "descriptionHash": "c7d6019f7079d0f7efa781bb0a22ef4726a4eae07de02b26ff6ecbbd08e9cc6c",
       "description": "Returns LocalBit's catalog: kind 'models' gives every model with its id, name and parameter count (and active parameters for mixture-of-experts models); kind 'hardware' gives every graphics card and Mac with its id, name and memory. Each entry says whether LocalBit's test node has measured it. Call "
     },
     {
-      "name": "compare",
+      "name": "compare_setups",
       "descriptionHash": "6a34220a5ab76afc81d8d9edba0ec4fc28ce1aa294a07fb2f7a3ec7378f59038",
       "description": "Compares two options head to head, in one of two modes: two models on the same hardware (give a_model, b_model and a_hardware), or one model on two hardware setups (give a_model, a_hardware and b_hardware). Returns which fits, which is faster (with the ratio), which leaves more memory free and - onl",
       "labels": [
@@ -47,8 +47,8 @@
       ]
     },
     {
-      "name": "node_log",
-      "descriptionHash": "f714443b1efc609f720259cc0a1e3927685ba1efec7eab87647f876a96d7796d",
+      "name": "get_node_log",
+      "descriptionHash": "466c5d90d2d52b3de386ab3d7b7ac92ba8eadd7beac48fe9f9458d82390ffdfe",
       "description": "Returns the newest measurements from LocalBit's own RTX 3090 test node, newest first (default 10, up to 50): for each model, measured speed in tokens per second at 16K context, quality score (% of 60 script-graded questions right), card memory used, time to read a 3,000-word document, energy per ans",
       "labels": [
         "private-data"
@@ -74,17 +74,118 @@
       ]
     },
     {
+      "name": "get_status",
+      "descriptionHash": "760fd26171bc5efa5f50d2b8a79c97efc14c972db93b9dfb51b483d81c386b9b",
+      "description": "Follows up a measurement sent with submit_result or a report sent with report_issue, by the receipt either one returned (e.g. 'S-7K3Q9X' or 'R-2M8D4P'): a submission is accepted (it appears in answers, labelled unverified, after the nightly update) or held for review; a report is received, fixed or ",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
       "name": "report_issue",
-      "descriptionHash": "0861735635d4553814f1fb5355b964eb45297a2be0488836235c06db9e222776",
-      "description": "Sends LocalBit a report that an answer was wrong (it didn't fit, the speed was different, a spec is off) or that a model or card is missing, so it can be corrected. Use this after check_fit, compare or suggest_models gave an answer the user's real experience contradicts. Real results help most: the ",
+      "descriptionHash": "ce46389943f48645c825575366a53a7b399a0f0775c620e879ebe8cf6e0edf9f",
+      "description": "Sends LocalBit a report that an answer was wrong (it didn't fit, the speed was different, a spec is off) or that a model or card is missing, so it can be corrected. Use this after check_fit, compare_setups or suggest_models gave an answer the user's real experience contradicts. Real results help mos",
       "labels": [
         "private-data",
         "public-sink"
       ]
     }
   ],
-  "findings": [],
-  "score": 100,
-  "scoreBreakdown": {},
+  "findings": [
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: get_status · Private data: check_fit, suggest_models, compare_setups, get_node_log, submit_result, report_issue · Public sink: submit_result, report_issue · Destructive: check_fit, suggest_models.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: get_status · Private data: check_fit, suggest_models, compare_setups, get_node_log, submit_result, report_issue · Public sink: submit_result, report_issue · Destructive: check_fit, suggest_models"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"check_fit\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:check_fit",
+        "snippet": "before: \"Checks whether one local AI model fits one hardware setup - a graphics card, several identical cards ('2x RTX 3090') or a Mac - and returns the verdict (fits / tight / does_not_fit), memory needed (weights + context cache + overhead) against memory available, and generation speed in tokens per secon\" → after: \"Checks whether one local AI model fits one hardware setup - a graphics card, several identical cards ('2x RTX 3090') or a Mac - and returns the verdict (fits / tight / does_not_fit), memory needed (weights + context cache + overhead) against memory available, and generation speed in tokens per secon\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"suggest_models\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:suggest_models",
+        "snippet": "before: \"Lists the largest known local AI models that fit on the given hardware at the given context length (default 8,192 tokens), up to 10, biggest first, each with its quantization, memory needed and speed in tokens per second (measured where LocalBit's node has run it, otherwise estimated). min_tokens_pe\" → after: \"Lists the largest known local AI models that fit on the given hardware at the given context length (default 8,192 tokens), up to 10, biggest first, each with its quantization, memory needed and speed in tokens per second (measured where LocalBit's node has run it, otherwise estimated). min_tokens_pe\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"list_known\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:list_known",
+        "snippet": "before: \"Returns LocalBit's catalog: kind 'models' gives every model with its id, name and parameter count (and active parameters for mixture-of-experts models); kind 'hardware' gives every graphics card and Mac with its id, name and memory. Each entry says whether LocalBit's test node has measured it. Call \" → after: \"Returns LocalBit's catalog: kind 'models' gives every model with its id, name and parameter count (and active parameters for mixture-of-experts models); kind 'hardware' gives every graphics card and Mac with its id, name and memory. Each entry says whether LocalBit's test node has measured it. Call \""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "medium",
+      "category": "tool-poisoning",
+      "title": "Tool renamed since last scan",
+      "detail": "Tool \"compare\" was renamed to \"compare_setups\" (identical description). A rename can slip a tool past name-based review.",
+      "evidence": {
+        "source": "tool:compare",
+        "snippet": "compare → compare_setups"
+      },
+      "confidence": 0.6
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "medium",
+      "category": "tool-poisoning",
+      "title": "Tool removed since last scan",
+      "detail": "Tool \"node_log\" is no longer advertised. Removal can precede a shadowing replacement from another server.",
+      "evidence": {
+        "source": "tool:node_log",
+        "snippet": "removed: node_log"
+      },
+      "confidence": 0.5
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"report_issue\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:report_issue",
+        "snippet": "before: \"Sends LocalBit a report that an answer was wrong (it didn't fit, the speed was different, a spec is off) or that a model or card is missing, so it can be corrected. Use this after check_fit, compare or suggest_models gave an answer the user's real experience contradicts. Real results help most: the \" → after: \"Sends LocalBit a report that an answer was wrong (it didn't fit, the speed was different, a spec is off) or that a model or card is missing, so it can be corrected. Use this after check_fit, compare_setups or suggest_models gave an answer the user's real experience contradicts. Real results help mos\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    }
+  ],
+  "score": 42,
+  "scoreBreakdown": {
+    "toxic-flow": 20,
+    "tool-poisoning": 39
+  },
   "errors": []
 }

@@ -1,0 +1,98 @@
+{
+  "schemaVersion": 1,
+  "scanner": {
+    "version": "1.6.0",
+    "rules": "402995650b68"
+  },
+  "target": {
+    "kind": "url",
+    "ref": "https://highwaterindex.com/api/mcp"
+  },
+  "scannedAt": "2026-11-28T13:19:31.206Z",
+  "durationMs": 441,
+  "layers": {
+    "metadata": true,
+    "static": false
+  },
+  "tools": [
+    {
+      "name": "estimate_flood_premium",
+      "descriptionHash": "82839d8453bcc0dc6c3de5cd6655fa4bc909a64c3e1bef031a0e0301fcd0701e",
+      "description": "Typical federal (NFIP) flood premium for homes like the one described, from policy-level data for covered coastal counties. Returns p25/p50/p75, policy count, and an 18%-cap projection. Not a quote."
+    },
+    {
+      "name": "town_trend",
+      "descriptionHash": "93f831e52e906ffdca2457443427043b88e1f6cb28f6468004ac71b129d405ce",
+      "description": "Median flood premium by year and policies in force for a covered county or town, plus county non-renewal rates."
+    },
+    {
+      "name": "insurance_context",
+      "descriptionHash": "f568b23bf0ef8543c06da0192db6a8431ce79def709c9c246793153ebfbc8a81",
+      "description": "National coverage: homeowners premium, non-renewal rate and loss ratio by year for a ZIP (2018-2022), and/or county non-renewal rate by year (2018-2023)."
+    },
+    {
+      "name": "parcel_report",
+      "descriptionHash": "e30566b4e414243f87174af51cd291fec7476c071f998e3b65de247ccb657bd5",
+      "description": "Look up a Cape May County parcel by address. Returns tax assessment, FEMA flood zone, and — when an elevation certificate is on file — diagram number, lowest-floor elevation, BFE, freeboard in feet, certificate date, surveyor source, plus the town's published premium band for that freeboard with pol",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
+      "name": "request_quotes",
+      "descriptionHash": "92e9bc4ffb83a07be921606f6bca022b42603b76d6b2d0392eb192bfa994b44b",
+      "description": "Send a person's details to up to 3 licensed insurance agencies that write the ZIP, so they can contact the person about flood/homeowners coverage. Before calling, show the person this exact consent text and get an explicit yes: \"I agree that High Water Index may share the details I entered with up t",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink"
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOOL-POISON-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description issues instructions to the model",
+      "detail": "Description of \"request_quotes\" contains imperative instructions directed at the AI assistant rather than describing the tool. This is the core tool-poisoning technique.",
+      "evidence": {
+        "source": "tool:request_quotes",
+        "snippet": "Send a person's details to up to 3 licensed insurance agencies that write the ZIP, so they can contact the person about flood/homeowners coverage. Before callin…"
+      },
+      "confidence": 0.7,
+      "remediation": "Treat the server as untrusted; the model may obey embedded instructions."
+    },
+    {
+      "id": "MCP-TOOL-POISON-006",
+      "severity": "low",
+      "category": "tool-poisoning",
+      "title": "Anomalously long tool description",
+      "detail": "Description of \"request_quotes\" is 1104 chars, far longer than this server's median (198). Overlong descriptions are a common place to bury instructions.",
+      "evidence": {
+        "source": "tool:request_quotes",
+        "snippet": "Send a person's details to up to 3 licensed insurance agencies that write the ZIP, so they can contact the person about flood/homeowners coverage. Before callin…"
+      },
+      "confidence": 0.4
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: request_quotes · Private data: parcel_report, request_quotes · Public sink: request_quotes.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: request_quotes · Private data: parcel_report, request_quotes · Public sink: request_quotes"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 59,
+  "scoreBreakdown": {
+    "tool-poisoning": 22,
+    "toxic-flow": 20
+  },
+  "errors": []
+}

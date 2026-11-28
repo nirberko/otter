@@ -8,8 +8,8 @@
     "kind": "url",
     "ref": "https://liquidplatform.org/api/mcp/public"
   },
-  "scannedAt": "2026-11-27T14:20:06.555Z",
-  "durationMs": 4951,
+  "scannedAt": "2026-11-28T13:25:46.733Z",
+  "durationMs": 3099,
   "layers": {
     "metadata": true,
     "static": false
@@ -17,33 +17,49 @@
   "tools": [
     {
       "name": "liquid_get_methodology",
-      "descriptionHash": "e69d1fdd37a40bef9a112b65a32f44abff65a08d4b63c938bbb83ee3fdc80327",
-      "description": "Read public assessment coverage, limits and retest methodology."
+      "descriptionHash": "8e425798b97136f6a55315b876d70f597908d10245a6c9286c20de552847607c",
+      "description": "Read how Liquid assessments record coverage, limitations and retests. Returns the selected section, a short summary and the official methodology URL. Use for methodology questions, not assessment results; this tool does not test a target.",
+      "labels": [
+        "untrusted-content",
+        "private-data"
+      ]
     },
     {
       "name": "liquid_get_public_guide",
-      "descriptionHash": "4053460650ea640eb98c469c12db87ad027b6513cbe4b35c3dc20442dbe31469",
-      "description": "Read a summary of an allowlisted published security guide."
+      "descriptionHash": "3491034ca2f8f73dd2e2938641296b20f13b817e5c6283d6a0734c5a17ca7e53",
+      "description": "Read a published security guide by its exact slug. Returns a title, short answer and official guide URL, or status not_published for unknown slugs. Use for practical security guidance; it does not inspect code or run checks.",
+      "labels": [
+        "untrusted-content",
+        "destructive"
+      ]
     },
     {
       "name": "liquid_get_sandbox_limits",
-      "descriptionHash": "fbc00d16643b1c2e2c71b1bd9952def90c7f1c2a457cf9f925492715a7a085aa",
-      "description": "Read the browser sandbox input limits and static analysis coverage."
+      "descriptionHash": "81330fb71d26f1a6f37502a610405b2001fa76bd16ab9cc546af78d0371eae0f",
+      "description": "Read the separate browser sandbox limits: maximum UTF-8 input bytes, supported languages, rule count, coverage limitations and sandbox URL. Takes no arguments and does not submit or analyze code.",
+      "labels": [
+        "untrusted-content",
+        "public-sink"
+      ]
     },
     {
       "name": "liquid_start_domain_check",
-      "descriptionHash": "2deb1082f23c5421523f7baf96d6bef860b0a5ee02bd6ca93b646b0df56ca31d",
-      "description": "Issue or verify an exact-host DNS TXT or HTTPS ownership challenge, then check SPF/DMARC through a fixed DNS resolver. Writes only proof and check metadata.",
+      "descriptionHash": "e3204e8c49d894346bcd3f291b76382f7f08c2420803b46f532987635495e20a",
+      "description": "Check SPF/DMARC for a hostname the user controls. Issue a DNS TXT or HTTPS challenge, publish its proof, then verify with the matching kind and challenge_id. Returns a new check_id and private status_token for liquid_get_check_status. Writes proof/check metadata; no pentest or credit spending. Proof",
       "labels": [
-        "untrusted-content"
+        "untrusted-content",
+        "private-data",
+        "public-sink"
       ]
     },
     {
       "name": "liquid_get_check_status",
-      "descriptionHash": "1268affc2f9ab187426c511153054c4ad2672d30ca18225c802b3226667b12a8",
-      "description": "Read high-level SPF/DMARC signals with the bearer token returned when the check started.",
+      "descriptionHash": "dd73c86c75305e2ad6751acffa60e5c48ce2d940e749d437677d3f6235997ee3",
+      "description": "Read a completed domain check using the result check_id and private status_token returned by successful liquid_start_domain_check verification. Returns status and SPF/DMARC states (missing, review, present or inconclusive). Does not run a new check. Missing, expired or incorrect credentials return n",
       "labels": [
-        "private-data"
+        "untrusted-content",
+        "private-data",
+        "destructive"
       ]
     }
   ],
@@ -53,17 +69,96 @@
       "severity": "high",
       "category": "tool-poisoning",
       "title": "Description references secrets/credentials",
-      "detail": "Description of \"liquid_get_check_status\" references sensitive artifacts (bearer). A tool description has no reason to mention credentials.",
+      "detail": "Description of \"liquid_get_check_status\" references sensitive artifacts (credentials). A tool description has no reason to mention credentials.",
       "evidence": {
         "source": "tool:liquid_get_check_status",
-        "snippet": "Read high-level SPF/DMARC signals with the bearer token returned when the check started."
+        "snippet": "Read a completed domain check using the result check_id and private status_token returned by successful liquid_start_domain_check verification. Returns status a…"
       },
       "confidence": 0.65
+    },
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"public\" exposes tools that together enable an exfiltration flow. Untrusted content: liquid_get_methodology, liquid_get_public_guide, liquid_get_sandbox_limits, liquid_start_domain_check, liquid_get_check_status · Private data: liquid_get_methodology, liquid_start_domain_check, liquid_get_check_status · Public sink: liquid_get_sandbox_limits, liquid_start_domain_check · Destructive: liquid_get_public_guide, liquid_get_check_status.",
+      "evidence": {
+        "source": "server:public",
+        "snippet": "Untrusted content: liquid_get_methodology, liquid_get_public_guide, liquid_get_sandbox_limits, liquid_start_domain_check, liquid_get_check_status · Private data: liquid_get_methodology, liquid_start_domain_check, liquid_get_check_status · Public sink: liquid_get_sandbox_limits, liquid_start_domain_check · Destructive: liquid_get_public_guide, liquid_get_check_status"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"liquid_get_methodology\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:liquid_get_methodology",
+        "snippet": "before: \"Read public assessment coverage, limits and retest methodology.\" → after: \"Read how Liquid assessments record coverage, limitations and retests. Returns the selected section, a short summary and the official methodology URL. Use for methodology questions, not assessment results; this tool does not test a target.\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"liquid_get_public_guide\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:liquid_get_public_guide",
+        "snippet": "before: \"Read a summary of an allowlisted published security guide.\" → after: \"Read a published security guide by its exact slug. Returns a title, short answer and official guide URL, or status not_published for unknown slugs. Use for practical security guidance; it does not inspect code or run checks.\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"liquid_get_sandbox_limits\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:liquid_get_sandbox_limits",
+        "snippet": "before: \"Read the browser sandbox input limits and static analysis coverage.\" → after: \"Read the separate browser sandbox limits: maximum UTF-8 input bytes, supported languages, rule count, coverage limitations and sandbox URL. Takes no arguments and does not submit or analyze code.\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"liquid_start_domain_check\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:liquid_start_domain_check",
+        "snippet": "before: \"Issue or verify an exact-host DNS TXT or HTTPS ownership challenge, then check SPF/DMARC through a fixed DNS resolver. Writes only proof and check metadata.\" → after: \"Check SPF/DMARC for a hostname the user controls. Issue a DNS TXT or HTTPS challenge, publish its proof, then verify with the matching kind and challenge_id. Returns a new check_id and private status_token for liquid_get_check_status. Writes proof/check metadata; no pentest or credit spending. Proof\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
+    },
+    {
+      "id": "MCP-RUGPULL-001",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Tool description changed since last scan",
+      "detail": "Tool \"liquid_get_check_status\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "evidence": {
+        "source": "tool:liquid_get_check_status",
+        "snippet": "before: \"Read high-level SPF/DMARC signals with the bearer token returned when the check started.\" → after: \"Read a completed domain check using the result check_id and private status_token returned by successful liquid_start_domain_check verification. Returns status and SPF/DMARC states (missing, review, present or inconclusive). Does not run a new check. Missing, expired or incorrect credentials return n\""
+      },
+      "confidence": 0.8,
+      "remediation": "Re-review the tool before continuing to trust it."
     }
   ],
-  "score": 80,
+  "score": 40,
   "scoreBreakdown": {
-    "tool-poisoning": 20
+    "tool-poisoning": 40,
+    "toxic-flow": 20
   },
   "errors": []
 }

@@ -8,8 +8,8 @@
     "kind": "url",
     "ref": "https://app.nextupwalkin.com/mcp"
   },
-  "scannedAt": "2026-11-24T15:02:17.168Z",
-  "durationMs": 510,
+  "scannedAt": "2026-11-28T13:13:06.096Z",
+  "durationMs": 334,
   "layers": {
     "metadata": true,
     "static": false
@@ -17,13 +17,16 @@
   "tools": [
     {
       "name": "find_walk_in_places",
-      "descriptionHash": "aab4e8762dde3a97f821396f193b8e240e5d01b012013e9fb3a6ae7896a5f6b7",
-      "description": "Find businesses in a US city that take walk-ins, with how long the wait is right now. Open places come first, shortest wait first. Optionally narrow to one kind of business with `trade`: barbershops (barbershop), hair-salons (hair salon), nail-salons (nail salon), brow-and-lash (brow and lash studio"
+      "descriptionHash": "e20027e6e9b58ea7160a8dc33835cc9701a79b956451dc64843f919c5c887371",
+      "description": "Find businesses that take walk-ins, by US city, near a point, by the business's name or by ZIP code, with how long the wait is right now. Open places come first, shortest wait first. Use it when someone wants to go now without an appointment: a walk-in visit near them, who has the shortest wait, who",
+      "labels": [
+        "untrusted-content"
+      ]
     },
     {
       "name": "get_place",
-      "descriptionHash": "87b57f685a8fe7b74e9d5b5ec83e287c6b5cd66df369aa2937767d7f8cdf97a8",
-      "description": "Details for one place from its `slug` (from find_walk_in_places): its address, whether it is open now, today's hours, the current wait and how many people are waiting, whether it takes walk-ins and online bookings, its team members (with the ids that available_times, join_link and booking_link accep",
+      "descriptionHash": "1be7212c08f0ea5856af369922e6ad7d98b8744e95df0fc3a4c6429cf1adc0e7",
+      "description": "Details for one place from its `slug` (from find_walk_in_places): its address, whether its line is taking check-ins now (`openNow`), today's posted hours and the next seven days' hours (`hoursThisWeek`, starting today, null when none are posted), the current wait and how many people are waiting, whe",
       "labels": [
         "untrusted-content"
       ]
@@ -52,23 +55,48 @@
       "description": "A link the person taps to book an appointment, with the service (and optionally a team member and date) filled in. You cannot book for them: they pick a time and confirm on the place's own page. Use it for an appointment at a set time (check available_times first if they ask when); for walking in no"
     },
     {
+      "name": "best_time_to_visit",
+      "descriptionHash": "fe67d22be75300b6c33cbae08211d061ea3bd0fbef9827681228fea8855be10c",
+      "description": "When to come for the shortest wait at one place on a day, from that place's own past visits on that weekday over the last 8 weeks: the best time, the expected wait then, the expected wait through the day, and how busy each hour usually is. Pass `date` (YYYY-MM-DD in the place's time zone, today thro"
+    },
+    {
+      "name": "check_my_place_in_line",
+      "descriptionHash": "e8330efbfe4220e2f6f93b3d99f9bdc6ab1d54465988d97ee4fba4aa438bf5a0",
+      "description": "How the person's own visit is going, from the link in their check-in text (https://app.nextupwalkin.com/w/…) or on their status page (https://app.nextupwalkin.com/q/…?t=…): whether they are still waiting, how many people are ahead of them, about how many minutes (only where the place works minutes o",
+      "labels": [
+        "private-data"
+      ]
+    },
+    {
       "name": "purchase_link",
-      "descriptionHash": "86f85ca52e8c62dde38c334b15b12f16dbee1bdaec16253bb414595d425bc949",
-      "description": "The packages and memberships a place sells online, and the link where the person pays for them. Only for places whose owner turned it on. You cannot pay for them: they open the link and pay on the place's own secure Stripe page. Gift cards aren't sold online."
+      "descriptionHash": "d84b06259526fb54e38de9e98beee16bb9c0d8bedd0df12e8f735505a82a0859",
+      "description": "The packages and memberships a place sells online, and the link where the person pays for them. Only for places whose owner turned it on. You cannot pay for them: they open the link and pay on the place's own secure Stripe page. Gift cards aren't sold through this tool: if the person asks, say they "
     }
   ],
   "findings": [
     {
+      "id": "MCP-TOOL-POISON-006",
+      "severity": "low",
+      "category": "tool-poisoning",
+      "title": "Anomalously long tool description",
+      "detail": "Description of \"find_walk_in_places\" is 3381 chars, far longer than this server's median (457). Overlong descriptions are a common place to bury instructions.",
+      "evidence": {
+        "source": "tool:find_walk_in_places",
+        "snippet": "Find businesses that take walk-ins, by US city, near a point, by the business's name or by ZIP code, with how long the wait is right now. Open places come first…"
+      },
+      "confidence": 0.4
+    },
+    {
       "id": "MCP-TOXIC-FLOW-001",
-      "severity": "medium",
+      "severity": "high",
       "category": "toxic-flow",
-      "title": "Toxic flow: untrusted input can reach an external sink",
-      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: get_place · Public sink: get_services.",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: find_walk_in_places, get_place · Private data: check_my_place_in_line · Public sink: get_services.",
       "evidence": {
         "source": "server:mcp",
-        "snippet": "Untrusted content: get_place · Public sink: get_services"
+        "snippet": "Untrusted content: find_walk_in_places, get_place · Private data: check_my_place_in_line · Public sink: get_services"
       },
-      "confidence": 0.45,
+      "confidence": 0.6,
       "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
     },
     {
@@ -79,7 +107,7 @@
       "detail": "Tool \"find_walk_in_places\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
       "evidence": {
         "source": "tool:find_walk_in_places",
-        "snippet": "before: \"Find businesses in a US city that take walk-ins, with how long the wait is right now. Open places come first, shortest wait first. Optionally narrow to one kind of business with `trade`: barbershops (barbershop), hair-salons (hair salon), nail-salons (nail salon), brow-and-lash (brow and lash studio\" → after: \"Find businesses in a US city that take walk-ins, with how long the wait is right now. Open places come first, shortest wait first. Optionally narrow to one kind of business with `trade`: barbershops (barbershop), hair-salons (hair salon), nail-salons (nail salon), brow-and-lash (brow and lash studio\""
+        "snippet": "before: \"Find businesses in a US city that take walk-ins, with how long the wait is right now. Open places come first, shortest wait first. Optionally narrow to one kind of business with `trade`: barbershops (barbershop), hair-salons (hair salon), nail-salons (nail salon), brow-and-lash (brow and lash studio\" → after: \"Find businesses that take walk-ins, by US city, near a point, by the business's name or by ZIP code, with how long the wait is right now. Open places come first, shortest wait first. Use it when someone wants to go now without an appointment: a walk-in visit near them, who has the shortest wait, who\""
       },
       "confidence": 0.8,
       "remediation": "Re-review the tool before continuing to trust it."
@@ -92,7 +120,7 @@
       "detail": "Tool \"get_place\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
       "evidence": {
         "source": "tool:get_place",
-        "snippet": "before: \"Details for one place from its `slug` (from find_walk_in_places): its address, whether it is open now, today's hours, the current wait and how many people are waiting, whether it takes walk-ins and online bookings, its team members, and the link to join the line.\" → after: \"Details for one place from its `slug` (from find_walk_in_places): its address, whether it is open now, today's hours, the current wait and how many people are waiting, whether it takes walk-ins and online bookings, its team members (with the ids that available_times, join_link and booking_link accep\""
+        "snippet": "before: \"Details for one place from its `slug` (from find_walk_in_places): its address, whether it is open now, today's hours, the current wait and how many people are waiting, whether it takes walk-ins and online bookings, its team members (with the ids that available_times, join_link and booking_link accep\" → after: \"Details for one place from its `slug` (from find_walk_in_places): its address, whether its line is taking check-ins now (`openNow`), today's posted hours and the next seven days' hours (`hoursThisWeek`, starting today, null when none are posted), the current wait and how many people are waiting, whe\""
       },
       "confidence": 0.8,
       "remediation": "Re-review the tool before continuing to trust it."
@@ -102,44 +130,22 @@
       "severity": "high",
       "category": "tool-poisoning",
       "title": "Tool description changed since last scan",
-      "detail": "Tool \"get_services\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
+      "detail": "Tool \"purchase_link\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
       "evidence": {
-        "source": "tool:get_services",
-        "snippet": "before: \"The services a place offers publicly, with the prices and lengths it shows to customers (up to 30). Use a service's id with available_times, join_link or booking_link.\" → after: \"The services a place offers publicly, with the prices and lengths it shows to customers (up to 30), each with an id. Use a service's id with available_times, join_link or booking_link. If the place doesn't list services online, it says so: send the person join_link and they choose there.\""
+        "source": "tool:purchase_link",
+        "snippet": "before: \"The packages and memberships a place sells online, and the link where the person pays for them. Only for places whose owner turned it on. You cannot pay for them: they open the link and pay on the place's own secure Stripe page. Gift cards aren't sold online.\" → after: \"The packages and memberships a place sells online, and the link where the person pays for them. Only for places whose owner turned it on. You cannot pay for them: they open the link and pay on the place's own secure Stripe page. Gift cards aren't sold through this tool: if the person asks, say they \""
       },
       "confidence": 0.8,
       "remediation": "Re-review the tool before continuing to trust it."
-    },
-    {
-      "id": "MCP-RUGPULL-001",
-      "severity": "high",
-      "category": "tool-poisoning",
-      "title": "Tool description changed since last scan",
-      "detail": "Tool \"available_times\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
-      "evidence": {
-        "source": "tool:available_times",
-        "snippet": "before: \"Open start times (up to 12) on one date for one service, when the place takes online bookings. Times are in the place's own time zone.\" → after: \"Open start times (up to 12) on one date for one service, when the place takes online bookings. Times are in the place's own time zone. Pass `memberId` (from get_place) to see only that team member's times. Use it when the person wants an appointment and asks when; then give them booking_link. For wa\""
-      },
-      "confidence": 0.8,
-      "remediation": "Re-review the tool before continuing to trust it."
-    },
-    {
-      "id": "MCP-RUGPULL-001",
-      "severity": "high",
-      "category": "tool-poisoning",
-      "title": "Tool description changed since last scan",
-      "detail": "Tool \"join_link\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
-      "evidence": {
-        "source": "tool:join_link",
-        "snippet": "before: \"A link the person taps to join the place's line from their phone, optionally with a service and team member filled in. You cannot join for them: they confirm on the place's own page.\" → after: \"A link the person taps to join the place's line from their phone, optionally with a service and team member filled in. You cannot join for them: they confirm on the place's own page. Use it for walking in now; for a set time later, use booking_link. If the place isn't taking check-ins right now, or \""
-      },
-      "confidence": 0.8,
-      "remediation": "Re-review the tool before continuing to trust it."
-    },
-    {
-      "id": "MCP-RUGPULL-001",
-      "severity": "high",
-      "category": "tool-poisoning",
+    }
+  ],
+  "score": 45,
+  "scoreBreakdown": {
+    "tool-poisoning": 35,
+    "toxic-flow": 20
+  },
+  "errors": []
+}egory": "tool-poisoning",
       "title": "Tool description changed since last scan",
       "detail": "Tool \"booking_link\" changed its description with no version change. Silent description changes are how a trusted server turns malicious after review.",
       "evidence": {

@@ -8,8 +8,8 @@
     "kind": "url",
     "ref": "https://webarm24.online/mcp"
   },
-  "scannedAt": "2026-11-11T12:11:38.058Z",
-  "durationMs": 1828,
+  "scannedAt": "2026-11-28T13:25:42.233Z",
+  "durationMs": 1284,
   "layers": {
     "metadata": true,
     "static": false
@@ -272,6 +272,24 @@
       ]
     },
     {
+      "name": "workflow_export",
+      "descriptionHash": "6104abcc5feff35a566325462601b54310d80237fe72dd485b4575425eacd791",
+      "description": "Export a workflow plus every pipeline it uses as one portable JSON bundle (format\n    webarm24-workflow). secrets: redact (default; blank variables whose names look like keys/tokens),\n    include, or blank (all variable values). Trigger tokens and webhook secrets are never exported. Free.",
+      "labels": [
+        "private-data",
+        "public-sink",
+        "destructive"
+      ]
+    },
+    {
+      "name": "workflow_import",
+      "descriptionHash": "1c0c621ffb59608624f50e253975b1e92c7b08e01f868289439718d657f20a45",
+      "description": "Create a workflow from a workflow_export bundle: creates its pipelines (or reuses yours with the\n    same name and identical steps when reuse_existing) and points the graph at them. Scheduled or\n    webhook workflows and scheduled pipelines start disabled. Result has import.{pipelines_created,\n    p",
+      "labels": [
+        "public-sink"
+      ]
+    },
+    {
       "name": "workflow_run",
       "descriptionHash": "d47f6b9f458598199ad60d244679b4081082e3f748db8bb1425e0d953af2ea5d",
       "description": "Start a run (async; returns run_id). Each inner pipeline run costs the usual pipeline_run credits.\n    Follow with workflow_run_wait or workflow_run_get.",
@@ -451,6 +469,11 @@
       "description": "Models available for the ai_agent step (provider, id, tier, credit_multiplier, vision, reasoning)."
     },
     {
+      "name": "python_packages_list",
+      "descriptionHash": "c3413b646678330df560700557448ca50865c135717e8e0daf05d569bc91bb9b",
+      "description": "What python steps can import: installed modules, approved packages for py_requirements, network mode."
+    },
+    {
       "name": "skill_list",
       "descriptionHash": "1fb0649c83c57b19d56db78c48a43e13cc4a9edf36e492cab6650f1f02973d8a",
       "description": "List your ai_agent skills (name, description, files).",
@@ -561,9 +584,34 @@
       "description": "Your account incl. credit balance."
     },
     {
+      "name": "license_status",
+      "descriptionHash": "801675d27e6c8e6e02b1b223f1c2658a9b039e4f95b00046eb049f04249d6b84",
+      "description": "Edition, version and (self-hosted) license state: seats used/total, update window, last check-in.\n    Admins get full details. Free."
+    },
+    {
       "name": "credits_history",
-      "descriptionHash": "a932f8780ad0fcb03ea54e05c221717040e575c988a32a7daf3632c982edc30f",
-      "description": "Credit usage history: balance, 30-day spend by reason, and ledger entries (newest first).\n    Each entry has delta, reason (pipeline_run, ai_agent, schedule_run, chat_turn, agent_job, builder_call,\n    debug_chat, mcp_usage, purchase, signup_grant, refund, ...), detail (what it was for), balance_aft"
+      "descriptionHash": "c72889df098e535d470448e6befdd71f779412fb1f9bc54ab372490d2ffaeb7d",
+      "description": "Credit usage history: balance, 30-day spend by reason, and ledger entries (newest first).\n    Each entry has delta, reason (pipeline_run, ai_agent, schedule_run, chat_turn, agent_job, builder_call,\n    debug_chat, mcp_usage, llm_usage = model tokens beyond the flat fee (one row per run/call), purcha",
+      "labels": [
+        "private-data",
+        "destructive"
+      ]
+    },
+    {
+      "name": "credits_limits_get",
+      "descriptionHash": "b9d6ac77405ba1e40655da522b7279ef8e70305dca591795c169b881bbd3302c",
+      "description": "Spend limits that protect against runaway automations: daily / monthly credit limits, the model-usage\n    cap per run (per_run, or per_run_default when unset), and what was spent today / this month. Free.",
+      "labels": [
+        "destructive"
+      ]
+    },
+    {
+      "name": "credits_limits_set",
+      "descriptionHash": "eb369a1e079705a4f75be268af1ebdd785be241678ed5e645f03fc6732593ed5",
+      "description": "Set spend limits in credits. Only the arguments you pass change; 0 clears one. Charges that would\n    exceed a daily (UTC day) or monthly limit are refused like an empty balance; a run whose model usage\n    reaches per_run is stopped. Free.",
+      "labels": [
+        "destructive"
+      ]
     },
     {
       "name": "credit_packs",
@@ -617,43 +665,26 @@
       "confidence": 0.65
     },
     {
+      "id": "MCP-TOOL-POISON-003",
+      "severity": "high",
+      "category": "tool-poisoning",
+      "title": "Description references secrets/credentials",
+      "detail": "Description of \"workflow_export\" references sensitive artifacts (secret). A tool description has no reason to mention credentials.",
+      "evidence": {
+        "source": "tool:workflow_export",
+        "snippet": "Export a workflow plus every pipeline it uses as one portable JSON bundle (format webarm24-workflow). secrets: redact (default; blank variables whose names look…"
+      },
+      "confidence": 0.65
+    },
+    {
       "id": "MCP-TOXIC-FLOW-001",
       "severity": "high",
       "category": "toxic-flow",
       "title": "Lethal trifecta: untrusted input + private data + external sink",
-      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: browser_navigate, browser_get_html, pipeline_get, credits_checkout_url · Private data: browser_navigate, skill_list, skill_get, skill_create, skill_update, storage_files_list, storage_file_put, storage_file_get, storage_file_delete · Public sink: send_email, workflow_builder_chat, agent_job_submit, storage_file_put · Destructive: pipeline_delete, pipeline_history_list, pipeline_group_delete, pipeline_group_assign, pipeline_test_step, pipeline_run, pipeline_run_get, pipeline_run_wait, pipeline_run_cancel, pipeline_debug_chat, workflow_delete, workflow_run, workflow_run_get, workflow_run_wait, workflow_run_cancel, workflow_approve, workflow_history_list, agent_job_submit, schedule_delete, schedule_run, storage_delete, skill_import, skill_delete, storage_file_delete, browser_session_delete.",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: browser_navigate, browser_get_html, pipeline_get, credits_checkout_url · Private data: browser_navigate, workflow_export, skill_list, skill_get, skill_create, skill_update, storage_files_list, storage_file_put, storage_file_get, storage_file_delete, credits_history · Public sink: send_email, workflow_export, workflow_import, workflow_builder_chat, agent_job_submit, storage_file_put · Destructive: pipeline_delete, pipeline_history_list, pipeline_group_delete, pipeline_group_assign, pipeline_test_step, pipeline_run, pipeline_run_get, pipeline_run_wait, pipeline_run_cancel, pipeline_debug_chat, workflow_delete, workflow_export, workflow_run, workflow_run_get, workflow_run_wait, workflow_run_cancel, workflow_approve, workflow_history_list, agent_job_submit, schedule_delete, schedule_run, storage_delete, skill_import, skill_delete, storage_file_delete, browser_session_delete, credits_history, credits_limits_get, credits_limits_set.",
       "evidence": {
         "source": "server:mcp",
-        "snippet": "Untrusted content: browser_navigate, browser_get_html, pipeline_get, credits_checkout_url · Private data: browser_navigate, skill_list, skill_get, skill_create, skill_update, storage_files_list, storage_file_put, storage_file_get, storage_file_delete · Public sink: send_email, workflow_builder_chat, agent_job_submit, storage_file_put · Destructive: pipeline_delete, pipeline_history_list, pipeline_group_delete, pipeline_group_assign, pipeline_test_step, pipeline_run, pipeline_run_get, pipeline_run_wait, pipeline_run_cancel, pipeline_debug_chat, workflow_delete, workflow_run, workflow_run_get, workflow_run_wait, workflow_run_cancel, workflow_approve, workflow_history_list, agent_job_submit, schedule_delete, schedule_run, storage_delete, skill_import, skill_delete, storage_file_delete, browser_session_delete"
-      },
-      "confidence": 0.6,
-      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
-    }
-  ],
-  "score": 42,
-  "scoreBreakdown": {
-    "shadowing": 8,
-    "tool-poisoning": 30,
-    "toxic-flow": 20
-  },
-  "errors": []
-}r_navigate, workflow_export, skill_list, skill_get, skill_create, skill_update, storage_files_list, storage_file_put, storage_file_get, storage_file_delete · Public sink: send_email, workflow_export, workflow_import, workflow_builder_chat, agent_job_submit, storage_file_put · Destructive: pipeline_delete, pipeline_history_list, pipeline_group_delete, pipeline_group_assign, pipeline_test_step, pipeline_run, pipeline_run_get, pipeline_run_wait, pipeline_run_cancel, pipeline_debug_chat, workflow_delete, workflow_export, workflow_run, workflow_run_get, workflow_run_wait, workflow_run_cancel, workflow_approve, workflow_history_list, agent_job_submit, schedule_delete, schedule_run, storage_delete, skill_import, skill_delete, storage_file_delete, browser_session_delete.",
-      "evidence": {
-        "source": "server:mcp",
-        "snippet": "Untrusted content: browser_navigate, browser_get_html, pipeline_get, credits_checkout_url · Private data: browser_navigate, workflow_export, skill_list, skill_get, skill_create, skill_update, storage_files_list, storage_file_put, storage_file_get, storage_file_delete · Public sink: send_email, workflow_export, workflow_import, workflow_builder_chat, agent_job_submit, storage_file_put · Destructive: pipeline_delete, pipeline_history_list, pipeline_group_delete, pipeline_group_assign, pipeline_test_step, pipeline_run, pipeline_run_get, pipeline_run_wait, pipeline_run_cancel, pipeline_debug_chat, workflow_delete, workflow_export, workflow_run, workflow_run_get, workflow_run_wait, workflow_run_cancel, workflow_approve, workflow_history_list, agent_job_submit, schedule_delete, schedule_run, storage_delete, skill_import, skill_delete, storage_file_delete, browser_session_delete"
-      },
-      "confidence": 0.6,
-      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
-    }
-  ],
-  "score": 37,
-  "scoreBreakdown": {
-    "shadowing": 8,
-    "tool-poisoning": 35,
-    "toxic-flow": 20
-  },
-  "errors": []
-}ge_delete, skill_import, skill_delete, storage_file_delete, browser_session_delete, credits_history"
+        "snippet": "Untrusted content: browser_navigate, browser_get_html, pipeline_get, credits_checkout_url · Private data: browser_navigate, workflow_export, skill_list, skill_get, skill_create, skill_update, storage_files_list, storage_file_put, storage_file_get, storage_file_delete, credits_history · Public sink: send_email, workflow_export, workflow_import, workflow_builder_chat, agent_job_submit, storage_file_put · Destructive: pipeline_delete, pipeline_history_list, pipeline_group_delete, pipeline_group_assign, pipeline_test_step, pipeline_run, pipeline_run_get, pipeline_run_wait, pipeline_run_cancel, pipeline_debug_chat, workflow_delete, workflow_export, workflow_run, workflow_run_get, workflow_run_wait, workflow_run_cancel, workflow_approve, workflow_history_list, agent_job_submit, schedule_delete, schedule_run, storage_delete, skill_import, skill_delete, storage_file_delete, browser_session_delete, credits_history, credits_limits_get, credits_limits_set"
       },
       "confidence": 0.6,
       "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."

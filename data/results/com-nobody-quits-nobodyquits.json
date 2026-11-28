@@ -1,0 +1,104 @@
+{
+  "schemaVersion": 1,
+  "scanner": {
+    "version": "1.6.0",
+    "rules": "402995650b68"
+  },
+  "target": {
+    "kind": "url",
+    "ref": "https://nobody-quits.com/mcp"
+  },
+  "scannedAt": "2026-11-28T13:14:00.601Z",
+  "durationMs": 1196,
+  "layers": {
+    "metadata": true,
+    "static": false
+  },
+  "tools": [
+    {
+      "name": "get_book_contents",
+      "descriptionHash": "049ae1c3c80921533fbdbab0f5aca6445ecc846601f8f414e83ab4920b6b6944",
+      "description": "The contents of «From Voltage to Prompt. How Machines Learned to Make Music» by Mike Fluff: its sections and parts (slug, title, whether it is free to read), the price, and the URL of each part. Free parts read whole with read_part; the rest after the person buys the book (buy_book).",
+      "labels": [
+        "untrusted-content"
+      ]
+    },
+    {
+      "name": "read_part",
+      "descriptionHash": "6aea36a8256e3c56fb4923a4f89a1560319a7499c2b1fbdcede6b95af0c3c379",
+      "description": "The whole text of one part of the book, in the language asked (or Russian, the original, where a translation is missing). Free parts read for anyone; other parts for a person signed in with \"nobodyquits:purchase\" who owns the book."
+    },
+    {
+      "name": "buy_book",
+      "descriptionHash": "879115dd8f45a553a738c5d281c7be517fec8336e03ff079921dd3cb69de1d79",
+      "description": "For the person signed in with INITE ID (\"nobodyquits:purchase\"): a payment link for the whole book. The person pays on that page themselves (card or PIX) and every part opens for their account; nothing is charged by this call. Says so if they already own it. Only call when the person asks to buy the"
+    },
+    {
+      "name": "get_chapter_discussion",
+      "descriptionHash": "e993638e71d119be34a2aae5a84fca7558814cbd2aa401ae4309150805cbda42",
+      "description": "Return the published reader comments on one chapter of a Nobody Quits book: who wrote, the quoted passage, the text, replies (parent_id), likes, and a link to the place in the chapter; comments by the author are marked. Open for chapters the caller may read, by the site's own rules (send the reader'",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "post_comment",
+      "descriptionHash": "374516a6704dcced51d30c419f052ae115ec4991d2c299da03e6e37c6ed465d2",
+      "description": "SIDE EFFECT: publishes a comment, in the signed-in person's name, in the public discussion of one chapter, where other readers see it. Use only when the person asks to post it, with words they approved. Optional `quote` pins it to a passage (copy it exactly from the chapter); `reply_to` answers a co",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "send_note_to_author",
+      "descriptionHash": "03757c36d9fae8deed98b4b19e8e48ea40121523d73699c0d984e195265a5074",
+      "description": "SIDE EFFECT: emails the author a private note about one passage (a correction, a question, a remark) from the signed-in person, and keeps it in their notes on the site; the author can reply to the person's email. Use only when the person asks, with their words. `quote` must be copied exactly from th",
+      "labels": [
+        "untrusted-content",
+        "private-data",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "get_author_inbox",
+      "descriptionHash": "089a003854486b6f8d43e4a7d577dcff4ee2759df908b77b1bd6c367bf31bed0",
+      "description": "For the author only: the notes readers sent them and the comments that are hidden (held by moderation, or hidden by hand), newest first, each with a link to its place. Publish or hide with moderate_comment. Needs the author signed in with the nobodyquits:author scope. Read-only.",
+      "labels": [
+        "untrusted-content",
+        "public-sink"
+      ]
+    },
+    {
+      "name": "moderate_comment",
+      "descriptionHash": "a5f6565066fd6dfc95b17622c5d5e108c908e0a70d93a64ea0775879b11ec410",
+      "description": "SIDE EFFECT: for the author only. `publish` shows a hidden or held comment to every reader of the chapter; `hide` takes one down (it stays visible to the author). Ids come from get_author_inbox or get_chapter_discussion. Needs the author signed in with the nobodyquits:author scope.",
+      "labels": [
+        "public-sink"
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "MCP-TOXIC-FLOW-001",
+      "severity": "high",
+      "category": "toxic-flow",
+      "title": "Lethal trifecta: untrusted input + private data + external sink",
+      "detail": "Server \"mcp\" exposes tools that together enable an exfiltration flow. Untrusted content: get_book_contents, get_chapter_discussion, post_comment, send_note_to_author, get_author_inbox · Private data: get_chapter_discussion, post_comment, send_note_to_author · Public sink: get_chapter_discussion, post_comment, send_note_to_author, get_author_inbox, moderate_comment.",
+      "evidence": {
+        "source": "server:mcp",
+        "snippet": "Untrusted content: get_book_contents, get_chapter_discussion, post_comment, send_note_to_author, get_author_inbox · Private data: get_chapter_discussion, post_comment, send_note_to_author · Public sink: get_chapter_discussion, post_comment, send_note_to_author, get_author_inbox, moderate_comment"
+      },
+      "confidence": 0.6,
+      "remediation": "Do not co-install these capabilities under one trust boundary; an injected comment/email can steer the model to exfiltrate via the sink tool."
+    }
+  ],
+  "score": 80,
+  "scoreBreakdown": {
+    "toxic-flow": 20
+  },
+  "errors": []
+}
